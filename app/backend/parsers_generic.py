@@ -107,195 +107,53 @@ def extract_generic_intelligent(text: str, markdown_text: str = None) -> Dict[st
 
 
 def _extract_cliente(text: str) -> str:
-    """Estrae il nome del cliente"""
-    print(f"      Cerco cliente...")
-    sys.stdout.flush()
-    
-def _extract_cliente(text: str) -> str:
     """Estrae il nome del cliente (MITTENTE/SUPPLIER, NON LS che è il destinatario)"""
     print(f"      Cerco cliente...")
     sys.stdout.flush()
-    
+
     # PRIMA OPZIONE: Cerca header Markdown "## AZIENDA" (mittente)
     header_match = re.search(r'^#+\s+([A-Za-z0-9\s\.]+?)(?:\s+-|\n)', text, re.MULTILINE)
     if header_match:
         cliente = header_match.group(1).strip()
-        # Scarta se è vuoto o è intestazione tipo "ORDINE FORNITORE"
         if cliente and len(cliente) > 3 and 'ORDINE' not in cliente.upper():
-            print(f"      → Trovato header Markdown: '{cliente}'")
-            sys.stdout.flush()
             return cliente
-    
+
     # SECONDA OPZIONE: Cerca "Cordiali saluti CLIENTE" o "Consegna presso CLIENTE"
     cordiali_match = re.search(r'Cordiali\s+saluti\s+([A-Za-z0-9\s\.]+?)(?:\n|$)', text, re.IGNORECASE)
     if cordiali_match:
         cliente = cordiali_match.group(1).strip()
-        # Scarta LS
         if 'LS' not in cliente.upper():
-            print(f"      → Trovato con 'Cordiali saluti': '{cliente}'")
-            sys.stdout.flush()
             return cliente
-    
+
     consegna_match = re.search(r'Consegna\s+presso\s+([A-Za-z0-9\s\.]+?)(?:\n|$)', text, re.IGNORECASE)
     if consegna_match:
         cliente = consegna_match.group(1).strip()
         if 'LS' not in cliente.upper():
-            print(f"      → Trovato con 'Consegna presso': '{cliente}'")
-            sys.stdout.flush()
             return cliente
-    
+
     # TERZA OPZIONE: Cerca "Spettabile CLIENTE" ma ESCLUDE LS (che è il destinatario)
-    # Cerca la PRIMA azienda che NON è LS
     spett_match = re.search(r'Spettabile\s+([A-Za-z0-9\s\.]+?)(?:\n|$|VIA|Via|via)', text, re.IGNORECASE)
     if spett_match:
         cliente = spett_match.group(1).strip()
-        # Se è LS, scarta e continua
-        if cliente.upper().startswith('LS'):
-            print(f"      → Trovato 'Spettabile LS' (destinatario, scarto)")
-            sys.stdout.flush()
-        else:
-            print(f"      → Trovato con 'Spettabile': '{cliente}'")
-            sys.stdout.flush()
+        if not cliente.upper().startswith('LS'):
             return cliente
-    
+
     # RICERCA FINALE nei pattern di testo libero - escludendo LS
     lines = text.split('\n')
-    for line in lines[:30]:  # Cerca nei primi 30 righe
+    for line in lines[:30]:
         line_clean = line.strip()
         if line_clean and not re.match(r'^[\s#|-]*$', line_clean):
-            # Se contiene azienda (S.r.l., S.p.A, etc) e NON è LS, ritorna
             if any(x in line_clean.upper() for x in ['S.R.L', 'SRL', 'S.P.A', 'SPA', 'S.A.S', 'SAS']):
                 cleaned = line_clean.split('|')[0].split('-')[0].strip()
-                
-                # ESCLUDE LS
                 if not cleaned.upper().startswith('LS') and cleaned and len(cleaned) > 3:
-                    print(f"      [OK] Cliente estratto (testo libero): '{cleaned}'")
-                    sys.stdout.flush()
                     return cleaned
-            
-            # Skip parole chiave di intestazione
+
             if not any(x in line_clean.upper() for x in ['ORDINE', 'DATA', 'TELEFONO', 'FAX', 'NOTE', 'CONSEGNA', 'VIA', 'CIVATE', 'PAGINA', 'DESPATCH']):
                 if len(line_clean) > 5 and len(line_clean.split()) >= 2:
                     cleaned = line_clean.split('|')[0].split('-')[0].strip()
-                    
-                    # ESCLUDE LS
                     if not cleaned.upper().startswith('LS') and cleaned and len(cleaned) > 3:
-                        print(f"      [OK] Cliente estratto (testo libero): '{cleaned}'")
-                        sys.stdout.flush()
                         return cleaned
-    
-    print(f"      [ERROR] Cliente non trovato")
-    sys.stdout.flush()
-    return ""
-    
-    # SECONDA OPZIONE: Ricerca TUTTI i pattern "Spett.le QUALCOSA"
-    matches = list(re.finditer(r'Spett\.?le\s+([A-Za-z0-9\s\.,:;-]+?)(?:\n|$|[\|])', text, re.IGNORECASE))
-    
-    if matches:
-        print(f"      Trovate {len(matches)} occorrenze di 'Spett.le'")
-        sys.stdout.flush()
-        
-        # Se c'è più di un "Spett.le", il primo è LS (mittente), il secondo è il cliente vero
-        if len(matches) > 1:
-            match = matches[1]  # Prendi il SECONDO
-            print(f"      → Uso il secondo 'Spett.le' (cliente vero)")
-        else:
-            match = matches[0]
-        
-        cliente = match.group(1).strip()
-        print(f"      → Testo estratto: '{cliente}'")
-        sys.stdout.flush()
-        
-        # Pulisci il nome
-        cliente = re.sub(r'\s+', ' ', cliente)  # Rimuovi spazi multipli
-        cliente = cliente.split('|')[0].strip()  # Togli tabelle
-        cliente = cliente.rstrip(',;')  # Togli punteggiatura finale
-        
-        # Se ancora inizia con LS, rimuovilo
-        if cliente.upper().startswith('LS'):
-            cliente = re.sub(r'^LS\s*[.,;]?\s*', '', cliente, flags=re.IGNORECASE).strip()
-            print(f"      → LS rimosso: '{cliente}'")
-            sys.stdout.flush()
-        
-        if cliente:
-            print(f"      [OK] Cliente estratto: '{cliente}'")
-            sys.stdout.flush()
-            return cliente
-    
-    print(f"      [WARNING] Nessun 'Spett.le' trovato, provo alternative...")
-    sys.stdout.flush()
-    
-    # Prova senza il punto - "Spettale" o "Spett le"
-    match = re.search(r'[Ss]pett[\s\.]?le\s+([A-Za-z0-9\s\.,:;-]+?)[\n|]', text)
-    if match:
-        cliente = match.group(1).strip()
-        print(f"      → Trovato con variante 'Spett le': '{cliente}'")
-        sys.stdout.flush()
-        
-        if cliente.upper().startswith('LS'):
-            cliente = re.sub(r'^LS\s*[.,;]?\s*', '', cliente, flags=re.IGNORECASE).strip()
-        
-        if cliente:
-            print(f"      [OK] Cliente estratto (variante): '{cliente}'")
-            sys.stdout.flush()
-            return cliente
-    
-    # Alternativa: cerca "Cliente:" o "Cliente ="
-    match = re.search(r'[Cc]liente\s*:?\s*([A-Za-z0-9\s\.,:;-]+?)(?:\n|$|[\d|])', text)
-    if match:
-        cliente = match.group(1).strip()
-        print(f"      → Trovato con 'Cliente:': '{cliente}'")
-        sys.stdout.flush()
-        
-        if cliente.upper().startswith('LS'):
-            cliente = re.sub(r'^LS\s*[.,;]?\s*', '', cliente, flags=re.IGNORECASE).strip()
-        
-        if cliente:
-            print(f"      [OK] Cliente estratto (Cliente:): '{cliente}'")
-            sys.stdout.flush()
-            return cliente
-    
-    # Cerca all'inizio del documento (primi 200 caratteri) oppure dopo "Spett.le"
-    # Cercando righe che contengono aziende (terminano con s.r.l., S.p.A, etc)
-    lines = text.split('\n')
-    for line in lines[:20]:
-        line_clean = line.strip()
-        if line_clean and not re.match(r'^[\s#|-]*$', line_clean):
-            # Potrebbe essere il cliente se contiene s.r.l., s.p.a, etc.
-            if any(x in line_clean.upper() for x in ['S.R.L', 'SRL', 'S.P.A', 'SPA', 'S.A.S', 'SAS']):
-                cleaned = line_clean.split('|')[0].strip()
-                
-                # ESCLUDI LS come mittente
-                if cleaned.upper().startswith('LS'):
-                    cleaned = re.sub(r'^LS\s*[.,;]?\s*', '', cleaned, flags=re.IGNORECASE).strip()
-                
-                if cleaned and len(cleaned) > 3:
-                    print(f"      [OK] Cliente estratto (testo libero): '{cleaned}'")
-                    sys.stdout.flush()
-                    return cleaned
-            # Oppure se non contiene parole comuni di intestazione
-            if not any(x in line_clean.upper() for x in ['ORDINE', 'DATA', 'TELEFONO', 'FAX', 'NOTE', 'CONSEGNA', 'VIA', 'CIVATE']):
-                if len(line_clean) > 3 and len(line_clean.split()) > 1:  # Almeno 2 parole
-                    cleaned = line_clean.split('|')[0].strip()
-                    
-                    # ESCLUDI LS come mittente
-                    if cleaned.upper().startswith('LS'):
-                        cleaned = re.sub(r'^LS\s*[.,;]?\s*', '', cleaned, flags=re.IGNORECASE).strip()
-                    
-                    print(f"      [OK] Cliente estratto (backup): '{cleaned}'")
-                    sys.stdout.flush()
-                    return cleaned
-    
-    print(f"      [ERROR] Cliente non trovato con nessun metodo")
-    sys.stdout.flush()
-    return ""
-    
-    print(f"      [ERROR] Cliente non trovato con nessun metodo")
-    sys.stdout.flush()
-    return ""
-    
-    print(f"         → Cliente NON trovato")
-    sys.stdout.flush()
+
     return ""
 
 

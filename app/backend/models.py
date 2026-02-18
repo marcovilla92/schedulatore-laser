@@ -34,13 +34,13 @@ class Order(Base):
     data_ricezione = Column(DateTime, default=datetime.utcnow, nullable=False)
     data_consegna = Column(DateTime, nullable=False)
     status = Column(String, default=OrderStatus.RICEVUTO.value)
-    required_phases = Column(JSON, default=['LASER', 'PIEGA', 'SALDATURA'])
+    required_phases = Column(JSON, default=lambda: ['LASER', 'PIEGA', 'SALDATURA'])
     preventivo_minuti = Column(Integer, default=0)
     total_quantity = Column(Integer, default=0)
     
     # ✅ NUOVO: Articoli con fasi richieste
     # Formato: [{"name": "Staffa A", "code": "SA-001", "qty": 50, "required_phases": ["LASER", "PIEGA", "SALDATURA"]}, ...]
-    articles = Column(JSON, default=[])
+    articles = Column(JSON, default=list)
     
     note = Column(Text)
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
@@ -68,7 +68,7 @@ class ProcessingStep(Base):
     operatore = Column(String, nullable=True)
     note = Column(Text, nullable=True)
     # ✅ NUOVO: Traccia articoli completati per questa fase (lista di indici)
-    completed_articles = Column(JSON, default=[])  # Es: [0, 1, 3] = articoli con indice 0, 1, 3 completati
+    completed_articles = Column(JSON, default=list)  # Es: [0, 1, 3] = articoli con indice 0, 1, 3 completati
     order = relationship('Order', back_populates='processing_steps')
 
 class OrderNotification(Base):

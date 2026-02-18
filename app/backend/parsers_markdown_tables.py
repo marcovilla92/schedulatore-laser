@@ -221,18 +221,22 @@ def _parse_article_row(cells: List[str], col_indices: Dict[str, int]) -> Optiona
     
     # Validate quantity is numeric (may contain . or , as decimal)
     qty_str = qty.replace(',', '.').replace(' ', '')
-    if not re.match(r'^\d+([.,]\d+)?$', qty_str):
+    if not re.match(r'^\d+(\.\d+)?$', qty_str):
         return None
-    
+
+    qty_num = float(qty_str)
+    if qty_num == int(qty_num):
+        qty_num = int(qty_num)
+
     # Validate code format (alphanumeric, hyphens, special chars allowed)
     # Must have at least some content that looks like a code
     if not re.search(r'[A-Z0-9]', code):
         return None
-    
+
     return {
         'code': code,
         'name': name,
-        'qty': qty
+        'qty': qty_num
     }
 
 

@@ -189,64 +189,6 @@ def extract_articoli_oafa(text: str, filepath: str = None, markdown_text: str = 
     print(f"      [WARNING] Nessun articolo estratto")
     sys.stdout.flush()
     return articoli
-    for article_idx, (start_line, codice) in enumerate(codici_trovati):
-        # Determina dove finisce questo articolo (prossimo codice o fine)
-        if article_idx + 1 < len(codici_trovati):
-            end_line = codici_trovati[article_idx + 1][0]
-        else:
-            end_line = len(lines)
-        
-        # Estrai linee di questo articolo
-        articolo_lines = lines[start_line:end_line]
-        
-        # Cerca QUANTITA (pattern: "X,XX" o "X.XX" su linea sola)
-        qty = None
-        qty_line_idx = None
-        
-        for j, line in enumerate(articolo_lines):
-            qty_match = re.match(r'^(\d+[.,]\d+)$', line.strip())
-            if qty_match:
-                qty = float(qty_match.group(1).replace(',', '.'))
-                qty_line_idx = j
-                break
-        
-        if qty is None:
-            print(f"         [WARNING] Articolo {codice}: Quantità non trovata")
-            sys.stdout.flush()
-            continue
-        
-        # Descrizione: tra riga 1 (skip commessa) e qty
-        # Riga 0 = codice
-        # Riga 1 = commessa (skip)
-        # Righe 2 a qty_line_idx-1 = descrizione
-        
-        desc_lines = []
-        for j in range(2, qty_line_idx):
-            line_text = articolo_lines[j].strip()
-            if line_text and '|' not in line_text:
-                desc_lines.append(line_text)
-        
-        descrizione = ' '.join(desc_lines)[:200]
-        
-        # Validazione
-        if not descrizione or len(descrizione) < 3:
-            print(f"         [WARNING] Articolo {codice}: Descrizione vuota")
-            sys.stdout.flush()
-            continue
-        
-        articoli.append({
-            'code': codice,
-            'name': descrizione,
-            'qty': int(qty) if qty == int(qty) else qty,
-        })
-        
-        print(f"         [OK] Articolo {article_idx+1}: {codice} | {descrizione[:50]}... | Qty: {qty}")
-        sys.stdout.flush()
-    
-    print(f"         🎯 TOTALE ARTICOLI ESTRATTI: {len(articoli)}")
-    sys.stdout.flush()
-    
-    return articoli
 
 def normalize_date(date_str: str) -> str:
     """Normalizza la data nel formato ISO"""

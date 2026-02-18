@@ -131,8 +131,6 @@ def extract_articoli_aza(text: str, markdown_text: str = None) -> list:
                     })
         except (ValueError, IndexError):
             pass
-        except (ValueError, IndexError):
-            pass
     
     if articoli:
         print(f"      OK Pattern matching found {len(articoli)} articles")

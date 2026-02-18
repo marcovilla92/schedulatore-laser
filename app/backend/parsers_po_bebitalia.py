@@ -141,5 +141,3 @@ def extract_articoli_bebitalia(text: str, markdown_text: str = None) -> list:
         sys.stdout.flush()
     
     return articoli
-    
-    return articoli

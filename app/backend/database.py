@@ -1,7 +1,8 @@
 """CRUD operations for Order management"""
 from datetime import datetime
+from sqlalchemy.orm.attributes import flag_modified
 from .models import (
-    Order, OrderFile, ProcessingStep, OrderNotification, 
+    Order, OrderFile, ProcessingStep, OrderNotification,
     OrderStatus, ProcessingPhase, get_session
 )
 import uuid
@@ -253,15 +254,14 @@ class OrderManager:
             if not order:
                 return {"success": False, "error": "Ordine non trovato"}
             
-            # Inizializza completed_articles se None
-            if not processing_step.completed_articles:
-                processing_step.completed_articles = []
-            
-            # Aggiungi i nuovi articoli (evita duplicati)
+            # Crea nuova lista per forzare il change-tracking di SQLAlchemy JSON
+            current = list(processing_step.completed_articles or [])
             for idx in article_indices:
-                if idx not in processing_step.completed_articles:
-                    processing_step.completed_articles.append(idx)
-            
+                if idx not in current:
+                    current.append(idx)
+            processing_step.completed_articles = current
+            flag_modified(processing_step, 'completed_articles')
+
             # Controlla se TUTTI gli articoli sono stati completati per questa fase
             all_articles_completed = len(processing_step.completed_articles) == len(order.articles)
             
@@ -388,8 +388,8 @@ class OrderManager:
                 session.commit()
                 return True
             return False
-        except:
+        except Exception as e:
             session.rollback()
-            return False
+            raise e
         finally:
             session.close()

@@ -12,6 +12,7 @@ from .database import OrderManager
 from .pdf_parser import extract_pdf_content
 
 app = Flask(__name__, static_folder=None)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
 CORS(app)
 
 # Configurazioni
@@ -121,7 +122,7 @@ def start_phase(order_id, phase):
         success = OrderManager.start_phase(order_id, phase, operatore)
         if success:
             return jsonify({'success': True, 'phase': phase}), 200
-        return jsonify({'success': False, 'error': 'Fase non trovata'}), 404
+        return jsonify({'success': False, 'error': 'Fase non trovata o già iniziata'}), 404
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -158,6 +159,9 @@ def complete_phase_partial(order_id, phase):
         
         if not article_indices:
             return jsonify({'success': False, 'error': 'Nessun articolo selezionato'}), 400
+
+        if not all(isinstance(i, int) and i >= 0 for i in article_indices):
+            return jsonify({'success': False, 'error': 'Indici articoli non validi'}), 400
         
         result = OrderManager.complete_phase_partial(order_id, phase, article_indices, note)
         if result.get('success'):
@@ -277,11 +281,10 @@ def upload_drawing():
         filename = f"{order_id}_{file.filename}"
         filepath = os.path.join(DRAWINGS_FOLDER, filename)
         file.save(filepath)
-        
+
         return jsonify({
             'success': True,
-            'filename': filename,
-            'filepath': filepath
+            'filename': filename
         }), 200
         
     except Exception as e:
@@ -300,7 +303,9 @@ def health_check():
 def process_pdfs():
     """Processa tutti i PDFs dalla cartella ORDINI ed estrae dati"""
     try:
-        ordini_folder = request.json.get('folder_path', 'C:/Users/39334/Documents/ORDINI')
+        ordini_folder = request.json.get('folder_path', '')
+        if not ordini_folder:
+            return jsonify({'error': 'Parametro folder_path obbligatorio'}), 400
         
         if not os.path.exists(ordini_folder):
             return jsonify({'error': f'Cartella non trovata: {ordini_folder}'}), 400
@@ -373,17 +378,6 @@ def get_extracted_orders():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
-
-# ============ HOME ============
-
-@app.route('/', methods=['GET'])
-def home():
-    """Home pagina"""
-    return jsonify({
-        'app': 'Schedulatore Laser',
-        'version': '2.0',
-        'status': 'ready'
-    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
