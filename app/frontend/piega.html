@@ -4,168 +4,357 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stazione Piega - Schedulatore Laser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #111827;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --bg-input: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 165, 2, 0.3);
+            --text-primary: #e6e6e6;
+            --text-secondary: #6b7b8d;
+            --text-muted: #4a5568;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00e676;
+            --accent-red: #ff4757;
+            --accent-amber: #ffa502;
+            --accent-orange: #ff6348;
+            --accent-purple: #a855f7;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Navbar */
+        /* Ambient background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(255, 165, 2, 0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(255, 165, 2, 0.02) 0%, transparent 50%);
+            animation: ambientFloat 25s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes ambientFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+
+        /* ===== NAVBAR ===== */
         nav {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            gap: 40px;
+            padding: 0 24px;
+            gap: 6px;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        nav h1 {
-            color: #27ae60;
-            font-size: 20px;
-            font-weight: 600;
+        .nav-logo {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 32px;
             white-space: nowrap;
         }
 
         nav a {
-            color: #ecf0f1;
+            color: var(--text-secondary);
             text-decoration: none;
             padding: 8px 16px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            font-size: 13px;
+            font-weight: 500;
             white-space: nowrap;
+            position: relative;
         }
 
         nav a:hover {
-            background-color: rgba(39, 174, 96, 0.2);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         nav a.active {
-            background-color: #27ae60;
-            color: white;
+            color: var(--accent-amber);
+            background: rgba(255, 165, 2, 0.1);
             font-weight: 600;
+            box-shadow: 0 0 20px rgba(255, 165, 2, 0.1);
         }
 
-        /* Main Content */
+        /* ===== MAIN ===== */
         main {
-            margin-top: 90px;
-            padding: 30px;
+            position: relative;
+            z-index: 1;
+            margin-top: 88px;
+            padding: 0 24px 60px;
             max-width: 1200px;
             margin-left: auto;
             margin-right: auto;
         }
 
-        .header {
-            background: white;
-            padding: 20px 30px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #f39c12;
+        /* ===== PAGE HEADER ===== */
+        .page-header {
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease both;
         }
 
-        .header h2 {
-            color: #2c3e50;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .page-header h2 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-amber), #cc8400);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
         }
 
-        .header p {
-            color: #7f8c8d;
+        .page-header p {
+            color: var(--text-secondary);
             font-size: 14px;
-            margin-top: 5px;
         }
 
-        /* Orders Grid */
+        /* ===== MESSAGES ===== */
+        .message {
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+            font-weight: 500;
+            animation: fadeInUp 0.3s ease both;
+            backdrop-filter: blur(10px);
+        }
+
+        .message.success {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+            display: block;
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            display: block;
+        }
+
+        .message.info {
+            background: rgba(255, 165, 2, 0.1);
+            color: var(--accent-amber);
+            border: 1px solid rgba(255, 165, 2, 0.2);
+            display: block;
+        }
+
+        /* ===== SUMMARY STATS ===== */
+        .summary-box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.1s;
+        }
+
+        .summary-item {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-amber), transparent);
+            opacity: 0.5;
+        }
+
+        .summary-item:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 165, 2, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(255, 165, 2, 0.08);
+        }
+
+        .summary-number {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent-amber);
+            line-height: 1;
+            margin-bottom: 8px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .summary-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        /* ===== ORDERS GRID ===== */
         .orders-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
             gap: 20px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.2s;
         }
 
+        /* ===== ORDER CARD ===== */
         .order-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            border-top: 4px solid #f39c12;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-top: 2px solid rgba(255, 165, 2, 0.5);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .order-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(180deg, rgba(255, 165, 2, 0.04) 0%, transparent 100%);
+            pointer-events: none;
         }
 
         .order-card:hover {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-            transform: translateY(-2px);
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 165, 2, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(255, 165, 2, 0.08), 0 0 20px rgba(255, 165, 2, 0.04);
         }
 
         .order-header {
             display: flex;
             justify-content: space-between;
-            align-items: start;
+            align-items: flex-start;
             margin-bottom: 12px;
+            position: relative;
         }
 
         .order-card h3 {
-            color: #2c3e50;
             font-size: 16px;
-            margin: 0;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .order-card h3::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: var(--accent-amber);
+            border-radius: 2px;
+            box-shadow: 0 0 8px var(--accent-amber);
+            flex-shrink: 0;
         }
 
         .order-id {
-            font-size: 11px;
-            color: #95a5a6;
-            background: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 3px;
+            font-size: 10px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-weight: 500;
+            border: 1px solid var(--border-glass);
         }
 
         .order-info {
             font-size: 13px;
-            color: #7f8c8d;
+            color: var(--text-secondary);
             margin-bottom: 8px;
+            padding-left: 11px;
         }
 
         .info-strong {
-            color: #2c3e50;
+            color: var(--text-primary);
             font-weight: 600;
         }
 
-        /* Articles for Phase */
+        /* ===== ARTICLES SECTION ===== */
         .articles-section {
-            margin: 15px 0;
-            padding: 12px;
-            background: #fffbf0;
-            border-radius: 4px;
+            margin: 16px 0;
+            padding: 14px;
+            background: rgba(255, 165, 2, 0.04);
+            border: 1px solid rgba(255, 165, 2, 0.1);
+            border-radius: var(--radius-md);
         }
 
         .articles-section h4 {
-            color: #d68910;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 8px;
+            color: var(--accent-amber);
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 10px;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .article-item {
             font-size: 13px;
-            color: #2c3e50;
-            padding: 6px 0;
-            border-bottom: 1px solid #f5e6d3;
+            color: var(--text-primary);
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .article-item:last-child {
@@ -174,191 +363,461 @@
 
         .article-name {
             font-weight: 600;
-            color: #2c3e50;
+            color: var(--text-primary);
         }
 
         .article-qty {
             font-size: 12px;
-            color: #7f8c8d;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
         }
 
-        /* Action Buttons */
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 15px;
-        }
-
-        .btn-start {
-            flex: 1;
-            background: #f39c12;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-
-        .btn-start:hover {
-            background: #e67e22;
-        }
-
-        .btn-complete {
-            flex: 1;
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-
-        .btn-complete:hover {
-            background: #229954;
-        }
-
-        .btn-complete:disabled {
-            background: #95a5a6;
-            cursor: not-allowed;
-        }
-
-        /* Status Badge */
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
-        .status-ready {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        /* Timer */
+        /* ===== TIMER DISPLAY ===== */
         .timer-display {
             display: none;
-            background: #f39c12;
-            color: white;
-            padding: 15px;
-            border-radius: 4px;
+            background: rgba(255, 165, 2, 0.1);
+            border: 1px solid rgba(255, 165, 2, 0.3);
+            color: #ffa502;
+            padding: 16px;
+            border-radius: 12px;
             margin: 12px 0;
             text-align: center;
-            font-size: 32px;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+            font-size: 36px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            letter-spacing: 4px;
         }
 
         .timer-display.active {
             display: block;
-            animation: pulse 0.5s ease-in-out;
+            animation: glowPulse 2s ease-in-out infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 165, 2, 0.15); }
+            50% { box-shadow: 0 0 40px rgba(255, 165, 2, 0.3); }
         }
 
         .timer-label {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.8);
-            margin-top: 5px;
+            font-size: 10px;
+            color: rgba(255, 165, 2, 0.7);
+            margin-top: 6px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
         }
 
-        /* Empty State */
+        /* ===== STATUS BADGE ===== */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .status-ready {
+            background: rgba(255, 165, 2, 0.1);
+            color: var(--accent-amber);
+            border: 1px solid rgba(255, 165, 2, 0.2);
+        }
+
+        .status-ready::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-amber);
+            box-shadow: 0 0 6px var(--accent-amber);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ===== ACTION BUTTONS ===== */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn-start {
+            flex: 1;
+            background: linear-gradient(135deg, var(--accent-amber), #cc8400);
+            color: #000;
+            border: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-start:hover {
+            box-shadow: 0 0 30px rgba(255, 165, 2, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-start:active {
+            transform: translateY(0);
+        }
+
+        .btn-start:disabled {
+            background: var(--text-muted);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-complete {
+            flex: 1;
+            background: linear-gradient(135deg, var(--accent-green), #00b862);
+            color: #000;
+            border: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-complete:hover {
+            box-shadow: 0 0 30px rgba(0, 230, 118, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-complete:active {
+            transform: translateY(0);
+        }
+
+        .btn-complete:disabled {
+            background: var(--text-muted);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* ===== EMPTY STATE ===== */
         .empty-state {
             grid-column: 1 / -1;
             text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 8px;
-            color: #7f8c8d;
+            padding: 80px 24px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
         }
 
         .empty-state-icon {
             font-size: 48px;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
+            opacity: 0.6;
         }
 
         .empty-state h3 {
-            color: #2c3e50;
-            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
         }
 
-        /* Messages */
-        .message {
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+        .empty-state p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
             display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: modalFadeIn 0.3s ease both;
         }
 
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            display: block;
+        .modal-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            display: block;
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        /* Summary Box */
-        .summary-box {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
+        .modal-content {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 165, 2, 0.05);
+            animation: modalSlideUp 0.3s ease both;
+        }
+
+        @keyframes modalSlideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-content h2 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, var(--accent-amber), #cc8400);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .modal-content > p {
+            color: var(--text-secondary);
+            font-size: 13px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+        }
+
+        .modal-articles {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-bottom: 24px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .modal-article-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: var(--transition);
+        }
+
+        .modal-article-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-article-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-article-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-amber);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .modal-article-item label {
+            flex: 1;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-article-item label strong {
+            font-weight: 700;
+        }
+
+        .modal-article-item .qty-badge {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+
+        .modal-article-item .completed-badge {
+            font-size: 11px;
+            color: var(--accent-green);
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            transition: var(--transition);
+            letter-spacing: 0.3px;
+        }
+
+        .modal-btn-cancel {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+        }
+
+        .modal-btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, var(--accent-green), #00b862);
+            color: #000;
+        }
+
+        .modal-btn-confirm:hover {
+            box-shadow: 0 0 25px rgba(0, 230, 118, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .modal-btn-all {
+            background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
+            color: #000;
+        }
+
+        .modal-btn-all:hover {
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: none;
             text-align: center;
+            padding: 24px;
         }
 
-        .summary-item {
-            border-right: 1px solid #eee;
-            padding-right: 15px;
+        .loading.show { display: block; }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.05);
+            border-top: 3px solid var(--accent-amber);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+            box-shadow: 0 0 15px rgba(255, 165, 2, 0.2);
         }
 
-        .summary-item:last-child {
-            border-right: none;
+        .loading p {
+            color: var(--text-secondary);
+            font-size: 13px;
         }
 
-        .summary-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: #f39c12;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        .summary-label {
-            font-size: 12px;
-            color: #7f8c8d;
-            margin-top: 5px;
-            text-transform: uppercase;
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .count-animate {
+            animation: countUp 0.4s ease both;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            nav { padding: 0 16px; gap: 4px; }
+            nav a { padding: 6px 10px; font-size: 12px; }
+            .nav-logo { font-size: 15px; margin-right: 16px; }
+            main { padding: 0 16px 40px; }
+            .summary-box { grid-template-columns: 1fr; }
+            .orders-grid { grid-template-columns: 1fr; }
+            .action-buttons { flex-direction: column; }
+            .modal-content { padding: 24px; margin: 16px; }
+            .modal-buttons { flex-direction: column; }
+            .page-header h2 { font-size: 22px; }
+            .summary-number { font-size: 28px; }
+        }
+
+        @media (max-width: 480px) {
+            nav { padding: 0 12px; gap: 2px; overflow-x: auto; }
+            nav a { padding: 6px 8px; font-size: 11px; }
+            .nav-logo { font-size: 14px; margin-right: 12px; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
     <!-- Navbar -->
     <nav>
-        <h1>🕐 Schedulatore Laser</h1>
+        <div class="nav-logo">Schedulatore Laser</div>
         <a href="welcome.html">Caricamento</a>
+        <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html" class="active">Piega</a>
@@ -367,8 +826,8 @@
     </nav>
 
     <main>
-        <div class="header">
-            <h2>🟡 Stazione PIEGA</h2>
+        <div class="page-header">
+            <h2>Stazione PIEGA</h2>
             <p>Articoli in attesa di lavorazione in piega</p>
         </div>
 
@@ -393,24 +852,24 @@
     </main>
 
     <!-- MODALE COMPLETAMENTO PARZIALE -->
-    <div id="partialCompleteModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="background-color: white; margin: 5% auto; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-            <h2 style="margin-bottom: 20px; color: #2c3e50;">✅ Completa Fase PIEGA</h2>
-            <p style="color: #7f8c8d; margin-bottom: 20px;">Seleziona gli articoli completati per questa fase:</p>
-            
-            <div id="articlesCheckboxes" style="background: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
+    <div id="partialCompleteModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Completa Fase PIEGA</h2>
+            <p>Seleziona gli articoli completati per questa fase:</p>
+
+            <div id="articlesCheckboxes" class="modal-articles">
                 <!-- Checkbox articoli generati dinamicamente -->
             </div>
 
-            <div style="display: flex; gap: 10px;">
-                <button onclick="closePartialModal()" style="flex: 1; background: #95a5a6; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+            <div class="modal-buttons">
+                <button onclick="closePartialModal()" class="modal-btn modal-btn-cancel">
                     Annulla
                 </button>
-                <button onclick="submitPartialComplete()" style="flex: 1; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">
-                    ✅ Completa Selezionati
+                <button onclick="submitPartialComplete()" class="modal-btn modal-btn-confirm">
+                    Completa Selezionati
                 </button>
-                <button onclick="completeAllPartialModal()" style="flex: 1; background: #3498db; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;" title="Completa tutti gli articoli per questa fase">
-                    🔄 Completa Tutti
+                <button onclick="completeAllPartialModal()" class="modal-btn modal-btn-all" title="Completa tutti gli articoli per questa fase">
+                    Completa Tutti
                 </button>
             </div>
         </div>
@@ -451,7 +910,7 @@
             if (orders.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">✅</div>
+                        <div class="empty-state-icon">&#10003;</div>
                         <h3>Nessun Lavoro</h3>
                         <p>Non ci sono articoli in attesa per questa fase</p>
                     </div>
@@ -459,26 +918,25 @@
                 return;
             }
 
-            container.innerHTML = orders.map(order => {
+            container.innerHTML = orders.map((order, index) => {
                 const articlesHtml = (order.articles_next_phase || []).map(article => `
                     <div class="article-item">
-                        <div class="article-name">${article.name}</div>
-                        <div class="article-qty">${article.code ? article.code + ' - ' : ''}${article.qty} pz</div>
+                        <span class="article-name">${article.name}</span>
+                        <span class="article-qty">${article.code ? article.code + ' - ' : ''}${article.qty} pz</span>
                     </div>
                 `).join('');
 
                 const totalArticles = order.articles_next_phase ? order.articles_next_phase.length : 0;
                 const totalPieces = order.articles_next_phase ? order.articles_next_phase.reduce((sum, a) => sum + a.qty, 0) : 0;
-                
+
                 // Controlla se questo ordine ha un timer attivo
                 const isActive = activePhases[order.id];
-                const timerDisplay = isActive ? 'display: block;' : 'display: none;';
                 const timerValue = isActive ? `<div id="timer-value-${order.id}">${isActive.displayTime}</div>` : `<div id="timer-value-${order.id}">00:00</div>`;
                 const startBtnDisabled = isActive ? 'disabled' : '';
                 const completeBtnDisabled = isActive ? '' : 'disabled';
 
                 return `
-                    <div class="order-card">
+                    <div class="order-card" style="animation: fadeInUp 0.5s ease both; animation-delay: ${index * 0.08}s;">
                         <div class="order-header">
                             <h3>${order.cliente}</h3>
                             <div class="order-id">${order.id.substring(0, 8)}</div>
@@ -489,29 +947,29 @@
                         </div>
 
                         <div class="articles-section">
-                            <h4>📦 ${totalArticles} Articol${totalArticles !== 1 ? 'i' : 'o'} (${totalPieces} pz)</h4>
+                            <h4>${totalArticles} Articol${totalArticles !== 1 ? 'i' : 'o'} (${totalPieces} pz)</h4>
                             ${articlesHtml}
                         </div>
 
-                        <div class="timer-display ${isActive ? 'active' : ''}" id="timer-${order.id}" style="${timerDisplay}">
+                        <div class="timer-display ${isActive ? 'active' : ''}" id="timer-${order.id}">
                             ${timerValue}
-                            <div class="timer-label">⏱️ Tempo Lavorazione</div>
+                            <div class="timer-label">Tempo Lavorazione</div>
                         </div>
 
-                        <span class="status-badge status-ready">⏳ Pronto per PIEGA</span>
+                        <span class="status-badge status-ready">Pronto per PIEGA</span>
 
                         <div class="action-buttons">
                             <button class="btn-start" id="btn-start-${order.id}" onclick="startPhase('${order.id}')" ${startBtnDisabled}>
-                                ▶️ Inizia
+                                Inizia
                             </button>
                             <button class="btn-complete" id="btn-complete-${order.id}" onclick="openPartialCompleteModal('${order.id}')" ${completeBtnDisabled}>
-                                ✅ Completa
+                                Completa
                             </button>
                         </div>
                     </div>
                 `;
             }).join('');
-            
+
             // Ripristina i timer per gli ordini attivi
             Object.keys(activePhases).forEach(orderId => {
                 const active = activePhases[orderId];
@@ -530,23 +988,23 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showMessage(`✅ Fase ${PHASE} iniziata`, 'success');
-                    
+                    showMessage(`Fase ${PHASE} iniziata`, 'success');
+
                     // Salva lo stato di questo ordine come attivo
                     activePhases[orderId] = {
                         startTime: Date.now(),
                         displayTime: '00:00'
                     };
-                    
+
                     // Avvia il cronometro
                     startTimer(orderId);
-                    
+
                     // Disabilita il pulsante start e abilita il complete
                     const btnStart = document.getElementById(`btn-start-${orderId}`);
                     const btnComplete = document.getElementById(`btn-complete-${orderId}`);
                     if (btnStart) btnStart.disabled = true;
                     if (btnComplete) btnComplete.disabled = false;
-                    
+
                     // Mostra il timer
                     const timerDisplay = document.getElementById(`timer-${orderId}`);
                     if (timerDisplay) timerDisplay.classList.add('active');
@@ -575,7 +1033,7 @@
                 const secs = seconds % 60;
                 const display = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
                 if (timerValue) timerValue.textContent = display;
-                
+
                 // Aggiorna lo stato per il restore dopo reload
                 if (activePhases[orderId]) {
                     activePhases[orderId].displayTime = display;
@@ -599,7 +1057,7 @@
                 const secs = elapsed % 60;
                 const display = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
                 timerValue.textContent = display;
-                
+
                 if (activePhases[orderId]) {
                     activePhases[orderId].displayTime = display;
                 }
@@ -631,28 +1089,28 @@
                     const isCompleted = article.completed_phases && article.completed_phases.includes(PHASE);
                     const disabled = isCompleted ? 'disabled' : '';
                     const checkedAttr = isCompleted ? 'checked' : '';
-                    
+
                     return `
-                        <div style="padding: 10px; margin-bottom: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0; display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled} style="width: 18px; height: 18px; cursor: pointer;">
-                            <label for="article_${idx}" style="flex: 1; cursor: pointer; color: #2c3e50; font-weight: ${isCompleted ? 'bold' : '500'};">
-                                <strong>${article.name}</strong> 
-                                <span style="color: #7f8c8d; font-size: 12px;">(${article.qty} pz)</span>
-                                ${isCompleted ? '<span style="color: #27ae60; margin-left: 10px;">✅ Completato</span>' : ''}
+                        <div class="modal-article-item">
+                            <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled}>
+                            <label for="article_${idx}">
+                                <strong>${article.name}</strong>
+                                <span class="qty-badge">${article.qty} pz</span>
+                                ${isCompleted ? '<span class="completed-badge">Completato</span>' : ''}
                             </label>
                         </div>
                     `;
                 }).join('');
 
                 // Mostra modale
-                document.getElementById('partialCompleteModal').style.display = 'block';
+                document.getElementById('partialCompleteModal').classList.add('show');
             } catch (error) {
                 showMessage('Errore: ' + error.message, 'error');
             }
         }
 
         function closePartialModal() {
-            document.getElementById('partialCompleteModal').style.display = 'none';
+            document.getElementById('partialCompleteModal').classList.remove('show');
             currentOrderForCompletion = null;
             currentOrderArticles = [];
         }
@@ -678,7 +1136,7 @@
                 const response = await fetch(`${API_URL}/orders/${currentOrderForCompletion}/phase/${PHASE}/complete-partial`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         article_indices: selectedIndices,
                         note: ''
                     })
@@ -687,9 +1145,9 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    const msg = data.phase_complete 
-                        ? `✅ Fase ${PHASE} completata!` 
-                        : `✅ ${selectedIndices.length} articolo/i completato/i`;
+                    const msg = data.phase_complete
+                        ? `Fase ${PHASE} completata!`
+                        : `${selectedIndices.length} articolo/i completato/i`;
                     showMessage(msg, 'success');
                     closePartialModal();
                     await loadOrders();
@@ -716,6 +1174,32 @@
             await submitPartialComplete();
         }
 
+        function animateCountUp(element, target) {
+            const duration = 600;
+            const start = parseInt(element.textContent) || 0;
+            if (start === target) return;
+
+            element.classList.add('count-animate');
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(start + (target - start) * eased);
+                element.textContent = current;
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = target;
+                    setTimeout(() => element.classList.remove('count-animate'), 100);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
         function updateSummary(orders) {
             const totalOrders = orders.length;
             let totalArticles = 0;
@@ -727,9 +1211,9 @@
                 totalPieces += articlesForPhase.reduce((sum, a) => sum + a.qty, 0);
             });
 
-            document.getElementById('countOrders').textContent = totalOrders;
-            document.getElementById('countArticles').textContent = totalArticles;
-            document.getElementById('countPieces').textContent = totalPieces;
+            animateCountUp(document.getElementById('countOrders'), totalOrders);
+            animateCountUp(document.getElementById('countArticles'), totalArticles);
+            animateCountUp(document.getElementById('countPieces'), totalPieces);
         }
 
         function showMessage(msg, type) {
@@ -741,6 +1225,20 @@
                 msgBox.className = 'message';
             }, 5000);
         }
+
+        // Close modal on overlay click
+        document.getElementById('partialCompleteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePartialModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closePartialModal();
+            }
+        });
     </script>
 </body>
 </html>

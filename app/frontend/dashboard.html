@@ -4,602 +4,668 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Schedulatore Laser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #111827;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --bg-input: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(0, 212, 255, 0.3);
+            --text-primary: #e6e6e6;
+            --text-secondary: #6b7b8d;
+            --text-muted: #4a5568;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00e676;
+            --accent-red: #ff4757;
+            --accent-amber: #ffa502;
+            --accent-orange: #ff6348;
+            --accent-purple: #a855f7;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Navbar */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(0, 230, 118, 0.02) 0%, transparent 50%);
+            animation: ambientFloat 25s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes ambientFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+
+        /* ===== NAVBAR ===== */
         nav {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            gap: 40px;
+            padding: 0 24px;
+            gap: 6px;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        nav h1 {
-            color: #27ae60;
-            font-size: 20px;
-            font-weight: 600;
+        .nav-logo {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 32px;
             white-space: nowrap;
         }
 
         nav a {
-            color: #ecf0f1;
+            color: var(--text-secondary);
             text-decoration: none;
             padding: 8px 16px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            font-size: 13px;
+            font-weight: 500;
             white-space: nowrap;
         }
 
         nav a:hover {
-            background-color: rgba(39, 174, 96, 0.2);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         nav a.active {
-            background-color: #27ae60;
-            color: white;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
             font-weight: 600;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
         }
 
-        /* Main Content */
+        /* ===== MAIN ===== */
         main {
-            margin-top: 90px;
-            padding: 30px;
-            max-width: 1200px;
+            position: relative;
+            z-index: 1;
+            margin-top: 88px;
+            padding: 0 24px 60px;
+            max-width: 1300px;
             margin-left: auto;
             margin-right: auto;
         }
 
-        .header {
-            background: white;
-            padding: 20px 30px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .header h2 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 15px;
-            align-items: end;
-        }
-
-        .filter-group .form-group {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .filter-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #2c3e50;
-            font-weight: 500;
-            font-size: 14px;
-        }
-
-        .filter-group input,
-        .filter-group select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #27ae60;
-            box-shadow: 0 0 5px rgba(39, 174, 96, 0.3);
-        }
-
-        .btn-filter {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-
-        .btn-filter:hover {
-            background: #229954;
-        }
-
-        /* Calendar */
-        .calendar-container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .calendar-weekdays {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .weekday {
-            text-align: center;
-            font-weight: 600;
-            color: #2c3e50;
-            padding: 10px;
-            background: #ecf0f1;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .calendar-days {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
-        }
-
-        .calendar-day {
-            min-height: 120px;
-            border: 2px solid #ecf0f1;
-            border-radius: 8px;
-            padding: 8px;
-            background: #fafafa;
-            transition: all 0.3s ease;
-        }
-
-        .calendar-day:hover {
-            border-color: #27ae60;
-            background: #f0fdf4;
-        }
-
-        .calendar-day.other-month {
-            background: #f5f5f5;
-            opacity: 0.5;
-        }
-
-        .calendar-day.today {
-            border-color: #27ae60;
-            background: #f0fdf4;
-            font-weight: 600;
-        }
-
-        .calendar-day-number {
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #ecf0f1;
-        }
-
-        .calendar-day.other-month .calendar-day-number {
-            color: #95a5a6;
-        }
-
-        .calendar-day.today .calendar-day-number {
-            color: #27ae60;
-        }
-
-        .day-orders {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            max-height: 80px;
-            overflow-y: auto;
-        }
-
-        .day-order-card {
-            background: white;
-            padding: 4px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            cursor: pointer;
-            border-left: 3px solid #27ae60;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: all 0.2s ease;
-        }
-
-        .day-order-card:hover {
-            background: #ecf0f1;
-            font-weight: 600;
-        }
-
-        .day-order-card.ricevuto {
-            border-left-color: #3498db;
-        }
-
-        .day-order-card.spedito {
-            border-left-color: #27ae60;
-            background: #f0fdf4;
-        }
-
-        /* Orders Grid - Hidden by default */
-        .orders-grid {
-            display: none;
-        }
-
-        .order-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-left: 4px solid #27ae60;
-        }
-
-        .order-card:hover {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-            transform: translateY(-2px);
-        }
-
-        .order-card h3 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-
-        .order-info {
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .order-status {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
-        .status-ricevuto {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .status-in-progress {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-spedito {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .articles-summary {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #eee;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .articles-summary strong {
-            color: #2c3e50;
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal.show {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 30px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .modal-header {
+        /* ===== PAGE HEADER ===== */
+        .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #27ae60;
-            padding-bottom: 15px;
+            margin-bottom: 28px;
+            animation: fadeInUp 0.6s ease both;
         }
 
-        .modal-header h2 {
-            margin: 0;
-            color: #2c3e50;
-        }
-
-        .close-modal {
-            color: #aaa;
+        .page-header-text h2 {
             font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            background: none;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .close-modal:hover {
-            color: #e74c3c;
-        }
-
-        /* Modal Sections */
-        .modal-section {
-            margin-bottom: 25px;
-            padding: 15px;
-            background: #f9f9f9;
-            border-left: 4px solid #27ae60;
-            border-radius: 4px;
-        }
-
-        .modal-section h3 {
-            color: #2c3e50;
-            margin-bottom: 12px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        /* Order Info */
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            font-size: 13px;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .info-label {
-            color: #7f8c8d;
-            font-weight: 500;
-        }
-
-        .info-value {
-            color: #2c3e50;
-            font-weight: 600;
-        }
-
-        /* Articles Table */
-        .articles-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            margin-top: 10px;
-        }
-
-        .articles-table thead {
-            background: #34495e;
-            color: white;
-        }
-
-        .articles-table th {
-            padding: 10px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        .articles-table td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .articles-table tbody tr:hover {
-            background: #f9f9f9;
-        }
-
-        .phase-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-right: 4px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 4px;
         }
 
-        .phase-completed {
-            background: #d4edda;
-            color: #155724;
+        .page-header-text p {
+            color: var(--text-secondary);
+            font-size: 14px;
         }
 
-        .phase-pending {
-            background: #f8f9fa;
-            color: #666;
-        }
-
-        .phase-next {
-            background: #fff3cd;
-            color: #856404;
-            font-weight: 700;
-        }
-
-        /* Processing Timeline */
-        .timeline {
-            margin-top: 15px;
-        }
-
-        .timeline-step {
+        /* ===== CALENDAR CONTROLS ===== */
+        .calendar-controls {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
-            padding: 10px;
-            border-left: 3px solid #ddd;
-            padding-left: 15px;
-            background: #f9f9f9;
-            border-radius: 2px;
+            gap: 16px;
         }
 
-        .timeline-step.completed {
-            border-left-color: #27ae60;
-            background: #f0fdf4;
-        }
-
-        .timeline-step.in-progress {
-            border-left-color: #f39c12;
-            background: #fffbf0;
-        }
-
-        .timeline-icon {
-            font-size: 16px;
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
-
-        .timeline-info {
-            flex: 1;
+        .btn-nav {
+            padding: 10px 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
             font-size: 13px;
-        }
-
-        .timeline-fase {
             font-weight: 600;
-            color: #2c3e50;
-        }
-
-        .timeline-time {
-            font-size: 11px;
-            color: #7f8c8d;
-            margin-top: 2px;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #7f8c8d;
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .empty-state h3 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            margin-bottom: 20px;
-        }
-
-        .btn-create {
-            background: #27ae60;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
             cursor: pointer;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-block;
-            transition: background 0.3s;
+            transition: var(--transition);
         }
 
-        .btn-create:hover {
-            background: #229954;
+        .btn-nav:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-hover);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
         }
 
-        /* Loading */
+        .month-display {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            min-width: 200px;
+            text-align: center;
+            text-transform: capitalize;
+        }
+
+        .btn-refresh {
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-left: auto;
+        }
+
+        .btn-refresh:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+
+        /* ===== LOADING ===== */
         .loading {
             display: none;
             text-align: center;
             padding: 40px;
         }
 
-        .loading.show {
-            display: block;
-        }
+        .loading.show { display: block; }
 
         .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #27ae60;
-            border-radius: 50%;
             width: 40px;
             height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            border: 3px solid rgba(255, 255, 255, 0.05);
+            border-top: 3px solid var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .loading p {
+            color: var(--text-secondary);
+            font-size: 13px;
         }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== CALENDAR ===== */
+        .calendar-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.15s;
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .weekday {
+            text-align: center;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            padding: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .calendar-day {
+            min-height: 110px;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.01);
+            transition: var(--transition);
+            cursor: default;
+        }
+
+        .calendar-day:hover {
+            border-color: rgba(0, 212, 255, 0.2);
+            background: rgba(0, 212, 255, 0.03);
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.3;
+        }
+
+        .calendar-day.today {
+            border-color: rgba(0, 212, 255, 0.4);
+            background: rgba(0, 212, 255, 0.05);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
+            animation: todayGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes todayGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(0, 212, 255, 0.08); }
+            50% { box-shadow: 0 0 25px rgba(0, 212, 255, 0.15); }
+        }
+
+        .calendar-day-number {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .calendar-day.other-month .calendar-day-number {
+            color: var(--text-muted);
+        }
+
+        .calendar-day.today .calendar-day-number {
+            color: var(--accent-cyan);
+        }
+
+        .day-orders {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-height: 70px;
+            overflow-y: auto;
+        }
+
+        .day-orders::-webkit-scrollbar { width: 3px; }
+        .day-orders::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .day-order-card {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border-left: 3px solid var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: var(--transition);
+        }
+
+        .day-order-card:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: translateX(2px);
+        }
+
+        .day-order-card.ricevuto {
+            border-left-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .day-order-card.laser_completato {
+            border-left-color: var(--accent-red);
+            background: rgba(255, 71, 87, 0.05);
+        }
+
+        .day-order-card.piega_completata {
+            border-left-color: var(--accent-amber);
+            background: rgba(255, 165, 2, 0.05);
+        }
+
+        .day-order-card.saldatura_completata {
+            border-left-color: var(--accent-orange);
+            background: rgba(255, 99, 72, 0.05);
+        }
+
+        /* ===== MODAL ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 5vh;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes modalSlideIn {
+            from { transform: translateY(-30px) scale(0.97); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .close-modal {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            padding: 0;
+        }
+
+        .close-modal:hover {
+            background: rgba(255, 71, 87, 0.1);
+            border-color: rgba(255, 71, 87, 0.3);
+            color: var(--accent-red);
+        }
+
+        .modal-section {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+        }
+
+        .modal-section h3 {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--accent-cyan);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-section h3::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+            box-shadow: 0 0 8px var(--accent-cyan);
+        }
+
+        /* ===== INFO GRID ===== */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 6px;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .info-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        /* ===== ARTICLES TABLE ===== */
+        .articles-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .articles-table thead {
+            background: rgba(0, 212, 255, 0.08);
+        }
+
+        .articles-table th {
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-cyan);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+        }
+
+        .articles-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-glass);
+            color: var(--text-primary);
+        }
+
+        .articles-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .phase-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-right: 4px;
+            margin-bottom: 3px;
+            letter-spacing: 0.3px;
+        }
+
+        .phase-completed {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+        }
+
+        .phase-pending {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            border: 1px solid var(--border-glass);
+        }
+
+        .phase-next {
+            background: rgba(255, 165, 2, 0.1);
+            color: var(--accent-amber);
+            border: 1px solid rgba(255, 165, 2, 0.2);
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 165, 2, 0.1); }
+            50% { box-shadow: 0 0 12px rgba(255, 165, 2, 0.2); }
+        }
+
+        /* ===== TIMELINE ===== */
+        .timeline { margin-top: 8px; }
+
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            border-left: 3px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            transition: var(--transition);
+        }
+
+        .timeline-step.completed {
+            border-left-color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.03);
+        }
+
+        .timeline-step.in-progress {
+            border-left-color: var(--accent-amber);
+            background: rgba(255, 165, 2, 0.03);
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+
+        .timeline-icon {
+            font-size: 16px;
+            margin-right: 12px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .timeline-info { flex: 1; }
+
+        .timeline-fase {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .timeline-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 900px) {
+            .page-header { flex-direction: column; gap: 16px; align-items: flex-start; }
+            .calendar-day { min-height: 80px; padding: 4px; }
+            .calendar-day-number { font-size: 11px; }
+            .day-order-card { font-size: 9px; padding: 2px 4px; }
+            .weekday { font-size: 10px; padding: 6px; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 0 16px; gap: 4px; }
+            nav a { padding: 6px 10px; font-size: 12px; }
+            .nav-logo { font-size: 15px; margin-right: 16px; }
+            main { padding: 0 12px 40px; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav>
-        <h1>🕐 Schedulatore Laser</h1>
+        <div class="nav-logo">Schedulatore Laser</div>
         <a href="welcome.html">Caricamento</a>
+        <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html" class="active">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html">Piega</a>
@@ -608,16 +674,16 @@
     </nav>
 
     <main>
-        <div class="header">
-            <h2>� Calendario Ordini</h2>
-
-            <div class="calendar-controls" style="margin-top: 15px; display: flex; gap: 15px; align-items: center; justify-content: space-between;">
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-filter" onclick="previousMonth()">◀ Precedente</button>
-                    <h3 id="monthYear" style="color: #2c3e50; margin: 0; min-width: 200px; text-align: center;"></h3>
-                    <button class="btn-filter" onclick="nextMonth()">Successivo ▶</button>
-                </div>
-                <button class="btn-filter" style="background: #95a5a6;" onclick="loadOrders()">🔄 Aggiorna</button>
+        <div class="page-header">
+            <div class="page-header-text">
+                <h2>Calendario Ordini</h2>
+                <p>Panoramica consegne e scadenze</p>
+            </div>
+            <div class="calendar-controls">
+                <button class="btn-nav" onclick="previousMonth()">&larr; Precedente</button>
+                <div class="month-display" id="monthYear"></div>
+                <button class="btn-nav" onclick="nextMonth()">Successivo &rarr;</button>
+                <button class="btn-refresh" onclick="loadOrders()">Aggiorna</button>
             </div>
         </div>
 
@@ -649,63 +715,60 @@
             </div>
 
             <div class="modal-section">
-                <h3>📋 Informazioni Ordine</h3>
+                <h3>Informazioni Ordine</h3>
                 <div class="info-grid">
                     <div class="info-item">
-                        <span class="info-label">Cliente:</span>
+                        <span class="info-label">Cliente</span>
                         <span class="info-value" id="modalCliente">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Data Consegna:</span>
+                        <span class="info-label">Data Consegna</span>
                         <span class="info-value" id="modalDataConsegna">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Quantità Totale:</span>
+                        <span class="info-label">Quantita Totale</span>
                         <span class="info-value" id="modalQuantita">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Stato:</span>
+                        <span class="info-label">Stato</span>
                         <span class="info-value" id="modalStatus">-</span>
                     </div>
                 </div>
             </div>
 
             <div class="modal-section">
-                <h3>📦 Articoli</h3>
+                <h3>Articoli</h3>
                 <table class="articles-table">
                     <thead>
                         <tr>
                             <th style="width: 40%;">Articolo</th>
-                            <th style="width: 20%;">Quantità</th>
+                            <th style="width: 20%;">Quantita</th>
                             <th style="width: 40%;">Stato Articolo</th>
                         </tr>
                     </thead>
                     <tbody id="modalArticlesBody">
-                        <tr><td colspan="3">Caricamento...</td></tr>
+                        <tr><td colspan="3" style="color: var(--text-secondary);">Caricamento...</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="modal-section">
-                <h3>⏱️ Fasi di Lavorazione</h3>
+                <h3>Fasi di Lavorazione</h3>
                 <div class="timeline" id="modalTimeline">
-                    <p style="color: #7f8c8d; font-size: 13px;">Caricamento...</p>
+                    <p style="color: var(--text-secondary); font-size: 13px;">Caricamento...</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Usa URL relativo per funzionare su localhost e IP
         const API_URL = '/api';
         let allOrders = [];
         let currentDate = new Date();
 
-        // Carica ordini al caricamento
         window.addEventListener('DOMContentLoaded', () => {
             loadOrders();
             renderCalendar();
-            // Aggiorna ogni 10 secondi
             setInterval(loadOrders, 10000);
         });
 
@@ -716,14 +779,13 @@
             try {
                 const response = await fetch(`${API_URL}/orders`);
                 const data = await response.json();
-
                 allOrders = Array.isArray(data) ? data : [];
                 renderCalendar();
             } catch (error) {
                 console.error('Errore caricamento ordini:', error);
                 document.getElementById('calendarDays').innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #e74c3c;">
-                        <p>❌ Errore connessione al backend</p>
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--accent-red);">
+                        <p>Errore connessione al backend</p>
                     </div>
                 `;
             } finally {
@@ -745,85 +807,69 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
-            // Aggiorna header mese
             const monthName = new Date(year, month).toLocaleString('it-IT', { month: 'long', year: 'numeric' });
             document.getElementById('monthYear').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-            // Primo giorno del mese e numero di giorni
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const daysInMonth = lastDay.getDate();
-            const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Lunedì = 0
+            const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
 
-            // Genera giorni del mese precedente
             const prevMonthLastDay = new Date(year, month, 0).getDate();
             const calendarContainer = document.getElementById('calendarDays');
             calendarContainer.innerHTML = '';
 
-            // Giorni mese precedente
             for (let i = startingDayOfWeek - 1; i >= 0; i--) {
                 const day = prevMonthLastDay - i;
-                const dayElement = createDayElement(day, month - 1, year, true);
-                calendarContainer.appendChild(dayElement);
+                calendarContainer.appendChild(createDayElement(day, month - 1, year, true));
             }
 
-            // Giorni mese attuale
             for (let day = 1; day <= daysInMonth; day++) {
-                const dayElement = createDayElement(day, month, year, false);
-                calendarContainer.appendChild(dayElement);
+                calendarContainer.appendChild(createDayElement(day, month, year, false));
             }
 
-            // Giorni mese successivo
             const totalCells = calendarContainer.childElementCount;
-            const remainingCells = 42 - totalCells; // 6 settimane x 7 giorni
+            const remainingCells = 42 - totalCells;
             for (let day = 1; day <= remainingCells; day++) {
-                const dayElement = createDayElement(day, month + 1, year, true);
-                calendarContainer.appendChild(dayElement);
+                calendarContainer.appendChild(createDayElement(day, month + 1, year, true));
             }
         }
 
         function createDayElement(day, month, year, isOtherMonth) {
             const dayDiv = document.createElement('div');
             dayDiv.className = 'calendar-day';
-            
+
             if (isOtherMonth) {
                 dayDiv.classList.add('other-month');
-                // Adjusted month for other months
                 if (month < 0) month = 11;
                 if (month > 11) month = 0;
             }
 
-            // Check if today
             const today = new Date();
             if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear() && !isOtherMonth) {
                 dayDiv.classList.add('today');
             }
 
-            // Crea numero giorno
             const dayNumber = document.createElement('div');
             dayNumber.className = 'calendar-day-number';
             dayNumber.textContent = day;
             dayDiv.appendChild(dayNumber);
 
-            // Crea container ordini
             const ordersDiv = document.createElement('div');
             ordersDiv.className = 'day-orders';
 
-            // Trova ordini per questo giorno
-            const dateToCheck = new Date(year, month, day);
             const ordersForDay = allOrders.filter(order => {
                 const orderDate = new Date(order.data_consegna);
                 return orderDate.getDate() === day &&
                        orderDate.getMonth() === month &&
                        orderDate.getFullYear() === year &&
-                       order.status !== 'SPEDITO';  // Escludi ordini completati
+                       order.status !== 'SPEDITO';
             });
 
-            // Aggiungi ordini
             ordersForDay.forEach(order => {
                 const orderCard = document.createElement('div');
                 orderCard.className = `day-order-card ${order.status.toLowerCase()}`;
-                orderCard.textContent = order.cliente.substring(0, 12);
+                orderCard.textContent = order.cliente.substring(0, 15);
                 orderCard.title = `${order.cliente} - ${order.articles ? order.articles.length : 0} articoli`;
                 orderCard.onclick = (e) => {
                     e.stopPropagation();
@@ -849,14 +895,12 @@
                     return;
                 }
 
-                // Popola header
                 document.getElementById('modalOrderId').textContent = `Ordine: ${order.cliente}`;
                 document.getElementById('modalCliente').textContent = order.cliente;
                 document.getElementById('modalDataConsegna').textContent = new Date(order.data_consegna).toLocaleDateString('it-IT');
                 document.getElementById('modalQuantita').textContent = order.total_quantity || 0;
                 document.getElementById('modalStatus').textContent = order.status || 'RICEVUTO';
 
-                // Popola articoli
                 const articlesBody = document.getElementById('modalArticlesBody');
                 articlesBody.innerHTML = order.articles.map(article => {
                     const completedPhases = article.completed_phases || [];
@@ -876,24 +920,25 @@
                             <td>${article.qty} pz</td>
                             <td>
                                 ${phasesHtml}
-                                ${nextPhase !== 'Completato' ? `<br><small style="color: #f39c12; font-weight: 600;">Prossima: <strong>${nextPhase}</strong></small>` : '<br><small style="color: #27ae60; font-weight: 600;">✅ Completato</small>'}
+                                ${nextPhase !== 'Completato'
+                                    ? `<br><small style="color: var(--accent-amber); font-weight: 600;">Prossima: <strong>${nextPhase}</strong></small>`
+                                    : '<br><small style="color: var(--accent-green); font-weight: 600;">Completato</small>'}
                             </td>
                         </tr>
                     `;
                 }).join('');
 
-                // Popola timeline
                 const timeline = document.getElementById('modalTimeline');
                 const processingSteps = order.processing_steps || [];
 
                 if (processingSteps.length === 0) {
-                    timeline.innerHTML = '<p style="color: #7f8c8d; font-size: 13px;">Nessuna fase avviata</p>';
+                    timeline.innerHTML = '<p style="color: var(--text-secondary); font-size: 13px;">Nessuna fase avviata</p>';
                 } else {
                     timeline.innerHTML = processingSteps.map(step => {
                         const isCompleted = step.timestamp_fine;
                         const isStarted = step.timestamp_inizio;
                         const status = isCompleted ? 'completed' : isStarted ? 'in-progress' : 'pending';
-                        const icon = isCompleted ? '✅' : isStarted ? '⏳' : '⭕';
+                        const icon = isCompleted ? '&#10003;' : isStarted ? '&#9203;' : '&#9675;';
 
                         return `
                             <div class="timeline-step ${status}">
@@ -919,12 +964,9 @@
             document.getElementById('orderModal').classList.remove('show');
         }
 
-        // Chiudi modal cliccando fuori
         window.addEventListener('click', (e) => {
             const modal = document.getElementById('orderModal');
-            if (e.target === modal) {
-                closeModal();
-            }
+            if (e.target === modal) closeModal();
         });
     </script>
 </body>

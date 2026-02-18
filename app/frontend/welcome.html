@@ -4,111 +4,215 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caricamento Ordini - Schedulatore Laser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #111827;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --bg-input: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(0, 212, 255, 0.3);
+            --text-primary: #e6e6e6;
+            --text-secondary: #6b7b8d;
+            --text-muted: #4a5568;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00e676;
+            --accent-red: #ff4757;
+            --accent-amber: #ffa502;
+            --accent-orange: #ff6348;
+            --accent-purple: #a855f7;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Navbar */
+        /* Ambient background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(0, 230, 118, 0.02) 0%, transparent 50%);
+            animation: ambientFloat 25s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes ambientFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+
+        /* ===== NAVBAR ===== */
         nav {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            gap: 40px;
+            padding: 0 24px;
+            gap: 6px;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        nav h1 {
-            color: #27ae60;
-            font-size: 20px;
-            font-weight: 600;
+        .nav-logo {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 32px;
             white-space: nowrap;
         }
 
         nav a {
-            color: #ecf0f1;
+            color: var(--text-secondary);
             text-decoration: none;
             padding: 8px 16px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            font-size: 13px;
+            font-weight: 500;
             white-space: nowrap;
+            position: relative;
         }
 
         nav a:hover {
-            background-color: rgba(39, 174, 96, 0.2);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         nav a.active {
-            background-color: #27ae60;
-            color: white;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
             font-weight: 600;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
         }
 
-        /* Main Content */
+        /* ===== MAIN ===== */
         main {
-            margin-top: 90px;
-            padding: 30px;
-            max-width: 1000px;
+            position: relative;
+            z-index: 1;
+            margin-top: 88px;
+            padding: 0 24px 60px;
+            max-width: 900px;
             margin-left: auto;
             margin-right: auto;
         }
 
-        .container {
-            background: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        /* ===== GLASS CARD ===== */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            transition: var(--transition);
         }
 
-        h2 {
-            color: #2c3e50;
-            margin-bottom: 25px;
-            border-bottom: 2px solid #27ae60;
-            padding-bottom: 10px;
+        .glass-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.1);
         }
 
-        /* Form Sections */
+        /* ===== PAGE HEADER ===== */
+        .page-header {
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease both;
+        }
+
+        .page-header h2 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== FORM SECTIONS ===== */
         .form-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-left: 4px solid #27ae60;
-            border-radius: 4px;
+            margin-bottom: 24px;
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+            animation: fadeInUp 0.6s ease both;
+        }
+
+        .form-section:nth-child(1) { animation-delay: 0.1s; }
+        .form-section:nth-child(2) { animation-delay: 0.2s; }
+        .form-section:nth-child(3) { animation-delay: 0.3s; }
+
+        .form-section:hover {
+            border-color: rgba(255, 255, 255, 0.1);
         }
 
         .form-section h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-cyan);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        /* Form Elements */
-        .form-group {
-            margin-bottom: 15px;
+        .form-section h3::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+            box-shadow: 0 0 8px var(--accent-cyan);
         }
+
+        /* ===== FORM ELEMENTS ===== */
+        .form-group { margin-bottom: 16px; }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            color: #2c3e50;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
             font-weight: 500;
-            font-size: 14px;
+            font-size: 13px;
+            letter-spacing: 0.3px;
         }
 
         input[type="text"],
@@ -117,214 +221,367 @@
         input[type="number"],
         select {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
             font-size: 14px;
             font-family: inherit;
+            color: var(--text-primary);
+            transition: var(--transition);
+            outline: none;
         }
 
-        input[type="text"]:focus,
-        input[type="file"]:focus,
-        input[type="date"]:focus,
-        input[type="number"]:focus,
-        select:focus {
-            outline: none;
-            border-color: #27ae60;
-            box-shadow: 0 0 5px rgba(39, 174, 96, 0.3);
+        input:focus, select:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1), 0 0 20px rgba(0, 212, 255, 0.05);
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            cursor: pointer;
+        }
+
+        input[type="file"]::file-selector-button {
+            background: rgba(0, 212, 255, 0.15);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: var(--accent-cyan);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            margin-right: 12px;
+            transition: var(--transition);
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: rgba(0, 212, 255, 0.25);
         }
 
         .two-columns {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 16px;
         }
 
-        /* Articoli Section */
-        .articles-container {
-            margin-top: 20px;
+        .file-info {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
         }
+
+        /* ===== ARTICLES ===== */
+        .articles-container { margin-top: 12px; }
 
         .article-row {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr auto;
             gap: 10px;
-            margin-bottom: 12px;
-            padding: 12px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            margin-bottom: 10px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
             align-items: end;
+            animation: fadeInUp 0.3s ease both;
+            transition: var(--transition);
         }
 
-        .article-row input {
-            margin: 0;
+        .article-row:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
         }
+
+        .article-row input { margin: 0; }
 
         .btn-remove-article {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 12px;
-            transition: background 0.3s;
+            font-family: inherit;
+            font-weight: 600;
+            transition: var(--transition);
         }
 
         .btn-remove-article:hover {
-            background: #c0392b;
+            background: rgba(255, 71, 87, 0.2);
+            border-color: rgba(255, 71, 87, 0.4);
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.1);
         }
 
+        .btn-add-article {
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--accent-cyan);
+            border: 1px dashed rgba(0, 212, 255, 0.3);
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 600;
+            transition: var(--transition);
+            margin-top: 12px;
+            width: 100%;
+        }
+
+        .btn-add-article:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        /* ===== PHASES ===== */
         .phases {
             display: flex;
-            gap: 8px;
-            margin-top: 8px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .phase-checkbox {
-            width: auto;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .phase-checkbox:hover {
+            background: rgba(255, 255, 255, 0.06);
         }
 
         .phase-checkbox input[type="checkbox"] {
-            width: auto;
-            margin: 0;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-cyan);
+            cursor: pointer;
         }
 
         .phase-checkbox label {
             margin: 0;
-            font-weight: normal;
-        }
-
-        .btn-add-article {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--text-primary);
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-            margin-top: 10px;
         }
 
-        .btn-add-article:hover {
-            background: #2980b9;
+        .phase-checkbox:has(input:checked) {
+            background: rgba(0, 212, 255, 0.08);
+            border-color: rgba(0, 212, 255, 0.2);
         }
 
-        /* Buttons */
+        /* Phase-specific colors */
+        .phase-laser:has(input:checked) {
+            background: rgba(255, 71, 87, 0.08);
+            border-color: rgba(255, 71, 87, 0.2);
+        }
+        .phase-piega:has(input:checked) {
+            background: rgba(255, 165, 2, 0.08);
+            border-color: rgba(255, 165, 2, 0.2);
+        }
+        .phase-saldatura:has(input:checked) {
+            background: rgba(255, 99, 72, 0.08);
+            border-color: rgba(255, 99, 72, 0.2);
+        }
+        .phase-pulizia:has(input:checked) {
+            background: rgba(0, 212, 255, 0.08);
+            border-color: rgba(0, 212, 255, 0.2);
+        }
+
+        /* ===== BUTTONS ===== */
         .button-group {
             display: flex;
-            gap: 10px;
-            margin-top: 25px;
+            gap: 12px;
+            margin-top: 28px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.4s;
         }
 
         button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 4px;
+            font-family: inherit;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            transition: var(--transition);
+            outline: none;
         }
 
         .btn-primary {
-            background: #27ae60;
-            color: white;
             flex: 1;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
+            color: #000;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
         }
 
         .btn-primary:hover {
-            background: #229954;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .btn-primary:disabled {
-            background: #95a5a6;
+            background: var(--text-muted);
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Ripple effect */
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0; left: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+            transform: scale(0);
+            opacity: 0;
+            transition: transform 0.5s, opacity 0.5s;
+        }
+
+        .btn-primary:active::after {
+            transform: scale(2);
+            opacity: 1;
+            transition: 0s;
         }
 
         .btn-secondary {
-            background: #95a5a6;
-            color: white;
+            padding: 14px 28px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
         }
 
         .btn-secondary:hover {
-            background: #7f8c8d;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
-        /* Messages */
+        /* ===== MESSAGES ===== */
         .message {
-            padding: 15px;
-            border-radius: 4px;
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
             margin-bottom: 20px;
             display: none;
+            font-size: 14px;
+            font-weight: 500;
+            animation: fadeInUp 0.3s ease both;
+            backdrop-filter: blur(10px);
         }
 
         .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
             display: block;
         }
 
         .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 71, 87, 0.2);
             display: block;
         }
 
         .message.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.2);
             display: block;
         }
 
-        /* Loading */
+        /* ===== LOADING ===== */
         .loading {
             display: none;
             text-align: center;
-            padding: 20px;
+            padding: 24px;
         }
 
-        .loading.show {
-            display: block;
-        }
+        .loading.show { display: block; }
 
         .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #27ae60;
-            border-radius: 50%;
             width: 40px;
             height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            border: 3px solid rgba(255, 255, 255, 0.05);
+            border-top: 3px solid var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .loading p {
+            color: var(--text-secondary);
+            font-size: 13px;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
 
-        .file-info {
-            font-size: 12px;
-            color: #7f8c8d;
-            margin-top: 5px;
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            nav { padding: 0 16px; gap: 4px; }
+            nav a { padding: 6px 10px; font-size: 12px; }
+            .nav-logo { font-size: 15px; margin-right: 16px; }
+            main { padding: 0 16px 40px; }
+            .glass-card { padding: 20px; }
+            .two-columns { grid-template-columns: 1fr; }
+            .article-row { grid-template-columns: 1fr; }
+            .phases { flex-direction: column; }
+            .button-group { flex-direction: column; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav>
-        <h1>🕐 Schedulatore Laser</h1>
+        <div class="nav-logo">Schedulatore Laser</div>
         <a href="welcome.html" class="active">Caricamento</a>
-        <a href="ordini-estratti">📊 Ordini Estratti</a>
+        <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html">Piega</a>
@@ -333,9 +590,12 @@
     </nav>
 
     <main>
-        <div class="container">
-            <h2>📋 Caricamento Nuovo Ordine</h2>
+        <div class="page-header">
+            <h2>Caricamento Nuovo Ordine</h2>
+            <p>Inserisci i dati dell'ordine o carica un PDF per l'estrazione automatica</p>
+        </div>
 
+        <div class="glass-card">
             <div id="message" class="message"></div>
             <div id="loading" class="loading">
                 <div class="spinner"></div>
@@ -343,109 +603,79 @@
             </div>
 
             <form id="orderForm">
-                <!-- Sezione: Dati Ordine -->
                 <div class="form-section">
-                    <h3>1. Dati Ordine</h3>
-
+                    <h3>Dati Ordine</h3>
                     <div class="two-columns">
                         <div class="form-group">
                             <label for="cliente">Cliente</label>
-                            <input type="text" id="cliente" name="cliente" required>
+                            <input type="text" id="cliente" name="cliente" placeholder="Nome cliente..." required>
                         </div>
                         <div class="form-group">
                             <label for="data_consegna">Data Consegna</label>
                             <input type="date" id="data_consegna" name="data_consegna" required>
                         </div>
                     </div>
-
                     <div class="form-group">
-                        <label for="pdfFile">📄 Carica PDF Ordine (opzionale)</label>
+                        <label for="pdfFile">Carica PDF Ordine (opzionale)</label>
                         <input type="file" id="pdfFile" name="pdfFile" accept=".pdf">
-                        <div class="file-info">Il PDF verrà analizzato per estrarre automaticamente i dati</div>
+                        <div class="file-info">Il PDF verra analizzato per estrarre automaticamente i dati</div>
                     </div>
                 </div>
 
-                <!-- Sezione: Articoli -->
                 <div class="form-section">
-                    <h3>2. Articoli</h3>
-
-                    <div class="articles-container" id="articlesContainer">
-                        <!-- Righe articoli aggiunte dinamicamente -->
-                    </div>
-
+                    <h3>Articoli</h3>
+                    <div class="articles-container" id="articlesContainer"></div>
                     <button type="button" class="btn-add-article" onclick="addArticle()">
                         + Aggiungi Articolo
                     </button>
                 </div>
 
-                <!-- Sezione: Fasi Richieste -->
                 <div class="form-section">
-                    <h3>3. Fasi Processo</h3>
-                    <p style="margin-bottom: 15px; color: #7f8c8d; font-size: 14px;">
-                        Seleziona quali fasi di lavoro sono richieste per questo ordine
+                    <h3>Fasi Processo</h3>
+                    <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px;">
+                        Seleziona le fasi di lavoro richieste per questo ordine
                     </p>
-
                     <div class="phases">
-                        <div class="phase-checkbox">
+                        <div class="phase-checkbox phase-laser">
                             <input type="checkbox" id="phaseLaser" name="phases" value="LASER" checked>
-                            <label for="phaseLaser">🔴 LASER</label>
+                            <label for="phaseLaser">LASER</label>
                         </div>
-                        <div class="phase-checkbox">
+                        <div class="phase-checkbox phase-piega">
                             <input type="checkbox" id="phasePiega" name="phases" value="PIEGA" checked>
-                            <label for="phasePiega">🟡 PIEGA</label>
+                            <label for="phasePiega">PIEGA</label>
                         </div>
-                        <div class="phase-checkbox">
+                        <div class="phase-checkbox phase-saldatura">
                             <input type="checkbox" id="phaseSaldatura" name="phases" value="SALDATURA" checked>
-                            <label for="phaseSaldatura">🟠 SALDATURA</label>
+                            <label for="phaseSaldatura">SALDATURA</label>
                         </div>
-                        <div class="phase-checkbox">
+                        <div class="phase-checkbox phase-pulizia">
                             <input type="checkbox" id="phasePulizia" name="phases" value="PULIZIA">
-                            <label for="phasePulizia">🔵 PULIZIA</label>
+                            <label for="phasePulizia">PULIZIA</label>
                         </div>
                     </div>
                 </div>
 
-                <!-- Bottoni -->
                 <div class="button-group">
-                    <button type="submit" class="btn-primary">
-                        ✅ Salva Ordine
-                    </button>
-                    <button type="reset" class="btn-secondary">
-                        🔄 Pulisci
-                    </button>
+                    <button type="submit" class="btn-primary">Salva Ordine</button>
+                    <button type="reset" class="btn-secondary">Pulisci</button>
                 </div>
             </form>
         </div>
     </main>
 
     <script>
-        // Usa URL relativo per funzionare su localhost e IP
         const API_URL = '/api';
 
-        // Aggiungi primo articolo al caricamento
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('✅ Pagina caricata');
             addArticle();
-            
-            // Aggiungi listener per estrazione PDF
             const pdfInput = document.getElementById('pdfFile');
-            console.log('PDF Input trovato?', pdfInput ? 'SI' : 'NO');
-            
             if (pdfInput) {
-                pdfInput.addEventListener('change', (e) => {
-                    console.log('📤 File PDF selezionato:', e.target.files[0]?.name);
-                    handlePdfUpload(e);
-                });
-                console.log('✅ Listener PDF aggiunto');
-            } else {
-                console.error('❌ Elemento #pdfFile non trovato!');
+                pdfInput.addEventListener('change', (e) => handlePdfUpload(e));
             }
         });
 
         function addArticle() {
             const container = document.getElementById('articlesContainer');
-            const index = container.children.length;
-
             const row = document.createElement('div');
             row.className = 'article-row';
             row.innerHTML = `
@@ -456,11 +686,9 @@
                     <input type="text" placeholder="Codice" class="article-code">
                 </div>
                 <div class="form-group">
-                    <input type="number" placeholder="Quantità" class="article-qty" value="1" required>
+                    <input type="number" placeholder="Qty" class="article-qty" value="1" required>
                 </div>
-                <button type="button" class="btn-remove-article" onclick="removeArticle(this)">
-                    🗑️ Rimuovi
-                </button>
+                <button type="button" class="btn-remove-article" onclick="removeArticle(this)">Rimuovi</button>
             `;
             container.appendChild(row);
         }
@@ -476,76 +704,36 @@
 
         async function handlePdfUpload(e) {
             const file = e.target.files[0];
-            console.log('🔄 handlePdfUpload eseguita');
-            console.log('   File:', file?.name);
-            
-            if (!file) {
-                console.warn('⚠️ Nessun file selezionato');
-                return;
-            }
+            if (!file) return;
 
             const formData = new FormData();
             formData.append('file', file);
 
-            console.log('📤 Inizio upload verso:', API_URL + '/extract-pdf-data');
-            console.log('   File:', file.name, 'Dimensione:', file.size, 'bytes');
-            
             showLoading(true);
             try {
-                console.log('   → Invio fetch...');
                 const response = await fetch(`${API_URL}/extract-pdf-data`, {
                     method: 'POST',
                     body: formData
                 });
-
-                console.log('   ✅ Risposta ricevuta:', response.status);
                 const data = await response.json();
-                console.log('   📊 Data ricevuto:', JSON.stringify(data, null, 2));
 
                 if (data.success) {
-                    console.log('✅ PDF elaborato con successo');
-                    // Popola campi estratti dal PDF
                     const pdfData = data.data;
-                    console.log('   Cliente (raw):', pdfData.cliente);
-                    console.log('   Articoli trovati:', pdfData.articoli?.length || 0);
-                    
-                    const clientInput = document.getElementById('cliente');
-                    const dataInput = document.getElementById('data_consegna');
-                    console.log('   Campo cliente esiste?', clientInput ? '✅ SI' : '❌ NO');
-                    console.log('   Campo data esiste?', dataInput ? '✅ SI' : '❌ NO');
-                    
                     if (pdfData.cliente) {
-                        console.log('   → Popolo cliente con:', pdfData.cliente);
                         document.getElementById('cliente').value = pdfData.cliente;
-                        console.log('   ✅ Cliente popolato');
                     }
-                    
                     if (pdfData.data_consegna) {
-                        const dataValue = pdfData.data_consegna.split('T')[0];
-                        console.log('   → Popolo data con:', dataValue);
-                        document.getElementById('data_consegna').value = dataValue;
-                        console.log('   ✅ Data popolata');
+                        document.getElementById('data_consegna').value = pdfData.data_consegna.split('T')[0];
                     }
-
-                    // Popola articoli se trovati
                     if (pdfData.articoli && pdfData.articoli.length > 0) {
-                        console.log(`   → Trovo ${pdfData.articoli.length} articoli, inizio popolazione...`);
                         clearArticles();
-                        pdfData.articoli.forEach((articolo, i) => {
-                            console.log(`   Articolo ${i}:`, articolo);
-                            addArticleWithData(articolo);
-                        });
-                        showMessage(`✅ PDF elaborato: trovati ${pdfData.articoli.length} articoli`, 'success');
-                        console.log('✅ SUCCESSO: Tutti gli articoli sono stati popolati');
-                    } else {
-                        console.warn('⚠️ Nessun articolo trovato nel PDF');
+                        pdfData.articoli.forEach((articolo) => addArticleWithData(articolo));
+                        showMessage(`PDF elaborato: trovati ${pdfData.articoli.length} articoli`, 'success');
                     }
                 } else {
-                    console.error('❌ Errore nel parsing:', data.error);
                     showMessage('Errore nella lettura del PDF: ' + (data.error || 'Sconosciuto'), 'error');
                 }
             } catch (error) {
-                console.error('❌ Errore fetch:', error);
                 showMessage('Errore caricamento PDF: ' + error.message, 'error');
             } finally {
                 showLoading(false);
@@ -554,7 +742,6 @@
 
         function addArticleWithData(articolo) {
             const container = document.getElementById('articlesContainer');
-
             const row = document.createElement('div');
             row.className = 'article-row';
             row.innerHTML = `
@@ -565,18 +752,15 @@
                     <input type="text" placeholder="Codice" class="article-code" value="${articolo.code || ''}">
                 </div>
                 <div class="form-group">
-                    <input type="number" placeholder="Quantità" class="article-qty" value="${articolo.qty || 1}" required>
+                    <input type="number" placeholder="Qty" class="article-qty" value="${articolo.qty || 1}" required>
                 </div>
-                <button type="button" class="btn-remove-article" onclick="removeArticle(this)">
-                    🗑️ Rimuovi
-                </button>
+                <button type="button" class="btn-remove-article" onclick="removeArticle(this)">Rimuovi</button>
             `;
             container.appendChild(row);
         }
 
         function clearArticles() {
-            const container = document.getElementById('articlesContainer');
-            container.innerHTML = '';
+            document.getElementById('articlesContainer').innerHTML = '';
         }
 
         document.getElementById('orderForm').addEventListener('submit', async (e) => {
@@ -585,18 +769,14 @@
             const cliente = document.getElementById('cliente').value;
             const data_consegna = document.getElementById('data_consegna').value;
 
-            // Raccogliamo gli articoli
             const articles = [];
             document.querySelectorAll('.article-row').forEach(row => {
                 const name = row.querySelector('.article-name').value;
                 const code = row.querySelector('.article-code').value;
                 const qty = parseInt(row.querySelector('.article-qty').value);
-
                 if (name && qty > 0) {
                     articles.push({
-                        name: name,
-                        code: code || 'N/A',
-                        qty: qty,
+                        name, code: code || 'N/A', qty,
                         required_phases: getSelectedPhases()
                     });
                 }
@@ -607,37 +787,27 @@
                 return;
             }
 
-            // Raccogliamo le fasi
-            const required_phases = getSelectedPhases();
-
             const orderData = {
-                cliente: cliente,
+                cliente,
                 data_consegna: data_consegna + 'T00:00:00',
-                articles: articles,
-                required_phases: required_phases
+                articles,
+                required_phases: getSelectedPhases()
             };
 
             showLoading(true);
-
             try {
                 const response = await fetch(`${API_URL}/orders`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(orderData)
                 });
-
                 const data = await response.json();
-
                 if (data.success) {
-                    showMessage(`✅ Ordine creato! ID: ${data.order_id}`, 'success');
+                    showMessage(`Ordine creato! ID: ${data.order_id}`, 'success');
                     document.getElementById('orderForm').reset();
                     clearArticles();
                     addArticle();
-
-                    // Reindirizza a dashboard dopo 2 secondi
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 2000);
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
                 } else {
                     showMessage('Errore: ' + (data.error || 'Sconosciuto'), 'error');
                 }
@@ -650,9 +820,7 @@
 
         function getSelectedPhases() {
             const phases = [];
-            document.querySelectorAll('input[name="phases"]:checked').forEach(checkbox => {
-                phases.push(checkbox.value);
-            });
+            document.querySelectorAll('input[name="phases"]:checked').forEach(cb => phases.push(cb.value));
             return phases.length > 0 ? phases : ['LASER', 'PIEGA', 'SALDATURA'];
         }
 
@@ -660,6 +828,9 @@
             const msgBox = document.getElementById('message');
             msgBox.textContent = msg;
             msgBox.className = `message ${type}`;
+            if (type !== 'error') {
+                setTimeout(() => { msgBox.className = 'message'; }, 5000);
+            }
         }
 
         function showLoading(show) {

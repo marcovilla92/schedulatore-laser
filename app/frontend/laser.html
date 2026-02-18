@@ -4,168 +4,358 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stazione Laser - Schedulatore Laser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #111827;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --bg-input: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(0, 212, 255, 0.3);
+            --text-primary: #e6e6e6;
+            --text-secondary: #6b7b8d;
+            --text-muted: #4a5568;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00e676;
+            --accent-red: #ff4757;
+            --accent-amber: #ffa502;
+            --accent-orange: #ff6348;
+            --accent-purple: #a855f7;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Navbar */
+        /* Ambient background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(255, 71, 87, 0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(255, 71, 87, 0.02) 0%, transparent 50%);
+            animation: ambientFloat 25s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes ambientFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+
+        /* ===== NAVBAR ===== */
         nav {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            gap: 40px;
+            padding: 0 24px;
+            gap: 6px;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        nav h1 {
-            color: #27ae60;
-            font-size: 20px;
-            font-weight: 600;
+        .nav-logo {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 32px;
             white-space: nowrap;
         }
 
         nav a {
-            color: #ecf0f1;
+            color: var(--text-secondary);
             text-decoration: none;
             padding: 8px 16px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            font-size: 13px;
+            font-weight: 500;
             white-space: nowrap;
+            position: relative;
         }
 
         nav a:hover {
-            background-color: rgba(39, 174, 96, 0.2);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         nav a.active {
-            background-color: #27ae60;
-            color: white;
+            color: var(--accent-red);
+            background: rgba(255, 71, 87, 0.1);
             font-weight: 600;
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.1);
         }
 
-        /* Main Content */
+        /* ===== MAIN ===== */
         main {
-            margin-top: 90px;
-            padding: 30px;
+            position: relative;
+            z-index: 1;
+            margin-top: 88px;
+            padding: 0 24px 60px;
             max-width: 1200px;
             margin-left: auto;
             margin-right: auto;
         }
 
-        .header {
-            background: white;
-            padding: 20px 30px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #e74c3c;
+        /* ===== GLASS CARD ===== */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            transition: var(--transition);
         }
 
-        .header h2 {
-            color: #2c3e50;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .glass-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.1);
         }
 
-        .header p {
-            color: #7f8c8d;
+        /* ===== PAGE HEADER ===== */
+        .page-header {
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease both;
+        }
+
+        .page-header h2 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-red), #ff6b81);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
             font-size: 14px;
-            margin-top: 5px;
         }
 
-        /* Orders Grid */
+        /* ===== MESSAGES ===== */
+        .message {
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+            font-weight: 500;
+            animation: fadeInUp 0.3s ease both;
+            backdrop-filter: blur(10px);
+        }
+
+        .message.success {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+            display: block;
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            display: block;
+        }
+
+        .message.info {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            display: block;
+        }
+
+        /* ===== SUMMARY BOX ===== */
+        .summary-box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.1s;
+        }
+
+        .summary-item {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-red), transparent);
+            opacity: 0.6;
+        }
+
+        .summary-item:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 71, 87, 0.2);
+            box-shadow: 0 0 30px rgba(255, 71, 87, 0.05);
+        }
+
+        .summary-number {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent-red);
+            letter-spacing: -1px;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .summary-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+
+        /* ===== ORDERS GRID ===== */
         .orders-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
             gap: 20px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.2s;
         }
 
+        /* ===== ORDER CARD ===== */
         .order-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            border-top: 4px solid #e74c3c;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: var(--transition);
+            border-top: 2px solid rgba(255, 71, 87, 0.5);
+            position: relative;
+            animation: fadeInUp 0.5s ease both;
         }
 
         .order-card:hover {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 40px rgba(255, 71, 87, 0.08), 0 8px 32px rgba(0, 0, 0, 0.3);
             transform: translateY(-2px);
         }
 
         .order-header {
             display: flex;
             justify-content: space-between;
-            align-items: start;
-            margin-bottom: 12px;
+            align-items: flex-start;
+            margin-bottom: 16px;
         }
 
         .order-card h3 {
-            color: #2c3e50;
             font-size: 16px;
-            margin: 0;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
         }
 
         .order-id {
             font-size: 11px;
-            color: #95a5a6;
-            background: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 3px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            border: 1px solid var(--border-glass);
         }
 
         .order-info {
             font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 8px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
         }
 
         .info-strong {
-            color: #2c3e50;
+            color: var(--text-primary);
             font-weight: 600;
         }
 
-        /* Articles for Phase */
+        /* ===== ARTICLES SECTION ===== */
         .articles-section {
-            margin: 15px 0;
-            padding: 12px;
-            background: #fef5f0;
-            border-radius: 4px;
+            margin: 16px 0;
+            padding: 16px;
+            background: rgba(255, 71, 87, 0.03);
+            border: 1px solid rgba(255, 71, 87, 0.08);
+            border-radius: var(--radius-sm);
         }
 
         .articles-section h4 {
-            color: #d35400;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 8px;
+            color: var(--accent-red);
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 10px;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .articles-section h4::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: var(--accent-red);
+            border-radius: 2px;
+            box-shadow: 0 0 8px var(--accent-red);
         }
 
         .article-item {
             font-size: 13px;
-            color: #2c3e50;
-            padding: 6px 0;
-            border-bottom: 1px solid #f0e0d8;
+            color: var(--text-primary);
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .article-item:last-child {
@@ -174,163 +364,402 @@
 
         .article-name {
             font-weight: 600;
-            color: #2c3e50;
+            color: var(--text-primary);
         }
 
         .article-qty {
             font-size: 12px;
-            color: #7f8c8d;
+            color: var(--text-secondary);
         }
 
-        /* Action Buttons */
+        /* ===== STATUS BADGE ===== */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .status-ready {
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+        }
+
+        .status-started {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        /* ===== ACTION BUTTONS ===== */
         .action-buttons {
             display: flex;
-            gap: 8px;
-            margin-top: 15px;
+            gap: 10px;
+            margin-top: 16px;
         }
 
         .btn-start {
             flex: 1;
-            background: #f39c12;
-            color: white;
+            background: linear-gradient(135deg, var(--accent-amber), #e69500);
+            color: #000;
             border: none;
-            padding: 10px;
-            border-radius: 4px;
+            padding: 11px 16px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 13px;
-            font-weight: 600;
-            transition: background 0.3s;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
         }
 
         .btn-start:hover {
-            background: #e67e22;
+            box-shadow: 0 0 25px rgba(255, 165, 2, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-start:active {
+            transform: translateY(0);
         }
 
         .btn-complete {
             flex: 1;
-            background: #27ae60;
-            color: white;
+            background: linear-gradient(135deg, var(--accent-green), #00c853);
+            color: #000;
             border: none;
-            padding: 10px;
-            border-radius: 4px;
+            padding: 11px 16px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 13px;
-            font-weight: 600;
-            transition: background 0.3s;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
         }
 
         .btn-complete:hover {
-            background: #229954;
+            box-shadow: 0 0 25px rgba(0, 230, 118, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-complete:active {
+            transform: translateY(0);
         }
 
         .btn-complete:disabled {
-            background: #95a5a6;
+            background: var(--text-muted);
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            color: rgba(255, 255, 255, 0.3);
         }
 
-        /* Status Badge */
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
-        .status-ready {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-started {
-            background: #d1e7f1;
-            color: #0c3d66;
-        }
-
-        /* Empty State */
+        /* ===== EMPTY STATE ===== */
         .empty-state {
             grid-column: 1 / -1;
             text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 8px;
-            color: #7f8c8d;
+            padding: 80px 20px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            animation: fadeInUp 0.6s ease both;
         }
 
         .empty-state-icon {
             font-size: 48px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            opacity: 0.5;
         }
 
         .empty-state h3 {
-            color: #2c3e50;
-            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
         }
 
-        /* Messages */
-        .message {
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+        .empty-state p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
             display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: fadeIn 0.2s ease both;
         }
 
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            display: block;
+        .modal-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            display: block;
+        .modal-content {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(255, 71, 87, 0.05);
+            animation: fadeInUp 0.3s ease both;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Summary Box */
-        .summary-box {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            text-align: center;
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-red), transparent);
         }
 
-        .summary-item {
-            border-right: 1px solid #eee;
-            padding-right: 15px;
+        .modal-title {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
         }
 
-        .summary-item:last-child {
-            border-right: none;
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 24px;
         }
 
-        .summary-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: #e74c3c;
+        .modal-checkboxes {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 8px;
+            margin-bottom: 24px;
+            max-height: 320px;
+            overflow-y: auto;
         }
 
-        .summary-label {
+        .modal-checkbox-item {
+            padding: 12px;
+            margin-bottom: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .modal-checkbox-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-checkbox-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-red);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .modal-checkbox-item label {
+            flex: 1;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-checkbox-item label .qty-tag {
+            color: var(--text-secondary);
             font-size: 12px;
-            color: #7f8c8d;
-            margin-top: 5px;
-            text-transform: uppercase;
+            font-weight: 400;
         }
+
+        .modal-checkbox-item label .completed-tag {
+            color: var(--accent-green);
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(0, 230, 118, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: auto;
+        }
+
+        .modal-checkbox-item.is-completed {
+            opacity: 0.6;
+        }
+
+        .modal-checkbox-item.is-completed label {
+            font-weight: 700;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-modal-cancel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .btn-modal-cancel:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-modal-confirm {
+            flex: 1;
+            background: linear-gradient(135deg, var(--accent-green), #00c853);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .btn-modal-confirm:hover {
+            box-shadow: 0 0 25px rgba(0, 230, 118, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-modal-all {
+            flex: 1;
+            background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .btn-modal-all:hover {
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .loading.show { display: block; }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.05);
+            border-top: 3px solid var(--accent-red);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
+        }
+
+        .loading p {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            nav { padding: 0 16px; gap: 4px; }
+            nav a { padding: 6px 10px; font-size: 12px; }
+            .nav-logo { font-size: 15px; margin-right: 16px; }
+            main { padding: 0 16px 40px; }
+            .glass-card { padding: 20px; }
+            .summary-box { grid-template-columns: 1fr; }
+            .orders-grid { grid-template-columns: 1fr; }
+            .action-buttons { flex-direction: column; }
+            .modal-buttons { flex-direction: column; }
+            .modal-content { padding: 24px; width: 95%; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
     <!-- Navbar -->
     <nav>
-        <h1>🕐 Schedulatore Laser</h1>
+        <div class="nav-logo">Schedulatore Laser</div>
         <a href="welcome.html">Caricamento</a>
+        <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html">Dashboard</a>
         <a href="laser.html" class="active">Laser</a>
         <a href="piega.html">Piega</a>
@@ -339,8 +768,8 @@
     </nav>
 
     <main>
-        <div class="header">
-            <h2>🔴 Stazione LASER</h2>
+        <div class="page-header">
+            <h2>Stazione LASER</h2>
             <p>Articoli in attesa di lavorazione al laser</p>
         </div>
 
@@ -365,24 +794,24 @@
     </main>
 
     <!-- MODALE COMPLETAMENTO PARZIALE -->
-    <div id="partialCompleteModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="background-color: white; margin: 5% auto; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-            <h2 style="margin-bottom: 20px; color: #2c3e50;">✅ Completa Fase LASER</h2>
-            <p style="color: #7f8c8d; margin-bottom: 20px;">Seleziona gli articoli completati per questa fase:</p>
-            
-            <div id="articlesCheckboxes" style="background: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
+    <div id="partialCompleteModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-title">Completa Fase LASER</div>
+            <p class="modal-subtitle">Seleziona gli articoli completati per questa fase:</p>
+
+            <div id="articlesCheckboxes" class="modal-checkboxes">
                 <!-- Checkbox articoli generati dinamicamente -->
             </div>
 
-            <div style="display: flex; gap: 10px;">
-                <button onclick="closePartialModal()" style="flex: 1; background: #95a5a6; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+            <div class="modal-buttons">
+                <button class="btn-modal-cancel" onclick="closePartialModal()">
                     Annulla
                 </button>
-                <button onclick="submitPartialComplete()" style="flex: 1; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">
-                    ✅ Completa Selezionati
+                <button class="btn-modal-confirm" onclick="submitPartialComplete()">
+                    Completa Selezionati
                 </button>
-                <button onclick="completeAllPartialModal()" style="flex: 1; background: #3498db; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;" title="Completa tutti gli articoli per questa fase">
-                    🔄 Completa Tutti
+                <button class="btn-modal-all" onclick="completeAllPartialModal()" title="Completa tutti gli articoli per questa fase">
+                    Completa Tutti
                 </button>
             </div>
         </div>
@@ -394,6 +823,17 @@
         const PHASE = 'LASER';
         let currentOrderForCompletion = null;
         let currentOrderArticles = [];
+
+        // Count-up animation
+        function animateCountUp(el, target) {
+            let current = 0;
+            const step = Math.max(1, Math.ceil(target / 30));
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) { current = target; clearInterval(timer); }
+                el.textContent = current;
+            }, 30);
+        }
 
         // Carica ordini al caricamento
         window.addEventListener('DOMContentLoaded', () => {
@@ -421,7 +861,7 @@
             if (orders.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">✅</div>
+                        <div class="empty-state-icon">&#x2714;</div>
                         <h3>Nessun Lavoro</h3>
                         <p>Non ci sono articoli in attesa per questa fase</p>
                     </div>
@@ -432,8 +872,8 @@
             container.innerHTML = orders.map(order => {
                 const articlesHtml = (order.articles_next_phase || []).map(article => `
                     <div class="article-item">
-                        <div class="article-name">${article.name}</div>
-                        <div class="article-qty">${article.code ? article.code + ' - ' : ''}${article.qty} pz</div>
+                        <span class="article-name">${article.name}</span>
+                        <span class="article-qty">${article.code ? article.code + ' - ' : ''}${article.qty} pz</span>
                     </div>
                 `).join('');
 
@@ -452,18 +892,18 @@
                         </div>
 
                         <div class="articles-section">
-                            <h4>📦 ${totalArticles} Articol${totalArticles !== 1 ? 'i' : 'o'} (${totalPieces} pz)</h4>
+                            <h4>${totalArticles} Articol${totalArticles !== 1 ? 'i' : 'o'} (${totalPieces} pz)</h4>
                             ${articlesHtml}
                         </div>
 
-                        <span class="status-badge status-ready">⏳ Pronto per LASER</span>
+                        <span class="status-badge status-ready">Pronto per LASER</span>
 
                         <div class="action-buttons">
                             <button class="btn-start" onclick="startPhase('${order.id}')">
-                                ▶️ Inizia
+                                Inizia
                             </button>
                             <button class="btn-complete" onclick="openPartialCompleteModal('${order.id}')">
-                                ✅ Completa
+                                Completa
                             </button>
                         </div>
                     </div>
@@ -482,7 +922,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showMessage(`✅ Fase ${PHASE} iniziata`, 'success');
+                    showMessage(`Fase ${PHASE} iniziata`, 'success');
                     await loadOrders();
                 } else {
                     showMessage('Errore: ' + (data.error || 'Sconosciuto'), 'error');
@@ -513,28 +953,29 @@
                     const disabled = isCompleted ? 'disabled' : '';
                     const checked = isCompleted ? 'checked' : '';
                     const checkedAttr = checked ? 'checked' : '';
-                    
+                    const completedClass = isCompleted ? ' is-completed' : '';
+
                     return `
-                        <div style="padding: 10px; margin-bottom: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0; display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled} style="width: 18px; height: 18px; cursor: pointer;">
-                            <label for="article_${idx}" style="flex: 1; cursor: pointer; color: #2c3e50; font-weight: ${isCompleted ? 'bold' : '500'};">
-                                <strong>${article.name}</strong> 
-                                <span style="color: #7f8c8d; font-size: 12px;">(${article.qty} pz)</span>
-                                ${isCompleted ? '<span style="color: #27ae60; margin-left: 10px;">✅ Completato</span>' : ''}
+                        <div class="modal-checkbox-item${completedClass}">
+                            <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled}>
+                            <label for="article_${idx}">
+                                <strong>${article.name}</strong>
+                                <span class="qty-tag">(${article.qty} pz)</span>
+                                ${isCompleted ? '<span class="completed-tag">Completato</span>' : ''}
                             </label>
                         </div>
                     `;
                 }).join('');
 
                 // Mostra modale
-                document.getElementById('partialCompleteModal').style.display = 'block';
+                document.getElementById('partialCompleteModal').classList.add('show');
             } catch (error) {
                 showMessage('Errore: ' + error.message, 'error');
             }
         }
 
         function closePartialModal() {
-            document.getElementById('partialCompleteModal').style.display = 'none';
+            document.getElementById('partialCompleteModal').classList.remove('show');
             currentOrderForCompletion = null;
             currentOrderArticles = [];
         }
@@ -560,7 +1001,7 @@
                 const response = await fetch(`${API_URL}/orders/${currentOrderForCompletion}/phase/${PHASE}/complete-partial`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         article_indices: selectedIndices,
                         note: ''
                     })
@@ -569,9 +1010,9 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    const msg = data.phase_complete 
-                        ? `✅ Fase ${PHASE} completata!` 
-                        : `✅ ${selectedIndices.length} articolo/i completato/i`;
+                    const msg = data.phase_complete
+                        ? `Fase ${PHASE} completata!`
+                        : `${selectedIndices.length} articolo/i completato/i`;
                     showMessage(msg, 'success');
                     closePartialModal();
                     await loadOrders();
@@ -609,9 +1050,13 @@
                 totalPieces += articlesForPhase.reduce((sum, a) => sum + a.qty, 0);
             });
 
-            document.getElementById('countOrders').textContent = totalOrders;
-            document.getElementById('countArticles').textContent = totalArticles;
-            document.getElementById('countPieces').textContent = totalPieces;
+            const ordersEl = document.getElementById('countOrders');
+            const articlesEl = document.getElementById('countArticles');
+            const piecesEl = document.getElementById('countPieces');
+
+            animateCountUp(ordersEl, totalOrders);
+            animateCountUp(articlesEl, totalArticles);
+            animateCountUp(piecesEl, totalPieces);
         }
 
         function showMessage(msg, type) {
