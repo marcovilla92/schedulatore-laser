@@ -14,5 +14,36 @@
   "statusLine": {
     "type": "command",
     "command": "node .claude/hooks/gsd-statusline.js"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python app/run.py*)",
+      "Bash(python -m pytest*)",
+      "Bash(pip install*)",
+      "Bash(curl http://localhost:5000*)",
+      "Bash(git status*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git rev-parse*)",
+      "Bash(git push*)",
+      "Bash(npx playwright*)",
+      "Bash(node .claude/*)",
+      "Bash(chmod +x*)",
+      "Bash(.claude/commands/scripts/*)",
+      "Read(.claude/**)",
+      "Write(.claude/**)"
+    ]
+  },
+  "mcpServers": {
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-server-sqlite",
+        "app/database/scheduler.db"
+      ]
+    }
   }
 }
