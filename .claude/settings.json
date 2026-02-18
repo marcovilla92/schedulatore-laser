@@ -9,6 +9,17 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git commit*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gsd-quality-gate.js"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
@@ -19,6 +30,7 @@
     "allow": [
       "Bash(python app/run.py*)",
       "Bash(python -m pytest*)",
+      "Bash(python -m py_compile*)",
       "Bash(pip install*)",
       "Bash(curl http://localhost:5000*)",
       "Bash(git status*)",
@@ -31,9 +43,14 @@
       "Bash(npx playwright*)",
       "Bash(node .claude/*)",
       "Bash(chmod +x*)",
-      "Bash(.claude/commands/scripts/*)",
+      "Bash(bash .claude/commands/scripts/*)",
+      "Bash(date*)",
+      "Bash(ls*)",
+      "Bash(mkdir*)",
       "Read(.claude/**)",
-      "Write(.claude/**)"
+      "Read(.planning/**)",
+      "Write(.claude/**)",
+      "Write(.planning/**)"
     ]
   },
   "mcpServers": {

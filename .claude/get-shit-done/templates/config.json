@@ -32,5 +32,38 @@
   "safety": {
     "always_confirm_destructive": true,
     "always_confirm_external_services": true
+  },
+  "project": {
+    "name": "Schedulatore Laser",
+    "stack": "Python 3.8+ / Flask 2.3 / SQLAlchemy 2.0 / SQLite / Vanilla HTML+CSS+JS",
+    "language": "Italian (UI, variables, comments, documentation)",
+    "entry_point": "python app/run.py",
+    "server_url": "http://localhost:5000",
+    "health_endpoint": "/api/health",
+    "db_path": "app/database/scheduler.db"
+  },
+  "tooling": {
+    "commands": {
+      "verify": "bash .claude/commands/scripts/verify.sh",
+      "quality": "bash .claude/commands/scripts/quality.sh",
+      "test": "bash .claude/commands/scripts/test.sh"
+    },
+    "skills": [
+      "webapp-testing (Playwright E2E per le 7 pagine frontend)",
+      "vibesec (OWASP security audit per app esposta su LAN)",
+      "playwright-skill (browser automation)",
+      "pdf (elaborazione PDF - core business)",
+      "mcp-builder (costruzione MCP server custom)",
+      "skill-creator (creazione skill custom)"
+    ],
+    "mcp_servers": {
+      "sqlite": "Accesso diretto a scheduler.db per query, debug schema, analisi dati"
+    },
+    "verification": {
+      "pre_commit": "bash .claude/commands/scripts/quality.sh",
+      "post_task": "python -m py_compile {file}",
+      "integration": "bash .claude/commands/scripts/verify.sh",
+      "security": "Usa skill vibesec per audit OWASP"
+    }
   }
 }

@@ -242,3 +242,59 @@ curl http://localhost:5000/api/orders
 - API response time: <100ms
 - Dashboard load: <500ms
 - Supports multiple concurrent workstations over LAN
+
+## GSD Workflow & Tooling
+
+This project uses **GSD 2.0** (Get Shit Done) for structured AI-assisted development. All tooling is in `.claude/`.
+
+### Available Slash Commands (GSD)
+
+| Command | Purpose |
+|---------|---------|
+| `/gsd:map-codebase` | Analyze existing codebase structure and patterns |
+| `/gsd:new-project` | Initialize GSD project planning |
+| `/gsd:plan-phase N` | Plan a specific phase with atomic tasks |
+| `/gsd:execute-phase` | Execute plan via subagent |
+| `/gsd:verify-work` | Verify deliverables vs requirements |
+| `/gsd:progress` | Show current progress |
+| `/gsd:quick "desc"` | Fast task without full planning |
+| `/gsd:pause-work` / `/gsd:resume-work` | Session persistence |
+
+### Available Slash Commands (Workflow)
+
+| Command | Purpose |
+|---------|---------|
+| `/commit [msg]` | Smart commit with quality checks |
+| `/test [path]` | Auto-detect test framework, run with coverage |
+| `/quality` | Python syntax check + import verification + API smoke test |
+| `/verify` | Start Flask server, check all endpoints and 7 frontend pages |
+| `/clean` | Reset project state |
+| `/deps` | Check outdated/vulnerable dependencies |
+| `/pr-create` | Create PR with auto-generated description |
+
+### Available Skills (auto-discovered)
+
+| Skill | When to use |
+|-------|-------------|
+| `webapp-testing` | Testing the 7 frontend HTML pages with Playwright |
+| `vibesec` | OWASP security audit (app exposed on LAN) |
+| `playwright-skill` | Browser automation for E2E testing |
+| `pdf` | Advanced PDF processing (core business) |
+| `mcp-builder` | Building custom MCP servers |
+| `skill-creator` | Creating new project-specific skills |
+
+### MCP Servers
+
+| Server | Access |
+|--------|--------|
+| `sqlite` | Direct query access to `app/database/scheduler.db` |
+
+### Verification Protocol
+
+When completing any task, GSD agents should follow this verification chain:
+
+1. **Post-task**: `python -m py_compile <modified_file>` — syntax check
+2. **Pre-commit**: `bash .claude/commands/scripts/quality.sh` — full quality gate
+3. **Integration**: `bash .claude/commands/scripts/verify.sh` — start server and test all endpoints
+4. **Security**: Use `vibesec` skill for OWASP audit on security-sensitive changes
+5. **Frontend**: Use `webapp-testing` skill for visual/functional verification of HTML pages
