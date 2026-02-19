@@ -4,143 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordini Estratti dai PDF - Schedulatore Laser</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/design.css">
     <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #111827;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --bg-card-hover: rgba(255, 255, 255, 0.06);
-            --bg-input: rgba(255, 255, 255, 0.05);
-            --border-glass: rgba(255, 255, 255, 0.06);
-            --border-hover: rgba(0, 212, 255, 0.3);
-            --text-primary: #e6e6e6;
-            --text-secondary: #6b7b8d;
-            --text-muted: #4a5568;
-            --accent-cyan: #00d4ff;
-            --accent-green: #00e676;
-            --accent-red: #ff4757;
-            --accent-amber: #ffa502;
-            --accent-orange: #ff6348;
-            --accent-purple: #a855f7;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Ambient background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background:
-                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
-                radial-gradient(circle at 50% 80%, rgba(0, 230, 118, 0.02) 0%, transparent 50%);
-            animation: ambientFloat 25s ease-in-out infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes ambientFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, -1%) rotate(1deg); }
-            66% { transform: translate(-1%, 2%) rotate(-1deg); }
-        }
-
-        /* ===== NAVBAR ===== */
-        nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 64px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            padding: 0 24px;
-            gap: 6px;
-            z-index: 1000;
-        }
-
-        .nav-logo {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-right: 32px;
-            white-space: nowrap;
-        }
-
-        nav a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
-            position: relative;
-        }
-
-        nav a:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        nav a.active {
-            color: var(--accent-cyan);
-            background: rgba(0, 212, 255, 0.1);
-            font-weight: 600;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
-        }
-
-        /* ===== MAIN ===== */
-        main {
-            position: relative;
-            z-index: 1;
-            margin-top: 88px;
-            padding: 0 24px 60px;
-            max-width: 1400px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        /* ===== GLASS CARD ===== */
-        .glass-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            transition: var(--transition);
-        }
-
-        .glass-card:hover {
-            background: var(--bg-card-hover);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
         /* ===== PAGE HEADER ===== */
         .page-header {
             margin-bottom: 32px;
@@ -172,78 +37,6 @@
             margin-bottom: 24px;
             animation: fadeInUp 0.6s ease both;
             animation-delay: 0.1s;
-        }
-
-        /* ===== BUTTONS ===== */
-        button {
-            font-family: inherit;
-            cursor: pointer;
-            transition: var(--transition);
-            outline: none;
-        }
-
-        .btn-primary {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
-            color: #fff;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 0 30px rgba(168, 85, 247, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-
-        .btn-primary:disabled {
-            background: var(--text-muted);
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-        }
-
-        /* Ripple effect */
-        .btn-primary::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0; left: 0;
-            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
-            transform: scale(0);
-            opacity: 0;
-            transition: transform 0.5s, opacity 0.5s;
-        }
-
-        .btn-primary:active::after {
-            transform: scale(2);
-            opacity: 1;
-            transition: 0s;
-        }
-
-        .btn-secondary {
-            padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-secondary);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: var(--text-primary);
-            border-color: rgba(255, 255, 255, 0.15);
         }
 
         /* ===== STATUS ===== */
@@ -320,6 +113,40 @@
             color: var(--accent-purple);
             letter-spacing: -1px;
         }
+
+        /* ===== FILTER CHIPS (FILT-03) ===== */
+        .filter-chips { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 20px;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: var(--transition); min-height: 36px;
+        }
+        .chip.active {
+            background: color-mix(in srgb, var(--accent-cyan) 15%, transparent);
+            border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            color: var(--accent-cyan);
+        }
+        .chip .chip-remove { display: none; margin-left: 4px; cursor: pointer; font-size: 14px; opacity: 0.7; }
+        .chip.active .chip-remove { display: inline; }
+        .chip-count { background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 1px 6px; font-size: 11px; }
+        .chip.active .chip-count { background: color-mix(in srgb, var(--accent-cyan) 20%, transparent); }
+
+        /* ===== NAV SEARCH ===== */
+        .nav-search { margin-left: auto; display: flex; align-items: center; }
+        .nav-search input {
+            background: var(--bg-input); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm); color: var(--text-primary);
+            font-size: 13px; padding: 7px 14px; width: 200px; height: 36px;
+            transition: var(--transition);
+        }
+        .nav-search input:focus {
+            outline: none; border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            background: rgba(255, 255, 255, 0.08); width: 260px;
+        }
+        .nav-search input::placeholder { color: var(--text-muted); }
 
         /* ===== TABLE ===== */
         .table-card {
@@ -401,26 +228,6 @@
             border: 1px solid rgba(255, 71, 87, 0.2);
         }
 
-        /* ===== ACTION LINK ===== */
-        .action-link {
-            color: var(--accent-purple);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 12px;
-            padding: 6px 12px;
-            border-radius: var(--radius-sm);
-            border: 1px solid rgba(168, 85, 247, 0.2);
-            background: rgba(168, 85, 247, 0.08);
-            transition: var(--transition);
-            display: inline-block;
-        }
-
-        .action-link:hover {
-            background: rgba(168, 85, 247, 0.15);
-            border-color: rgba(168, 85, 247, 0.4);
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.1);
-        }
-
         /* ===== NO DATA ===== */
         .no-data {
             text-align: center;
@@ -481,41 +288,33 @@
             box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        /* ===== ACTION LINK ===== */
+        .action-link {
+            color: var(--accent-purple);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            background: rgba(168, 85, 247, 0.08);
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            min-height: 48px;
         }
 
-        /* ===== ANIMATIONS ===== */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .action-link:hover {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.1);
         }
 
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 768px) {
-            nav { padding: 0 16px; gap: 4px; }
-            nav a { padding: 6px 10px; font-size: 12px; }
-            .nav-logo { font-size: 15px; margin-right: 16px; }
-            main { padding: 0 16px 40px; }
-            .glass-card { padding: 20px; }
-            .stats { grid-template-columns: 1fr; }
-            table { font-size: 12px; }
-            th, td { padding: 10px 12px; }
-            .controls-card { flex-direction: column; align-items: stretch; }
-            .controls-card .glass-card { padding: 20px; }
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        /* ===== TOUCH TARGETS (ACCS-01) ===== */
+        nav a { min-height: 40px; display: flex; align-items: center; }
+        .btn-edit-phases, .btn-cancel-phases { min-height: 48px; display: inline-flex; align-items: center; }
+        .btn-save-phases { min-height: 56px; display: inline-flex; align-items: center; }
+        .phase-checkbox label { min-height: 48px; display: flex; align-items: center; padding: 8px 12px; }
 
         /* ===== RIGA ORDINE ESPANDIBILE ===== */
         .order-row { cursor: pointer; }
@@ -549,11 +348,15 @@
         }
         .article-row:last-child { border-bottom: none; }
         .article-info { flex: 0 0 250px; }
-        .article-info .article-name { font-weight: 600; font-size: 13px; }
+        .article-info .article-name { font-weight: 600; font-size: 13px; color: var(--text-primary); }
         .article-info .article-code { font-size: 11px; color: var(--text-secondary); }
 
         /* ===== CHECKBOX FASI — STILE CUSTOM ===== */
-        .phase-checkboxes { display: flex; gap: 8px; flex-wrap: wrap; }
+        .phase-checkboxes {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
         .phase-checkbox {
             display: flex;
             align-items: center;
@@ -624,7 +427,7 @@
             margin-left: 8px;
         }
 
-        /* ===== PULSANTI FASI ===== */
+        /* ===== PULSANTI FASI (ACCS-01) ===== */
         .btn-edit-phases {
             padding: 8px 20px;
             background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
@@ -702,18 +505,29 @@
             padding-top: 12px;
             border-top: 1px solid var(--border-glass);
         }
+
+        /* ===== RESPONSIVE 1024px ===== */
+        @media (max-width: 1023px) {
+            .stats { flex-direction: column; }
+            .phase-checkboxes { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1024px) {
+            .phase-checkboxes { grid-template-columns: repeat(5, 1fr); }
+        }
     </style>
 </head>
 <body>
     <nav>
         <div class="nav-logo">Schedulatore Laser</div>
-        <a href="welcome.html">Caricamento</a>
         <a href="ordini-estratti" class="active">Ordini Estratti</a>
         <a href="dashboard.html">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html">Piega</a>
         <a href="saldatura.html">Saldatura</a>
         <a href="archive.html">Archivio</a>
+        <div class="nav-search">
+            <input type="search" id="navSearch" placeholder="Cerca cliente o n. ordine..." autocomplete="off" oninput="onSearch(this.value)">
+        </div>
     </nav>
 
     <main>
@@ -749,6 +563,8 @@
             </div>
         </div>
 
+        <div class="filter-chips" id="activeFilters"></div>
+
         <div class="table-card">
             <div class="glass-card">
                 <div class="table-wrapper">
@@ -779,9 +595,54 @@
         <div id="errorSection"></div>
     </main>
 
+    <script src="/shared.js"></script>
     <script>
         // Stato locale delle modifiche pendenti: { orderId: { articleId: [fasi checked] } }
         const pendingChanges = {};
+
+        // Variabili ricerca e filtri
+        let allOrders = [];
+        let searchQuery = '';
+
+        // Handler ricerca con debounce (usa debounce da shared.js)
+        const debouncedSearch = debounce((q) => { searchQuery = q; applyFiltersAndRender(); }, 300);
+
+        function onSearch(value) {
+            debouncedSearch(value);
+        }
+
+        // Applica filtri e renderizza (wrapper locale — filtra anche su numero_ordine)
+        function applyFiltersAndRender() {
+            let filtered = allOrders;
+            if (searchQuery.trim()) {
+                const q = searchQuery.trim().toLowerCase();
+                filtered = allOrders.filter(o =>
+                    (o.cliente || '').toLowerCase().includes(q) ||
+                    (o.numero_ordine || '').toLowerCase().includes(q) ||
+                    (o.id || '').toLowerCase().includes(q)
+                );
+            }
+            updateActiveFilters(filtered.length);
+            renderOrders(filtered);
+        }
+
+        // Aggiorna chips filtri attivi (FILT-03)
+        function updateActiveFilters(count) {
+            const container = document.getElementById('activeFilters');
+            if (!searchQuery.trim()) { container.innerHTML = ''; return; }
+            container.innerHTML = `
+                <button class="chip active" onclick="clearSearch()">
+                    Ricerca: "${escapeHtml(searchQuery)}" <span class="chip-count">${count}</span>
+                    <span class="chip-remove">&#10005;</span>
+                </button>
+            `;
+        }
+
+        function clearSearch() {
+            searchQuery = '';
+            document.getElementById('navSearch').value = '';
+            applyFiltersAndRender();
+        }
 
         // Carica gli ordini quando la pagina si apre
         window.addEventListener('load', loadOrders);
@@ -836,7 +697,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        displayOrders(data.orders);
+                        allOrders = data.orders;
+                        applyFiltersAndRender();
                         updateStats(data.orders);
                     } else {
                         showStatus(`Errore nel caricamento: ${data.error}`, 'error');
@@ -847,7 +709,7 @@
                 });
         }
 
-        function displayOrders(orders) {
+        function renderOrders(orders) {
             const tbody = document.getElementById('ordersBody');
 
             // Salva pannelli espansi prima di ricreare il DOM
@@ -998,6 +860,11 @@
             });
         }
 
+        // Mantieni retrocompatibilita con displayOrders (usata da cancelEditPhases tramite loadOrders)
+        function displayOrders(orders) {
+            renderOrders(orders);
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.appendChild(document.createTextNode(text));
@@ -1057,7 +924,7 @@
         function cancelEditPhases(orderId) {
             // Annulla modifiche: ricarica dati dal server
             delete pendingChanges[orderId];
-            loadOrders(true);
+            loadOrders();
         }
 
         function onPhaseCheckboxChange(checkbox) {
