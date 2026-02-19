@@ -10,11 +10,11 @@ Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 ## Posizione Attuale
 
 Fase: 1 di 3 (Modello Dati per Articolo)
-Piano: 1 di 3 nella fase attuale
-Stato: Piano 01-01 completato
-Ultima attivita: 2026-02-19 — Piano 01-01 eseguito: Article model + migration utility
+Piano: 2 di 3 nella fase attuale
+Stato: Piano 01-02 completato
+Ultima attivita: 2026-02-19 — Piano 01-02 eseguito: OrderManager per-article business logic
 
-Progresso: [█░░░░░░░░░] 10%
+Progresso: [██░░░░░░░░] 20%
 
 ## Metriche Prestazioni
 
@@ -27,7 +27,7 @@ Progresso: [█░░░░░░░░░] 10%
 
 | Fase | Piani | Totale | Media/Piano |
 |------|-------|--------|-------------|
-| 1. Modello Dati | 1/3 | ~2min | 2min |
+| 1. Modello Dati | 2/3 | ~5min | 2.5min |
 | 2. Assegnazione Fasi | 0/0 | — | — |
 | 3. Viste Reparto | 0/0 | — | — |
 
@@ -48,10 +48,14 @@ Progresso: [█░░░░░░░░░] 10%
 - required_phases come colonna JSON (non tabella normalizzata) — coerente con pattern esistenti
 - attributes JSON catch-all per campi extra dai formati PDF — schema flessibile senza proliferare colonne
 - ProcessingStep.article_id nullable — zero costo di migrazione per step pre-v1.1
+- session.flush() (non commit) per ottenere article.id prima di creare ProcessingStep figli
+- Batch mode (no article_id) mantenuto in start_phase/complete_phase per compatibilita frontend esistente
+- get_order_details: path v1.1+ (Article records) con fallback a logica JSON per ordini pre-v1.1
+- update_order_articles: matching per code+name per identita stabile degli articoli
 
 ### Problemi Noti
 
-- `get_orders_by_phase` carica TUTTI gli ordini (ottimizzare con JOIN quando il volume cresce)
+- `get_orders_by_phase` ottimizzato con JOIN su Article+ProcessingStep (risolto in 01-02)
 - `declarative_base()` deprecato in SQLAlchemy 2.0
 - `datetime.utcnow()` deprecato in Python 3.12+
 
@@ -72,5 +76,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Completato 01-01-PLAN.md — Article model + migration utility
-File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-01-SUMMARY.md
+Fermato a: Completato 01-02-PLAN.md — OrderManager per-article business logic
+File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-02-SUMMARY.md

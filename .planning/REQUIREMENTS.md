@@ -10,9 +10,9 @@ Requisiti per il milestone v1.1 — Fasi per Articolo. Ogni requisito e mappato 
 ### Modello Dati
 
 - [x] **DATI-01**: Ogni articolo nell'ordine ha un campo `required_phases` con le fasi assegnate (lista di fasi: LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE — tutte opzionali)
-- [ ] **DATI-02**: ProcessingStep viene creato per-articolo in base alle fasi assegnate a quell'articolo (non piu un unico step per l'intero ordine)
-- [ ] **DATI-03**: Lo stato di ogni articolo e calcolato dalle sue fasi completate (prossima fase, fasi rimanenti, completato)
-- [ ] **DATI-04**: Un ordine risulta "completato" quando tutti i suoi articoli hanno finito tutte le fasi assegnate
+- [x] **DATI-02**: ProcessingStep viene creato per-articolo in base alle fasi assegnate a quell'articolo (non piu un unico step per l'intero ordine)
+- [x] **DATI-03**: Lo stato di ogni articolo e calcolato dalle sue fasi completate (prossima fase, fasi rimanenti, completato)
+- [x] **DATI-04**: Un ordine risulta "completato" quando tutti i suoi articoli hanno finito tutte le fasi assegnate
 
 ### Assegnazione Fasi
 
