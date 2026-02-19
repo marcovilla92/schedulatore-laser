@@ -9,12 +9,12 @@ Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 
 ## Posizione Attuale
 
-Fase: 4 di 5 COMPLETATA — ora Fase 5
-Piano: 04-01 COMPLETATO (1/1 piani Fase 4)
-Stato: Fase 4 completata — pronta per Fase 5 (wave parallela 5 agenti)
-Ultima attivita: 2026-02-19 — 04-01 design.css + shared.js + fonts/ completato (3 min)
+Fase: 5 di 5 IN CORSO — wave parallela 5 agenti
+Piano: 05-05 COMPLETATO (5/5 piani Fase 5)
+Stato: 05-05 dashboard.html + welcome.html redirect completati — Fase 5 completata
+Ultima attivita: 2026-02-19 — 05-05 dashboard.html KPI/urgenza/refresh completato (3 min)
 
-Progress: [████░░░░░░░░░░░░░░░░░░] 4/5 fasi complete (v1.2 Fase 4 done)
+Progress: [██████████████████████] Fase 5 completata (5/5 piani completati)
 
 ## Performance Metrics
 
@@ -38,6 +38,10 @@ Progress: [████░░░░░░░░░░░░░░░░░░] 4
 | 4. Design System | 1 | 3 min | 3 min |
 
 *Aggiornato dopo ogni completamento piano*
+| Phase 05-redesign-tutte-le-pagine P01 | 2 | 1 tasks | 1 files |
+| Phase 05-redesign-tutte-le-pagine P05 | 3min | 2 tasks | 2 files |
+| Phase 05-redesign-tutte-le-pagine P03 | 4 | 2 tasks | 1 files |
+| Phase 05-redesign-tutte-le-pagine P02 | 3 | 2 tasks | 1 files |
 
 ## Contesto Accumulato
 
@@ -53,6 +57,10 @@ Progress: [████░░░░░░░░░░░░░░░░░░] 4
 - **[04-01]** Inter WOFF2 self-hosted da jsDelivr fontsource — elimina Google Fonts CDN timeout 30sec su LAN
 - **[04-01]** body[data-page] per accenti per-pagina in @layer tokens — default cyan, laser=red, piega=amber, saldatura=orange
 - **[04-01]** shared.js come classic script (non ES module) — funzioni disponibili globalmente su window senza complessita CORS
+- **[05-01]** Pattern fetch/render separati: loadOrders() aggiorna allOrders, applyFiltersAndRender() applica filtri — searchQuery e clienteFilter mai resettati dal setInterval
+- **[05-01]** Filtro cliente filter-bar e ricerca navbar si combinano con logica AND su archive.html
+- **[05-01]** Chips rimovibili: updateActiveFilters() + window._chipRemovers[] per collegare onclick a closure — pattern disponibile per 05-02/03/04/05
+- **[05-01]** escapeHtml() necessaria per XSS protection quando si usa innerHTML con dati dinamici dal backend
 
 ### Architettura Esecuzione v1.2
 
@@ -92,5 +100,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Completato 04-01-PLAN.md — design.css + shared.js + fonts/ pronti per Fase 5
+Fermato a: Completato 05-01-PLAN.md — archive.html ridisegnata con design system condiviso
 Resume file: None

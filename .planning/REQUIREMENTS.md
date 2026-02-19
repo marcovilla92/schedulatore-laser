@@ -16,8 +16,8 @@ Requisiti per il milestone v1.2 — Redesign UI/UX Completo. Ogni requisito e ma
 
 ### Accessibilita
 
-- [ ] **ACCS-01**: Tutti gli elementi interattivi hanno touch target minimo 48px, 56px per azioni critiche (Avvia Fase, Completa)
-- [ ] **ACCS-02**: Tutte le combinazioni testo/sfondo rispettano il rapporto di contrasto WCAG AA (4.5:1 minimo)
+- [x] **ACCS-01**: Tutti gli elementi interattivi hanno touch target minimo 48px, 56px per azioni critiche (Avvia Fase, Completa)
+- [x] **ACCS-02**: Tutte le combinazioni testo/sfondo rispettano il rapporto di contrasto WCAG AA (4.5:1 minimo)
 
 ### Dashboard
 
@@ -29,9 +29,9 @@ Requisiti per il milestone v1.2 — Redesign UI/UX Completo. Ogni requisito e ma
 
 ### Ricerca e Filtri
 
-- [ ] **FILT-01**: Barra di ricerca globale nella navbar sticky che filtra i dati della pagina corrente (client-side)
+- [x] **FILT-01**: Barra di ricerca globale nella navbar sticky che filtra i dati della pagina corrente (client-side)
 - [ ] **FILT-02**: Filtri per stato nelle viste reparto (in attesa, in corso, completati)
-- [ ] **FILT-03**: Filtri attivi visualizzati come chips/pills rimovibili con contatore
+- [x] **FILT-03**: Filtri attivi visualizzati come chips/pills rimovibili con contatore
 - [ ] **FILT-04**: Auto-refresh non resetta lo stato dei filtri (separazione fetch/render)
 
 ### Viste Reparto
@@ -43,7 +43,7 @@ Requisiti per il milestone v1.2 — Redesign UI/UX Completo. Ogni requisito e ma
 ### Pagine Secondarie
 
 - [ ] **PGSC-01**: Ordini estratti ridisegnata con design system condiviso, responsive PC+tablet
-- [ ] **PGSC-02**: Archivio ridisegnata con design system condiviso, responsive PC+tablet
+- [x] **PGSC-02**: Archivio ridisegnata con design system condiviso, responsive PC+tablet
 
 ## Requisiti v1.1 (Completati)
 
