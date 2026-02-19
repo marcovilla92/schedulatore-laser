@@ -14,10 +14,10 @@ Requirements for milestone v1.2 — Parser Universale. Each maps to roadmap phas
 
 ### Estrattore Universale
 
-- [ ] **EXTR-01**: Il sistema converte qualsiasi PDF in testo strutturato tramite Docling prima di passarlo al modello LLM
-- [ ] **EXTR-02**: Il sistema chiama Gemini 2.0 Flash con il testo estratto e riceve i campi chiave in formato JSON strutturato (cliente, numero_ordine, data_consegna, articoli con quantita e descrizione)
-- [ ] **EXTR-03**: Ogni campo estratto ha un indicatore di confidenza (alta/media/bassa) restituito insieme ai dati
-- [ ] **EXTR-04**: L'estrattore funziona su PDF mai visti in precedenza senza richiedere configurazione o nuovo codice
+- [x] **EXTR-01**: Il sistema converte qualsiasi PDF in testo strutturato tramite Docling prima di passarlo al modello LLM
+- [x] **EXTR-02**: Il sistema chiama Gemini 2.0 Flash con il testo estratto e riceve i campi chiave in formato JSON strutturato (cliente, numero_ordine, data_consegna, articoli con quantita e descrizione)
+- [x] **EXTR-03**: Ogni campo estratto ha un indicatore di confidenza (alta/media/bassa) restituito insieme ai dati
+- [x] **EXTR-04**: L'estrattore funziona su PDF mai visti in precedenza senza richiedere configurazione o nuovo codice
 
 ### Integrazione Pipeline
 
@@ -60,10 +60,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | AUDIT-01 | Phase 4: Audit Parser | Pending |
 | AUDIT-02 | Phase 4: Audit Parser | Pending |
-| EXTR-01 | Phase 5: Estrattore Universale | Pending |
-| EXTR-02 | Phase 5: Estrattore Universale | Pending |
-| EXTR-03 | Phase 5: Estrattore Universale | Pending |
-| EXTR-04 | Phase 5: Estrattore Universale | Pending |
+| EXTR-01 | Phase 5: Estrattore Universale | Complete |
+| EXTR-02 | Phase 5: Estrattore Universale | Complete |
+| EXTR-03 | Phase 5: Estrattore Universale | Complete |
+| EXTR-04 | Phase 5: Estrattore Universale | Complete |
 | PIPE-01 | Phase 6: Integrazione Pipeline | Pending |
 | PIPE-02 | Phase 6: Integrazione Pipeline | Pending |
 | PIPE-03 | Phase 6: Integrazione Pipeline | Pending |

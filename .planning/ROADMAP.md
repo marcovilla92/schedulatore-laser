@@ -88,7 +88,7 @@ Plans:
   2. Il report elenca i formati con success rate sotto il 100% e indica quali campi specifici mancano o contengono dati errati per ciascun formato
   3. Il report e leggibile senza strumenti speciali (file di testo o stdout strutturato) e costituisce una baseline documentata per confrontare i risultati post-Phase 5
   4. Il report viene generato in meno di 2 minuti sull'intero set di PDF disponibili
-**Plans:** 1 plan
+**Plans:** 1/2 plans executed
 
 Plans:
 - [x] 04-01-PLAN.md — Script audit_parsers.py con report per-campo per-formato e baseline persistente
@@ -106,7 +106,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Installa google-genai e costruisce universal_extractor.py (Docling + Gemini + confidence schema)
+- [x] 05-01-PLAN.md — Installa google-genai e costruisce universal_extractor.py (Docling + Gemini + confidence schema)
 - [ ] 05-02-PLAN.md — Script di validazione test_universal_extractor.py con confronto baseline Phase 4
 
 ### Phase 6: Integrazione Pipeline
@@ -137,6 +137,6 @@ Phases execute in numeric order: 4 → 5 → 6
 | 1. Modello Dati per Articolo | v1.1 | 0/0 | Deferred | - |
 | 2. Assegnazione Fasi | v1.1 | 0/0 | Deferred | - |
 | 3. Viste Reparto | v1.1 | 0/0 | Deferred | - |
-| 4. Audit Parser | v1.2 | 0/1 | In planning | - |
-| 5. Estrattore Universale | v1.2 | 0/2 | In planning | - |
+| 4. Audit Parser | v1.2 | 1/1 | Complete | 2026-02-19 |
+| 5. Estrattore Universale | 1/2 | In Progress|  | - |
 | 6. Integrazione Pipeline | v1.2 | 0/0 | Not started | - |

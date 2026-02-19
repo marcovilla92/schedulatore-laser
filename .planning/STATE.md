@@ -5,30 +5,30 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Operators see what needs processing next and track completion in real-time
-**Current focus:** Milestone v1.2 — Phase 4: Audit Parser
+**Current focus:** Milestone v1.2 — Phase 5: Estrattore Universale
 
 ## Current Position
 
-Phase: 4 of 6 (Audit Parser)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: Phase 4 complete — baseline misurata, pronta per Phase 5
-Last activity: 2026-02-19 — Audit completato: baseline cliente 87%, data_consegna 81%
+Phase: 5 of 6 (Estrattore Universale)
+Plan: 1 of 2 in current phase — COMPLETE
+Status: Phase 5 Plan 1 complete — universal_extractor.py creato con Docling + Gemini pipeline
+Last activity: 2026-02-19 — universal_extractor.py (471 righe), google-genai installato (1.64.0)
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3 min
+- Total execution time: 0.05 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 4. Audit Parser | 0/0 | — | — |
-| 5. Estrattore Universale | 0/0 | — | — |
+| 4. Audit Parser | 1/1 | — | — |
+| 5. Estrattore Universale | 1/2 | 3 min | 3 min |
 | 6. Integrazione Pipeline | 0/0 | — | — |
 
 ## Accumulated Context
@@ -41,6 +41,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - v1.2: Docling gia nel progetto — usato come layer PDF-to-text prima di Gemini
 - v1.0: flag_modified() necessario per mutazioni JSON in SQLAlchemy
 - v1.0: 50MB upload limit per sicurezza
+- [Phase 05-estrattore-universale]: google-genai SDK (not google-generativeai EOL Nov 2025) + GEMINI_MODEL constant for single-point migration to gemini-2.5-flash before March 31 2026 retirement
+- [Phase 05-estrattore-universale]: ExtractionError typed exception as unified failure surface — GEMINI_API_KEY missing raises ExtractionError not KeyError
+- [Phase 05-estrattore-universale]: Pydantic Literal confidence labels declared by Gemini (not heuristic) — response_schema=OrdineEstratto enforces schema syntactically
 
 ### Pending Todos
 
@@ -57,5 +60,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 4 complete — baseline audit documented
-Resume file: .planning/phases/04-audit-parser/04-01-SUMMARY.md
+Stopped at: Completed 05-estrattore-universale/05-01-PLAN.md
+Resume file: .planning/phases/05-estrattore-universale/05-01-SUMMARY.md
