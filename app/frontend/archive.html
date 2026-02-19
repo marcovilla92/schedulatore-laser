@@ -4,127 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archivio - Schedulatore Laser</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/design.css">
     <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #111827;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --bg-card-hover: rgba(255, 255, 255, 0.06);
-            --bg-input: rgba(255, 255, 255, 0.05);
-            --border-glass: rgba(255, 255, 255, 0.06);
-            --border-hover: rgba(0, 212, 255, 0.3);
-            --text-primary: #e6e6e6;
-            --text-secondary: #6b7b8d;
-            --text-muted: #4a5568;
-            --accent-cyan: #00d4ff;
-            --accent-green: #00e676;
-            --accent-red: #ff4757;
-            --accent-amber: #ffa502;
-            --accent-orange: #ff6348;
-            --accent-purple: #a855f7;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Ambient background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background:
-                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
-                radial-gradient(circle at 50% 80%, rgba(0, 230, 118, 0.02) 0%, transparent 50%);
-            animation: ambientFloat 25s ease-in-out infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes ambientFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, -1%) rotate(1deg); }
-            66% { transform: translate(-1%, 2%) rotate(-1deg); }
-        }
-
-        /* ===== NAVBAR ===== */
-        nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 64px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            padding: 0 24px;
-            gap: 6px;
-            z-index: 1000;
-        }
-
-        .nav-logo {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-right: 32px;
-            white-space: nowrap;
-        }
-
-        nav a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
-            position: relative;
-        }
-
-        nav a:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        nav a.active {
-            color: var(--accent-cyan);
-            background: rgba(0, 212, 255, 0.1);
-            font-weight: 600;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
-        }
-
-        /* ===== MAIN ===== */
-        main {
-            position: relative;
-            z-index: 1;
-            margin-top: 88px;
-            padding: 0 24px 60px;
-            max-width: 1200px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
         /* ===== PAGE HEADER ===== */
         .page-header {
             margin-bottom: 32px;
@@ -147,30 +28,34 @@
             font-size: 14px;
         }
 
-        /* ===== GLASS CARD ===== */
-        .glass-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 24px;
+        /* ===== NAV SEARCH ===== */
+        .nav-search { margin-left: auto; display: flex; align-items: center; }
+        .nav-search input {
+            background: var(--bg-input); border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm); color: var(--text-primary);
+            font-size: 13px; padding: 7px 14px; width: 200px; height: 36px;
             transition: var(--transition);
         }
-
-        .glass-card:hover {
-            background: var(--bg-card-hover);
-            border-color: rgba(255, 255, 255, 0.1);
+        .nav-search input:focus {
+            outline: none; border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            background: rgba(255, 255, 255, 0.08); width: 260px;
         }
+        .nav-search input::placeholder { color: var(--text-muted); }
 
         /* ===== STATS GRID ===== */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin-bottom: 24px;
             animation: fadeInUp 0.6s ease both;
             animation-delay: 0.1s;
+        }
+
+        @media (max-width: 1023px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
         }
 
         .stat-card {
@@ -228,7 +113,7 @@
             border: 1px solid var(--border-glass);
             border-radius: var(--radius-md);
             padding: 16px 20px;
-            margin-bottom: 24px;
+            margin-bottom: 12px;
             display: flex;
             gap: 12px;
             align-items: center;
@@ -269,6 +154,7 @@
             color: var(--text-primary);
             transition: var(--transition);
             outline: none;
+            min-height: 48px;
         }
 
         .filter-bar input[type="text"]:focus {
@@ -293,6 +179,7 @@
             font-size: 13px;
             transition: var(--transition);
             white-space: nowrap;
+            min-height: 48px;
         }
 
         .btn-filter:hover {
@@ -313,12 +200,41 @@
             font-size: 13px;
             transition: var(--transition);
             white-space: nowrap;
+            min-height: 48px;
         }
 
         .btn-refresh:hover {
             background: rgba(255, 255, 255, 0.08);
             color: var(--text-primary);
             border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* ===== FILTER CHIPS ===== */
+        .filter-chips { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 20px;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: var(--transition); min-height: 36px;
+        }
+        .chip.active {
+            background: color-mix(in srgb, var(--accent-cyan) 15%, transparent);
+            border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            color: var(--accent-cyan);
+        }
+        .chip .chip-remove {
+            display: none; margin-left: 4px; cursor: pointer; font-size: 14px;
+            color: inherit; opacity: 0.7;
+        }
+        .chip.active .chip-remove { display: inline; }
+        .chip-count {
+            background: rgba(255, 255, 255, 0.1); border-radius: 10px;
+            padding: 1px 6px; font-size: 11px;
+        }
+        .chip.active .chip-count {
+            background: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
         }
 
         /* ===== TABLE ===== */
@@ -339,10 +255,15 @@
             border-color: rgba(255, 255, 255, 0.1);
         }
 
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
+            min-width: 700px;
         }
 
         thead {
@@ -352,7 +273,7 @@
         th {
             padding: 14px 16px;
             text-align: left;
-            color: #00e676;
+            color: var(--accent-green);
             font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
@@ -423,13 +344,13 @@
         }
 
         .timing-badge.piega {
-            border-left: 3px solid #ffa502;
-            color: #ffa502;
+            border-left: 3px solid var(--accent-amber);
+            color: var(--accent-amber);
         }
 
         .timing-badge.saldatura {
-            border-left: 3px solid #ff6348;
-            color: #ff6348;
+            border-left: 3px solid var(--accent-orange);
+            color: var(--accent-orange);
         }
 
         .status-badge {
@@ -477,15 +398,15 @@
         }
 
         /* ===== LOADING ===== */
-        .loading {
+        .loading-overlay {
             display: none;
             text-align: center;
             padding: 40px 24px;
         }
 
-        .loading.show { display: block; }
+        .loading-overlay.show { display: block; }
 
-        .spinner {
+        .loading-spinner {
             width: 40px;
             height: 40px;
             border: 3px solid rgba(255, 255, 255, 0.05);
@@ -496,57 +417,34 @@
             box-shadow: 0 0 15px rgba(0, 230, 118, 0.2);
         }
 
-        .loading p {
+        .loading-overlay p {
             color: var(--text-secondary);
             font-size: 13px;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        /* ===== TOUCH TARGETS ===== */
+        nav a { min-height: 40px; display: flex; align-items: center; }
+        .btn-primary, .btn-secondary { min-height: 48px; }
 
-        /* ===== ANIMATIONS ===== */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* ===== RESPONSIVE ===== */
+        /* ===== RESPONSIVE 1024px ===== */
         @media (max-width: 768px) {
-            nav { padding: 0 16px; gap: 4px; }
-            nav a { padding: 6px 10px; font-size: 12px; }
-            .nav-logo { font-size: 15px; margin-right: 16px; }
-            main { padding: 0 16px 40px; }
-            .stats-grid { grid-template-columns: 1fr; }
             .filter-bar { flex-direction: column; }
             .filter-bar .form-group { min-width: 100%; }
-            .table-card { overflow-x: auto; }
-            table { min-width: 700px; }
         }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
     <nav>
         <div class="nav-logo">Schedulatore Laser</div>
-        <a href="welcome.html">Caricamento</a>
         <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html">Piega</a>
         <a href="saldatura.html">Saldatura</a>
         <a href="archive.html" class="active">Archivio</a>
+        <div class="nav-search">
+            <input type="search" id="navSearch" placeholder="Cerca cliente o ordine..." autocomplete="off" oninput="onSearch(this.value)">
+        </div>
     </nav>
 
     <main>
@@ -575,34 +473,39 @@
         <div class="filter-bar">
             <div class="form-group">
                 <label for="filterCliente">Filtra per Cliente</label>
-                <input type="text" id="filterCliente" placeholder="Nome cliente...">
+                <input type="text" id="filterCliente" placeholder="Nome cliente..." oninput="onClienteFilterInput(this.value)">
             </div>
-            <button class="btn-filter" onclick="applyFilters()">Filtra</button>
+            <button class="btn-filter" onclick="applyFiltersAndRender()">Filtra</button>
             <button class="btn-refresh" onclick="loadOrders()">Aggiorna</button>
         </div>
 
+        <!-- Active Filter Chips -->
+        <div class="filter-chips" id="activeFilters"></div>
+
         <!-- Loading -->
-        <div id="loading" class="loading">
-            <div class="spinner"></div>
+        <div id="loading" class="loading-overlay">
+            <div class="loading-spinner"></div>
             <p>Caricamento archivio...</p>
         </div>
 
         <!-- Table -->
         <div id="tableContainer" class="table-card">
-            <table id="ordersTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th>ID Ordine</th>
-                        <th>Data Consegna</th>
-                        <th style="text-align: center;">Quantita</th>
-                        <th style="text-align: center;">Articoli</th>
-                        <th>Tempi Lavorazione</th>
-                        <th>Stato</th>
-                    </tr>
-                </thead>
-                <tbody id="ordersTableBody"></tbody>
-            </table>
+            <div class="table-wrapper">
+                <table id="ordersTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>ID Ordine</th>
+                            <th>Data Consegna</th>
+                            <th style="text-align: center;">Quantita</th>
+                            <th style="text-align: center;">Articoli</th>
+                            <th>Tempi Lavorazione</th>
+                            <th>Stato</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Empty State -->
@@ -613,36 +516,81 @@
         </div>
     </main>
 
+    <script src="/shared.js"></script>
     <script>
         // Usa URL relativo per funzionare su localhost e IP
         const API_URL = '/api';
-        let allOrders = [];
 
-        // Carica ordini al caricamento
-        window.addEventListener('DOMContentLoaded', () => {
+        // Stato globale — mai resettato dall'auto-refresh
+        let allOrders = [];
+        let searchQuery = '';
+        let clienteFilter = '';
+        let lastDataHash = null;
+
+        // Debounce per ricerca navbar
+        const debouncedSearch = debounce(function(q) {
+            searchQuery = q;
+            applyFiltersAndRender();
+        }, 300);
+
+        function onSearch(value) {
+            debouncedSearch(value);
+        }
+
+        function onClienteFilterInput(value) {
+            clienteFilter = value;
+        }
+
+        // Carica ordini al caricamento della pagina
+        window.addEventListener('DOMContentLoaded', function() {
             loadOrders();
-            // Aggiorna ogni 10 secondi
+            // Auto-refresh ogni 10 secondi — NON resetta searchQuery ne clienteFilter
             setInterval(loadOrders, 10000);
         });
 
         async function loadOrders() {
             const loading = document.getElementById('loading');
-            loading.style.display = 'block';
+            loading.classList.add('show');
 
             try {
-                const response = await fetch(`${API_URL}/orders`);
+                const response = await fetch(API_URL + '/orders');
                 const data = await response.json();
 
                 // Filtra solo gli ordini completati (SPEDITO)
-                allOrders = (Array.isArray(data) ? data : []).filter(o => o.status === 'SPEDITO');
-                renderOrders(allOrders);
-                updateStats(allOrders);
+                const spediti = (Array.isArray(data) ? data : []).filter(function(o) {
+                    return o.status === 'SPEDITO';
+                });
+
+                // Controlla se i dati sono cambiati prima di re-renderizzare
+                const result = hasDataChanged(spediti, lastDataHash);
+                if (result.changed) {
+                    lastDataHash = result.newHash;
+                    allOrders = spediti;
+                    updateStats(allOrders);
+                    applyFiltersAndRender();
+                }
             } catch (error) {
                 console.error('Errore caricamento ordini:', error);
                 showEmptyState();
             } finally {
-                loading.style.display = 'none';
+                loading.classList.remove('show');
             }
+        }
+
+        function applyFiltersAndRender() {
+            // Applica ricerca navbar (searchQuery) + filtro cliente dalla filter-bar
+            let filtered = filterOrders(allOrders, searchQuery);
+
+            // Filtro aggiuntivo per campo filterCliente nella filter-bar
+            if (clienteFilter && clienteFilter.trim()) {
+                const cf = clienteFilter.trim().toLowerCase();
+                filtered = filtered.filter(function(order) {
+                    return (order.cliente || '').toLowerCase().includes(cf);
+                });
+            }
+
+            renderOrders(filtered);
+            updateActiveFilters();
         }
 
         function renderOrders(orders) {
@@ -659,44 +607,48 @@
             table.style.display = 'table';
             emptyState.style.display = 'none';
 
-            tbody.innerHTML = orders.map(order => {
+            tbody.innerHTML = orders.map(function(order) {
                 // Estrai i tempi di PIEGA e SALDATURA
                 let piegaTime = '-';
-                let salvaturaTime = '-';
+                let saldaturaTime = '-';
 
                 if (order.processing_steps && Array.isArray(order.processing_steps)) {
-                    order.processing_steps.forEach(step => {
+                    order.processing_steps.forEach(function(step) {
                         if (step.fase === 'PIEGA' && step.timestamp_inizio && step.timestamp_fine) {
                             const duration = Math.round((new Date(step.timestamp_fine) - new Date(step.timestamp_inizio)) / 1000);
                             piegaTime = formatTime(duration);
                         }
                         if (step.fase === 'SALDATURA' && step.timestamp_inizio && step.timestamp_fine) {
                             const duration = Math.round((new Date(step.timestamp_fine) - new Date(step.timestamp_inizio)) / 1000);
-                            salvaturaTime = formatTime(duration);
+                            saldaturaTime = formatTime(duration);
                         }
                     });
                 }
 
-                const timingHtml = `
-                    ${piegaTime !== '-' ? `<div class="timing-badge piega">Piega: ${piegaTime}</div>` : ''}
-                    ${salvaturaTime !== '-' ? `<div class="timing-badge saldatura">Saldatura: ${salvaturaTime}</div>` : ''}
-                    ${piegaTime === '-' && salvaturaTime === '-' ? '<span style="color: var(--text-muted);">-</span>' : ''}
-                `;
+                const timingHtml =
+                    (piegaTime !== '-' ? '<div class="timing-badge piega">Piega: ' + piegaTime + '</div>' : '') +
+                    (saldaturaTime !== '-' ? '<div class="timing-badge saldatura">Saldatura: ' + saldaturaTime + '</div>' : '') +
+                    (piegaTime === '-' && saldaturaTime === '-' ? '<span style="color: var(--text-muted);">-</span>' : '');
 
-                return `
-                    <tr>
-                        <td class="cliente-info">${order.cliente}</td>
-                        <td class="order-id-small">${order.id}</td>
-                        <td class="date-cell">${new Date(order.data_consegna).toLocaleDateString('it-IT')}</td>
-                        <td class="quantity-cell">${order.total_quantity || 0}</td>
-                        <td class="articles-count">${order.articles ? order.articles.length : 0}</td>
-                        <td class="timing-cell">${timingHtml}</td>
-                        <td>
-                            <span class="status-badge">${order.status}</span>
-                        </td>
-                    </tr>
-                `;
+                return '<tr>' +
+                    '<td class="cliente-info">' + escapeHtml(order.cliente) + '</td>' +
+                    '<td class="order-id-small">' + escapeHtml(order.id) + '</td>' +
+                    '<td class="date-cell">' + new Date(order.data_consegna).toLocaleDateString('it-IT') + '</td>' +
+                    '<td class="quantity-cell">' + (order.total_quantity || 0) + '</td>' +
+                    '<td class="articles-count">' + (order.articles ? order.articles.length : 0) + '</td>' +
+                    '<td class="timing-cell">' + timingHtml + '</td>' +
+                    '<td><span class="status-badge">' + escapeHtml(order.status) + '</span></td>' +
+                    '</tr>';
             }).join('');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
         function formatTime(seconds) {
@@ -717,7 +669,7 @@
             let totalPieces = 0;
             let totalArticles = 0;
 
-            orders.forEach(order => {
+            orders.forEach(function(order) {
                 totalPieces += order.total_quantity || 0;
                 totalArticles += (order.articles ? order.articles.length : 0);
             });
@@ -727,14 +679,67 @@
             document.getElementById('countArticles').textContent = totalArticles;
         }
 
-        function applyFilters() {
-            const cliente = document.getElementById('filterCliente').value.toLowerCase();
+        function updateActiveFilters() {
+            const container = document.getElementById('activeFilters');
+            const chips = [];
 
-            const filtered = allOrders.filter(order => {
-                return order.cliente.toLowerCase().includes(cliente);
-            });
+            // Chip per ricerca navbar
+            if (searchQuery && searchQuery.trim()) {
+                chips.push({
+                    label: 'Ricerca: ' + searchQuery.trim(),
+                    count: null,
+                    remove: function() {
+                        searchQuery = '';
+                        const navInput = document.getElementById('navSearch');
+                        if (navInput) navInput.value = '';
+                        applyFiltersAndRender();
+                    }
+                });
+            }
 
-            renderOrders(filtered);
+            // Chip per filtro cliente
+            if (clienteFilter && clienteFilter.trim()) {
+                // Conta quanti ordini corrispondono al filtro cliente
+                const cf = clienteFilter.trim().toLowerCase();
+                const count = allOrders.filter(function(o) {
+                    return (o.cliente || '').toLowerCase().includes(cf);
+                }).length;
+
+                chips.push({
+                    label: 'Cliente: ' + clienteFilter.trim(),
+                    count: count,
+                    remove: function() {
+                        clienteFilter = '';
+                        const filterInput = document.getElementById('filterCliente');
+                        if (filterInput) filterInput.value = '';
+                        applyFiltersAndRender();
+                    }
+                });
+            }
+
+            if (chips.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = chips.map(function(chip, i) {
+                const countHtml = chip.count !== null
+                    ? ' <span class="chip-count">' + chip.count + '</span>'
+                    : '';
+                return '<div class="chip active" data-chip-index="' + i + '">' +
+                    chip.label + countHtml +
+                    '<span class="chip-remove" onclick="removeChip(' + i + ')">&#x2715;</span>' +
+                    '</div>';
+            }).join('');
+
+            // Salva riferimenti alle funzioni remove per uso da onclick
+            window._chipRemovers = chips.map(function(c) { return c.remove; });
+        }
+
+        function removeChip(index) {
+            if (window._chipRemovers && window._chipRemovers[index]) {
+                window._chipRemovers[index]();
+            }
         }
 
         function showEmptyState() {
