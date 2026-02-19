@@ -1,5 +1,6 @@
 """
 Utilita di migrazione: popola la tabella articles a partire dal JSON articles degli ordini esistenti.
+Gestisce anche la migrazione dello schema per colonne aggiunte in v1.1+.
 
 Uso standalone:
     python -m app.backend.migrate_articles
@@ -9,16 +10,53 @@ Uso programmatico:
     result = run_migration()
 """
 import uuid
+import sqlalchemy
 from .models import Base, Article, Order, get_session, engine
+
+
+def _ensure_column_exists(table_name: str, column_name: str, column_def: str):
+    """
+    Aggiunge una colonna a una tabella esistente se non e gia presente.
+    Operazione idempotente — usa PRAGMA table_info per verificare prima.
+
+    Args:
+        table_name: nome della tabella SQLite
+        column_name: nome della colonna da aggiungere
+        column_def: definizione SQL della colonna (es. "TEXT DEFAULT NULL")
+    """
+    with engine.connect() as conn:
+        # Controlla le colonne esistenti
+        result = conn.execute(sqlalchemy.text(f"PRAGMA table_info({table_name})"))
+        existing_columns = {row[1] for row in result.fetchall()}
+
+        if column_name not in existing_columns:
+            conn.execute(
+                sqlalchemy.text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+            )
+            conn.commit()
+            print(f"[MIGRAZIONE] Colonna '{column_name}' aggiunta a '{table_name}'.")
+        else:
+            print(f"[MIGRAZIONE] Colonna '{column_name}' gia presente in '{table_name}'.")
 
 
 def ensure_articles_table():
     """
-    Crea la tabella articles se non esiste ancora.
+    Crea la tabella articles se non esiste ancora e assicura che tutte
+    le colonne v1.1+ siano presenti nelle tabelle esistenti.
     Operazione idempotente — sicura da chiamare piu volte.
     """
+    # Crea tabelle nuove (articles) — non tocca tabelle esistenti
     Base.metadata.create_all(bind=engine)
-    print("[MIGRAZIONE] Tabella articles verificata/creata.")
+
+    # Assicura che processing_steps.article_id esista (aggiunta in v1.1+)
+    # SQLAlchemy create_all non aggiunge colonne a tabelle esistenti
+    _ensure_column_exists(
+        table_name='processing_steps',
+        column_name='article_id',
+        column_def='TEXT DEFAULT NULL REFERENCES articles(id)'
+    )
+
+    print("[MIGRAZIONE] Schema v1.1+ verificato/aggiornato.")
 
 
 def migrate_existing_orders() -> dict:
