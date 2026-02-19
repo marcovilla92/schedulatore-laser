@@ -5,16 +5,16 @@
 Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 
 **Valore principale:** Gli operatori vedono cosa deve essere lavorato e tracciano il completamento in tempo reale
-**Focus attuale:** Fase 4 — Design System Condiviso (v1.2)
+**Focus attuale:** Fase 5 — Aggiornamento Pagine UI (v1.2)
 
 ## Posizione Attuale
 
-Fase: 4 di 5 (prima fase v1.2)
-Piano: — (non ancora pianificata)
-Stato: Pronta per pianificazione
-Ultima attivita: 2026-02-19 — Roadmap v1.2 ristrutturata a 2 fasi (massimo parallelismo)
+Fase: 4 di 5 COMPLETATA — ora Fase 5
+Piano: 04-01 COMPLETATO (1/1 piani Fase 4)
+Stato: Fase 4 completata — pronta per Fase 5 (wave parallela 5 agenti)
+Ultima attivita: 2026-02-19 — 04-01 design.css + shared.js + fonts/ completato (3 min)
 
-Progress: [███░░░░░░░░░░░░░░░░░░░] 3/5 fasi complete (v1.1 done)
+Progress: [████░░░░░░░░░░░░░░░░░░] 4/5 fasi complete (v1.2 Fase 4 done)
 
 ## Performance Metrics
 
@@ -31,6 +31,12 @@ Progress: [███░░░░░░░░░░░░░░░░░░░] 3
 | 2. Assegnazione Fasi | 1 | ~5 min | ~5 min |
 | 3. Viste Reparto | 2 | ~7 min | ~3.5 min |
 
+**Per Fase (v1.2):**
+
+| Fase | Piani | Totale | Media/Piano |
+|------|-------|--------|-------------|
+| 4. Design System | 1 | 3 min | 3 min |
+
 *Aggiornato dopo ogni completamento piano*
 
 ## Contesto Accumulato
@@ -43,6 +49,10 @@ Progress: [███░░░░░░░░░░░░░░░░░░░] 3
 - Fetch/render separati obbligatori prima di aggiungere ricerca a pagine con auto-refresh (implementato in 05-03, replicato in 05-04 e 05-05)
 - Roadmap ristrutturata a 2 fasi (da 4) per massimo parallelismo: Fase 4 sequenziale + Fase 5 wave parallela con 5 agenti
 - ACCS-01, ACCS-02, FILT-01 sono cross-cutting — ogni piano Fase 5 li implementa autonomamente nella propria pagina
+- **[04-01]** CSS @layer cascade a 7 livelli senza !important — stili inline non-layered nelle pagine sovrascrivono automaticamente
+- **[04-01]** Inter WOFF2 self-hosted da jsDelivr fontsource — elimina Google Fonts CDN timeout 30sec su LAN
+- **[04-01]** body[data-page] per accenti per-pagina in @layer tokens — default cyan, laser=red, piega=amber, saldatura=orange
+- **[04-01]** shared.js come classic script (non ES module) — funzioni disponibili globalmente su window senza complessita CORS
 
 ### Architettura Esecuzione v1.2
 
@@ -82,5 +92,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Roadmap v1.2 ristrutturata a 2 fasi con massimo parallelismo — pronta per `/gsd:plan-phase 4`
+Fermato a: Completato 04-01-PLAN.md — design.css + shared.js + fonts/ pronti per Fase 5
 Resume file: None

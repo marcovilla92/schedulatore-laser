@@ -9,10 +9,10 @@ Requisiti per il milestone v1.2 — Redesign UI/UX Completo. Ogni requisito e ma
 
 ### Design System
 
-- [ ] **DSGN-01**: Tutte le pagine caricano un unico file `design.css` con CSS custom properties per colori, spacing, tipografia, radii e transizioni
-- [ ] **DSGN-02**: Font Inter self-hosted in WOFF2 (4 pesi: 400/500/600/700), nessun riferimento a Google Fonts CDN
-- [ ] **DSGN-03**: CSS @layer organizza il cascade: reset → tokens → tipografia → base → componenti → layout → utility
-- [ ] **DSGN-04**: File `shared.js` fornisce utility `filterOrders()`, `debounce()`, `hasDataChanged()` come globali riutilizzabili
+- [x] **DSGN-01**: Tutte le pagine caricano un unico file `design.css` con CSS custom properties per colori, spacing, tipografia, radii e transizioni
+- [x] **DSGN-02**: Font Inter self-hosted in WOFF2 (4 pesi: 400/500/600/700), nessun riferimento a Google Fonts CDN
+- [x] **DSGN-03**: CSS @layer organizza il cascade: reset → tokens → tipografia → base → componenti → layout → utility
+- [x] **DSGN-04**: File `shared.js` fornisce utility `filterOrders()`, `debounce()`, `hasDataChanged()` come globali riutilizzabili
 
 ### Accessibilita
 
