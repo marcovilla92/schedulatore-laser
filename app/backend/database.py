@@ -670,6 +670,9 @@ class OrderManager:
                     # Articolo completato se tutte le fasi richieste sono complete
                     is_completed = len(remaining) == 0
 
+                    # Fasi avviate ma non ancora completate (v1.1+)
+                    started = [s.fase for s in art_steps if s.timestamp_inizio and not s.timestamp_fine]
+
                     article_statuses.append({
                         "idx": idx,                           # Indice per API parziale (backward compat)
                         "article_id": article.id,            # UUID articolo (nuovo v1.1+)
@@ -678,6 +681,7 @@ class OrderManager:
                         "qty": article.qty or 0,
                         "required_phases": art_required,
                         "completed_phases": completed,
+                        "started_phases": started,            # Nuovo campo v1.1+: fasi avviate non complete
                         "remaining_phases": remaining,        # Nuovo campo v1.1+
                         "next_phase": next_phase if next_phase else "Completato",
                         "is_completed": is_completed         # Nuovo campo v1.1+

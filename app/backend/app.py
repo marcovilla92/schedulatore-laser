@@ -343,27 +343,74 @@ def complete_phase_partial(order_id, phase):
 
 @app.route('/api/phase/<phase>/orders', methods=['GET'])
 def get_orders_by_phase(phase):
-    """Recupera ordini per una fase specificata"""
+    """
+    Recupera ordini per una fase specificata, con stato per-articolo (v1.1+).
+
+    Per ogni articolo che ha la fase in required_phases e non l'ha ancora completata,
+    include phase_status: 'in_attesa' | 'in_lavorazione' | 'completato'.
+    Ordine risposta: articoli in_lavorazione prima di in_attesa per ogni ordine.
+    Ordine ordini: data_consegna ascendente (urgenti prima), poi ordini con in_lavorazione prima.
+    """
     try:
         orders = OrderManager.get_orders_by_phase(phase)
 
         result = []
         for order in orders:
-            # Per ogni ordine, calcola quali articoli hanno questa fase come prossima
             details = OrderManager.get_order_details(order.id)
-            articles_for_this_phase = [
-                a for a in details['articles']
-                if a['next_phase'] == phase
-            ]
 
-            if articles_for_this_phase:
-                result.append({
-                    'id': order.id,
-                    'cliente': order.cliente,
-                    'total_quantity': order.total_quantity,
-                    'articles_next_phase': articles_for_this_phase,
-                    'data_consegna': order.data_consegna.isoformat()
+            # Filtra articoli che hanno questa fase in required_phases
+            # e non l'hanno ancora completata
+            articles_in_phase = []
+            for article in details['articles']:
+                if phase not in article.get('required_phases', []):
+                    continue
+                if phase in article.get('completed_phases', []):
+                    continue  # Già completato per questa fase — escludi
+
+                # Determina lo stato per-articolo
+                if phase in article.get('started_phases', []):
+                    phase_status = 'in_lavorazione'
+                else:
+                    phase_status = 'in_attesa'
+
+                articles_in_phase.append({
+                    'article_id': article.get('article_id'),
+                    'idx': article.get('idx'),
+                    'name': article.get('name', ''),
+                    'code': article.get('code', ''),
+                    'qty': article.get('qty', 0),
+                    'phase_status': phase_status
                 })
+
+            if not articles_in_phase:
+                continue  # Salta ordini senza articoli in questa fase
+
+            # Ordina articoli: in_lavorazione prima, poi in_attesa
+            phase_order = {'in_lavorazione': 0, 'in_attesa': 1, 'completato': 2}
+            articles_in_phase.sort(key=lambda a: phase_order.get(a['phase_status'], 99))
+
+            # Flag per ordinamento ordini: ha almeno un articolo in_lavorazione?
+            has_active = any(a['phase_status'] == 'in_lavorazione' for a in articles_in_phase)
+
+            result.append({
+                'id': order.id,
+                'cliente': order.cliente,
+                'total_quantity': order.total_quantity,
+                'articles_in_phase': articles_in_phase,
+                'articles_next_phase': articles_in_phase,  # Alias backward compat
+                'data_consegna': order.data_consegna.isoformat(),
+                '_has_active': has_active  # Campo interno per ordinamento
+            })
+
+        # Ordina ordini: data_consegna ascendente, poi ordini con articoli attivi prima
+        result.sort(key=lambda o: (
+            o['data_consegna'],
+            0 if o['_has_active'] else 1
+        ))
+
+        # Rimuovi campo interno prima di serializzare
+        for o in result:
+            o.pop('_has_active', None)
 
         return jsonify(result), 200
 

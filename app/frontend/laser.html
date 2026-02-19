@@ -752,6 +752,111 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* ===== STATI ARTICOLO PER-FASE (v1.1+) ===== */
+        .article-status-attesa {
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .article-status-lavorazione {
+            color: var(--accent-cyan);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .article-status-lavorazione::before {
+            content: '';
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 6px var(--accent-cyan);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        .article-status-completato {
+            color: var(--accent-green);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.5;
+        }
+
+        /* Articolo completato nella fase: dimmed */
+        .article-item.completato {
+            opacity: 0.45;
+        }
+
+        /* Pulsante "Avvia Tutti" */
+        .btn-avvia {
+            flex: 1;
+            background: linear-gradient(135deg, var(--accent-amber), #e69500);
+            color: #000;
+            border: none;
+            padding: 11px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-avvia:hover {
+            box-shadow: 0 0 25px rgba(255, 165, 2, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-avvia:active {
+            transform: translateY(0);
+        }
+
+        .btn-avvia:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Badge "Seleziona Tutti" nel modale */
+        .btn-modal-select-all {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: var(--transition);
+            margin-bottom: 12px;
+        }
+
+        .btn-modal-select-all:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -799,6 +904,10 @@
             <div class="modal-title">Completa Fase LASER</div>
             <p class="modal-subtitle">Seleziona gli articoli completati per questa fase:</p>
 
+            <button class="btn-modal-select-all" onclick="selectAllModalCheckboxes()">
+                Seleziona Tutti
+            </button>
+
             <div id="articlesCheckboxes" class="modal-checkboxes">
                 <!-- Checkbox articoli generati dinamicamente -->
             </div>
@@ -810,9 +919,6 @@
                 <button class="btn-modal-confirm" onclick="submitPartialComplete()">
                     Completa Selezionati
                 </button>
-                <button class="btn-modal-all" onclick="completeAllPartialModal()" title="Completa tutti gli articoli per questa fase">
-                    Completa Tutti
-                </button>
             </div>
         </div>
     </div>
@@ -821,8 +927,10 @@
         // Usa URL relativo per funzionare su localhost e IP
         const API_URL = '/api';
         const PHASE = 'LASER';
+
+        // Stato modale completamento parziale
         let currentOrderForCompletion = null;
-        let currentOrderArticles = [];
+        let currentOrderArticles = [];  // articoli dalla risposta articles_in_phase (con article_id UUID)
 
         // Count-up animation
         function animateCountUp(el, target) {
@@ -846,19 +954,36 @@
             try {
                 const response = await fetch(`${API_URL}/phase/${PHASE}/orders`);
                 const orders = await response.json();
+                const orderList = Array.isArray(orders) ? orders : [];
 
-                renderOrders(Array.isArray(orders) ? orders : []);
-                updateSummary(orders);
+                renderOrders(orderList);
+                updateSummary(orderList);
             } catch (error) {
                 console.error('Errore caricamento ordini:', error);
                 showMessage('Errore connessione al server', 'error');
             }
         }
 
+        // Restituisce il badge HTML per lo stato articolo
+        function articleStatusBadge(status) {
+            if (status === 'in_lavorazione') {
+                return '<span class="article-status-lavorazione">In lavorazione</span>';
+            } else if (status === 'completato') {
+                return '<span class="article-status-completato">Completato</span>';
+            } else {
+                return '<span class="article-status-attesa">In attesa</span>';
+            }
+        }
+
         function renderOrders(orders) {
             const container = document.getElementById('ordersContainer');
 
-            if (orders.length === 0) {
+            // Filtra ordini che abbiano almeno un articolo non completato
+            const activeOrders = orders.filter(order =>
+                (order.articles_in_phase || []).some(a => a.phase_status !== 'completato')
+            );
+
+            if (activeOrders.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">&#x2714;</div>
@@ -869,21 +994,47 @@
                 return;
             }
 
-            container.innerHTML = orders.map(order => {
-                const articlesHtml = (order.articles_next_phase || []).map(article => `
-                    <div class="article-item">
-                        <span class="article-name">${article.name}</span>
-                        <span class="article-qty">${article.code ? article.code + ' - ' : ''}${article.qty} pz</span>
-                    </div>
-                `).join('');
+            container.innerHTML = activeOrders.map(order => {
+                const articles = order.articles_in_phase || [];
 
-                const totalArticles = order.articles_next_phase ? order.articles_next_phase.length : 0;
-                const totalPieces = order.articles_next_phase ? order.articles_next_phase.reduce((sum, a) => sum + a.qty, 0) : 0;
+                const articlesHtml = articles.map(article => {
+                    const isCompletato = article.phase_status === 'completato';
+                    const itemClass = isCompletato ? ' completato' : '';
+                    return `
+                        <div class="article-item${itemClass}">
+                            <span>
+                                <span class="article-name">${article.name}</span>
+                                <span class="article-qty"> — ${article.code ? article.code + ' · ' : ''}${article.qty} pz</span>
+                            </span>
+                            ${articleStatusBadge(article.phase_status)}
+                        </div>
+                    `;
+                }).join('');
+
+                // Conteggi escludendo i completati (per riepilogo card)
+                const pendingArticles = articles.filter(a => a.phase_status !== 'completato');
+                const totalArticles = pendingArticles.length;
+                const totalPieces = pendingArticles.reduce((sum, a) => sum + (a.qty || 0), 0);
+
+                // Stato card: almeno uno in lavorazione?
+                const hasActive = articles.some(a => a.phase_status === 'in_lavorazione');
+                const allActive = articles.filter(a => a.phase_status !== 'completato').every(a => a.phase_status === 'in_lavorazione');
+                const statusBadgeHtml = hasActive
+                    ? '<span class="status-badge status-started">In Lavorazione</span>'
+                    : '<span class="status-badge status-ready">In Attesa</span>';
+
+                // Pulsante "Avvia Tutti": disabilitato se tutti già in lavorazione
+                const avviaDisabled = allActive ? 'disabled' : '';
+                const avviaTitle = allActive ? 'Tutti gli articoli sono già in lavorazione' : 'Avvia tutti gli articoli in attesa';
+
+                // JSON articoli in_attesa per la callback "Avvia Tutti"
+                const attesaArticles = articles.filter(a => a.phase_status === 'in_attesa');
+                const attesaJson = JSON.stringify(attesaArticles).replace(/"/g, '&quot;');
 
                 return `
                     <div class="order-card">
                         <div class="order-header">
-                            <h3>${order.cliente}</h3>
+                            <h3>${escapeHtml(order.cliente)}</h3>
                             <div class="order-id">${order.id.substring(0, 8)}</div>
                         </div>
 
@@ -892,17 +1043,18 @@
                         </div>
 
                         <div class="articles-section">
-                            <h4>${totalArticles} Articol${totalArticles !== 1 ? 'i' : 'o'} (${totalPieces} pz)</h4>
+                            <h4>${totalArticles} Articol${totalArticles !== 1 ? 'i' : 'o'} in attesa (${totalPieces} pz)</h4>
                             ${articlesHtml}
                         </div>
 
-                        <span class="status-badge status-ready">Pronto per LASER</span>
+                        ${statusBadgeHtml}
 
                         <div class="action-buttons">
-                            <button class="btn-start" onclick="startPhase('${order.id}')">
-                                Inizia
+                            <button class="btn-avvia" ${avviaDisabled} title="${avviaTitle}"
+                                onclick="avviaTutti('${order.id}', '${attesaJson.replace(/'/g, "&#39;")}')">
+                                Avvia Tutti
                             </button>
-                            <button class="btn-complete" onclick="openPartialCompleteModal('${order.id}')">
+                            <button class="btn-complete" onclick="openPartialCompleteModal('${order.id}', ${JSON.stringify(articles).replace(/"/g, '&quot;')})">
                                 Completa
                             </button>
                         </div>
@@ -911,67 +1063,113 @@
             }).join('');
         }
 
-        async function startPhase(orderId) {
+        // Avvia tutti gli articoli in_attesa per un ordine (per-articolo, sequenzialmente)
+        async function avviaTutti(orderId, articlesJson) {
+            let attesaArticles;
             try {
-                const response = await fetch(`${API_URL}/orders/${orderId}/phase/${PHASE}/start`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ operatore: 'Operatore' })
-                });
+                attesaArticles = JSON.parse(articlesJson.replace(/&#39;/g, "'"));
+            } catch (e) {
+                showMessage('Errore parsing articoli', 'error');
+                return;
+            }
 
-                const data = await response.json();
+            if (!attesaArticles || attesaArticles.length === 0) {
+                showMessage('Nessun articolo in attesa da avviare', 'info');
+                return;
+            }
 
-                if (data.success) {
-                    showMessage(`Fase ${PHASE} iniziata`, 'success');
-                    await loadOrders();
-                } else {
-                    showMessage('Errore: ' + (data.error || 'Sconosciuto'), 'error');
+            let avviati = 0;
+            for (const article of attesaArticles) {
+                if (!article.article_id) continue;
+                try {
+                    const response = await fetch(`${API_URL}/orders/${orderId}/phase/${PHASE}/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ article_id: article.article_id, operatore: '' })
+                    });
+                    const data = await response.json();
+                    if (data.success) avviati++;
+                } catch (e) {
+                    console.error('Errore avvio articolo', article.article_id, e);
                 }
-            } catch (error) {
-                showMessage('Errore: ' + error.message, 'error');
+            }
+
+            if (avviati > 0) {
+                showMessage(`Fase ${PHASE} avviata per ${avviati} articol${avviati !== 1 ? 'i' : 'o'}`, 'success');
+                await loadOrders();
+            } else {
+                showMessage('Nessun articolo avviato', 'error');
             }
         }
 
-        async function openPartialCompleteModal(orderId) {
-            try {
-                // Recupera dettagli ordine
-                const response = await fetch(`${API_URL}/orders/${orderId}`);
-                const order = await response.json();
+        // Apre il modale di completamento parziale usando i dati articles_in_phase (UUID)
+        async function openPartialCompleteModal(orderId, articlesParam) {
+            let articles;
+            if (typeof articlesParam === 'string') {
+                try {
+                    articles = JSON.parse(articlesParam.replace(/&#39;/g, "'"));
+                } catch (e) {
+                    // Fallback: fetch dal server
+                    articles = null;
+                }
+            } else if (Array.isArray(articlesParam)) {
+                articles = articlesParam;
+            }
 
-                if (order.error) {
-                    showMessage('Errore caricamento dettagli ordine', 'error');
+            // Se non abbiamo i dati, li recuperiamo dal server
+            if (!articles) {
+                try {
+                    const response = await fetch(`${API_URL}/phase/${PHASE}/orders`);
+                    const orders = await response.json();
+                    const order = (orders || []).find(o => o.id === orderId);
+                    articles = order ? (order.articles_in_phase || []) : [];
+                } catch (e) {
+                    showMessage('Errore caricamento articoli', 'error');
                     return;
                 }
-
-                currentOrderForCompletion = orderId;
-                currentOrderArticles = order.articles || [];
-
-                // Genera checkbox per articoli
-                const checkboxesDiv = document.getElementById('articlesCheckboxes');
-                checkboxesDiv.innerHTML = currentOrderArticles.map((article, idx) => {
-                    const isCompleted = article.completed_phases && article.completed_phases.includes(PHASE);
-                    const disabled = isCompleted ? 'disabled' : '';
-                    const checked = isCompleted ? 'checked' : '';
-                    const checkedAttr = checked ? 'checked' : '';
-                    const completedClass = isCompleted ? ' is-completed' : '';
-
-                    return `
-                        <div class="modal-checkbox-item${completedClass}">
-                            <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled}>
-                            <label for="article_${idx}">
-                                <strong>${article.name}</strong>
-                                <span class="qty-tag">(${article.qty} pz)</span>
-                                ${isCompleted ? '<span class="completed-tag">Completato</span>' : ''}
-                            </label>
-                        </div>
-                    `;
-                }).join('');
-
-                // Mostra modale
-                document.getElementById('partialCompleteModal').classList.add('show');
-            } catch (error) {
-                showMessage('Errore: ' + error.message, 'error');
             }
+
+            currentOrderForCompletion = orderId;
+            currentOrderArticles = articles;
+
+            // Genera checkbox per articoli (usa article_id UUID)
+            const checkboxesDiv = document.getElementById('articlesCheckboxes');
+            checkboxesDiv.innerHTML = articles.map((article, idx) => {
+                const isCompleted = article.phase_status === 'completato';
+                const disabled = isCompleted ? 'disabled' : '';
+                const checkedAttr = isCompleted ? 'checked' : '';
+                const completedClass = isCompleted ? ' is-completed' : '';
+                const statusBadge = isCompleted
+                    ? '<span class="completed-tag">Completato</span>'
+                    : (article.phase_status === 'in_lavorazione'
+                        ? '<span style="color: var(--accent-cyan); font-size: 11px; margin-left: auto;">In lavorazione</span>'
+                        : '');
+
+                return `
+                    <div class="modal-checkbox-item${completedClass}">
+                        <input type="checkbox" id="article_cb_${idx}"
+                            data-article-id="${article.article_id || ''}"
+                            ${checkedAttr} ${disabled}>
+                        <label for="article_cb_${idx}">
+                            <strong>${escapeHtml(article.name)}</strong>
+                            <span class="qty-tag">(${article.qty} pz)</span>
+                            ${statusBadge}
+                        </label>
+                    </div>
+                `;
+            }).join('');
+
+            // Mostra modale
+            document.getElementById('partialCompleteModal').classList.add('show');
+        }
+
+        function selectAllModalCheckboxes() {
+            currentOrderArticles.forEach((_, idx) => {
+                const checkbox = document.getElementById(`article_cb_${idx}`);
+                if (checkbox && !checkbox.disabled) {
+                    checkbox.checked = true;
+                }
+            });
         }
 
         function closePartialModal() {
@@ -983,16 +1181,17 @@
         async function submitPartialComplete() {
             if (!currentOrderForCompletion) return;
 
-            // Recupera checkbox selezionati
-            const selectedIndices = [];
-            currentOrderArticles.forEach((_, idx) => {
-                const checkbox = document.getElementById(`article_${idx}`);
+            // Recupera UUID degli articoli selezionati
+            const selectedIds = [];
+            currentOrderArticles.forEach((article, idx) => {
+                const checkbox = document.getElementById(`article_cb_${idx}`);
                 if (checkbox && checkbox.checked && !checkbox.disabled) {
-                    selectedIndices.push(idx);
+                    const articleId = checkbox.getAttribute('data-article-id');
+                    if (articleId) selectedIds.push(articleId);
                 }
             });
 
-            if (selectedIndices.length === 0) {
+            if (selectedIds.length === 0) {
                 showMessage('Seleziona almeno un articolo', 'error');
                 return;
             }
@@ -1002,7 +1201,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        article_indices: selectedIndices,
+                        article_ids: selectedIds,
                         note: ''
                     })
                 });
@@ -1010,9 +1209,10 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    const n = selectedIds.length;
                     const msg = data.phase_complete
-                        ? `Fase ${PHASE} completata!`
-                        : `${selectedIndices.length} articolo/i completato/i`;
+                        ? `Fase ${PHASE} completata per tutti gli articoli!`
+                        : `${n} articolo${n !== 1 ? '/i' : ''} completato${n !== 1 ? '/i' : ''}`;
                     showMessage(msg, 'success');
                     closePartialModal();
                     await loadOrders();
@@ -1024,30 +1224,18 @@
             }
         }
 
-        async function completeAllPartialModal() {
-            if (!currentOrderForCompletion) return;
-
-            // Seleziona tutti gli articoli non completati
-            currentOrderArticles.forEach((_, idx) => {
-                const checkbox = document.getElementById(`article_${idx}`);
-                if (checkbox && !checkbox.disabled) {
-                    checkbox.checked = true;
-                }
-            });
-
-            // Invia il completamento
-            await submitPartialComplete();
-        }
-
         function updateSummary(orders) {
             const totalOrders = orders.length;
             let totalArticles = 0;
             let totalPieces = 0;
 
             orders.forEach(order => {
-                const articlesForPhase = order.articles_next_phase || [];
-                totalArticles += articlesForPhase.length;
-                totalPieces += articlesForPhase.reduce((sum, a) => sum + a.qty, 0);
+                // Conta solo gli articoli non completati nella fase
+                const articlesInPhase = (order.articles_in_phase || []).filter(
+                    a => a.phase_status !== 'completato'
+                );
+                totalArticles += articlesInPhase.length;
+                totalPieces += articlesInPhase.reduce((sum, a) => sum + (a.qty || 0), 0);
             });
 
             const ordersEl = document.getElementById('countOrders');
@@ -1067,6 +1255,17 @@
             setTimeout(() => {
                 msgBox.className = 'message';
             }, 5000);
+        }
+
+        // Escape HTML per prevenire XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
     </script>
 </body>
