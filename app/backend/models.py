@@ -26,6 +26,22 @@ class ProcessingPhase(str, enum.Enum):
     PULIZIA = "PULIZIA"
     SPEDIZIONE = "SPEDIZIONE"
 
+class Article(Base):
+    """Articolo come entita di primo livello con fasi richieste proprie (v1.1+)"""
+    __tablename__ = 'articles'
+    id = Column(String, primary_key=True)                          # UUID stringa
+    order_id = Column(String, ForeignKey('orders.id'), nullable=False)
+    name = Column(String, nullable=False, default='')
+    code = Column(String, default='')
+    qty = Column(Integer, default=0)
+    # Fasi richieste per questo specifico articolo — default tutte e 5
+    required_phases = Column(JSON, default=lambda: ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE'])
+    # Campi extra dai vari formati PDF (prezzo, materiale, dimensioni, ecc.) — schema flessibile
+    attributes = Column(JSON, default=dict)
+    order = relationship('Order', back_populates='article_records')
+    processing_steps = relationship('ProcessingStep', back_populates='article', cascade='all, delete-orphan')
+
+
 class Order(Base):
     """Modello Ordine con articoli tracciati per fase"""
     __tablename__ = 'orders'
@@ -37,15 +53,17 @@ class Order(Base):
     required_phases = Column(JSON, default=lambda: ['LASER', 'PIEGA', 'SALDATURA'])
     preventivo_minuti = Column(Integer, default=0)
     total_quantity = Column(Integer, default=0)
-    
-    # ✅ NUOVO: Articoli con fasi richieste
+
+    # LEGACY: Articoli JSON mantenuti per compatibilita con dati pre-v1.1
     # Formato: [{"name": "Staffa A", "code": "SA-001", "qty": 50, "required_phases": ["LASER", "PIEGA", "SALDATURA"]}, ...]
     articles = Column(JSON, default=list)
-    
+
     note = Column(Text)
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
     processing_steps = relationship('ProcessingStep', back_populates='order', cascade='all, delete-orphan')
     notifications = relationship('OrderNotification', back_populates='order', cascade='all, delete-orphan')
+    # Relazione verso articoli come entita di primo livello (v1.1+)
+    article_records = relationship('Article', back_populates='order', cascade='all, delete-orphan')
 
 class OrderFile(Base):
     __tablename__ = 'order_files'
@@ -62,14 +80,17 @@ class ProcessingStep(Base):
     __tablename__ = 'processing_steps'
     id = Column(String, primary_key=True)
     order_id = Column(String, ForeignKey('orders.id'), nullable=False)
+    # FK nullable per compatibilita con step precedenti a v1.1 (senza articolo associato)
+    article_id = Column(String, ForeignKey('articles.id'), nullable=True)
     fase = Column(String, nullable=False)  # LASER, PIEGA, SALDATURA, ecc
     timestamp_inizio = Column(DateTime, nullable=True)
     timestamp_fine = Column(DateTime, nullable=True)
     operatore = Column(String, nullable=True)
     note = Column(Text, nullable=True)
-    # ✅ NUOVO: Traccia articoli completati per questa fase (lista di indici)
+    # Traccia articoli completati per questa fase (lista di indici) — legacy pre-v1.1
     completed_articles = Column(JSON, default=list)  # Es: [0, 1, 3] = articoli con indice 0, 1, 3 completati
     order = relationship('Order', back_populates='processing_steps')
+    article = relationship('Article', back_populates='processing_steps')
 
 class OrderNotification(Base):
     """Notifiche di completamento ordine"""
