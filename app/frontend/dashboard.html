@@ -256,6 +256,14 @@
         }
 
         /* ===== CREATE MODAL ===== */
+        .create-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .create-form .modal-section {
+            padding: 16px;
+        }
         .create-form .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -277,11 +285,15 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        .create-form label .required {
+            color: var(--accent-red);
+            margin-left: 2px;
+        }
         .create-form input, .create-form textarea {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-glass);
             border-radius: var(--radius-sm);
-            padding: 10px 12px;
+            padding: 12px 14px;
             color: var(--text-primary);
             font-size: 14px;
             font-family: inherit;
@@ -291,17 +303,36 @@
             outline: none;
             border-color: var(--accent-cyan);
             background: rgba(0, 212, 255, 0.05);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
+        }
+        .create-form input[type="date"] {
+            color-scheme: dark;
         }
         .create-form textarea {
             resize: vertical;
-            min-height: 60px;
+            min-height: 70px;
         }
 
+        /* Articles */
+        .articles-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 80px 36px;
+            gap: 8px;
+            padding: 0 10px 8px;
+        }
+        .articles-header span {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
         .articles-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
             margin-bottom: 12px;
+            counter-reset: articles;
         }
         .article-entry {
             display: grid;
@@ -312,6 +343,12 @@
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-glass);
             border-radius: var(--radius-sm);
+            counter-increment: articles;
+            transition: var(--transition);
+            position: relative;
+        }
+        .article-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
         }
         .article-entry input {
             background: rgba(255, 255, 255, 0.05);
@@ -321,10 +358,12 @@
             color: var(--text-primary);
             font-size: 13px;
             font-family: inherit;
+            transition: var(--transition);
         }
         .article-entry input:focus {
             outline: none;
             border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
         }
         .btn-remove-article {
             width: 32px;
@@ -332,23 +371,26 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 71, 87, 0.1);
-            border: 1px solid rgba(255, 71, 87, 0.2);
+            background: rgba(255, 71, 87, 0.08);
+            border: 1px solid rgba(255, 71, 87, 0.15);
             border-radius: var(--radius-sm);
             color: var(--accent-red);
-            font-size: 16px;
             cursor: pointer;
             transition: var(--transition);
-            font-family: inherit;
             padding: 0;
         }
         .btn-remove-article:hover {
             background: rgba(255, 71, 87, 0.2);
+            border-color: rgba(255, 71, 87, 0.4);
+        }
+        .btn-remove-article svg {
+            width: 16px;
+            height: 16px;
         }
         .btn-add-article {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
             padding: 8px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-glass);
@@ -362,31 +404,84 @@
         .btn-add-article:hover {
             background: rgba(255, 255, 255, 0.1);
             color: var(--text-primary);
+            border-color: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
         }
-
-        .phases-checkboxes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 4px;
-        }
-        .phases-checkboxes label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            color: var(--text-primary);
-            cursor: pointer;
-            text-transform: none;
-            letter-spacing: 0;
-            font-weight: 500;
-        }
-        .phases-checkboxes input[type="checkbox"] {
+        .btn-add-article svg {
             width: 16px;
             height: 16px;
-            accent-color: var(--accent-cyan);
         }
 
+        /* Phase Toggle Pills */
+        .phases-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .phase-pill {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border-glass);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            user-select: none;
+        }
+        .phase-pill input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .phase-pill .phase-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: var(--transition);
+        }
+        .phase-pill:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        /* Phase-specific colors */
+        .phase-pill.checked[data-phase="LASER"] {
+            background: rgba(255, 71, 87, 0.12);
+            border-color: rgba(255, 71, 87, 0.4);
+            color: #ff4757;
+        }
+        .phase-pill.checked[data-phase="LASER"] .phase-dot { background: #ff4757; }
+        .phase-pill.checked[data-phase="PIEGA"] {
+            background: rgba(255, 165, 2, 0.12);
+            border-color: rgba(255, 165, 2, 0.4);
+            color: #ffa502;
+        }
+        .phase-pill.checked[data-phase="PIEGA"] .phase-dot { background: #ffa502; }
+        .phase-pill.checked[data-phase="SALDATURA"] {
+            background: rgba(255, 99, 72, 0.12);
+            border-color: rgba(255, 99, 72, 0.4);
+            color: #ff6348;
+        }
+        .phase-pill.checked[data-phase="SALDATURA"] .phase-dot { background: #ff6348; }
+        .phase-pill.checked[data-phase="PULIZIA"] {
+            background: rgba(46, 213, 115, 0.12);
+            border-color: rgba(46, 213, 115, 0.4);
+            color: #2ed573;
+        }
+        .phase-pill.checked[data-phase="PULIZIA"] .phase-dot { background: #2ed573; }
+        .phase-pill.checked[data-phase="SPEDIZIONE"] {
+            background: rgba(168, 85, 247, 0.12);
+            border-color: rgba(168, 85, 247, 0.4);
+            color: #a855f7;
+        }
+        .phase-pill.checked[data-phase="SPEDIZIONE"] .phase-dot { background: #a855f7; }
+
+        /* Action Buttons */
         .modal-actions {
             display: flex;
             justify-content: flex-end;
@@ -404,50 +499,89 @@
             cursor: pointer;
             transition: var(--transition);
             font-family: inherit;
-            min-height: 48px;
+            min-height: 44px;
         }
         .btn-cancel:hover {
             background: rgba(255, 255, 255, 0.1);
         }
         .btn-submit-order {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             padding: 10px 24px;
-            background: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
-            border: 1px solid color-mix(in srgb, var(--accent-cyan) 50%, transparent);
+            background: linear-gradient(135deg, var(--accent-cyan), color-mix(in srgb, var(--accent-cyan) 70%, #0066ff));
+            border: none;
             border-radius: var(--radius-sm);
-            color: var(--accent-cyan);
+            color: #fff;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
             font-family: inherit;
-            min-height: 48px;
+            min-height: 44px;
+            min-width: 160px;
+            justify-content: center;
+        }
+        .btn-submit-order svg {
+            width: 16px;
+            height: 16px;
         }
         .btn-submit-order:hover {
-            background: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
-            border-color: var(--accent-cyan);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
         }
         .btn-submit-order:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-submit-order.loading .btn-label { display: none; }
+        .btn-submit-order.loading .btn-spinner { display: inline-flex; }
+        .btn-submit-order .btn-spinner {
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-submit-order .btn-spinner::before {
+            content: '';
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         /* ===== PDF UPLOAD ZONE ===== */
         .pdf-upload-zone {
             border: 2px dashed var(--border-glass);
-            border-radius: var(--radius-sm);
-            padding: 20px;
+            border-radius: var(--radius-md);
+            padding: 28px 20px;
             text-align: center;
             cursor: pointer;
             transition: var(--transition);
-            margin-bottom: 16px;
         }
-        .pdf-upload-zone:hover, .pdf-upload-zone.dragover {
+        .pdf-upload-zone:hover {
+            border-color: color-mix(in srgb, var(--accent-cyan) 60%, transparent);
+            background: rgba(0, 212, 255, 0.04);
+        }
+        .pdf-upload-zone.dragover {
             border-color: var(--accent-cyan);
-            background: rgba(0, 212, 255, 0.05);
+            background: rgba(0, 212, 255, 0.08);
+            border-style: solid;
         }
         .pdf-upload-zone .upload-icon {
-            font-size: 28px;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            color: var(--accent-cyan);
+            opacity: 0.7;
+        }
+        .pdf-upload-zone .upload-icon svg {
+            width: 40px;
+            height: 40px;
         }
         .pdf-upload-zone .upload-text {
             font-size: 13px;
@@ -456,12 +590,17 @@
         .pdf-upload-zone .upload-text strong {
             color: var(--accent-cyan);
         }
+        .pdf-upload-zone .upload-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            opacity: 0.6;
+        }
         .pdf-upload-status {
             display: none;
             padding: 10px 14px;
             border-radius: var(--radius-sm);
             font-size: 13px;
-            margin-bottom: 16px;
             align-items: center;
             gap: 8px;
         }
@@ -487,7 +626,6 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 16px;
             color: var(--text-muted);
             font-size: 12px;
             text-transform: uppercase;
@@ -497,7 +635,15 @@
             content: '';
             flex: 1;
             height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-glass), transparent);
+        }
+
+        /* Modal scrollbar */
+        .create-form::-webkit-scrollbar { width: 6px; }
+        .create-form::-webkit-scrollbar-track { background: transparent; }
+        .create-form::-webkit-scrollbar-thumb {
             background: var(--border-glass);
+            border-radius: 3px;
         }
 
         /* ===== PAGE HEADER ===== */
@@ -879,11 +1025,15 @@
             .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
             .create-form .form-row { grid-template-columns: 1fr; }
             .article-entry { grid-template-columns: 1fr 1fr 60px 36px; }
+            .articles-header { grid-template-columns: 1fr 1fr 60px 36px; }
             .modal-content { padding: 20px; }
+            .phases-pills { gap: 8px; }
         }
         @media (max-width: 480px) {
             .article-entry { grid-template-columns: 1fr 60px 36px; }
+            .articles-header { grid-template-columns: 1fr 60px 36px; }
             .article-entry .art-code { display: none; }
+            .articles-header .header-code { display: none; }
         }
 
         /* ===== CALENDARIO CONSEGNE ===== */
@@ -1217,54 +1367,86 @@
                 <button class="close-modal" onclick="closeCreateModal()">&times;</button>
             </div>
             <div class="create-form">
+                <!-- PDF Upload -->
                 <div class="pdf-upload-zone" id="pdfUploadZone" onclick="document.getElementById('pdfFileInput').click()">
-                    <div class="upload-icon">&#128196;</div>
+                    <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></div>
                     <div class="upload-text"><strong>Carica PDF</strong> per compilare automaticamente</div>
-                    <div class="upload-text" style="font-size:11px;margin-top:4px;">Trascina qui o clicca per selezionare</div>
+                    <div class="upload-hint">Trascina qui o clicca per selezionare</div>
                     <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="handlePdfUpload(this)">
                 </div>
                 <div class="pdf-upload-status" id="pdfUploadStatus"></div>
                 <div class="pdf-separator">oppure compila manualmente</div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Cliente *</label>
-                        <input type="text" id="newCliente" placeholder="Nome cliente">
+                <!-- Dati Ordine -->
+                <div class="modal-section" style="padding:16px;">
+                    <h3>Dati Ordine</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="newCliente">Cliente <span class="required">*</span></label>
+                            <input type="text" id="newCliente" placeholder="Nome cliente">
+                        </div>
+                        <div class="form-group">
+                            <label for="newDataConsegna">Data Consegna <span class="required">*</span></label>
+                            <input type="date" id="newDataConsegna">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Data Consegna *</label>
-                        <input type="date" id="newDataConsegna">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Note</label>
-                        <textarea id="newNote" placeholder="Note opzionali..."></textarea>
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="newNote">Note</label>
+                            <textarea id="newNote" placeholder="Note opzionali..."></textarea>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Articoli -->
                 <div class="modal-section" style="padding:16px;">
-                    <h3 style="font-size:15px;margin-bottom:12px;">Articoli</h3>
+                    <h3>Articoli</h3>
+                    <div class="articles-header">
+                        <span>Nome</span>
+                        <span class="header-code">Codice</span>
+                        <span>Qta</span>
+                        <span></span>
+                    </div>
                     <div class="articles-list" id="articlesList">
                         <!-- articoli dinamici -->
                     </div>
-                    <button class="btn-add-article" onclick="addArticleRow()">+ Aggiungi Articolo</button>
+                    <button class="btn-add-article" onclick="addArticleRow()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Aggiungi Articolo</button>
                 </div>
 
+                <!-- Fasi di Lavorazione -->
                 <div class="modal-section" style="padding:16px;">
-                    <h3 style="font-size:15px;margin-bottom:8px;">Fasi di Lavorazione</h3>
-                    <div class="phases-checkboxes">
-                        <label><input type="checkbox" value="LASER" checked> Laser</label>
-                        <label><input type="checkbox" value="PIEGA" checked> Piega</label>
-                        <label><input type="checkbox" value="SALDATURA" checked> Saldatura</label>
-                        <label><input type="checkbox" value="PULIZIA"> Pulizia</label>
-                        <label><input type="checkbox" value="SPEDIZIONE"> Spedizione</label>
+                    <h3>Fasi di Lavorazione</h3>
+                    <div class="phases-pills" id="phasesPills">
+                        <label class="phase-pill checked" data-phase="LASER">
+                            <input type="checkbox" value="LASER" checked>
+                            <span class="phase-dot"></span> Laser
+                        </label>
+                        <label class="phase-pill checked" data-phase="PIEGA">
+                            <input type="checkbox" value="PIEGA" checked>
+                            <span class="phase-dot"></span> Piega
+                        </label>
+                        <label class="phase-pill checked" data-phase="SALDATURA">
+                            <input type="checkbox" value="SALDATURA" checked>
+                            <span class="phase-dot"></span> Saldatura
+                        </label>
+                        <label class="phase-pill" data-phase="PULIZIA">
+                            <input type="checkbox" value="PULIZIA">
+                            <span class="phase-dot"></span> Pulizia
+                        </label>
+                        <label class="phase-pill" data-phase="SPEDIZIONE">
+                            <input type="checkbox" value="SPEDIZIONE">
+                            <span class="phase-dot"></span> Spedizione
+                        </label>
                     </div>
                 </div>
 
+                <!-- Azioni -->
                 <div class="modal-actions">
                     <button class="btn-cancel" onclick="closeCreateModal()">Annulla</button>
-                    <button class="btn-submit-order" id="btnSubmitOrder" onclick="submitNewOrder()">Crea Ordine</button>
+                    <button class="btn-submit-order" id="btnSubmitOrder" onclick="submitNewOrder()">
+                        <span class="btn-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Crea Ordine</span>
+                        <span class="btn-spinner">Creazione...</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1629,8 +1811,10 @@
             const status = document.getElementById('pdfUploadStatus');
             status.className = 'pdf-upload-status';
             status.textContent = '';
-            document.querySelectorAll('.phases-checkboxes input').forEach(cb => {
+            document.querySelectorAll('.phases-pills input').forEach(cb => {
                 cb.checked = ['LASER', 'PIEGA', 'SALDATURA'].includes(cb.value);
+                const pill = cb.closest('.phase-pill');
+                if (pill) pill.classList.toggle('checked', cb.checked);
             });
             addArticleRow();
             document.getElementById('createModal').classList.add('show');
@@ -1656,6 +1840,13 @@
                 }
             });
         })();
+
+        // Phase toggle pills — sync .checked class with checkbox state
+        document.querySelectorAll('.phase-pill input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', function() {
+                this.closest('.phase-pill').classList.toggle('checked', this.checked);
+            });
+        });
 
         function handlePdfUpload(input) {
             const file = input.files[0];
@@ -1725,7 +1916,7 @@
                 <input type="text" placeholder="Nome articolo" class="art-name">
                 <input type="text" placeholder="Codice" class="art-code">
                 <input type="number" placeholder="Qtà" min="1" value="1" class="art-qty">
-                <button class="btn-remove-article" onclick="removeArticle(${articleCounter})">&times;</button>
+                <button class="btn-remove-article" onclick="removeArticle(${articleCounter})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
             `;
             document.getElementById('articlesList').appendChild(row);
         }
@@ -1747,7 +1938,7 @@
             if (!dataConsegna) { alert('Inserisci la data di consegna.'); return; }
 
             const selectedPhases = [];
-            document.querySelectorAll('.phases-checkboxes input:checked').forEach(cb => {
+            document.querySelectorAll('.phases-pills input:checked').forEach(cb => {
                 selectedPhases.push(cb.value);
             });
             if (selectedPhases.length === 0) { alert('Seleziona almeno una fase.'); return; }
@@ -1766,7 +1957,7 @@
 
             const btn = document.getElementById('btnSubmitOrder');
             btn.disabled = true;
-            btn.textContent = 'Creazione...';
+            btn.classList.add('loading');
 
             try {
                 const resp = await fetch(API_URL + '/orders', {
@@ -1790,7 +1981,7 @@
                 alert('Errore: ' + e.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Crea Ordine';
+                btn.classList.remove('loading');
             }
         }
 
