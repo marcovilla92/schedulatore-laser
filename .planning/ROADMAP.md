@@ -49,12 +49,12 @@ Piani:
   2. Quando un nuovo ordine viene creato, tutte e 5 le checkbox fasi sono selezionate per ogni articolo — l'utente rimuove le fasi che non si applicano
   3. L'utente puo cambiare le fasi assegnate a un articolo in qualsiasi momento prima che quell'articolo abbia iniziato la lavorazione nella fase da rimuovere
   4. Il salvataggio delle assegnazioni fasi le persiste nel backend e sopravvivono al reload della pagina
-**Piani**: Da definire
-**Complessita stimata:** Media
+**Piani**: 1 plan
 
 Piani:
-- [ ] 02-01: Da definire
-- [ ] 02-02: Da definire
+- [ ] 02-01-PLAN.md — API enhancement + UI checkbox fasi per articolo in ordini_estratti.html
+
+**Complessita stimata:** Media
 
 ### Fase 3: Viste Reparto
 **Obiettivo**: Gli operatori di reparto vedono solo gli articoli pertinenti alla loro fase, possono lavorarli in batch, e la dashboard riflette il progresso per articolo
@@ -80,5 +80,5 @@ Le fasi si eseguono in ordine numerico: 1 → 2 → 3
 | Fase | Piani Completi | Stato | Completato |
 |------|----------------|-------|------------|
 | 1. Modello Dati per Articolo | 3/3 | Complete   | 2026-02-19 |
-| 2. Assegnazione Fasi | 0/0 | Non iniziato | - |
+| 2. Assegnazione Fasi | 0/1 | In corso | - |
 | 3. Viste Reparto | 0/0 | Non iniziato | - |
