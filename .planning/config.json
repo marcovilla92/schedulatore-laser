@@ -1,6 +1,6 @@
 {
   "workflow": {
-    "research": false
+    "research": true
   },
   "project": {
     "language": "Italian (UI, variables, comments, documentation)"

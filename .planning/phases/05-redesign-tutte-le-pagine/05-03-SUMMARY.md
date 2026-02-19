@@ -107,6 +107,14 @@ None — piano eseguito esattamente come scritto. La rimozione del link "Caricam
 - Pattern documentati in `patterns-established` e `key-decisions` — 05-04 deve replicare identicamente per piega.html e saldatura.html, cambiando solo `data-page="piega"`/`data-page="saldatura"` e la costante `PHASE`
 - Nessun blocco.
 
+## Self-Check: PASSED
+
+- FOUND: app/frontend/laser.html
+- FOUND: .planning/phases/05-redesign-tutte-le-pagine/05-03-SUMMARY.md
+- FOUND COMMIT: 01513b1 (feat laser.html redesign)
+- FOUND IN COMMIT 8f49e45: 05-03-SUMMARY.md (committed via parallel agent docs commit)
+- All 18 verification assertions passed (no Google Fonts, design.css, data-page=laser, shared.js, hasDataChanged, filterOrders, statusFilter, applyFiltersAndRender, min-height 56px, min-height 48px, 1024px, red ambient tint, nav-search, filter-chips, chip-attesa, setStatusFilter, debounce, onSearch)
+
 ---
 *Phase: 05-redesign-tutte-le-pagine*
 *Completed: 2026-02-19*
