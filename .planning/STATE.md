@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 Phase: 4 of 6 (Audit Parser)
 Plan: 1 of 1 in current phase — COMPLETE
-Status: Phase 4 complete — ready for Phase 5
-Last activity: 2026-02-19 — Phase 4 executed (audit_parsers.py, baseline documented)
+Status: Phase 4 complete — baseline misurata, pronta per Phase 5
+Last activity: 2026-02-19 — Audit completato: baseline cliente 87%, data_consegna 81%
 
 Progress: [██░░░░░░░░] 17%
 
