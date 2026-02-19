@@ -305,7 +305,7 @@
         }
         .article-entry {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto;
+            grid-template-columns: 2fr 1fr 80px 36px;
             gap: 8px;
             align-items: center;
             padding: 10px;
@@ -877,6 +877,13 @@
         @media (max-width: 768px) {
             .kpi-row { grid-template-columns: 1fr; }
             .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .create-form .form-row { grid-template-columns: 1fr; }
+            .article-entry { grid-template-columns: 1fr 1fr 60px 36px; }
+            .modal-content { padding: 20px; }
+        }
+        @media (max-width: 480px) {
+            .article-entry { grid-template-columns: 1fr 60px 36px; }
+            .article-entry .art-code { display: none; }
         }
 
         /* ===== CALENDARIO CONSEGNE ===== */
