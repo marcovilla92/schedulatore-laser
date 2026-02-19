@@ -25,7 +25,18 @@ Operators at any workstation can see what needs to be cut/bent/welded next, star
 
 ### Active
 
-#### Current Milestone: v1.1 Fasi per Articolo
+#### Current Milestone: v1.2 Parser Universale
+
+**Goal:** Il sistema estrae automaticamente cliente, articoli, quantità e data di consegna da qualsiasi PDF — inclusi formati mai visti — usando Docling + Gemini 2.0 Flash API, senza dover scrivere parser specifici per ogni nuovo cliente.
+
+**Target features:**
+- Audit del success rate dei parser esistenti su PDF reali
+- Estrattore universale basato su Docling + Gemini 2.0 Flash
+- Confidence scoring: l'utente vede quali campi sono stati estratti con bassa confidenza
+- Integrazione nella pipeline esistente con fallback ai parser noti
+- Nessuna modifica al flusso UI: l'utente vede già i risultati nella pagina ordini estratti
+
+#### Pending Milestone: v1.1 Fasi per Articolo
 
 **Goal:** Ogni articolo ha il proprio percorso di fasi indipendente, assegnato dall'ufficio, con gestione batch nelle viste di reparto.
 
@@ -41,6 +52,8 @@ Operators at any workstation can see what needs to be cut/bent/welded next, star
 - Profili/template predefiniti per combinazioni di fasi — v2 (checkbox sufficienti per v1.1)
 - Fix tecnici/deprecation (sessioni ORM, API deprecate) — milestone separato
 - Nuove fasi di lavorazione oltre le 5 esistenti — non richiesto
+- Training/fine-tuning di modelli custom — Gemini off-the-shelf è sufficiente
+- Parser specifici per nuovi formati — l'estrattore universale li gestisce automaticamente
 
 ## Context
 
@@ -55,7 +68,7 @@ Operators at any workstation can see what needs to be cut/bent/welded next, star
 
 - **Tech stack**: Flask + SQLite — no heavy frameworks, must stay lightweight
 - **No build tools**: Frontend must remain vanilla HTML/CSS/JS — no bundlers
-- **LAN only**: No cloud deployment, no external auth
+- **LAN only**: No cloud deployment, no external auth — ma il server ha accesso internet per le API esterne
 - **Italian**: All user-facing text in Italian
 - **Single DB file**: SQLite with `check_same_thread=False`
 
@@ -68,6 +81,8 @@ Operators at any workstation can see what needs to be cut/bent/welded next, star
 | UUID string PKs | Avoid integer collision across distributed creation | ✓ Good |
 | JSON columns for articles | Flexible schema per order format | ✓ Good |
 | Dark glassmorphism UI redesign | Modern look, consistent design system | — Pending |
+| Gemini 2.0 Flash over local LLM | Server ha internet, free tier sufficiente, massima accuratezza senza infrastruttura | — Pending |
+| Docling come base per estrazione testo | Già nel progetto, ottimo per layout/tabelle, complementare all'LLM | — Pending |
 
 ---
-*Last updated: 2026-02-19 after milestone v1.1 definition*
+*Last updated: 2026-02-19 after milestone v1.2 definition*
