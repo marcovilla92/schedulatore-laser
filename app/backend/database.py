@@ -171,6 +171,28 @@ class OrderManager:
                     Article.order_id == order.id
                 ).count()
 
+                # Recupera Article records per questo ordine (v1.1+)
+                articles_db = session.query(Article).filter(
+                    Article.order_id == order.id
+                ).order_by(Article.id).all()
+
+                article_records_list = []
+                for art in articles_db:
+                    # Controlla se almeno uno step di questo articolo e stato avviato
+                    started_count = session.query(ProcessingStep).filter(
+                        ProcessingStep.article_id == art.id,
+                        ProcessingStep.timestamp_inizio.isnot(None)
+                    ).count()
+
+                    article_records_list.append({
+                        'id': art.id,
+                        'name': art.name,
+                        'code': art.code,
+                        'qty': art.qty,
+                        'required_phases': art.required_phases,
+                        'has_started_steps': started_count > 0
+                    })
+
                 # Serializza dentro la sessione per evitare lazy loading
                 result.append({
                     'id': order.id,
@@ -179,7 +201,8 @@ class OrderManager:
                     'total_quantity': order.total_quantity,
                     'status': order.status,
                     'articles': order.articles,
-                    'article_count': article_count,    # Nuovo campo v1.1+
+                    'article_count': article_count,              # Numero articoli (v1.1+)
+                    'article_records': article_records_list,     # Dati articoli per UI checkbox (v1.1+)
                     'processing_steps': [
                         {
                             'fase': ps.fase,
