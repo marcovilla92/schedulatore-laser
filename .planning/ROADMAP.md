@@ -15,7 +15,7 @@ Il milestone v1.1 trasforma il sistema di schedulazione dal tracciamento fasi a 
 - Fasi intere (1, 2, 3): Lavoro pianificato del milestone
 - Fasi decimali (2.1, 2.2): Inserimenti urgenti (marcati con INSERITO)
 
-- [ ] **Fase 1: Modello Dati per Articolo** - Modello backend, API e logica per tracciamento fasi per articolo
+- [x] **Fase 1: Modello Dati per Articolo** - Modello backend, API e logica per tracciamento fasi per articolo (2026-02-19)
 - [ ] **Fase 2: Assegnazione Fasi** - UI per il personale d'ufficio per assegnare/modificare fasi per articolo
 - [ ] **Fase 3: Viste Reparto** - Le viste reparto mostrano e operano sui dati fasi per articolo
 
@@ -35,8 +35,8 @@ Il milestone v1.1 trasforma il sistema di schedulazione dal tracciamento fasi a 
 
 Piani:
 - [x] 01-01-PLAN.md — Article model + schema migration utility
-- [ ] 01-02-PLAN.md — Per-article ProcessingStep logic + status derivation
-- [ ] 01-03-PLAN.md — API routes update + backward compat + E2E verification
+- [x] 01-02-PLAN.md — Per-article ProcessingStep logic + status derivation
+- [x] 01-03-PLAN.md — API routes update + backward compat + E2E verification
 
 **Complessita stimata:** Alta
 

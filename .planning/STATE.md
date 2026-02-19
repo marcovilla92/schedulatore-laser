@@ -5,16 +5,16 @@
 Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 
 **Valore principale:** Gli operatori vedono cosa deve essere lavorato e tracciano il completamento in tempo reale
-**Focus attuale:** Fase 1 — Modello Dati per Articolo (base backend per fasi per articolo)
+**Focus attuale:** Fase 2 — Assegnazione Fasi (UI per assegnare fasi per articolo)
 
 ## Posizione Attuale
 
-Fase: 1 di 3 (Modello Dati per Articolo)
-Piano: 3 di 3 nella fase attuale
-Stato: Piano 01-03 completato — FASE 1 COMPLETA
-Ultima attivita: 2026-02-19 — Piano 01-03 eseguito: API layer per-article tracking + auto-migration
+Fase: 2 di 3 (Assegnazione Fasi)
+Piano: 0 di 0 nella fase attuale (non ancora pianificato)
+Stato: Fase 1 completata e verificata, pronto per pianificazione Fase 2
+Ultima attivita: 2026-02-19 — Fase 1 completata: modello dati per articolo + business logic + API routes
 
-Progresso: [███░░░░░░░] 30%
+Progresso: [████░░░░░░] 33%
 
 ## Metriche Prestazioni
 
@@ -79,5 +79,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Completato 01-03-PLAN.md — API layer per-article tracking + auto-migration (FASE 1 COMPLETA)
-File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-03-SUMMARY.md
+Fermato a: Fase 1 completata e verificata (11/11 must-haves, DATI-01/02/03/04 soddisfatti)
+File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-VERIFICATION.md
