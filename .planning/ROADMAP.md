@@ -103,11 +103,11 @@ Plans:
   3. L'estrattore usa Docling per convertire il PDF in testo strutturato prima di inviarlo a Gemini 2.0 Flash — il testo Docling intermedio e ispezionabile per il debugging
   4. Testando l'estrattore sui PDF dell'audit (Phase 4), il success rate complessivo supera quello dei parser specifici per i formati con baseline bassa
   5. Se la risposta Gemini e malformata o vuota, l'estrattore solleva un'eccezione tipizzata — non restituisce dati parziali silenziosi
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md — Installa google-genai e costruisce universal_extractor.py (Docling + Gemini + confidence schema)
+- [ ] 05-02-PLAN.md — Script di validazione test_universal_extractor.py con confronto baseline Phase 4
 
 ### Phase 6: Integrazione Pipeline
 **Goal**: L'estrattore universale e il percorso predefinito nella pipeline di parsing — l'utente vede i risultati con indicatori di confidenza, i parser esistenti restano come fallback, e la mancanza di Gemini non blocca il flusso
@@ -138,5 +138,5 @@ Phases execute in numeric order: 4 → 5 → 6
 | 2. Assegnazione Fasi | v1.1 | 0/0 | Deferred | - |
 | 3. Viste Reparto | v1.1 | 0/0 | Deferred | - |
 | 4. Audit Parser | v1.2 | 0/1 | In planning | - |
-| 5. Estrattore Universale | v1.2 | 0/0 | Not started | - |
+| 5. Estrattore Universale | v1.2 | 0/2 | In planning | - |
 | 6. Integrazione Pipeline | v1.2 | 0/0 | Not started | - |
