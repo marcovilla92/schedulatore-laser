@@ -83,10 +83,10 @@ La v1.2 usa 2 fasi con il massimo parallelismo possibile. La Fase 4 e sequenzial
   2. Inter WOFF2 (pesi 400/500/600/700) e self-hosted in `frontend/fonts/` con `@font-face` in `design.css` — nessun riferimento a fonts.googleapis.com in nessun file
   3. `design.css` usa `@layer` con cascade esplicita: reset → tokens → tipografia → base → componenti → layout → utility; le regole page-specific inline vincono senza `!important`
   4. `frontend/shared.js` espone `filterOrders()`, `debounce()`, e `hasDataChanged()` come globali — qualsiasi pagina puo caricarli e usarli immediatamente
-**Piani**: TBD
+**Piani**: 1 plan
 
 Piani:
-- TBD
+- [ ] 04-01-PLAN.md — design.css con @layer cascade + Inter WOFF2 self-hosted + shared.js utility globali
 
 ### Fase 5: Redesign Tutte le Pagine
 **Obiettivo**: Tutte le 6 pagine sono completamente ridisegnate con il design system condiviso, ricerca/filtri globali, accessibilita WCAG AA, e layout responsive PC+tablet
@@ -139,5 +139,5 @@ Fase 4 (sequenziale) → Fase 5 (wave parallela: tutti i 5 piani simultaneamente
 | 1. Modello Dati per Articolo | v1.1 | 3/3 | Complete | 2026-02-19 |
 | 2. Assegnazione Fasi | v1.1 | 1/1 | Complete | 2026-02-19 |
 | 3. Viste Reparto | v1.1 | 2/2 | Complete | 2026-02-19 |
-| 4. Design System Condiviso | v1.2 | 0/TBD | Not started | - |
+| 4. Design System Condiviso | v1.2 | 0/1 | Planned | - |
 | 5. Redesign Tutte le Pagine | v1.2 | 0/5 | Not started | - |
