@@ -9,21 +9,21 @@ Requirements for milestone v1.2 — Parser Universale. Each maps to roadmap phas
 
 ### Audit
 
-- [ ] **AUDIT-01**: Il sistema esegue un test di estrazione su tutti i PDF nella cartella di test e produce un report con success rate per campo (cliente, numero_ordine, articoli, quantità, data_consegna) per ciascun formato noto
+- [ ] **AUDIT-01**: Il sistema esegue un test di estrazione su tutti i PDF nella cartella di test e produce un report con success rate per campo (cliente, numero_ordine, articoli, quantita, data_consegna) per ciascun formato noto
 - [ ] **AUDIT-02**: Il report identifica quali formati e quali campi specifici falliscono o producono dati incompleti/errati, fornendo una baseline misurabile
 
 ### Estrattore Universale
 
 - [ ] **EXTR-01**: Il sistema converte qualsiasi PDF in testo strutturato tramite Docling prima di passarlo al modello LLM
-- [ ] **EXTR-02**: Il sistema chiama Gemini 2.0 Flash con il testo estratto e riceve i campi chiave in formato JSON strutturato (cliente, numero_ordine, data_consegna, articoli con quantità e descrizione)
+- [ ] **EXTR-02**: Il sistema chiama Gemini 2.0 Flash con il testo estratto e riceve i campi chiave in formato JSON strutturato (cliente, numero_ordine, data_consegna, articoli con quantita e descrizione)
 - [ ] **EXTR-03**: Ogni campo estratto ha un indicatore di confidenza (alta/media/bassa) restituito insieme ai dati
 - [ ] **EXTR-04**: L'estrattore funziona su PDF mai visti in precedenza senza richiedere configurazione o nuovo codice
 
 ### Integrazione Pipeline
 
 - [ ] **PIPE-01**: La pipeline di parsing usa l'estrattore universale come primo tentativo; i parser specifici esistenti rimangono disponibili come fallback per i 16 formati noti
-- [ ] **PIPE-02**: Nella pagina ordini estratti, i campi con confidenza bassa sono evidenziati visivamente così l'utente sa cosa verificare manualmente
-- [ ] **PIPE-03**: Se Gemini API non è raggiungibile, il sistema cade in fallback sui parser esistenti senza errori bloccanti per l'utente
+- [ ] **PIPE-02**: Nella pagina ordini estratti, i campi con confidenza bassa sono evidenziati visivamente cosi l'utente sa cosa verificare manualmente
+- [ ] **PIPE-03**: Se Gemini API non e raggiungibile, il sistema cade in fallback sui parser esistenti senza errori bloccanti per l'utente
 
 ## Future Requirements
 
@@ -46,11 +46,11 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Training/fine-tuning di modelli custom | Gemini off-the-shelf è sufficiente, troppa complessità |
+| Training/fine-tuning di modelli custom | Gemini off-the-shelf e sufficiente, troppa complessita |
 | Parser specifici per nuovi formati | L'estrattore universale li gestisce automaticamente |
-| UI per gestire template PDF | L'approccio LLM elimina la necessità di template manuali |
-| Supporto multi-LLM configurabile | Gemini 2.0 Flash è la scelta fissa per questa milestone |
-| Estrazione da immagini scansionate (OCR puro) | Docling gestisce PDF nativi; scansioni di bassa qualità fuori scope |
+| UI per gestire template PDF | L'approccio LLM elimina la necessita di template manuali |
+| Supporto multi-LLM configurabile | Gemini 2.0 Flash e la scelta fissa per questa milestone |
+| Estrazione da immagini scansionate (OCR puro) | Docling gestisce PDF nativi; scansioni di bassa qualita fuori scope |
 
 ## Traceability
 
@@ -71,8 +71,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 **Coverage:**
 - v1.2 requirements: 9 total
 - Mapped to phases: 9
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-19 — Roadmap v1.2 created, traceability confirmed*

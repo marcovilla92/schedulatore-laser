@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Operators see what needs processing next and track completion in real-time
-**Current focus:** Milestone v1.2 — Parser Universale (PDF extraction with Docling + Gemini)
+**Current focus:** Milestone v1.2 — Phase 4: Audit Parser
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-19 — Milestone v1.2 started
+Phase: 4 of 6 (Audit Parser)
+Plan: — of — in current phase
+Status: Ready to plan
+Last activity: 2026-02-19 — Roadmap v1.2 created (phases 4-6)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -33,33 +33,14 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
-### From v1.0 (Pre-GSD)
-
-- Backend review fixed 14 critical/high bugs (2026-02-18)
-- UI redesigned: 7 pages with dark glassmorphism
-- GSD v1.20.4 installed with full skill ecosystem
-
-### From v1.1 (Pending — not yet executed)
-
-- v1.1 "Fasi per Articolo" defined (3 phases, 10 requirements) but deferred
-- Context gathered for Phase 1 (Modello Dati per Articolo)
-- Resume: .planning/phases/01-modello-dati-per-articolo/01-CONTEXT.md
-
 ### Decisions
 
-- flag_modified() required for JSON mutations in SQLAlchemy
-- 50MB upload limit for security
-- lambda defaults for mutable Column defaults
-- Per-article phase model chosen over order-level (v1.1 core decision)
-- Gemini 2.0 Flash chosen as LLM for universal PDF extraction (free tier, server has internet)
-- Docling already in project — use as PDF-to-text layer before Gemini
+Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
-### Known Issues
-
-- `get_orders_by_phase` loads ALL orders (optimize with JOIN when volume grows)
-- `declarative_base()` deprecated in SQLAlchemy 2.0
-- `datetime.utcnow()` deprecated in Python 3.12+
-- Parser success rate unknown — audit planned in Phase 4
+- v1.2: Gemini 2.0 Flash scelto come LLM per estrazione universale (free tier, server ha internet)
+- v1.2: Docling gia nel progetto — usato come layer PDF-to-text prima di Gemini
+- v1.0: flag_modified() necessario per mutazioni JSON in SQLAlchemy
+- v1.0: 50MB upload limit per sicurezza
 
 ### Pending Todos
 
@@ -67,11 +48,14 @@ None yet.
 
 ### Blockers/Concerns
 
-- Gemini API key needed before Phase 5 can execute
-- Test PDFs at C:\Users\39334\Documents\ORDINI (outside repo — needed for Phase 4 audit)
+- Phase 4: Richiede PDF di test in C:\Users\39334\Documents\ORDINI (fuori dal repo — deve esistere prima dell'esecuzione)
+- Phase 5: Richiede Gemini API key — l'utente deve ottenerla prima dell'esecuzione della fase
+- Known tech debt: `get_orders_by_phase` carica tutti gli ordini (ottimizzare con JOIN quando il volume cresce)
+- Known tech debt: `declarative_base()` deprecato in SQLAlchemy 2.0
+- Known tech debt: `datetime.utcnow()` deprecato in Python 3.12+
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Milestone v1.2 requirements being defined
-Resume file: .planning/REQUIREMENTS.md
+Stopped at: Roadmap v1.2 created — Phase 4 ready to plan
+Resume file: .planning/ROADMAP.md
