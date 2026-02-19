@@ -72,7 +72,7 @@ Plans:
 - [x] **Phase 4: Audit Parser** — Misura il success rate dei parser esistenti su PDF reali, producendo una baseline documentata per campo e per formato
 
 #### Phase 5: Estrattore Universale
-- [ ] **Phase 5: Estrattore Universale** — Costruisce l'estrattore Docling + Gemini 2.0 Flash con confidence scoring, capace di estrarre dati strutturati da qualsiasi PDF senza configurazione
+- [x] **Phase 5: Estrattore Universale** — Costruisce l'estrattore Docling + Gemini 2.0 Flash con confidence scoring, capace di estrarre dati strutturati da qualsiasi PDF senza configurazione (completed 2026-02-19)
 
 #### Phase 6: Integrazione Pipeline
 - [ ] **Phase 6: Integrazione Pipeline** — Integra l'estrattore universale nella pipeline esistente con fallback ai parser noti, indicatori di confidenza in UI, e gestione degradata senza Gemini
@@ -88,7 +88,7 @@ Plans:
   2. Il report elenca i formati con success rate sotto il 100% e indica quali campi specifici mancano o contengono dati errati per ciascun formato
   3. Il report e leggibile senza strumenti speciali (file di testo o stdout strutturato) e costituisce una baseline documentata per confrontare i risultati post-Phase 5
   4. Il report viene generato in meno di 2 minuti sull'intero set di PDF disponibili
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 04-01-PLAN.md — Script audit_parsers.py con report per-campo per-formato e baseline persistente
@@ -138,5 +138,5 @@ Phases execute in numeric order: 4 → 5 → 6
 | 2. Assegnazione Fasi | v1.1 | 0/0 | Deferred | - |
 | 3. Viste Reparto | v1.1 | 0/0 | Deferred | - |
 | 4. Audit Parser | v1.2 | 1/1 | Complete | 2026-02-19 |
-| 5. Estrattore Universale | 1/2 | In Progress|  | - |
+| 5. Estrattore Universale | 2/2 | Complete   | 2026-02-19 | - |
 | 6. Integrazione Pipeline | v1.2 | 0/0 | Not started | - |
