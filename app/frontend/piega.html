@@ -4,130 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stazione Piega - Schedulatore Laser</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/design.css">
     <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #111827;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --bg-card-hover: rgba(255, 255, 255, 0.06);
-            --bg-input: rgba(255, 255, 255, 0.05);
-            --border-glass: rgba(255, 255, 255, 0.06);
-            --border-hover: rgba(255, 165, 2, 0.3);
-            --text-primary: #e6e6e6;
-            --text-secondary: #6b7b8d;
-            --text-muted: #4a5568;
-            --accent-cyan: #00d4ff;
-            --accent-green: #00e676;
-            --accent-red: #ff4757;
-            --accent-amber: #ffa502;
-            --accent-orange: #ff6348;
-            --accent-purple: #a855f7;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Ambient background */
+        /* Ambient background — tinta ambra specifica piega */
         body::before {
-            content: '';
-            position: fixed;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
             background:
                 radial-gradient(circle at 20% 50%, rgba(255, 165, 2, 0.04) 0%, transparent 50%),
                 radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
                 radial-gradient(circle at 50% 80%, rgba(255, 165, 2, 0.02) 0%, transparent 50%);
-            animation: ambientFloat 25s ease-in-out infinite;
-            z-index: 0;
+        }
+
+        /* ===== NAVBAR SEARCH ===== */
+        .nav-spacer { flex: 1; }
+
+        .nav-search-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-search {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            padding: 7px 12px 7px 32px;
+            width: 200px;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .nav-search::placeholder { color: var(--text-muted); }
+
+        .nav-search:focus {
+            outline: none;
+            border-color: color-mix(in srgb, var(--page-accent) 40%, transparent);
+            background: rgba(255, 255, 255, 0.07);
+            width: 240px;
+        }
+
+        .nav-search-icon {
+            position: absolute;
+            left: 10px;
+            color: var(--text-muted);
+            font-size: 14px;
             pointer-events: none;
         }
 
-        @keyframes ambientFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, -1%) rotate(1deg); }
-            66% { transform: translate(-1%, 2%) rotate(-1deg); }
-        }
-
-        /* ===== NAVBAR ===== */
-        nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 64px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            padding: 0 24px;
-            gap: 6px;
-            z-index: 1000;
-        }
-
-        .nav-logo {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-right: 32px;
-            white-space: nowrap;
-        }
-
-        nav a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
-            position: relative;
-        }
-
-        nav a:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        nav a.active {
-            color: var(--accent-amber);
-            background: rgba(255, 165, 2, 0.1);
-            font-weight: 600;
-            box-shadow: 0 0 20px rgba(255, 165, 2, 0.1);
-        }
-
-        /* ===== MAIN ===== */
-        main {
-            position: relative;
-            z-index: 1;
-            margin-top: 88px;
-            padding: 0 24px 60px;
-            max-width: 1200px;
-            margin-left: auto;
-            margin-right: auto;
-        }
+        nav a { min-height: 40px; display: inline-flex; align-items: center; }
 
         /* ===== PAGE HEADER ===== */
         .page-header {
-            margin-bottom: 32px;
+            margin-bottom: 24px;
             animation: fadeInUp 0.6s ease both;
         }
 
@@ -145,6 +74,53 @@
         .page-header p {
             color: var(--text-secondary);
             font-size: 14px;
+        }
+
+        /* ===== FILTER CHIPS ===== */
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+            transition: var(--transition);
+            user-select: none;
+        }
+
+        .chip:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+
+        .chip.active {
+            background: color-mix(in srgb, var(--page-accent) 15%, transparent);
+            border-color: color-mix(in srgb, var(--page-accent) 40%, transparent);
+            color: var(--page-accent);
+        }
+
+        .chip-count {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .chip.active .chip-count {
+            background: color-mix(in srgb, var(--page-accent) 20%, transparent);
         }
 
         /* ===== MESSAGES ===== */
@@ -174,9 +150,9 @@
         }
 
         .message.info {
-            background: rgba(255, 165, 2, 0.1);
-            color: var(--accent-amber);
-            border: 1px solid rgba(255, 165, 2, 0.2);
+            background: color-mix(in srgb, var(--page-accent) 10%, transparent);
+            color: var(--page-accent);
+            border: 1px solid color-mix(in srgb, var(--page-accent) 20%, transparent);
             display: block;
         }
 
@@ -210,21 +186,21 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-amber), transparent);
+            background: linear-gradient(90deg, transparent, var(--page-accent), transparent);
             opacity: 0.5;
         }
 
         .summary-item:hover {
             background: var(--bg-card-hover);
-            border-color: rgba(255, 165, 2, 0.2);
+            border-color: color-mix(in srgb, var(--page-accent) 20%, transparent);
             transform: translateY(-2px);
-            box-shadow: 0 8px 32px rgba(255, 165, 2, 0.08);
+            box-shadow: 0 8px 32px color-mix(in srgb, var(--page-accent) 8%, transparent);
         }
 
         .summary-number {
             font-size: 36px;
             font-weight: 800;
-            color: var(--accent-amber);
+            color: var(--page-accent);
             line-height: 1;
             margin-bottom: 8px;
             font-variant-numeric: tabular-nums;
@@ -241,10 +217,17 @@
         /* ===== ORDERS GRID ===== */
         .orders-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
             gap: 20px;
             animation: fadeInUp 0.6s ease both;
             animation-delay: 0.2s;
+        }
+
+        @media (max-width: 1023px) {
+            .orders-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (min-width: 1024px) {
+            .orders-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
         }
 
         /* ===== ORDER CARD ===== */
@@ -253,7 +236,7 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--border-glass);
-            border-top: 2px solid rgba(255, 165, 2, 0.5);
+            border-top: 2px solid color-mix(in srgb, var(--page-accent) 50%, transparent);
             border-radius: var(--radius-lg);
             padding: 24px;
             transition: var(--transition);
@@ -269,15 +252,15 @@
             left: 0;
             right: 0;
             height: 60px;
-            background: linear-gradient(180deg, rgba(255, 165, 2, 0.04) 0%, transparent 100%);
+            background: linear-gradient(180deg, color-mix(in srgb, var(--page-accent) 4%, transparent) 0%, transparent 100%);
             pointer-events: none;
         }
 
         .order-card:hover {
             background: var(--bg-card-hover);
-            border-color: rgba(255, 165, 2, 0.3);
+            border-color: color-mix(in srgb, var(--page-accent) 30%, transparent);
             transform: translateY(-3px);
-            box-shadow: 0 12px 40px rgba(255, 165, 2, 0.08), 0 0 20px rgba(255, 165, 2, 0.04);
+            box-shadow: 0 12px 40px color-mix(in srgb, var(--page-accent) 8%, transparent), 0 0 20px color-mix(in srgb, var(--page-accent) 4%, transparent);
         }
 
         .order-header {
@@ -301,9 +284,9 @@
             content: '';
             width: 3px;
             height: 16px;
-            background: var(--accent-amber);
+            background: var(--page-accent);
             border-radius: 2px;
-            box-shadow: 0 0 8px var(--accent-amber);
+            box-shadow: 0 0 8px var(--page-accent);
             flex-shrink: 0;
         }
 
@@ -313,7 +296,7 @@
             background: rgba(255, 255, 255, 0.05);
             padding: 3px 8px;
             border-radius: 4px;
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-family: 'Courier New', 'Lucida Console', monospace;
             font-weight: 500;
             border: 1px solid var(--border-glass);
         }
@@ -334,13 +317,13 @@
         .articles-section {
             margin: 16px 0;
             padding: 14px;
-            background: rgba(255, 165, 2, 0.04);
-            border: 1px solid rgba(255, 165, 2, 0.1);
+            background: color-mix(in srgb, var(--page-accent) 4%, transparent);
+            border: 1px solid color-mix(in srgb, var(--page-accent) 10%, transparent);
             border-radius: var(--radius-md);
         }
 
         .articles-section h4 {
-            color: var(--accent-amber);
+            color: var(--page-accent);
             font-size: 11px;
             font-weight: 700;
             margin-bottom: 10px;
@@ -358,9 +341,7 @@
             align-items: center;
         }
 
-        .article-item:last-child {
-            border-bottom: none;
-        }
+        .article-item:last-child { border-bottom: none; }
 
         .article-name {
             font-weight: 600;
@@ -370,22 +351,22 @@
         .article-qty {
             font-size: 12px;
             color: var(--text-secondary);
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-family: 'Courier New', 'Lucida Console', monospace;
         }
 
         /* ===== TIMER DISPLAY ===== */
         .timer-display {
             display: none;
-            background: rgba(255, 165, 2, 0.1);
-            border: 1px solid rgba(255, 165, 2, 0.3);
-            color: #ffa502;
+            background: color-mix(in srgb, var(--page-accent) 10%, transparent);
+            border: 1px solid color-mix(in srgb, var(--page-accent) 30%, transparent);
+            color: var(--page-accent);
             padding: 16px;
             border-radius: 12px;
             margin: 12px 0;
             text-align: center;
             font-size: 36px;
             font-weight: 800;
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-family: 'Courier New', 'Lucida Console', monospace;
             letter-spacing: 4px;
         }
 
@@ -395,17 +376,17 @@
         }
 
         @keyframes glowPulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(255, 165, 2, 0.15); }
-            50% { box-shadow: 0 0 40px rgba(255, 165, 2, 0.3); }
+            0%, 100% { box-shadow: 0 0 20px color-mix(in srgb, var(--page-accent) 15%, transparent); }
+            50% { box-shadow: 0 0 40px color-mix(in srgb, var(--page-accent) 30%, transparent); }
         }
 
         .timer-label {
             font-size: 10px;
-            color: rgba(255, 165, 2, 0.7);
+            color: color-mix(in srgb, var(--page-accent) 70%, transparent);
             margin-top: 6px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             font-weight: 600;
         }
 
@@ -423,9 +404,9 @@
         }
 
         .status-ready {
-            background: rgba(255, 165, 2, 0.1);
-            color: var(--accent-amber);
-            border: 1px solid rgba(255, 165, 2, 0.2);
+            background: color-mix(in srgb, var(--page-accent) 10%, transparent);
+            color: var(--page-accent);
+            border: 1px solid color-mix(in srgb, var(--page-accent) 20%, transparent);
         }
 
         .status-started {
@@ -441,12 +422,46 @@
             margin-top: 16px;
         }
 
+        .btn-avvia {
+            flex: 1;
+            background: linear-gradient(135deg, var(--page-accent), color-mix(in srgb, var(--page-accent) 80%, #000));
+            color: #000;
+            border: none;
+            padding: 12px 16px;
+            min-height: 56px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-avvia:hover {
+            box-shadow: 0 0 30px color-mix(in srgb, var(--page-accent) 30%, transparent), 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-avvia:active { transform: translateY(0); }
+
+        .btn-avvia:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
         .btn-complete {
             flex: 1;
             background: linear-gradient(135deg, var(--accent-green), #00b862);
             color: #000;
             border: none;
             padding: 12px 16px;
+            min-height: 56px;
             border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 13px;
@@ -463,9 +478,7 @@
             transform: translateY(-2px);
         }
 
-        .btn-complete:active {
-            transform: translateY(0);
-        }
+        .btn-complete:active { transform: translateY(0); }
 
         .btn-complete:disabled {
             background: var(--text-muted);
@@ -473,6 +486,13 @@
             cursor: not-allowed;
             box-shadow: none;
             transform: none;
+        }
+
+        /* ===== MODAL BUTTONS TOUCH TARGETS ===== */
+        .btn-modal-cancel,
+        .btn-modal-confirm,
+        .btn-modal-select-all {
+            min-height: 48px;
         }
 
         /* ===== EMPTY STATE ===== */
@@ -540,7 +560,7 @@
             padding: 32px;
             width: 90%;
             max-width: 520px;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 165, 2, 0.05);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 40px color-mix(in srgb, var(--page-accent) 5%, transparent);
             animation: modalSlideUp 0.3s ease both;
             position: relative;
             overflow: hidden;
@@ -553,7 +573,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-amber), transparent);
+            background: linear-gradient(90deg, transparent, var(--page-accent), transparent);
         }
 
         @keyframes modalSlideUp {
@@ -565,7 +585,7 @@
             font-size: 20px;
             font-weight: 800;
             letter-spacing: -0.3px;
-            background: linear-gradient(135deg, var(--accent-amber), #cc8400);
+            background: linear-gradient(135deg, var(--page-accent), color-mix(in srgb, var(--page-accent) 70%, #000));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -601,9 +621,7 @@
             cursor: pointer;
         }
 
-        .modal-checkbox-item:last-child {
-            margin-bottom: 0;
-        }
+        .modal-checkbox-item:last-child { margin-bottom: 0; }
 
         .modal-checkbox-item:hover {
             background: rgba(255, 255, 255, 0.04);
@@ -613,7 +631,7 @@
         .modal-checkbox-item input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            accent-color: var(--accent-amber);
+            accent-color: var(--page-accent);
             cursor: pointer;
             flex-shrink: 0;
         }
@@ -645,9 +663,7 @@
             margin-left: auto;
         }
 
-        .modal-checkbox-item.is-completed {
-            opacity: 0.6;
-        }
+        .modal-checkbox-item.is-completed { opacity: 0.6; }
 
         .modal-buttons {
             display: flex;
@@ -693,7 +709,6 @@
             transform: translateY(-1px);
         }
 
-        /* Badge "Seleziona Tutti" nel modale */
         .btn-modal-select-all {
             background: rgba(0, 212, 255, 0.1);
             color: var(--accent-cyan);
@@ -713,7 +728,7 @@
             border-color: rgba(0, 212, 255, 0.3);
         }
 
-        /* ===== STATI ARTICOLO PER-FASE (v1.1+) ===== */
+        /* ===== STATI ARTICOLO PER-FASE ===== */
         .article-status-attesa {
             color: var(--text-secondary);
             font-size: 11px;
@@ -759,141 +774,69 @@
             opacity: 0.5;
         }
 
-        /* Articolo completato nella fase: dimmed */
-        .article-item.completato {
-            opacity: 0.45;
-        }
-
-        /* Pulsante "Avvia Tutti" */
-        .btn-avvia {
-            flex: 1;
-            background: linear-gradient(135deg, var(--accent-amber), #e69500);
-            color: #000;
-            border: none;
-            padding: 12px 16px;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 700;
-            font-family: inherit;
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-            letter-spacing: 0.3px;
-        }
-
-        .btn-avvia:hover {
-            box-shadow: 0 0 30px rgba(255, 165, 2, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .btn-avvia:active {
-            transform: translateY(0);
-        }
-
-        .btn-avvia:disabled {
-            background: var(--text-muted);
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-            color: rgba(255, 255, 255, 0.3);
-        }
-
-        /* ===== LOADING ===== */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 24px;
-        }
-
-        .loading.show { display: block; }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.05);
-            border-top: 3px solid var(--accent-amber);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 12px;
-            box-shadow: 0 0 15px rgba(255, 165, 2, 0.2);
-        }
-
-        .loading p {
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .article-item.completato { opacity: 0.45; }
 
         /* ===== ANIMATIONS ===== */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         @keyframes countUp {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .count-animate {
-            animation: countUp 0.4s ease both;
-        }
+        .count-animate { animation: countUp 0.4s ease both; }
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
-            nav { padding: 0 16px; gap: 4px; }
-            nav a { padding: 6px 10px; font-size: 12px; }
-            .nav-logo { font-size: 15px; margin-right: 16px; }
-            main { padding: 0 16px 40px; }
             .summary-box { grid-template-columns: 1fr; }
-            .orders-grid { grid-template-columns: 1fr; }
             .action-buttons { flex-direction: column; }
             .modal-content { padding: 24px; margin: 16px; }
             .modal-buttons { flex-direction: column; }
             .page-header h2 { font-size: 22px; }
             .summary-number { font-size: 28px; }
+            .nav-search { width: 140px; }
+            .nav-search:focus { width: 180px; }
         }
 
         @media (max-width: 480px) {
-            nav { padding: 0 12px; gap: 2px; overflow-x: auto; }
-            nav a { padding: 6px 8px; font-size: 11px; }
-            .nav-logo { font-size: 14px; margin-right: 12px; }
+            .nav-search { display: none; }
         }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
-<body>
+<body data-page="piega">
     <!-- Navbar -->
     <nav>
         <div class="nav-logo">Schedulatore Laser</div>
-        <a href="welcome.html">Caricamento</a>
         <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html" class="active">Piega</a>
         <a href="saldatura.html">Saldatura</a>
         <a href="archive.html">Archivio</a>
+        <div class="nav-spacer"></div>
+        <div class="nav-search-wrapper">
+            <span class="nav-search-icon">&#128269;</span>
+            <input type="search" class="nav-search" id="navSearch"
+                placeholder="Cerca cliente o ID..."
+                oninput="onSearch(this.value)">
+        </div>
     </nav>
 
     <main>
         <div class="page-header">
             <h2>Stazione PIEGA</h2>
             <p>Articoli in attesa di lavorazione in piega</p>
+        </div>
+
+        <!-- Chip filtri stato -->
+        <div class="filter-chips">
+            <div class="chip active" id="chip-all" onclick="setStatusFilter('all')">
+                Tutti <span class="chip-count" id="count-all">0</span>
+            </div>
+            <div class="chip" id="chip-attesa" onclick="setStatusFilter('attesa')">
+                In Attesa <span class="chip-count" id="count-attesa">0</span>
+            </div>
+            <div class="chip" id="chip-lavorazione" onclick="setStatusFilter('lavorazione')">
+                In Lavorazione <span class="chip-count" id="count-lavorazione">0</span>
+            </div>
         </div>
 
         <div id="message" class="message"></div>
@@ -941,24 +884,85 @@
         </div>
     </div>
 
+    <script src="/shared.js"></script>
     <script>
         // Usa URL relativo per funzionare su localhost e IP
         const API_URL = '/api';
         const PHASE = 'PIEGA';
 
-        // Timer e stato attivo per ordine
+        // Timer e stato attivo per ordine — vivono FUORI da renderOrders per sopravvivere al re-render
         const timers = {};
         const activePhases = {}; // { orderId: { startTime, displayTime } }
 
+        // Stato filtri e dati
+        let allOrders = [];
+        let searchQuery = '';
+        let statusFilter = 'all';
+        let lastDataHash = null;
+
         // Stato modale completamento parziale
         let currentOrderForCompletion = null;
-        let currentOrderArticles = [];  // articoli dalla risposta articles_in_phase (con article_id UUID)
-        let lastDataHash = null;  // Per evitare re-render se dati invariati
+        let currentOrderArticles = [];
+
+        // Ricerca debounced
+        const debouncedSearch = debounce(() => applyFiltersAndRender(), 300);
+
+        function onSearch(value) {
+            searchQuery = value;
+            debouncedSearch();
+        }
+
+        function setStatusFilter(filter) {
+            statusFilter = filter;
+            // Aggiorna chip attivo
+            ['all', 'attesa', 'lavorazione'].forEach(f => {
+                document.getElementById('chip-' + f).classList.toggle('active', f === filter);
+            });
+            applyFiltersAndRender();
+        }
+
+        function applyFiltersAndRender() {
+            let filtered = filterOrders(allOrders, searchQuery);
+
+            if (statusFilter === 'attesa') {
+                filtered = filtered.filter(order => {
+                    const arts = order.articles_in_phase || [];
+                    return arts.some(a => a.phase_status !== 'completato') &&
+                           !arts.some(a => a.phase_status === 'in_lavorazione');
+                });
+            } else if (statusFilter === 'lavorazione') {
+                filtered = filtered.filter(order =>
+                    (order.articles_in_phase || []).some(a => a.phase_status === 'in_lavorazione')
+                );
+            }
+
+            updateChipCounts(allOrders);
+            renderOrders(filtered);
+            updateSummary(filtered);
+        }
+
+        function updateChipCounts(orders) {
+            const total = orders.filter(o =>
+                (o.articles_in_phase || []).some(a => a.phase_status !== 'completato')
+            ).length;
+            const attesa = orders.filter(o => {
+                const arts = o.articles_in_phase || [];
+                return arts.some(a => a.phase_status !== 'completato') &&
+                       !arts.some(a => a.phase_status === 'in_lavorazione');
+            }).length;
+            const lavorazione = orders.filter(o =>
+                (o.articles_in_phase || []).some(a => a.phase_status === 'in_lavorazione')
+            ).length;
+
+            document.getElementById('count-all').textContent = total;
+            document.getElementById('count-attesa').textContent = attesa;
+            document.getElementById('count-lavorazione').textContent = lavorazione;
+        }
 
         // Carica ordini al caricamento
         window.addEventListener('DOMContentLoaded', () => {
             loadOrders();
-            // Aggiorna ogni 5 secondi
+            // Auto-refresh ogni 5 secondi — filtri e timer preservati
             setInterval(loadOrders, 5000);
         });
 
@@ -968,12 +972,12 @@
                 const orders = await response.json();
                 const orderList = Array.isArray(orders) ? orders : [];
 
-                const dataHash = JSON.stringify(orderList);
-                if (!forceRender && dataHash === lastDataHash) return;
-                lastDataHash = dataHash;
+                const { changed, newHash } = hasDataChanged(orderList, lastDataHash);
+                if (!forceRender && !changed) return;
+                lastDataHash = newHash;
 
-                renderOrders(orderList);
-                updateSummary(orderList);
+                allOrders = orderList;
+                applyFiltersAndRender();
             } catch (error) {
                 console.error('Errore caricamento ordini:', error);
                 showMessage('Errore connessione al server', 'error');
@@ -1027,23 +1031,23 @@
                     `;
                 }).join('');
 
-                // Conteggi escludendo i completati (per riepilogo card)
+                // Conteggi escludendo i completati
                 const pendingArticles = articles.filter(a => a.phase_status !== 'completato');
                 const totalArticles = pendingArticles.length;
                 const totalPieces = pendingArticles.reduce((sum, a) => sum + (a.qty || 0), 0);
 
-                // Stato card: almeno uno in lavorazione?
+                // Stato card
                 const hasActive = articles.some(a => a.phase_status === 'in_lavorazione');
                 const allActive = articles.filter(a => a.phase_status !== 'completato').every(a => a.phase_status === 'in_lavorazione');
                 const statusBadgeHtml = hasActive
                     ? '<span class="status-badge status-started">In Lavorazione</span>'
                     : '<span class="status-badge status-ready">In Attesa</span>';
 
-                // Pulsante "Avvia Tutti": disabilitato se tutti già in lavorazione
+                // Pulsante "Avvia Tutti"
                 const avviaDisabled = allActive ? 'disabled' : '';
-                const avviaTitle = allActive ? 'Tutti gli articoli sono già in lavorazione' : 'Avvia tutti gli articoli in attesa';
+                const avviaTitle = allActive ? 'Tutti gli articoli sono gia in lavorazione' : 'Avvia tutti gli articoli in attesa';
 
-                // JSON articoli in_attesa per la callback "Avvia Tutti"
+                // JSON articoli in_attesa
                 const attesaArticles = articles.filter(a => a.phase_status === 'in_attesa');
                 const attesaJson = JSON.stringify(attesaArticles).replace(/"/g, '&quot;');
 
@@ -1088,13 +1092,14 @@
             }).join('');
 
             // Ripristina i timer per gli ordini attivi dopo il re-render
+            // CRITICO: clearInterval + riavvio per aggiornare i riferimenti DOM
             Object.keys(activePhases).forEach(orderId => {
                 const active = activePhases[orderId];
                 restoreTimer(orderId, active.startTime);
             });
         }
 
-        // Avvia tutti gli articoli in_attesa per un ordine (per-articolo, sequenzialmente) + timer
+        // Avvia tutti gli articoli in_attesa per un ordine + timer
         async function avviaTutti(orderId, articlesJson) {
             let attesaArticles;
             try {
@@ -1126,7 +1131,7 @@
             }
 
             if (avviati > 0) {
-                // Avvia il timer per questo ordine
+                // Avvia il timer per questo ordine (solo se non gia attivo)
                 if (!activePhases[orderId]) {
                     activePhases[orderId] = {
                         startTime: Date.now(),
@@ -1159,7 +1164,6 @@
                 const display = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
                 if (timerValue) timerValue.textContent = display;
 
-                // Aggiorna lo stato per il restore dopo reload
                 if (activePhases[orderId]) {
                     activePhases[orderId].displayTime = display;
                 }
@@ -1191,10 +1195,8 @@
             }, 1000);
         }
 
-        // Apre il modale di completamento parziale usando i dati articles_in_phase (UUID)
-        // Ferma il timer quando si apre il modale
+        // Apre il modale di completamento parziale — ferma il timer temporaneamente
         async function openPartialCompleteModal(orderId, articlesParam) {
-            // Ferma il cronometro quando si apre il modale
             if (timers[orderId]) {
                 clearInterval(timers[orderId]);
             }
@@ -1210,7 +1212,6 @@
                 articles = articlesParam;
             }
 
-            // Se non abbiamo i dati, li recuperiamo dal server
             if (!articles) {
                 try {
                     const response = await fetch(`${API_URL}/phase/${PHASE}/orders`);
@@ -1226,7 +1227,6 @@
             currentOrderForCompletion = orderId;
             currentOrderArticles = articles;
 
-            // Genera checkbox per articoli (usa article_id UUID)
             const checkboxesDiv = document.getElementById('articlesCheckboxes');
             checkboxesDiv.innerHTML = articles.map((article, idx) => {
                 const isCompleted = article.phase_status === 'completato';
@@ -1253,7 +1253,6 @@
                 `;
             }).join('');
 
-            // Mostra modale
             document.getElementById('partialCompleteModal').classList.add('show');
         }
 
@@ -1279,7 +1278,6 @@
         async function submitPartialComplete() {
             if (!currentOrderForCompletion) return;
 
-            // Recupera UUID degli articoli selezionati
             const selectedIds = [];
             currentOrderArticles.forEach((article, idx) => {
                 const checkbox = document.getElementById(`article_cb_${idx}`);
@@ -1312,12 +1310,11 @@
                         ? `Fase ${PHASE} completata per tutti gli articoli!`
                         : `${n} articolo${n !== 1 ? '/i' : ''} completato${n !== 1 ? '/i' : ''}`;
                     showMessage(msg, 'success');
-                    // Ferma il timer all'invio — ordine uscirà dalla lista se completato
+                    // Ferma il timer all'invio
                     if (currentOrderForCompletion && timers[currentOrderForCompletion]) {
                         clearInterval(timers[currentOrderForCompletion]);
                     }
                     delete activePhases[currentOrderForCompletion];
-                    // Chiudi modale senza riprendere il timer
                     document.getElementById('partialCompleteModal').classList.remove('show');
                     currentOrderForCompletion = null;
                     currentOrderArticles = [];
@@ -1357,12 +1354,13 @@
         }
 
         function updateSummary(orders) {
-            const totalOrders = orders.length;
+            const totalOrders = orders.filter(o =>
+                (o.articles_in_phase || []).some(a => a.phase_status !== 'completato')
+            ).length;
             let totalArticles = 0;
             let totalPieces = 0;
 
             orders.forEach(order => {
-                // Conta solo gli articoli non completati nella fase
                 const articlesInPhase = (order.articles_in_phase || []).filter(
                     a => a.phase_status !== 'completato'
                 );
@@ -1385,7 +1383,6 @@
             }, 5000);
         }
 
-        // Escape HTML per prevenire XSS
         function escapeHtml(str) {
             if (!str) return '';
             return String(str)
