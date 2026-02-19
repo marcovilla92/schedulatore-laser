@@ -61,6 +61,8 @@ Progress: [██████████████████████] F
 - **[05-01]** Filtro cliente filter-bar e ricerca navbar si combinano con logica AND su archive.html
 - **[05-01]** Chips rimovibili: updateActiveFilters() + window._chipRemovers[] per collegare onclick a closure — pattern disponibile per 05-02/03/04/05
 - **[05-01]** escapeHtml() necessaria per XSS protection quando si usa innerHTML con dati dinamici dal backend
+- **[05-02]** Wrapper locale applyFiltersAndRender() per filtrare anche su numero_ordine (campo specifico non presente in shared.js filterOrders)
+- **[05-02]** displayOrders() mantenuta come alias di renderOrders() per retrocompatibilita — pattern per pagine con refactor incrementale
 - **[05-03]** fetch/render separation laser.html: allOrders invariato al fetch, applyFiltersAndRender() riapplica searchQuery + statusFilter correnti — pattern canonico per piega/saldatura (05-04)
 - **[05-03]** var(--page-accent) per tutti i colori accent laser — body[data-page=laser] attiva accent rosso via design.css @layer tokens; chip.active, summary-number, articles-section usano tutti --page-accent
 
