@@ -65,12 +65,12 @@ Piani:
   2. L'operatore puo avviare tutti gli articoli mostrati per un ordine in quella fase con un singolo click, e completarli tutti con un singolo click (operazioni batch)
   3. La dashboard mostra il progresso per articolo per ogni ordine: quanti articoli sono in ogni fase, quanti hanno completato tutte le fasi assegnate, mostrato come breakdown visivo
   4. Quando un articolo completa la sua ultima fase assegnata, non appare piu in nessuna vista reparto — vengono mostrati solo gli articoli non completamente finiti
-**Piani**: Da definire
+**Piani**: 2 plans
 **Complessita stimata:** Media
 
 Piani:
-- [ ] 03-01: Da definire
-- [ ] 03-02: Da definire
+- [ ] 03-01-PLAN.md — Backend API enrichment + laser.html reference implementation (per-article status, batch ops)
+- [ ] 03-02-PLAN.md — piega.html + saldatura.html replication + dashboard progress breakdown
 
 ## Progresso
 
@@ -81,4 +81,4 @@ Le fasi si eseguono in ordine numerico: 1 → 2 → 3
 |------|----------------|-------|------------|
 | 1. Modello Dati per Articolo | 3/3 | Complete   | 2026-02-19 |
 | 2. Assegnazione Fasi | 1/1 | Complete   | 2026-02-19 |
-| 3. Viste Reparto | 0/0 | Non iniziato | - |
+| 3. Viste Reparto | 0/2 | In progress | - |
