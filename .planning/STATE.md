@@ -10,11 +10,11 @@ Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 ## Posizione Attuale
 
 Fase: 1 di 3 (Modello Dati per Articolo)
-Piano: 2 di 3 nella fase attuale
-Stato: Piano 01-02 completato
-Ultima attivita: 2026-02-19 — Piano 01-02 eseguito: OrderManager per-article business logic
+Piano: 3 di 3 nella fase attuale
+Stato: Piano 01-03 completato — FASE 1 COMPLETA
+Ultima attivita: 2026-02-19 — Piano 01-03 eseguito: API layer per-article tracking + auto-migration
 
-Progresso: [██░░░░░░░░] 20%
+Progresso: [███░░░░░░░] 30%
 
 ## Metriche Prestazioni
 
@@ -27,7 +27,7 @@ Progresso: [██░░░░░░░░] 20%
 
 | Fase | Piani | Totale | Media/Piano |
 |------|-------|--------|-------------|
-| 1. Modello Dati | 2/3 | ~5min | 2.5min |
+| 1. Modello Dati | 3/3 | ~12min | 4min |
 | 2. Assegnazione Fasi | 0/0 | — | — |
 | 3. Viste Reparto | 0/0 | — | — |
 
@@ -52,6 +52,9 @@ Progresso: [██░░░░░░░░] 20%
 - Batch mode (no article_id) mantenuto in start_phase/complete_phase per compatibilita frontend esistente
 - get_order_details: path v1.1+ (Article records) con fallback a logica JSON per ordini pre-v1.1
 - update_order_articles: matching per code+name per identita stabile degli articoli
+- PRAGMA table_info() + ALTER TABLE per aggiungere colonne a tabelle esistenti in SQLite (create_all non modifica tabelle esistenti)
+- article_records[] nella risposta create_order: UUID articoli disponibili subito senza secondo GET
+- 409 Conflict per PUT /phases quando step gia avviati — distingue conflitto di stato da input non valido
 
 ### Problemi Noti
 
@@ -76,5 +79,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Completato 01-02-PLAN.md — OrderManager per-article business logic
-File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-02-SUMMARY.md
+Fermato a: Completato 01-03-PLAN.md — API layer per-article tracking + auto-migration (FASE 1 COMPLETA)
+File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-03-SUMMARY.md
