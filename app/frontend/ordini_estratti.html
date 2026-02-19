@@ -600,13 +600,13 @@
             accent-color: #00e676;
         }
         .phase-checkbox.phase-in-lavorazione {
-            background: rgba(0, 212, 255, 0.2);
-            border-color: rgba(0, 212, 255, 0.5);
-            color: #00d4ff;
-            box-shadow: 0 0 8px rgba(0, 212, 255, 0.15);
+            background: rgba(255, 165, 2, 0.2);
+            border-color: rgba(255, 165, 2, 0.5);
+            color: #ffa502;
+            box-shadow: 0 0 8px rgba(255, 165, 2, 0.15);
         }
         .phase-checkbox.phase-in-lavorazione input[type="checkbox"] {
-            accent-color: #00d4ff;
+            accent-color: #ffa502;
         }
 
         /* ===== BADGE IN LAVORAZIONE ===== */
@@ -816,6 +816,12 @@
         function displayOrders(orders) {
             const tbody = document.getElementById('ordersBody');
 
+            // Salva pannelli espansi prima di ricreare il DOM
+            const expandedIds = [];
+            document.querySelectorAll('.order-row.expanded').forEach(row => {
+                expandedIds.push(row.id.replace('row-', ''));
+            });
+
             if (!orders || orders.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -930,6 +936,16 @@
             });
 
             tbody.innerHTML = html;
+
+            // Ripristina pannelli espansi
+            expandedIds.forEach(id => {
+                const row = document.getElementById('row-' + id);
+                const panel = document.getElementById('panel-' + id);
+                if (row && panel) {
+                    row.classList.add('expanded');
+                    panel.classList.add('open');
+                }
+            });
         }
 
         function escapeHtml(text) {
@@ -1063,7 +1079,8 @@
                 // Pulisci modifiche pendenti per questo ordine
                 delete pendingChanges[orderId];
                 showFeedback(orderId, 'Fasi aggiornate', 'success');
-                // Il pulsante rimane disabilitato dopo un salvataggio riuscito
+                // Ricarica per aggiornare stato checkbox dal server
+                setTimeout(loadOrders, 800);
             }
         }
 
