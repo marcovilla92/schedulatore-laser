@@ -1,82 +1,84 @@
 # Roadmap: Schedulatore Laser — v1.1 Fasi per Articolo
 
-**Created:** 2026-02-19
+**Creato:** 2026-02-19
 **Milestone:** v1.1
-**Total phases:** 3
-**Total requirements:** 10
+**Fasi totali:** 3
+**Requisiti totali:** 10
 
-## Overview
+## Panoramica
 
-Milestone v1.1 transforms the scheduling system from order-level phase tracking to per-article phase tracking. Each article gets its own set of assigned phases, independent status, and appears only in the department views where it belongs. The work clusters into three natural delivery boundaries: backend data model changes (foundation), phase assignment UI (office workflow), and department view updates (shop floor workflow).
+Il milestone v1.1 trasforma il sistema di schedulazione dal tracciamento fasi a livello ordine al tracciamento fasi per singolo articolo. Ogni articolo ottiene il proprio set di fasi assegnate, uno stato indipendente, e appare solo nelle viste reparto dove appartiene. Il lavoro si raggruppa in tre confini di rilascio naturali: modifiche al modello dati backend (fondazione), UI assegnazione fasi (flusso ufficio), e aggiornamento viste reparto (flusso officina).
 
-## Phases
+## Fasi
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+**Numerazione Fasi:**
+- Fasi intere (1, 2, 3): Lavoro pianificato del milestone
+- Fasi decimali (2.1, 2.2): Inserimenti urgenti (marcati con INSERITO)
 
-- [ ] **Phase 1: Modello Dati per Articolo** - Backend model, API, and logic for per-article phase tracking
-- [ ] **Phase 2: Assegnazione Fasi** - UI for office staff to assign/modify phases per article
-- [ ] **Phase 3: Viste Reparto** - Department views show and operate on per-article phase data
+- [ ] **Fase 1: Modello Dati per Articolo** - Modello backend, API e logica per tracciamento fasi per articolo
+- [ ] **Fase 2: Assegnazione Fasi** - UI per il personale d'ufficio per assegnare/modificare fasi per articolo
+- [ ] **Fase 3: Viste Reparto** - Le viste reparto mostrano e operano sui dati fasi per articolo
 
-## Phase Details
+## Dettagli Fasi
 
-### Phase 1: Modello Dati per Articolo
-**Goal**: Every article in an order carries its own assigned phases, tracks its own completion status, and the system correctly derives order-level status from article-level data
-**Depends on**: Nothing (first phase)
-**Requirements**: DATI-01, DATI-02, DATI-03, DATI-04
-**Success Criteria** (what must be TRUE):
-  1. When an order is created via API, each article stores a `required_phases` list specifying which phases (LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE) that article must go through
-  2. When a phase is started/completed for an article, a per-article ProcessingStep is created and tracked independently from other articles in the same order
-  3. Querying an article's status returns its next pending phase, list of completed phases, and list of remaining phases — derived from its assigned phases and completed steps
-  4. An order's status changes to "completato" only when every article in that order has completed all of its individually assigned phases
-  5. Existing orders without per-article phase data continue to work (backward compatibility with pre-v1.1 data)
-**Plans**: TBD
-**Estimated complexity:** High
+### Fase 1: Modello Dati per Articolo
+**Obiettivo**: Ogni articolo in un ordine porta le proprie fasi assegnate, traccia il proprio stato di completamento, e il sistema deriva correttamente lo stato ordine dai dati a livello articolo
+**Dipende da**: Nulla (prima fase)
+**Requisiti**: DATI-01, DATI-02, DATI-03, DATI-04
+**Criteri di Successo** (cosa deve essere VERO):
+  1. Quando un ordine viene creato via API, ogni articolo memorizza una lista `required_phases` che specifica quali fasi (LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE) quell'articolo deve attraversare
+  2. Quando una fase viene avviata/completata per un articolo, viene creato un ProcessingStep per articolo tracciato indipendentemente dagli altri articoli nello stesso ordine
+  3. Interrogando lo stato di un articolo si ottiene la prossima fase in sospeso, lista fasi completate e lista fasi rimanenti — derivate dalle fasi assegnate e dagli step completati
+  4. Lo stato di un ordine cambia a "completato" solo quando ogni articolo in quell'ordine ha completato tutte le sue fasi individualmente assegnate
+  5. Gli ordini esistenti senza dati fasi per articolo continuano a funzionare (compatibilita all'indietro con dati pre-v1.1)
+**Piani**: 3 plans
 
-Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+Piani:
+- [ ] 01-01-PLAN.md — Article model + schema migration utility
+- [ ] 01-02-PLAN.md — Per-article ProcessingStep logic + status derivation
+- [ ] 01-03-PLAN.md — API routes update + backward compat + E2E verification
 
-### Phase 2: Assegnazione Fasi
-**Goal**: Office staff can assign and modify the set of required phases for each article in an order before production begins
-**Depends on**: Phase 1
-**Requirements**: FASE-01, FASE-02, FASE-03
-**Success Criteria** (what must be TRUE):
-  1. On the ordini estratti page, each article displays a row of 5 checkboxes (LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE) and the user can check/uncheck any combination
-  2. When a new order is created, all 5 phase checkboxes default to checked for every article — the user removes phases that do not apply
-  3. The user can change an article's assigned phases at any time before that article has started processing in the phase being removed
-  4. Saving phase assignments persists them to the backend and they survive page reload
-**Plans**: TBD
-**Estimated complexity:** Medium
+**Complessita stimata:** Alta
 
-Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+### Fase 2: Assegnazione Fasi
+**Obiettivo**: Il personale d'ufficio puo assegnare e modificare il set di fasi richieste per ogni articolo in un ordine prima che la produzione inizi
+**Dipende da**: Fase 1
+**Requisiti**: FASE-01, FASE-02, FASE-03
+**Criteri di Successo** (cosa deve essere VERO):
+  1. Nella pagina ordini estratti, ogni articolo mostra una riga di 5 checkbox (LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE) e l'utente puo selezionare/deselezionare qualsiasi combinazione
+  2. Quando un nuovo ordine viene creato, tutte e 5 le checkbox fasi sono selezionate per ogni articolo — l'utente rimuove le fasi che non si applicano
+  3. L'utente puo cambiare le fasi assegnate a un articolo in qualsiasi momento prima che quell'articolo abbia iniziato la lavorazione nella fase da rimuovere
+  4. Il salvataggio delle assegnazioni fasi le persiste nel backend e sopravvivono al reload della pagina
+**Piani**: Da definire
+**Complessita stimata:** Media
 
-### Phase 3: Viste Reparto
-**Goal**: Department operators see only the articles relevant to their phase, can batch-process them, and the dashboard reflects per-article progress
-**Depends on**: Phase 1, Phase 2
-**Requirements**: VISTA-01, VISTA-02, VISTA-03
-**Success Criteria** (what must be TRUE):
-  1. In laser.html, piega.html, and saldatura.html, each order card shows only the articles that have that specific phase in their `required_phases` — articles without the phase are not displayed
-  2. The operator can start all displayed articles for an order in that phase with a single click, and complete all of them with a single click (batch operations)
-  3. The dashboard shows per-article progress for each order: how many articles are in each phase, how many have completed all their assigned phases, displayed as a visual breakdown
-  4. When an article completes its last assigned phase, it no longer appears in any department view — only fully-incomplete articles are shown
-**Plans**: TBD
-**Estimated complexity:** Medium
+Piani:
+- [ ] 02-01: Da definire
+- [ ] 02-02: Da definire
 
-Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+### Fase 3: Viste Reparto
+**Obiettivo**: Gli operatori di reparto vedono solo gli articoli pertinenti alla loro fase, possono lavorarli in batch, e la dashboard riflette il progresso per articolo
+**Dipende da**: Fase 1, Fase 2
+**Requisiti**: VISTA-01, VISTA-02, VISTA-03
+**Criteri di Successo** (cosa deve essere VERO):
+  1. In laser.html, piega.html e saldatura.html, ogni card ordine mostra solo gli articoli che hanno quella specifica fase nelle loro `required_phases` — gli articoli senza la fase non vengono mostrati
+  2. L'operatore puo avviare tutti gli articoli mostrati per un ordine in quella fase con un singolo click, e completarli tutti con un singolo click (operazioni batch)
+  3. La dashboard mostra il progresso per articolo per ogni ordine: quanti articoli sono in ogni fase, quanti hanno completato tutte le fasi assegnate, mostrato come breakdown visivo
+  4. Quando un articolo completa la sua ultima fase assegnata, non appare piu in nessuna vista reparto — vengono mostrati solo gli articoli non completamente finiti
+**Piani**: Da definire
+**Complessita stimata:** Media
 
-## Progress
+Piani:
+- [ ] 03-01: Da definire
+- [ ] 03-02: Da definire
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+## Progresso
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Modello Dati per Articolo | 0/0 | Not started | - |
-| 2. Assegnazione Fasi | 0/0 | Not started | - |
-| 3. Viste Reparto | 0/0 | Not started | - |
+**Ordine di Esecuzione:**
+Le fasi si eseguono in ordine numerico: 1 → 2 → 3
+
+| Fase | Piani Completi | Stato | Completato |
+|------|----------------|-------|------------|
+| 1. Modello Dati per Articolo | 0/3 | In pianificazione | - |
+| 2. Assegnazione Fasi | 0/0 | Non iniziato | - |
+| 3. Viste Reparto | 0/0 | Non iniziato | - |
