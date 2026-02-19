@@ -581,10 +581,32 @@
             cursor: not-allowed;
             pointer-events: none;
         }
+        .phase-checkbox.disabled.phase-completato,
+        .phase-checkbox.disabled.phase-in-lavorazione {
+            opacity: 1;
+        }
         .phase-checkbox.checked {
             background: rgba(168, 85, 247, 0.12);
             border-color: rgba(168, 85, 247, 0.3);
             color: var(--accent-purple);
+        }
+        .phase-checkbox.phase-completato {
+            background: rgba(0, 230, 118, 0.2);
+            border-color: rgba(0, 230, 118, 0.5);
+            color: #00e676;
+            box-shadow: 0 0 8px rgba(0, 230, 118, 0.15);
+        }
+        .phase-checkbox.phase-completato input[type="checkbox"] {
+            accent-color: #00e676;
+        }
+        .phase-checkbox.phase-in-lavorazione {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.15);
+        }
+        .phase-checkbox.phase-in-lavorazione input[type="checkbox"] {
+            accent-color: #00d4ff;
         }
 
         /* ===== BADGE IN LAVORAZIONE ===== */
@@ -848,15 +870,23 @@
                 } else {
                     articlesHtml = articleRecords.map(article => {
                         const phases = article.required_phases || [];
+                        const completedPhases = article.completed_phases || [];
+                        const startedPhases = article.started_phases || [];
                         const disabled = article.has_started_steps;
 
                         const checkboxes = PHASES.map(phase => {
                             const isChecked = phases.includes(phase);
+                            const isCompleted = completedPhases.includes(phase);
+                            const isStarted = startedPhases.includes(phase);
                             const checkedAttr = isChecked ? 'checked' : '';
                             const disabledAttr = disabled ? 'disabled' : '';
-                            const checkedClass = isChecked ? 'checked' : '';
+
+                            let stateClass = isChecked ? 'checked' : '';
+                            if (isCompleted) stateClass = 'phase-completato';
+                            else if (isStarted) stateClass = 'phase-in-lavorazione';
+
                             const disabledClass = disabled ? 'disabled' : '';
-                            return `<label class="phase-checkbox ${checkedClass} ${disabledClass}" onclick="handleLabelClick(event, this)">
+                            return `<label class="phase-checkbox ${stateClass} ${disabledClass}" onclick="handleLabelClick(event, this)">
                                 <input type="checkbox" value="${phase}" ${checkedAttr} ${disabledAttr}
                                        data-article-id="${article.id}" data-order-id="${order.id}"
                                        onchange="onPhaseCheckboxChange(this)">

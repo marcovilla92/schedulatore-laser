@@ -176,13 +176,17 @@ class OrderManager:
                     Article.order_id == order.id
                 ).order_by(Article.id).all()
 
+                # Recupera tutti i ProcessingStep per questo ordine in una singola query
+                all_order_steps = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order.id
+                ).all()
+
                 article_records_list = []
                 for art in articles_db:
-                    # Controlla se almeno uno step di questo articolo e stato avviato
-                    started_count = session.query(ProcessingStep).filter(
-                        ProcessingStep.article_id == art.id,
-                        ProcessingStep.timestamp_inizio.isnot(None)
-                    ).count()
+                    # Step per questo articolo specifico
+                    art_steps = [s for s in all_order_steps if s.article_id == art.id]
+                    completed = [s.fase for s in art_steps if s.timestamp_fine]
+                    started = [s.fase for s in art_steps if s.timestamp_inizio and not s.timestamp_fine]
 
                     article_records_list.append({
                         'id': art.id,
@@ -190,7 +194,9 @@ class OrderManager:
                         'code': art.code,
                         'qty': art.qty,
                         'required_phases': art.required_phases,
-                        'has_started_steps': started_count > 0
+                        'has_started_steps': len(started) > 0 or len(completed) > 0,
+                        'completed_phases': completed,
+                        'started_phases': started
                     })
 
                 # Serializza dentro la sessione per evitare lazy loading
