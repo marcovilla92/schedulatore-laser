@@ -84,5 +84,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Fase 2 completata e verificata (6/6 must-haves, FASE-01/02/03 soddisfatti)
-File di ripresa: .planning/phases/02-assegnazione-fasi/02-VERIFICATION.md
+Fermato a: Phase 3 context gathered
+File di ripresa: .planning/phases/03-viste-reparto/03-CONTEXT.md
