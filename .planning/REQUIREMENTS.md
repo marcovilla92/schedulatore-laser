@@ -113,36 +113,39 @@ Esplicitamente esclusi. Documentati per prevenire scope creep.
 
 ## Tracciabilita
 
-Quali fasi coprono quali requisiti. Aggiornato durante la creazione della roadmap.
+Quali fasi coprono quali requisiti. Aggiornato con la ristrutturazione roadmap v1.2 a 2 fasi (massimo parallelismo).
 
-| Requisito | Fase | Stato |
-|-----------|------|-------|
-| DSGN-01 | — | In attesa |
-| DSGN-02 | — | In attesa |
-| DSGN-03 | — | In attesa |
-| DSGN-04 | — | In attesa |
-| ACCS-01 | — | In attesa |
-| ACCS-02 | — | In attesa |
-| DASH-01 | — | In attesa |
-| DASH-02 | — | In attesa |
-| DASH-03 | — | In attesa |
-| DASH-04 | — | In attesa |
-| DASH-05 | — | In attesa |
-| FILT-01 | — | In attesa |
-| FILT-02 | — | In attesa |
-| FILT-03 | — | In attesa |
-| FILT-04 | — | In attesa |
-| REPT-01 | — | In attesa |
-| REPT-02 | — | In attesa |
-| REPT-03 | — | In attesa |
-| PGSC-01 | — | In attesa |
-| PGSC-02 | — | In attesa |
+| Requisito | Fase | Piano | Stato |
+|-----------|------|-------|-------|
+| DSGN-01 | Fase 4 | 04-01 | In attesa |
+| DSGN-02 | Fase 4 | 04-01 | In attesa |
+| DSGN-03 | Fase 4 | 04-01 | In attesa |
+| DSGN-04 | Fase 4 | 04-01 | In attesa |
+| ACCS-01 | Fase 5 | tutti i piani | In attesa |
+| ACCS-02 | Fase 5 | tutti i piani | In attesa |
+| FILT-01 | Fase 5 | tutti i piani | In attesa |
+| FILT-03 | Fase 5 | 05-01, 05-02 | In attesa |
+| PGSC-02 | Fase 5 | 05-01 | In attesa |
+| PGSC-01 | Fase 5 | 05-02 | In attesa |
+| REPT-01 | Fase 5 | 05-03, 05-04 | In attesa |
+| REPT-02 | Fase 5 | 05-03 | In attesa |
+| REPT-03 | Fase 5 | 05-03, 05-04 | In attesa |
+| FILT-02 | Fase 5 | 05-03 | In attesa |
+| FILT-04 | Fase 5 | 05-03, 05-05 | In attesa |
+| DASH-01 | Fase 5 | 05-05 | In attesa |
+| DASH-02 | Fase 5 | 05-05 | In attesa |
+| DASH-03 | Fase 5 | 05-05 | In attesa |
+| DASH-04 | Fase 5 | 05-05 | In attesa |
+| DASH-05 | Fase 5 | 05-05 | In attesa |
 
 **Copertura:**
 - Requisiti v1.2: 20 totali
-- Mappati a fasi: 0
-- Non mappati: 20
+- Mappati a fasi: 20
+- Non mappati: 0
+
+**Note cross-cutting:**
+ACCS-01, ACCS-02, FILT-01 sono requisiti trasversali — ogni piano della Fase 5 li implementa indipendentemente nella propria pagina. Appaiono in tutti i piani perche ogni pagina deve soddisfarli autonomamente.
 
 ---
 *Requisiti definiti: 2026-02-19*
-*Ultimo aggiornamento: 2026-02-19 dopo definizione milestone v1.2*
+*Ultimo aggiornamento: 2026-02-19 — ristrutturazione roadmap v1.2 a 2 fasi (massimo parallelismo, Fasi 4-5)*
