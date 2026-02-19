@@ -912,6 +912,7 @@
         const API_URL = '/api';
         let allOrders = [];
         let currentDate = new Date();
+        let lastDataHash = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadOrders();
@@ -919,14 +920,20 @@
             setInterval(loadOrders, 10000);
         });
 
-        async function loadOrders() {
+        async function loadOrders(forceRender) {
             const loading = document.getElementById('loading');
             loading.classList.add('show');
 
             try {
                 const response = await fetch(`${API_URL}/orders`);
                 const data = await response.json();
-                allOrders = Array.isArray(data) ? data : [];
+                const newOrders = Array.isArray(data) ? data : [];
+
+                const dataHash = JSON.stringify(newOrders);
+                if (!forceRender && dataHash === lastDataHash) return;
+                lastDataHash = dataHash;
+
+                allOrders = newOrders;
                 renderCalendar();
             } catch (error) {
                 console.error('Errore caricamento ordini:', error);

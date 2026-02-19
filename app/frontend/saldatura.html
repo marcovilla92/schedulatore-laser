@@ -872,6 +872,7 @@
         // Stato modale completamento parziale
         let currentOrderForCompletion = null;
         let currentOrderArticles = [];  // articoli dalla risposta articles_in_phase (con article_id UUID)
+        let lastDataHash = null;  // Per evitare re-render se dati invariati
 
         // Carica ordini al caricamento
         window.addEventListener('DOMContentLoaded', () => {
@@ -880,11 +881,15 @@
             setInterval(loadOrders, 5000);
         });
 
-        async function loadOrders() {
+        async function loadOrders(forceRender) {
             try {
                 const response = await fetch(`${API_URL}/phase/${PHASE}/orders`);
                 const orders = await response.json();
                 const orderList = Array.isArray(orders) ? orders : [];
+
+                const dataHash = JSON.stringify(orderList);
+                if (!forceRender && dataHash === lastDataHash) return;
+                lastDataHash = dataHash;
 
                 renderOrders(orderList);
                 updateSummary(orderList);
