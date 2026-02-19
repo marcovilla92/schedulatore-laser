@@ -25,11 +25,22 @@ Operators at any workstation can see what needs to be cut/bent/welded next, star
 
 ### Active
 
-(Define via `/gsd:new-project` or `/gsd:plan-phase`)
+#### Current Milestone: v1.1 Fasi per Articolo
+
+**Goal:** Ogni articolo ha il proprio percorso di fasi indipendente, assegnato dall'ufficio, con gestione batch nelle viste di reparto.
+
+**Target features:**
+- Assegnazione fasi per articolo (checkbox per LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE — tutte opzionali)
+- Stato indipendente per articolo (ogni articolo traccia il proprio avanzamento)
+- Viste reparto mostrano solo articoli pertinenti a quella fase
+- Batch start/complete per ordine dentro ogni fase
+- Ordine completato quando tutti gli articoli hanno finito le loro fasi assegnate
 
 ### Out of Scope
 
-(Define as project evolves)
+- Profili/template predefiniti per combinazioni di fasi — v2 (checkbox sufficienti per v1.1)
+- Fix tecnici/deprecation (sessioni ORM, API deprecate) — milestone separato
+- Nuove fasi di lavorazione oltre le 5 esistenti — non richiesto
 
 ## Context
 
@@ -59,4 +70,4 @@ Operators at any workstation can see what needs to be cut/bent/welded next, star
 | Dark glassmorphism UI redesign | Modern look, consistent design system | — Pending |
 
 ---
-*Last updated: 2026-02-18 after backend review and GSD integration*
+*Last updated: 2026-02-19 after milestone v1.1 definition*
