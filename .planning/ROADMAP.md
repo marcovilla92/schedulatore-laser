@@ -34,7 +34,7 @@ Il milestone v1.1 trasforma il sistema di schedulazione dal tracciamento fasi a 
 **Piani**: 3 plans
 
 Piani:
-- [ ] 01-01-PLAN.md — Article model + schema migration utility
+- [x] 01-01-PLAN.md — Article model + schema migration utility
 - [ ] 01-02-PLAN.md — Per-article ProcessingStep logic + status derivation
 - [ ] 01-03-PLAN.md — API routes update + backward compat + E2E verification
 
@@ -79,6 +79,6 @@ Le fasi si eseguono in ordine numerico: 1 → 2 → 3
 
 | Fase | Piani Completi | Stato | Completato |
 |------|----------------|-------|------------|
-| 1. Modello Dati per Articolo | 0/3 | In pianificazione | - |
+| 1. Modello Dati per Articolo | 1/3 | In corso | - |
 | 2. Assegnazione Fasi | 0/0 | Non iniziato | - |
 | 3. Viste Reparto | 0/0 | Non iniziato | - |

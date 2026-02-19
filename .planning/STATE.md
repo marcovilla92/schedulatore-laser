@@ -1,67 +1,76 @@
-# Project State — Schedulatore Laser
+# Stato Progetto — Schedulatore Laser
 
-## Project Reference
+## Riferimento Progetto
 
-See: .planning/PROJECT.md (updated 2026-02-19)
+Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 
-**Core value:** Operators see what needs processing next and track completion in real-time
-**Current focus:** Phase 1 — Modello Dati per Articolo (backend foundation for per-article phases)
+**Valore principale:** Gli operatori vedono cosa deve essere lavorato e tracciano il completamento in tempo reale
+**Focus attuale:** Fase 1 — Modello Dati per Articolo (base backend per fasi per articolo)
 
-## Current Position
+## Posizione Attuale
 
-Phase: 1 of 3 (Modello Dati per Articolo)
-Plan: 0 of 0 in current phase (not yet planned)
-Status: Ready to plan
-Last activity: 2026-02-19 — Roadmap created with 3 phases, 10 requirements mapped
+Fase: 1 di 3 (Modello Dati per Articolo)
+Piano: 1 di 3 nella fase attuale
+Stato: Piano 01-01 completato
+Ultima attivita: 2026-02-19 — Piano 01-01 eseguito: Article model + migration utility
 
-Progress: [░░░░░░░░░░] 0%
+Progresso: [█░░░░░░░░░] 10%
 
-## Performance Metrics
+## Metriche Prestazioni
 
-**Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+**Velocita:**
+- Piani completati totali: 0
+- Durata media: —
+- Tempo esecuzione totale: 0 ore
 
-**By Phase:**
+**Per Fase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Modello Dati | 0/0 | — | — |
+| Fase | Piani | Totale | Media/Piano |
+|------|-------|--------|-------------|
+| 1. Modello Dati | 1/3 | ~2min | 2min |
 | 2. Assegnazione Fasi | 0/0 | — | — |
 | 3. Viste Reparto | 0/0 | — | — |
 
-## Accumulated Context
+## Contesto Accumulato
 
-### From v1.0 (Pre-GSD)
+### Da v1.0 (Pre-GSD)
 
-- Backend review fixed 14 critical/high bugs (2026-02-18)
-- UI redesigned: 7 pages with dark glassmorphism
-- GSD v1.20.4 installed with full skill ecosystem
+- Revisione backend ha corretto 14 bug critici/alti (2026-02-18)
+- UI ridisegnata: 7 pagine con dark glassmorphism
+- GSD v1.20.4 installato con ecosistema skill completo
 
-### Decisions
+### Decisioni
 
-- flag_modified() required for JSON mutations in SQLAlchemy
-- 50MB upload limit for security
-- lambda defaults for mutable Column defaults
-- Per-article phase model chosen over order-level (v1.1 core decision)
+- flag_modified() necessario per mutazioni JSON in SQLAlchemy
+- Limite upload 50MB per sicurezza
+- Default lambda per colonne con valori mutabili
+- Modello fasi per articolo scelto rispetto a fasi per ordine (decisione core v1.1)
+- required_phases come colonna JSON (non tabella normalizzata) — coerente con pattern esistenti
+- attributes JSON catch-all per campi extra dai formati PDF — schema flessibile senza proliferare colonne
+- ProcessingStep.article_id nullable — zero costo di migrazione per step pre-v1.1
 
-### Known Issues
+### Problemi Noti
 
-- `get_orders_by_phase` loads ALL orders (optimize with JOIN when volume grows)
-- `declarative_base()` deprecated in SQLAlchemy 2.0
-- `datetime.utcnow()` deprecated in Python 3.12+
+- `get_orders_by_phase` carica TUTTI gli ordini (ottimizzare con JOIN quando il volume cresce)
+- `declarative_base()` deprecato in SQLAlchemy 2.0
+- `datetime.utcnow()` deprecato in Python 3.12+
 
-### Pending Todos
+### Bug Risolti (sessione 2026-02-19)
 
-None yet.
+- Bug #1: `complete_phase` non popolava `completed_articles` — corretto
+- Bug #2: Ordini con fasi miste bloccati su RICEVUTO — corretto (derive fasi da articoli)
+- Bug #3: Calendario Dashboard non mostrava date consegna — corretto
 
-### Blockers/Concerns
+### Todo in Sospeso
 
-None yet.
+Nessuno.
 
-## Session Continuity
+### Blocchi/Problemi
 
-Last session: 2026-02-19
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-modello-dati-per-articolo/01-CONTEXT.md
+Nessuno.
+
+## Continuita Sessione
+
+Ultima sessione: 2026-02-19
+Fermato a: Completato 01-01-PLAN.md — Article model + migration utility
+File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-01-SUMMARY.md
