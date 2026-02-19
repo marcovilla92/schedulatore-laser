@@ -143,3 +143,14 @@ None — migration runs automatically on server startup. Existing databases are 
 ---
 *Phase: 01-modello-dati-per-articolo*
 *Completed: 2026-02-19*
+
+## Self-Check: PASSED
+
+- app/backend/app.py — FOUND
+- app/backend/__init__.py — FOUND
+- app/backend/migrate_articles.py — FOUND
+- .planning/phases/01-modello-dati-per-articolo/01-03-SUMMARY.md — FOUND
+- .planning/STATE.md — FOUND
+- .planning/ROADMAP.md — FOUND
+- Commit baca25f (Task 1) — FOUND
+- Commit 04db812 (final docs) — FOUND
