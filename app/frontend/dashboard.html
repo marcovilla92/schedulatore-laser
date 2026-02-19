@@ -4,385 +4,256 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Schedulatore Laser</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/design.css">
     <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #111827;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --bg-card-hover: rgba(255, 255, 255, 0.06);
-            --bg-input: rgba(255, 255, 255, 0.05);
-            --border-glass: rgba(255, 255, 255, 0.06);
-            --border-hover: rgba(0, 212, 255, 0.3);
-            --text-primary: #e6e6e6;
-            --text-secondary: #6b7b8d;
-            --text-muted: #4a5568;
-            --accent-cyan: #00d4ff;
-            --accent-green: #00e676;
-            --accent-red: #ff4757;
-            --accent-amber: #ffa502;
-            --accent-orange: #ff6348;
-            --accent-purple: #a855f7;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* ===== KPI HERO ROW ===== */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            transition: var(--transition);
+        }
 
-        body {
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--bg-primary);
+        .kpi-card:hover {
+            background: var(--bg-card-hover);
+            border-color: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+        }
+
+        .kpi-number {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .kpi-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-card.kpi-urgency-oggi .kpi-number { color: var(--accent-amber); }
+        .kpi-card.kpi-urgency-oggi { border-color: color-mix(in srgb, var(--accent-amber) 30%, transparent); }
+
+        /* ===== ORDERS SECTION ===== */
+        .orders-section { margin-bottom: 32px; }
+
+        .orders-section h3 {
+            font-size: 16px;
+            font-weight: 600;
             color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background:
-                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
-                radial-gradient(circle at 50% 80%, rgba(0, 230, 118, 0.02) 0%, transparent 50%);
-            animation: ambientFloat 25s ease-in-out infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes ambientFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, -1%) rotate(1deg); }
-            66% { transform: translate(-1%, 2%) rotate(-1deg); }
-        }
-
-        /* ===== NAVBAR ===== */
-        nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 64px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
             border-bottom: 1px solid var(--border-glass);
+        }
+
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .order-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 48px;
+        }
+
+        .order-card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+
+        .order-card.urgency-scaduto {
+            border-left: 4px solid var(--accent-red);
+        }
+
+        .order-card.urgency-oggi {
+            border-left: 4px solid var(--accent-amber);
+        }
+
+        .order-card.urgency-futuro {
+            border-left: 4px solid var(--border-glass);
+        }
+
+        .order-cliente {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .order-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .urgency-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .urgency-badge.scaduto { background: rgba(255, 71, 87, 0.15); color: var(--accent-red); }
+        .urgency-badge.oggi { background: rgba(255, 165, 2, 0.15); color: var(--accent-amber); }
+        .urgency-badge.futuro { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
+
+        .order-phases {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .phase-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .phase-tag.active {
+            background: color-mix(in srgb, var(--accent-cyan) 15%, transparent);
+            color: var(--accent-cyan);
+        }
+
+        .phase-tag.completed {
+            background: color-mix(in srgb, var(--accent-green) 15%, transparent);
+            color: var(--accent-green);
+        }
+
+        /* ===== REFRESH INDICATOR ===== */
+        .refresh-indicator {
             display: flex;
             align-items: center;
-            padding: 0 24px;
-            gap: 6px;
-            z-index: 1000;
-        }
-
-        .nav-logo {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-right: 32px;
-            white-space: nowrap;
-        }
-
-        nav a {
+            gap: 12px;
+            font-size: 12px;
             color: var(--text-secondary);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
         }
 
-        nav a:hover {
-            color: var(--text-primary);
+        .btn-refresh-now {
             background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 32px;
+            font-family: inherit;
         }
 
-        nav a.active {
+        .btn-refresh-now:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        /* ===== PHASES SUMMARY ===== */
+        .phases-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .phase-summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .phase-summary-count {
+            font-size: 24px;
+            font-weight: 700;
             color: var(--accent-cyan);
-            background: rgba(0, 212, 255, 0.1);
-            font-weight: 600;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
         }
 
-        /* ===== MAIN ===== */
-        main {
-            position: relative;
-            z-index: 1;
-            margin-top: 88px;
-            padding: 0 24px 60px;
-            max-width: 1300px;
-            margin-left: auto;
-            margin-right: auto;
+        .phase-summary-label {
+            font-size: 13px;
+            color: var(--text-secondary);
         }
+
+        /* ===== NAV SEARCH ===== */
+        .nav-search {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-search input {
+            background: var(--bg-input);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            padding: 7px 14px;
+            width: 200px;
+            height: 36px;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .nav-search input:focus {
+            outline: none;
+            border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            background: rgba(255, 255, 255, 0.08);
+            width: 260px;
+        }
+
+        .nav-search input::placeholder { color: var(--text-muted); }
+
+        nav a { min-height: 40px; display: flex; align-items: center; }
 
         /* ===== PAGE HEADER ===== */
         .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
             animation: fadeInUp 0.6s ease both;
         }
 
-        .page-header-text h2 {
+        .page-header h2 {
             font-size: 28px;
             font-weight: 800;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 4px;
-        }
-
-        .page-header-text p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        /* ===== CALENDAR CONTROLS ===== */
-        .calendar-controls {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .btn-nav {
-            padding: 10px 18px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
             color: var(--text-primary);
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
         }
 
-        .btn-nav:hover {
-            background: var(--bg-card-hover);
-            border-color: var(--border-hover);
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
-        }
-
-        .month-display {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-primary);
-            min-width: 200px;
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
             text-align: center;
-            text-transform: capitalize;
-        }
-
-        .btn-refresh {
-            padding: 10px 18px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
+            padding: 80px 20px;
             color: var(--text-secondary);
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: var(--transition);
-            margin-left: auto;
-        }
-
-        .btn-refresh:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: var(--text-primary);
-        }
-
-        /* ===== LOADING ===== */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
-        }
-
-        .loading.show { display: block; }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.05);
-            border-top: 3px solid var(--accent-cyan);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 12px;
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
-        }
-
-        .loading p {
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* ===== CALENDAR ===== */
-        .calendar-container {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            animation: fadeInUp 0.6s ease both;
-            animation-delay: 0.15s;
-        }
-
-        .calendar-weekdays {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .weekday {
-            text-align: center;
-            font-weight: 700;
-            color: var(--accent-cyan);
-            padding: 10px;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .calendar-days {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-        }
-
-        .calendar-day {
-            min-height: 110px;
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.01);
-            transition: var(--transition);
-            cursor: default;
-        }
-
-        .calendar-day:hover {
-            border-color: rgba(0, 212, 255, 0.2);
-            background: rgba(0, 212, 255, 0.03);
-        }
-
-        .calendar-day.other-month {
-            opacity: 0.3;
-        }
-
-        .calendar-day.today {
-            border-color: rgba(0, 212, 255, 0.4);
-            background: rgba(0, 212, 255, 0.05);
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
-            animation: todayGlow 3s ease-in-out infinite;
-        }
-
-        @keyframes todayGlow {
-            0%, 100% { box-shadow: 0 0 15px rgba(0, 212, 255, 0.08); }
-            50% { box-shadow: 0 0 25px rgba(0, 212, 255, 0.15); }
-        }
-
-        .calendar-day-number {
-            font-weight: 700;
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid var(--border-glass);
-        }
-
-        .calendar-day.other-month .calendar-day-number {
-            color: var(--text-muted);
-        }
-
-        .calendar-day.today .calendar-day-number {
-            color: var(--accent-cyan);
-        }
-
-        .day-orders {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            max-height: 70px;
-            overflow-y: auto;
-        }
-
-        .day-orders::-webkit-scrollbar { width: 3px; }
-        .day-orders::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-
-        .day-order-card {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            cursor: pointer;
-            border-left: 3px solid var(--accent-cyan);
-            background: rgba(0, 212, 255, 0.05);
-            color: var(--text-primary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: var(--transition);
-        }
-
-        .day-order-card:hover {
-            background: rgba(0, 212, 255, 0.1);
-            transform: translateX(2px);
-        }
-
-        .day-order-card.ricevuto {
-            border-left-color: var(--accent-cyan);
-            background: rgba(0, 212, 255, 0.05);
-        }
-
-        .day-order-card.laser_completato {
-            border-left-color: var(--accent-red);
-            background: rgba(255, 71, 87, 0.05);
-        }
-
-        .day-order-card.piega_completata {
-            border-left-color: var(--accent-amber);
-            background: rgba(255, 165, 2, 0.05);
-        }
-
-        .day-order-card.saldatura_completata {
-            border-left-color: var(--accent-orange);
-            background: rgba(255, 99, 72, 0.05);
-        }
-
-        .day-order-card.spedito {
-            border-left-color: var(--accent-green);
-            background: rgba(0, 230, 118, 0.05);
-            opacity: 0.7;
-        }
-
-        .day-order-card.pulizia_completata {
-            border-left-color: var(--accent-green);
-            background: rgba(0, 230, 118, 0.05);
-        }
-
-        /* Contatore articoli sotto il nome nella card calendario */
-        .day-order-progress {
-            font-size: 9px;
-            color: var(--text-muted);
-            margin-top: 1px;
-            font-weight: 500;
-        }
-
-        .day-order-progress.done {
-            color: var(--accent-green);
-            opacity: 0.8;
         }
 
         /* ===== MODAL ===== */
@@ -636,26 +507,7 @@
             margin-top: 2px;
         }
 
-        /* ===== EMPTY STATE ===== */
-        .empty-state {
-            text-align: center;
-            padding: 80px 20px;
-            color: var(--text-secondary);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .empty-state h3 {
-            color: var(--text-primary);
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        /* ===== PROGRESS BAR PER-ARTICOLO (v1.1+) ===== */
+        /* ===== PROGRESS BAR PER-ARTICOLO ===== */
         .article-progress-section {
             margin-bottom: 20px;
             padding: 16px;
@@ -732,117 +584,90 @@
             transition: height 0.5s ease;
         }
 
-        /* Stato: in attesa (grigio) */
-        .phase-segment.attesa .phase-segment-label {
-            color: var(--text-muted);
-        }
-        .phase-segment.attesa .phase-segment-fill {
-            background: rgba(74, 85, 104, 0.3);
-        }
-
-        /* Stato: in lavorazione (cyan) */
-        .phase-segment.lavorazione .phase-segment-label {
-            color: var(--accent-cyan);
-        }
+        .phase-segment.attesa .phase-segment-label { color: var(--text-muted); }
+        .phase-segment.attesa .phase-segment-fill { background: rgba(74, 85, 104, 0.3); }
+        .phase-segment.lavorazione .phase-segment-label { color: var(--accent-cyan); }
         .phase-segment.lavorazione .phase-segment-fill {
             background: rgba(0, 212, 255, 0.4);
             animation: progressPulse 2s ease-in-out infinite;
         }
-
-        /* Stato: completato (verde) */
-        .phase-segment.completato .phase-segment-label {
-            color: var(--accent-green);
-        }
-        .phase-segment.completato .phase-segment-fill {
-            background: rgba(0, 230, 118, 0.4);
-        }
+        .phase-segment.completato .phase-segment-label { color: var(--accent-green); }
+        .phase-segment.completato .phase-segment-fill { background: rgba(0, 230, 118, 0.4); }
 
         @keyframes progressPulse {
             0%, 100% { opacity: 0.8; }
             50% { opacity: 1; }
         }
 
-        /* Completato badge sulla card del calendario */
-        .day-order-card.completato-badge::after {
-            content: '✓';
-            font-size: 9px;
-            font-weight: 800;
-            color: var(--accent-green);
-            margin-left: 4px;
-        }
-
-        /* ===== ANIMATIONS ===== */
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         /* ===== RESPONSIVE ===== */
-        @media (max-width: 900px) {
-            .page-header { flex-direction: column; gap: 16px; align-items: flex-start; }
-            .calendar-day { min-height: 80px; padding: 4px; }
-            .calendar-day-number { font-size: 11px; }
-            .day-order-card { font-size: 9px; padding: 2px 4px; }
-            .weekday { font-size: 10px; padding: 6px; }
+        @media (max-width: 1023px) {
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .orders-grid { grid-template-columns: 1fr; }
+            .phases-summary { grid-template-columns: repeat(2, 1fr); }
             .info-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 768px) {
-            nav { padding: 0 16px; gap: 4px; }
-            nav a { padding: 6px 10px; font-size: 12px; }
-            .nav-logo { font-size: 15px; margin-right: 16px; }
-            main { padding: 0 12px 40px; }
+            .kpi-row { grid-template-columns: 1fr; }
+            .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
         }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
     <nav>
         <div class="nav-logo">Schedulatore Laser</div>
-        <a href="welcome.html">Caricamento</a>
         <a href="ordini-estratti">Ordini Estratti</a>
         <a href="dashboard.html" class="active">Dashboard</a>
         <a href="laser.html">Laser</a>
         <a href="piega.html">Piega</a>
         <a href="saldatura.html">Saldatura</a>
         <a href="archive.html">Archivio</a>
+        <div class="nav-search">
+            <input type="text" id="searchInput" placeholder="Cerca cliente o ID..." oninput="onSearch(this.value)">
+        </div>
     </nav>
 
     <main>
         <div class="page-header">
-            <div class="page-header-text">
-                <h2>Calendario Ordini</h2>
-                <p>Panoramica consegne e scadenze</p>
-            </div>
-            <div class="calendar-controls">
-                <button class="btn-nav" onclick="previousMonth()">&larr; Precedente</button>
-                <div class="month-display" id="monthYear"></div>
-                <button class="btn-nav" onclick="nextMonth()">Successivo &rarr;</button>
-                <button class="btn-refresh" onclick="loadOrders()">Aggiorna</button>
+            <h2>Dashboard</h2>
+            <div class="refresh-indicator">
+                <span id="lastRefreshText">Aggiornato adesso</span>
+                <button class="btn-refresh-now" onclick="loadOrders(true)">Aggiorna ora</button>
             </div>
         </div>
 
-        <div id="loading" class="loading">
-            <div class="spinner"></div>
-            <p>Caricamento ordini...</p>
+        <!-- KPI Hero Row -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-number" id="kpiAttivi">0</div>
+                <div class="kpi-label">Ordini Attivi</div>
+            </div>
+            <div class="kpi-card kpi-urgency-oggi">
+                <div class="kpi-number" id="kpiOggi">0</div>
+                <div class="kpi-label">Scadenze Oggi</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-number" id="kpiSettimana">0</div>
+                <div class="kpi-label">Scadenze Settimana</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-number" id="kpiFasiInCorso">0</div>
+                <div class="kpi-label">Fasi in Corso</div>
+            </div>
         </div>
 
-        <div id="calendarContainer" class="calendar-container">
-            <div class="calendar-weekdays">
-                <div class="weekday">Lun</div>
-                <div class="weekday">Mar</div>
-                <div class="weekday">Mer</div>
-                <div class="weekday">Gio</div>
-                <div class="weekday">Ven</div>
-                <div class="weekday">Sab</div>
-                <div class="weekday">Dom</div>
-            </div>
-            <div class="calendar-days" id="calendarDays"></div>
+        <!-- Active Phases Summary -->
+        <div class="phases-summary" id="phasesSummary"></div>
+
+        <!-- Orders by Urgency -->
+        <div class="orders-section">
+            <h3>Ordini per Urgenza Consegna</h3>
+            <div class="orders-grid" id="ordersGrid"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <p>Nessun ordine attivo</p>
         </div>
     </main>
 
@@ -908,152 +733,194 @@
         </div>
     </div>
 
+    <script src="/shared.js"></script>
     <script>
         const API_URL = '/api';
         let allOrders = [];
-        let currentDate = new Date();
+        let searchQuery = '';
         let lastDataHash = null;
+        let lastRefreshTime = Date.now();
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadOrders();
-            renderCalendar();
-            setInterval(loadOrders, 10000);
-        });
-
+        // ===== LOAD ORDERS =====
         async function loadOrders(forceRender) {
-            const loading = document.getElementById('loading');
-            loading.classList.add('show');
-
             try {
                 const response = await fetch(`${API_URL}/orders`);
-                const data = await response.json();
-                const newOrders = Array.isArray(data) ? data : [];
+                const orders = await response.json();
+                const orderList = Array.isArray(orders) ? orders : [];
 
-                const dataHash = JSON.stringify(newOrders);
-                if (!forceRender && dataHash === lastDataHash) return;
-                lastDataHash = dataHash;
+                const { changed, newHash } = hasDataChanged(orderList, lastDataHash);
+                if (!forceRender && !changed) return;
+                lastDataHash = newHash;
 
-                allOrders = newOrders;
-                renderCalendar();
+                allOrders = orderList;
+                lastRefreshTime = Date.now();
+                applyFiltersAndRender();
             } catch (error) {
-                console.error('Errore caricamento ordini:', error);
-                document.getElementById('calendarDays').innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--accent-red);">
-                        <p>Errore connessione al backend</p>
+                showMessage('Errore connessione al server', 'error');
+            }
+        }
+
+        // ===== APPLY FILTERS AND RENDER =====
+        function applyFiltersAndRender() {
+            const activeOrders = allOrders.filter(o => o.status !== 'SPEDITO');
+            const filtered = filterOrders(activeOrders, searchQuery);
+            updateKPIs(activeOrders);
+            renderPhasesSummary(activeOrders);
+            renderOrders(filtered);
+        }
+
+        // ===== KPI COMPUTATION =====
+        function updateKPIs(activeOrders) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(today);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+
+            const ordiniAttivi = activeOrders.length;
+            const scadenzeOggi = activeOrders.filter(o => {
+                if (!o.data_consegna) return false;
+                const d = new Date(o.data_consegna);
+                d.setHours(0, 0, 0, 0);
+                return d.getTime() === today.getTime();
+            }).length;
+            const scadenzeSettimana = activeOrders.filter(o => {
+                if (!o.data_consegna) return false;
+                const d = new Date(o.data_consegna);
+                d.setHours(0, 0, 0, 0);
+                return d >= today && d <= weekEnd;
+            }).length;
+            const fasiInCorso = activeOrders.filter(o =>
+                (o.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine)
+            ).length;
+
+            document.getElementById('kpiAttivi').textContent = ordiniAttivi;
+            document.getElementById('kpiOggi').textContent = scadenzeOggi;
+            document.getElementById('kpiSettimana').textContent = scadenzeSettimana;
+            document.getElementById('kpiFasiInCorso').textContent = fasiInCorso;
+        }
+
+        // ===== URGENCY CLASS =====
+        function getUrgencyClass(dataConsegna) {
+            if (!dataConsegna) return 'urgency-futuro';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const delivery = new Date(dataConsegna);
+            delivery.setHours(0, 0, 0, 0);
+            const diff = delivery - today;
+            if (diff < 0) return 'urgency-scaduto';
+            if (diff === 0) return 'urgency-oggi';
+            return 'urgency-futuro';
+        }
+
+        function getUrgencyLabel(urgencyClass) {
+            if (urgencyClass === 'urgency-scaduto') return 'Scaduto';
+            if (urgencyClass === 'urgency-oggi') return 'Oggi';
+            return '';
+        }
+
+        // ===== RENDER ORDERS =====
+        function renderOrders(orders) {
+            const grid = document.getElementById('ordersGrid');
+            const empty = document.getElementById('emptyState');
+
+            if (!orders.length) {
+                grid.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            // Sort by urgency: scaduto first, oggi second, futuro last
+            const urgencyOrder = { 'urgency-scaduto': 0, 'urgency-oggi': 1, 'urgency-futuro': 2 };
+            const sorted = [...orders].sort((a, b) => {
+                return (urgencyOrder[getUrgencyClass(a.data_consegna)] || 2) -
+                       (urgencyOrder[getUrgencyClass(b.data_consegna)] || 2);
+            });
+
+            grid.innerHTML = sorted.map(order => {
+                const urgency = getUrgencyClass(order.data_consegna);
+                const label = getUrgencyLabel(urgency);
+                const badgeClass = urgency.replace('urgency-', '');
+                const articles = order.articles || [];
+                const totalQty = articles.reduce((sum, a) => sum + (a.quantita || a.quantity || a.qty || 0), 0);
+
+                // Phase tags from processing_steps
+                const phaseTags = (order.processing_steps || []).reduce((acc, step) => {
+                    const phaseName = step.phase_name || step.fase || step.phase;
+                    if (phaseName && !acc.find(p => p.name === phaseName)) {
+                        const isActive = step.timestamp_inizio && !step.timestamp_fine;
+                        const isCompleted = !!step.timestamp_fine;
+                        acc.push({ name: phaseName, active: isActive, completed: isCompleted });
+                    }
+                    return acc;
+                }, []);
+
+                const orderId = order.id || '';
+                return `
+                    <div class="order-card ${urgency}" onclick="openOrderModal('${orderId}')">
+                        <div class="order-cliente">${order.cliente || 'N/A'}</div>
+                        <div class="order-meta">
+                            <span>${orderId ? orderId.substring(0, 8) : ''}</span>
+                            <span>${articles.length} articoli (${totalQty} pz)</span>
+                            ${order.data_consegna ? `<span>${new Date(order.data_consegna).toLocaleDateString('it-IT')}</span>` : ''}
+                            ${label ? `<span class="urgency-badge ${badgeClass}">${label}</span>` : ''}
+                        </div>
+                        <div class="order-phases">
+                            ${phaseTags.map(p => `<span class="phase-tag ${p.completed ? 'completed' : p.active ? 'active' : ''}">${p.name}</span>`).join('')}
+                        </div>
                     </div>
                 `;
-            } finally {
-                loading.classList.remove('show');
-            }
+            }).join('');
         }
 
-        function previousMonth() {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            renderCalendar();
+        // ===== PHASES SUMMARY =====
+        function renderPhasesSummary(activeOrders) {
+            const phases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE'];
+            const container = document.getElementById('phasesSummary');
+
+            const counts = phases.map(phase => {
+                const inPhase = activeOrders.filter(o =>
+                    (o.processing_steps || []).some(s => {
+                        const phaseName = s.phase_name || s.fase || s.phase;
+                        return phaseName === phase && s.timestamp_inizio && !s.timestamp_fine;
+                    })
+                ).length;
+                return { phase, count: inPhase };
+            }).filter(p => p.count > 0);
+
+            if (!counts.length) { container.innerHTML = ''; return; }
+
+            container.innerHTML = counts.map(p => `
+                <div class="phase-summary-card">
+                    <div class="phase-summary-count">${p.count}</div>
+                    <div class="phase-summary-label">${p.phase} in corso</div>
+                </div>
+            `).join('');
         }
 
-        function nextMonth() {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            renderCalendar();
+        // ===== REFRESH INDICATOR =====
+        function updateRefreshIndicator() {
+            const sec = Math.round((Date.now() - lastRefreshTime) / 1000);
+            const text = sec < 5 ? 'Aggiornato adesso' : `Aggiornato ${sec}s fa`;
+            document.getElementById('lastRefreshText').textContent = text;
         }
 
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
+        // ===== SEARCH =====
+        const debouncedSearch = debounce((q) => {
+            searchQuery = q;
+            applyFiltersAndRender();
+        }, 300);
 
-            const monthName = new Date(year, month).toLocaleString('it-IT', { month: 'long', year: 'numeric' });
-            document.getElementById('monthYear').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const daysInMonth = lastDay.getDate();
-            const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-
-            const prevMonthLastDay = new Date(year, month, 0).getDate();
-            const calendarContainer = document.getElementById('calendarDays');
-            calendarContainer.innerHTML = '';
-
-            for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-                const day = prevMonthLastDay - i;
-                calendarContainer.appendChild(createDayElement(day, month - 1, year, true));
-            }
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                calendarContainer.appendChild(createDayElement(day, month, year, false));
-            }
-
-            const totalCells = calendarContainer.childElementCount;
-            const remainingCells = 42 - totalCells;
-            for (let day = 1; day <= remainingCells; day++) {
-                calendarContainer.appendChild(createDayElement(day, month + 1, year, true));
-            }
+        function onSearch(value) {
+            debouncedSearch(value);
         }
 
-        function createDayElement(day, month, year, isOtherMonth) {
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'calendar-day';
-
-            if (isOtherMonth) {
-                dayDiv.classList.add('other-month');
-                if (month < 0) { month = 11; year--; }
-                if (month > 11) { month = 0; year++; }
-            }
-
-            const today = new Date();
-            if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear() && !isOtherMonth) {
-                dayDiv.classList.add('today');
-            }
-
-            const dayNumber = document.createElement('div');
-            dayNumber.className = 'calendar-day-number';
-            dayNumber.textContent = day;
-            dayDiv.appendChild(dayNumber);
-
-            const ordersDiv = document.createElement('div');
-            ordersDiv.className = 'day-orders';
-
-            const ordersForDay = allOrders.filter(order => {
-                const orderDate = new Date(order.data_consegna);
-                return orderDate.getDate() === day &&
-                       orderDate.getMonth() === month &&
-                       orderDate.getFullYear() === year;
-            });
-
-            ordersForDay.forEach(order => {
-                const orderCard = document.createElement('div');
-                orderCard.className = `day-order-card ${order.status.toLowerCase()}`;
-
-                // Calcola completamento articoli per la card
-                const articleRecords = order.article_records || [];
-                const totalArt = order.articles ? order.articles.length : 0;
-                const completedStatuses = ['SPEDITO', 'PULIZIA_COMPLETATA'];
-                const isFullyComplete = completedStatuses.includes(order.status);
-
-                // Contenuto card: nome + mini contatore
-                const clienteShort = order.cliente.substring(0, 15);
-                if (articleRecords.length > 0) {
-                    const startedCount = articleRecords.filter(ar => ar.has_started_steps).length;
-                    const progressText = isFullyComplete
-                        ? `${totalArt}/${totalArt} ✓`
-                        : `${startedCount}/${totalArt}`;
-                    const progressClass = isFullyComplete ? 'done' : '';
-                    orderCard.innerHTML = `<div>${clienteShort}</div><div class="day-order-progress ${progressClass}">${progressText}</div>`;
-                } else {
-                    orderCard.textContent = clienteShort;
-                }
-
-                orderCard.title = `${order.cliente} - ${totalArt} articoli`;
-                orderCard.onclick = (e) => {
-                    e.stopPropagation();
-                    openOrderModal(order.id);
-                };
-                ordersDiv.appendChild(orderCard);
-            });
-
-            dayDiv.appendChild(ordersDiv);
-            return dayDiv;
+        // ===== SHOW MESSAGE =====
+        function showMessage(msg, type) {
+            console.error(`[${type}] ${msg}`);
         }
 
+        // ===== MODAL =====
         async function openOrderModal(orderId) {
             const modal = document.getElementById('orderModal');
             modal.classList.add('show');
@@ -1069,15 +936,15 @@
 
                 document.getElementById('modalOrderId').textContent = `Ordine: ${order.cliente}`;
                 document.getElementById('modalCliente').textContent = order.cliente;
-                document.getElementById('modalDataConsegna').textContent = new Date(order.data_consegna).toLocaleDateString('it-IT');
+                document.getElementById('modalDataConsegna').textContent =
+                    order.data_consegna ? new Date(order.data_consegna).toLocaleDateString('it-IT') : '-';
                 document.getElementById('modalQuantita').textContent = order.total_quantity || 0;
                 document.getElementById('modalStatus').textContent = order.status || 'RICEVUTO';
 
-                // ===== PROGRESS BAR PER-ARTICOLO =====
+                // Progress bar per-articolo
                 const progressSection = document.getElementById('modalArticleProgress');
                 const articles = order.articles || [];
                 if (articles.length > 0 && articles[0].required_phases !== undefined) {
-                    // v1.1+ articles con per-article phase tracking
                     const totalArticles = articles.length;
                     const completedArticles = articles.filter(a =>
                         a.next_phase === 'Completato' || (a.required_phases && a.required_phases.length > 0 &&
@@ -1087,13 +954,11 @@
                     const isAllDone = completedArticles === totalArticles;
                     const counterClass = isAllDone ? 'all-done' : '';
 
-                    // Calcola statistiche per fase
                     const phases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE'];
                     const phaseStats = phases.map(phase => {
                         const required = articles.filter(a => (a.required_phases || []).includes(phase)).length;
                         if (required === 0) return null;
                         const completed = articles.filter(a => (a.completed_phases || []).includes(phase)).length;
-                        // In lavorazione: ha avuto started_phases ma non ancora completato
                         const inProgress = articles.filter(a =>
                             (a.required_phases || []).includes(phase) &&
                             !(a.completed_phases || []).includes(phase) &&
@@ -1102,7 +967,6 @@
                         return { phase, required, completed, inProgress };
                     }).filter(ps => ps !== null);
 
-                    // Genera barre di fase
                     const segmentsHtml = phaseStats.map(ps => {
                         let segClass = 'attesa';
                         if (ps.completed >= ps.required) segClass = 'completato';
@@ -1131,7 +995,6 @@
                         </div>
                     `;
                 } else if (articles.length > 0) {
-                    // v1.0 ordini legacy — fallback senza progress bar
                     progressSection.innerHTML = `
                         <p style="color: var(--text-secondary); font-size: 13px;">
                             Avanzamento non disponibile (ordine pre-v1.1)
@@ -1144,7 +1007,7 @@
                 }
 
                 const articlesBody = document.getElementById('modalArticlesBody');
-                articlesBody.innerHTML = order.articles.map(article => {
+                articlesBody.innerHTML = (order.articles || []).map(article => {
                     const completedPhases = article.completed_phases || [];
                     const requiredPhases = article.required_phases || [];
                     const nextPhase = article.next_phase || 'Completato';
@@ -1159,7 +1022,7 @@
                     return `
                         <tr>
                             <td><strong>${article.name}</strong> ${article.code ? `(${article.code})` : ''}</td>
-                            <td>${article.qty} pz</td>
+                            <td>${article.qty || article.quantita || 0} pz</td>
                             <td>
                                 ${phasesHtml}
                                 ${nextPhase !== 'Completato'
@@ -1181,12 +1044,13 @@
                         const isStarted = step.timestamp_inizio;
                         const status = isCompleted ? 'completed' : isStarted ? 'in-progress' : 'pending';
                         const icon = isCompleted ? '&#10003;' : isStarted ? '&#9203;' : '&#9675;';
+                        const faseName = step.fase || step.phase_name || step.phase || '';
 
                         return `
                             <div class="timeline-step ${status}">
                                 <span class="timeline-icon">${icon}</span>
                                 <div class="timeline-info">
-                                    <div class="timeline-fase">${step.fase}</div>
+                                    <div class="timeline-fase">${faseName}</div>
                                     ${step.timestamp_inizio ? `<div class="timeline-time">Iniziato: ${new Date(step.timestamp_inizio).toLocaleString('it-IT')}</div>` : ''}
                                     ${step.timestamp_fine ? `<div class="timeline-time">Completato: ${new Date(step.timestamp_fine).toLocaleString('it-IT')}</div>` : ''}
                                     ${step.operatore ? `<div class="timeline-time">Operatore: ${step.operatore}</div>` : ''}
@@ -1209,6 +1073,13 @@
         window.addEventListener('click', (e) => {
             const modal = document.getElementById('orderModal');
             if (e.target === modal) closeModal();
+        });
+
+        // ===== INIT =====
+        window.addEventListener('DOMContentLoaded', () => {
+            loadOrders(true);
+            setInterval(() => loadOrders(), 10000);
+            setInterval(updateRefreshIndicator, 1000);
         });
     </script>
 </body>
