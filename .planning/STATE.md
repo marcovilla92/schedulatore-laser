@@ -10,11 +10,11 @@ Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 ## Posizione Attuale
 
 Fase: 2 di 3 (Assegnazione Fasi)
-Piano: 0 di 0 nella fase attuale (non ancora pianificato)
-Stato: Fase 1 completata e verificata, pronto per pianificazione Fase 2
-Ultima attivita: 2026-02-19 — Fase 1 completata: modello dati per articolo + business logic + API routes
+Piano: 1 di 1 nella fase attuale
+Stato: Piano 02-01 completato — UI assegnazione fasi per articolo funzionante
+Ultima attivita: 2026-02-19 — Piano 02-01: UI checkbox fasi + API article_records
 
-Progresso: [████░░░░░░] 33%
+Progresso: [█████░░░░░] 50%
 
 ## Metriche Prestazioni
 
@@ -28,7 +28,7 @@ Progresso: [████░░░░░░] 33%
 | Fase | Piani | Totale | Media/Piano |
 |------|-------|--------|-------------|
 | 1. Modello Dati | 3/3 | ~12min | 4min |
-| 2. Assegnazione Fasi | 0/0 | — | — |
+| 2. Assegnazione Fasi | 1/1 | ~4min | 4min |
 | 3. Viste Reparto | 0/0 | — | — |
 
 ## Contesto Accumulato
@@ -55,6 +55,11 @@ Progresso: [████░░░░░░] 33%
 - PRAGMA table_info() + ALTER TABLE per aggiungere colonne a tabelle esistenti in SQLite (create_all non modifica tabelle esistenti)
 - article_records[] nella risposta create_order: UUID articoli disponibili subito senza secondo GET
 - 409 Conflict per PUT /phases quando step gia avviati — distingue conflitto di stato da input non valido
+- article_records[] aggiunto a get_all_orders_dict (non nuovo endpoint) — backward compat automatica per entrambi i consumer GET
+- started_count query per articolo nel loop di get_all_orders_dict — accettabile per dataset tipico (< 500 articoli)
+- Pulsante "Salva Fasi" per-ordine anziché per-articolo — UX migliore per modifiche multiple
+- pendingChanges JS state tracker per filtrare chiamate API solo alle modifiche reali
+- Salvataggio sequenziale async/await (for...of) per evitare race condition sui ProcessingStep
 
 ### Problemi Noti
 
@@ -79,5 +84,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Fase 1 completata e verificata (11/11 must-haves, DATI-01/02/03/04 soddisfatti)
-File di ripresa: .planning/phases/01-modello-dati-per-articolo/01-VERIFICATION.md
+Fermato a: Completato 02-01-PLAN.md — UI assegnazione fasi operativa (FASE-01/02/03 soddisfatti)
+File di ripresa: .planning/phases/02-assegnazione-fasi/02-01-SUMMARY.md

@@ -16,9 +16,9 @@ Requisiti per il milestone v1.1 — Fasi per Articolo. Ogni requisito e mappato 
 
 ### Assegnazione Fasi
 
-- [ ] **FASE-01**: L'ufficio puo assegnare le fasi a ogni singolo articolo tramite checkbox (LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE) nella pagina ordini estratti
-- [ ] **FASE-02**: Di default, articoli nuovi hanno tutte le 5 fasi attive — l'ufficio rimuove quelle non necessarie
-- [ ] **FASE-03**: Le fasi assegnate a un articolo possono essere modificate prima che l'articolo inizi la lavorazione in quella fase
+- [x] **FASE-01**: L'ufficio puo assegnare le fasi a ogni singolo articolo tramite checkbox (LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE) nella pagina ordini estratti
+- [x] **FASE-02**: Di default, articoli nuovi hanno tutte le 5 fasi attive — l'ufficio rimuove quelle non necessarie
+- [x] **FASE-03**: Le fasi assegnate a un articolo possono essere modificate prima che l'articolo inizi la lavorazione in quella fase
 
 ### Viste Reparto
 

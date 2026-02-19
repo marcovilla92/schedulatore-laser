@@ -80,5 +80,5 @@ Le fasi si eseguono in ordine numerico: 1 → 2 → 3
 | Fase | Piani Completi | Stato | Completato |
 |------|----------------|-------|------------|
 | 1. Modello Dati per Articolo | 3/3 | Complete   | 2026-02-19 |
-| 2. Assegnazione Fasi | 0/1 | In corso | - |
+| 2. Assegnazione Fasi | 1/1 | Complete   | 2026-02-19 |
 | 3. Viste Reparto | 0/0 | Non iniziato | - |
