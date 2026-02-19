@@ -69,7 +69,7 @@ Plans:
 **Milestone Goal:** Il sistema estrae automaticamente cliente, articoli, quantita e data di consegna da qualsiasi PDF — inclusi formati mai visti — usando Docling + Gemini 2.0 Flash API, senza dover scrivere parser specifici per ogni nuovo cliente.
 
 #### Phase 4: Audit Parser
-- [ ] **Phase 4: Audit Parser** — Misura il success rate dei parser esistenti su PDF reali, producendo una baseline documentata per campo e per formato
+- [x] **Phase 4: Audit Parser** — Misura il success rate dei parser esistenti su PDF reali, producendo una baseline documentata per campo e per formato
 
 #### Phase 5: Estrattore Universale
 - [ ] **Phase 5: Estrattore Universale** — Costruisce l'estrattore Docling + Gemini 2.0 Flash con confidence scoring, capace di estrarre dati strutturati da qualsiasi PDF senza configurazione
@@ -91,7 +91,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 04-01-PLAN.md — Script audit_parsers.py con report per-campo per-formato e baseline persistente
+- [x] 04-01-PLAN.md — Script audit_parsers.py con report per-campo per-formato e baseline persistente
 
 ### Phase 5: Estrattore Universale
 **Goal**: Un estrattore autonomo che, dato qualsiasi PDF, restituisce i campi chiave con indicatori di confidenza — senza richiedere parser dedicati o configurazione per il formato specifico

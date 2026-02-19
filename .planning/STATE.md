@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 4 of 6 (Audit Parser)
-Plan: — of — in current phase
-Status: Ready to plan
-Last activity: 2026-02-19 — Roadmap v1.2 created (phases 4-6)
+Plan: 1 of 1 in current phase — COMPLETE
+Status: Phase 4 complete — ready for Phase 5
+Last activity: 2026-02-19 — Phase 4 executed (audit_parsers.py, baseline documented)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -48,8 +48,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 4: Richiede PDF di test in C:\Users\39334\Documents\ORDINI (fuori dal repo — deve esistere prima dell'esecuzione)
-- Phase 5: Richiede Gemini API key — l'utente deve ottenerla prima dell'esecuzione della fase
+- Phase 5: Gemini API key disponibile — conservare in app/.env come GEMINI_API_KEY (non committare)
+- Phase 5: 32 PDF nella cartella ORDINI ma sono 16 file duplicati — verificare con glob deduplication
 - Known tech debt: `get_orders_by_phase` carica tutti gli ordini (ottimizzare con JOIN quando il volume cresce)
 - Known tech debt: `declarative_base()` deprecato in SQLAlchemy 2.0
 - Known tech debt: `datetime.utcnow()` deprecato in Python 3.12+
@@ -57,5 +57,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Roadmap v1.2 created — Phase 4 ready to plan
-Resume file: .planning/ROADMAP.md
+Stopped at: Phase 4 complete — baseline audit documented
+Resume file: .planning/phases/04-audit-parser/04-01-SUMMARY.md
