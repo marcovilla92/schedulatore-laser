@@ -220,8 +220,9 @@ def update_article_phases(order_id, article_id):
                 ProcessingStep.article_id == article_id
             ).delete()
 
-            # Aggiorna le required_phases dell'articolo
+            # Aggiorna le required_phases dell'articolo e segna come confermato
             article.required_phases = normalized_phases
+            article.phases_confirmed = 1
             flag_modified(article, 'required_phases')
 
             # Ricrea i ProcessingStep con le nuove fasi

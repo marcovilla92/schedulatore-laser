@@ -195,6 +195,7 @@ class OrderManager:
                         'qty': art.qty,
                         'required_phases': art.required_phases,
                         'has_started_steps': len(started) > 0 or len(completed) > 0,
+                        'phases_confirmed': bool(art.phases_confirmed),
                         'completed_phases': completed,
                         'started_phases': started
                     })

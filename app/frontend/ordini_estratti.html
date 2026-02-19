@@ -577,10 +577,11 @@
             cursor: pointer;
         }
         .phase-checkbox.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
+            opacity: 0.5;
+            cursor: default;
             pointer-events: none;
         }
+        .phase-checkbox.disabled.checked,
         .phase-checkbox.disabled.phase-completato,
         .phase-checkbox.disabled.phase-in-lavorazione {
             opacity: 1;
@@ -623,7 +624,23 @@
             margin-left: 8px;
         }
 
-        /* ===== PULSANTE SALVA FASI ===== */
+        /* ===== PULSANTI FASI ===== */
+        .btn-edit-phases {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 12px;
+        }
+        .btn-edit-phases:hover {
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            transform: translateY(-1px);
+        }
         .btn-save-phases {
             padding: 8px 20px;
             background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
@@ -645,6 +662,23 @@
             cursor: not-allowed;
             box-shadow: none;
             transform: none;
+        }
+        .btn-cancel-phases {
+            padding: 8px 20px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 12px;
+            margin-left: 8px;
+        }
+        .btn-cancel-phases:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
         }
 
         /* ===== FEEDBACK SALVATAGGIO ===== */
@@ -878,7 +912,7 @@
                         const phases = article.required_phases || [];
                         const completedPhases = article.completed_phases || [];
                         const startedPhases = article.started_phases || [];
-                        const disabled = article.has_started_steps;
+                        const disabled = true; // Sempre bloccate, si sbloccano solo con "Modifica Fasi"
 
                         const checkboxes = PHASES.map(phase => {
                             const isChecked = phases.includes(phase);
@@ -907,7 +941,7 @@
                             <div class="article-info">
                                 <div class="article-name">
                                     ${escapeHtml(article.name || 'Articolo')}
-                                    ${disabled ? '<span class="badge-working">In lavorazione</span>' : ''}
+                                    ${article.has_started_steps ? '<span class="badge-working">In lavorazione</span>' : ''}
                                 </div>
                                 <div class="article-code">${escapeHtml(codeInfo)}${qtaInfo}</div>
                             </div>
@@ -921,14 +955,30 @@
                         <td colspan="7">
                             <div class="articles-container">
                                 ${articlesHtml}
-                                ${articleRecords.length > 0 ? `
-                                <div class="articles-footer">
-                                    <button class="btn-save-phases" id="saveBtn-${order.id}"
-                                            onclick="savePhases('${order.id}')" disabled>
-                                        Salva Fasi
-                                    </button>
-                                    <span class="save-feedback" id="feedback-${order.id}"></span>
-                                </div>` : ''}
+                                ${articleRecords.length > 0 ? (() => {
+                                    const allLocked = articleRecords.every(a => a.has_started_steps);
+                                    const allConfirmed = articleRecords.every(a => a.phases_confirmed || a.has_started_steps);
+                                    if (allLocked) {
+                                        return `<div class="articles-footer">
+                                            <span class="save-feedback show success" style="display:inline">&#10003; Fasi confermate</span>
+                                        </div>`;
+                                    }
+                                    return `<div class="articles-footer">
+                                        <button class="btn-edit-phases" id="editBtn-${order.id}"
+                                                onclick="enableEditPhases('${order.id}')">
+                                            ${allConfirmed ? 'Modifica Fasi' : 'Assegna Fasi'}
+                                        </button>
+                                        <button class="btn-save-phases" id="saveBtn-${order.id}"
+                                                onclick="savePhases('${order.id}')" disabled style="display:none">
+                                            Salva Fasi
+                                        </button>
+                                        <button class="btn-cancel-phases" id="cancelBtn-${order.id}"
+                                                onclick="cancelEditPhases('${order.id}')" style="display:none">
+                                            Annulla
+                                        </button>
+                                        <span class="save-feedback" id="feedback-${order.id}"></span>
+                                    </div>`;
+                                })() : ''}
                             </div>
                         </td>
                     </tr>
@@ -975,6 +1025,39 @@
                 row.classList.add('expanded');
                 panel.classList.add('open');
             }
+        }
+
+        function enableEditPhases(orderId) {
+            // Sblocca tutte le checkbox per questo ordine
+            const panel = document.getElementById('panel-' + orderId);
+            if (!panel) return;
+
+            const checkboxes = panel.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                // Non sbloccare checkbox di fasi gia completate o in lavorazione
+                const label = cb.closest('.phase-checkbox');
+                if (label && (label.classList.contains('phase-completato') || label.classList.contains('phase-in-lavorazione'))) {
+                    return; // Mantieni bloccate le fasi in lavorazione/completate
+                }
+                cb.disabled = false;
+                if (label) {
+                    label.classList.remove('disabled');
+                }
+            });
+
+            // Mostra Salva/Annulla, nascondi Modifica
+            const editBtn = document.getElementById('editBtn-' + orderId);
+            const saveBtn = document.getElementById('saveBtn-' + orderId);
+            const cancelBtn = document.getElementById('cancelBtn-' + orderId);
+            if (editBtn) editBtn.style.display = 'none';
+            if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = true; }
+            if (cancelBtn) cancelBtn.style.display = '';
+        }
+
+        function cancelEditPhases(orderId) {
+            // Annulla modifiche: ricarica dati dal server
+            delete pendingChanges[orderId];
+            loadOrders(true);
         }
 
         function onPhaseCheckboxChange(checkbox) {

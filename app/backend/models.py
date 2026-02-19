@@ -36,6 +36,8 @@ class Article(Base):
     qty = Column(Integer, default=0)
     # Fasi richieste per questo specifico articolo — default tutte e 5
     required_phases = Column(JSON, default=lambda: ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE'])
+    # True quando l'utente ha esplicitamente confermato/salvato le fasi da ordini_estratti
+    phases_confirmed = Column(Integer, default=0)
     # Campi extra dai vari formati PDF (prezzo, materiale, dimensioni, ecc.) — schema flessibile
     attributes = Column(JSON, default=dict)
     order = relationship('Order', back_populates='article_records')

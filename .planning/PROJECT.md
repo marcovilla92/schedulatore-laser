@@ -1,73 +1,73 @@
 # Schedulatore Laser
 
-## What This Is
+## Cos'e
 
-A web-based order management and laser cutting scheduling system for metal carpentry (carpenteria metallica). Handles the full lifecycle: PDF order intake, data extraction, laser cut planning, and multi-phase production tracking (LASER → PIEGA → SALDATURA → PULIZIA → SPEDIZIONE) across workstations on a local network.
+Un sistema web di gestione ordini e schedulazione taglio laser per carpenteria metallica. Gestisce l'intero ciclo di vita: ricezione PDF, estrazione dati, pianificazione taglio laser, e tracciamento produzione multi-fase (LASER → PIEGA → SALDATURA → PULIZIA → SPEDIZIONE) su postazioni in rete locale.
 
-## Core Value
+## Valore Principale
 
-Operators at any workstation can see what needs to be cut/bent/welded next, start/complete phases, and track partial article completion — eliminating paper-based scheduling.
+Gli operatori a qualsiasi postazione possono vedere cosa deve essere tagliato/piegato/saldato, avviare/completare fasi, e tracciare il completamento parziale degli articoli — eliminando la schedulazione cartacea.
 
-## Requirements
+## Requisiti
 
-### Validated
+### Validati
 
-- PDF upload and automatic data extraction (16 formats supported)
-- Order creation with articles, delivery dates, client info
-- Multi-phase processing: LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE
-- Partial article completion per phase
-- Timer tracking per phase with real-time display
-- Dashboard with Kanban-style status overview
-- Phase-specific views (laser.html, piega.html, saldatura.html)
-- LAN multi-workstation access
-- DXF/DWG drawing file attachment
-- Order archival
+- Upload PDF ed estrazione automatica dati (16 formati supportati)
+- Creazione ordine con articoli, date consegna, info cliente
+- Lavorazione multi-fase: LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE
+- Completamento parziale articoli per fase
+- Timer tracciamento per fase con visualizzazione in tempo reale
+- Dashboard con panoramica stato stile Kanban
+- Viste specifiche per fase (laser.html, piega.html, saldatura.html)
+- Accesso multi-postazione in LAN
+- Allegato file disegno DXF/DWG
+- Archiviazione ordini
 
-### Active
+### Attivi
 
-#### Current Milestone: v1.1 Fasi per Articolo
+#### Milestone Attuale: v1.1 Fasi per Articolo
 
-**Goal:** Ogni articolo ha il proprio percorso di fasi indipendente, assegnato dall'ufficio, con gestione batch nelle viste di reparto.
+**Obiettivo:** Ogni articolo ha il proprio percorso di fasi indipendente, assegnato dall'ufficio, con gestione batch nelle viste di reparto.
 
-**Target features:**
+**Funzionalita target:**
 - Assegnazione fasi per articolo (checkbox per LASER, PIEGA, SALDATURA, PULIZIA, SPEDIZIONE — tutte opzionali)
 - Stato indipendente per articolo (ogni articolo traccia il proprio avanzamento)
 - Viste reparto mostrano solo articoli pertinenti a quella fase
 - Batch start/complete per ordine dentro ogni fase
 - Ordine completato quando tutti gli articoli hanno finito le loro fasi assegnate
 
-### Out of Scope
+### Fuori Ambito
 
 - Profili/template predefiniti per combinazioni di fasi — v2 (checkbox sufficienti per v1.1)
 - Fix tecnici/deprecation (sessioni ORM, API deprecate) — milestone separato
 - Nuove fasi di lavorazione oltre le 5 esistenti — non richiesto
 
-## Context
+## Contesto
 
 - **Stack**: Python 3.8+ / Flask 2.3 / SQLAlchemy 2.0 / SQLite / Vanilla HTML+CSS+JS
-- **Deployment**: Local network, single server, multiple browser clients
-- **Users**: Factory floor operators (non-technical), office staff
-- **Language**: All UI and code in Italian
-- **No build step**: Frontend is pure HTML with inline CSS/JS
-- **16 PDF formats**: Each client sends orders in different PDF layouts
+- **Deploy**: Rete locale, server singolo, client browser multipli
+- **Utenti**: Operatori di officina (non tecnici), personale d'ufficio
+- **Lingua**: Tutta la UI e il codice in italiano
+- **Nessun build step**: Il frontend e puro HTML con CSS/JS inline
+- **16 formati PDF**: Ogni cliente invia ordini in layout PDF diversi
 
-## Constraints
+## Vincoli
 
-- **Tech stack**: Flask + SQLite — no heavy frameworks, must stay lightweight
-- **No build tools**: Frontend must remain vanilla HTML/CSS/JS — no bundlers
-- **LAN only**: No cloud deployment, no external auth
-- **Italian**: All user-facing text in Italian
-- **Single DB file**: SQLite with `check_same_thread=False`
+- **Stack tecnologico**: Flask + SQLite — niente framework pesanti, deve restare leggero
+- **Niente build tools**: Il frontend deve restare vanilla HTML/CSS/JS — niente bundler
+- **Solo LAN**: Niente deploy cloud, niente autenticazione esterna
+- **Italiano**: Tutto il testo rivolto all'utente in italiano
+- **File DB singolo**: SQLite con `check_same_thread=False`
 
-## Key Decisions
+## Decisioni Chiave
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| SQLite over PostgreSQL | Single server, <1000 orders, no concurrent writes | ✓ Good |
-| Vanilla JS over React | Factory operators, no build step needed | ✓ Good |
-| UUID string PKs | Avoid integer collision across distributed creation | ✓ Good |
-| JSON columns for articles | Flexible schema per order format | ✓ Good |
-| Dark glassmorphism UI redesign | Modern look, consistent design system | — Pending |
+| Decisione | Motivazione | Esito |
+|-----------|-------------|-------|
+| SQLite invece di PostgreSQL | Server singolo, <1000 ordini, niente scritture concorrenti | Buono |
+| Vanilla JS invece di React | Operatori di fabbrica, nessun build step necessario | Buono |
+| PK string UUID | Evitare collisioni integer nella creazione distribuita | Buono |
+| Colonne JSON per articoli | Schema flessibile per formato ordine | Buono |
+| Redesign UI dark glassmorphism | Look moderno, sistema di design coerente | In corso |
 
 ---
-*Last updated: 2026-02-19 after milestone v1.1 definition*
+*Ultimo aggiornamento: 2026-02-19 dopo definizione milestone v1.1*
