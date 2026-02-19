@@ -10,18 +10,18 @@ Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 ## Posizione Attuale
 
 Fase: 3 di 3 (Viste Reparto)
-Piano: 0 di 0 nella fase attuale (non ancora pianificato)
-Stato: Fase 2 completata e verificata, pronto per pianificazione Fase 3
-Ultima attivita: 2026-02-19 — Fase 2 completata: UI assegnazione fasi per articolo (FASE-01/02/03 soddisfatti)
+Piano: 1 di 2 nella fase attuale
+Stato: Piano 03-01 completato — API arricchita per-articolo + laser.html riscritto
+Ultima attivita: 2026-02-19 — Piano 03-01 completato: API phase_status + laser.html con Avvia Tutti e UUID-based completion (VISTA-01/02 soddisfatti)
 
-Progresso: [███████░░░] 67%
+Progresso: [████████░░] 80%
 
 ## Metriche Prestazioni
 
 **Velocita:**
-- Piani completati totali: 0
-- Durata media: —
-- Tempo esecuzione totale: 0 ore
+- Piani completati totali: 5
+- Durata media: ~4min
+- Tempo esecuzione totale: ~20 min
 
 **Per Fase:**
 
@@ -29,7 +29,7 @@ Progresso: [███████░░░] 67%
 |------|-------|--------|-------------|
 | 1. Modello Dati | 3/3 | ~12min | 4min |
 | 2. Assegnazione Fasi | 1/1 | ~4min | 4min |
-| 3. Viste Reparto | 0/0 | — | — |
+| 3. Viste Reparto | 1/2 | ~4min | 4min |
 
 ## Contesto Accumulato
 
@@ -60,6 +60,10 @@ Progresso: [███████░░░] 67%
 - Pulsante "Salva Fasi" per-ordine anziché per-articolo — UX migliore per modifiche multiple
 - pendingChanges JS state tracker per filtrare chiamate API solo alle modifiche reali
 - Salvataggio sequenziale async/await (for...of) per evitare race condition sui ProcessingStep
+- started_phases calcolato in get_order_details() (database.py) — riutilizzabile da tutte le route senza query extra
+- articles_next_phase mantenuto come alias di articles_in_phase in get_orders_by_phase — backward compat
+- Seleziona Tutti (seleziona checkbox) + Completa Selezionati (invia) separati nel modale — controllo granulare operatori
+- JSON articoli passato via onclick attribute con encoding &quot; — evita fetch aggiuntivo per dati già caricati
 
 ### Problemi Noti
 
@@ -84,5 +88,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Phase 3 context gathered
-File di ripresa: .planning/phases/03-viste-reparto/03-CONTEXT.md
+Fermato a: Completed 03-01-PLAN.md — piano 03-02 pronto per esecuzione
+File di ripresa: .planning/phases/03-viste-reparto/03-01-SUMMARY.md
