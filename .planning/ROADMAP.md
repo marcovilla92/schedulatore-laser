@@ -16,7 +16,7 @@ Il milestone v1.1 trasforma il sistema di schedulazione dal tracciamento fasi a 
 - Fasi decimali (2.1, 2.2): Inserimenti urgenti (marcati con INSERITO)
 
 - [x] **Fase 1: Modello Dati per Articolo** - Modello backend, API e logica per tracciamento fasi per articolo (2026-02-19)
-- [ ] **Fase 2: Assegnazione Fasi** - UI per il personale d'ufficio per assegnare/modificare fasi per articolo
+- [x] **Fase 2: Assegnazione Fasi** - UI per il personale d'ufficio per assegnare/modificare fasi per articolo (2026-02-19)
 - [ ] **Fase 3: Viste Reparto** - Le viste reparto mostrano e operano sui dati fasi per articolo
 
 ## Dettagli Fasi
@@ -52,7 +52,7 @@ Piani:
 **Piani**: 1 plan
 
 Piani:
-- [ ] 02-01-PLAN.md — API enhancement + UI checkbox fasi per articolo in ordini_estratti.html
+- [x] 02-01-PLAN.md — API enhancement + UI checkbox fasi per articolo in ordini_estratti.html
 
 **Complessita stimata:** Media
 

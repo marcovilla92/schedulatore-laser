@@ -5,16 +5,16 @@
 Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 
 **Valore principale:** Gli operatori vedono cosa deve essere lavorato e tracciano il completamento in tempo reale
-**Focus attuale:** Fase 2 — Assegnazione Fasi (UI per assegnare fasi per articolo)
+**Focus attuale:** Fase 3 — Viste Reparto (viste reparto con dati fasi per articolo)
 
 ## Posizione Attuale
 
-Fase: 2 di 3 (Assegnazione Fasi)
-Piano: 1 di 1 nella fase attuale
-Stato: Piano 02-01 completato — UI assegnazione fasi per articolo funzionante
-Ultima attivita: 2026-02-19 — Piano 02-01: UI checkbox fasi + API article_records
+Fase: 3 di 3 (Viste Reparto)
+Piano: 0 di 0 nella fase attuale (non ancora pianificato)
+Stato: Fase 2 completata e verificata, pronto per pianificazione Fase 3
+Ultima attivita: 2026-02-19 — Fase 2 completata: UI assegnazione fasi per articolo (FASE-01/02/03 soddisfatti)
 
-Progresso: [█████░░░░░] 50%
+Progresso: [███████░░░] 67%
 
 ## Metriche Prestazioni
 
@@ -84,5 +84,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Completato 02-01-PLAN.md — UI assegnazione fasi operativa (FASE-01/02/03 soddisfatti)
-File di ripresa: .planning/phases/02-assegnazione-fasi/02-01-SUMMARY.md
+Fermato a: Fase 2 completata e verificata (6/6 must-haves, FASE-01/02/03 soddisfatti)
+File di ripresa: .planning/phases/02-assegnazione-fasi/02-VERIFICATION.md
