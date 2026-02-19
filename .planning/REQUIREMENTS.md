@@ -21,18 +21,18 @@ Requisiti per il milestone v1.2 — Redesign UI/UX Completo. Ogni requisito e ma
 
 ### Dashboard
 
-- [ ] **DASH-01**: `GET /` atterra direttamente sulla dashboard, welcome page rimossa dalla navigazione
-- [ ] **DASH-02**: Riga KPI hero in alto: ordini attivi, scadenze oggi, scadenze settimana, fasi in corso
-- [ ] **DASH-03**: Card ordini con urgenza consegna colorata: rosso=scaduto, ambra=oggi, neutro=futuro
-- [ ] **DASH-04**: Indicatore auto-refresh visibile ("Aggiornato X sec fa") + pulsante "Aggiorna ora" manuale
-- [ ] **DASH-05**: Vista panoramica mista: KPI + riassunto fasi attive + urgenze consegna in una vista unificata
+- [x] **DASH-01**: `GET /` atterra direttamente sulla dashboard, welcome page rimossa dalla navigazione
+- [x] **DASH-02**: Riga KPI hero in alto: ordini attivi, scadenze oggi, scadenze settimana, fasi in corso
+- [x] **DASH-03**: Card ordini con urgenza consegna colorata: rosso=scaduto, ambra=oggi, neutro=futuro
+- [x] **DASH-04**: Indicatore auto-refresh visibile ("Aggiornato X sec fa") + pulsante "Aggiorna ora" manuale
+- [x] **DASH-05**: Vista panoramica mista: KPI + riassunto fasi attive + urgenze consegna in una vista unificata
 
 ### Ricerca e Filtri
 
 - [x] **FILT-01**: Barra di ricerca globale nella navbar sticky che filtra i dati della pagina corrente (client-side)
 - [ ] **FILT-02**: Filtri per stato nelle viste reparto (in attesa, in corso, completati)
 - [x] **FILT-03**: Filtri attivi visualizzati come chips/pills rimovibili con contatore
-- [ ] **FILT-04**: Auto-refresh non resetta lo stato dei filtri (separazione fetch/render)
+- [x] **FILT-04**: Auto-refresh non resetta lo stato dei filtri (separazione fetch/render)
 
 ### Viste Reparto
 
