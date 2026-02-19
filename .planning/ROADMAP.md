@@ -88,10 +88,10 @@ Plans:
   2. Il report elenca i formati con success rate sotto il 100% e indica quali campi specifici mancano o contengono dati errati per ciascun formato
   3. Il report e leggibile senza strumenti speciali (file di testo o stdout strutturato) e costituisce una baseline documentata per confrontare i risultati post-Phase 5
   4. Il report viene generato in meno di 2 minuti sull'intero set di PDF disponibili
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Script audit_parsers.py con report per-campo per-formato e baseline persistente
 
 ### Phase 5: Estrattore Universale
 **Goal**: Un estrattore autonomo che, dato qualsiasi PDF, restituisce i campi chiave con indicatori di confidenza — senza richiedere parser dedicati o configurazione per il formato specifico
@@ -137,6 +137,6 @@ Phases execute in numeric order: 4 → 5 → 6
 | 1. Modello Dati per Articolo | v1.1 | 0/0 | Deferred | - |
 | 2. Assegnazione Fasi | v1.1 | 0/0 | Deferred | - |
 | 3. Viste Reparto | v1.1 | 0/0 | Deferred | - |
-| 4. Audit Parser | v1.2 | 0/0 | Not started | - |
+| 4. Audit Parser | v1.2 | 0/1 | In planning | - |
 | 5. Estrattore Universale | v1.2 | 0/0 | Not started | - |
 | 6. Integrazione Pipeline | v1.2 | 0/0 | Not started | - |
