@@ -24,7 +24,7 @@ Requisiti per il milestone v1.1 — Fasi per Articolo. Ogni requisito e mappato 
 
 - [x] **VISTA-01**: Nelle viste reparto (laser.html, piega.html, saldatura.html), l'operatore vede solo gli articoli dell'ordine che devono passare per quella specifica fase
 - [x] **VISTA-02**: L'operatore avvia/completa tutti gli articoli di un ordine presenti in quella fase con un'azione batch (un click per avviare, un click per completare tutti)
-- [ ] **VISTA-03**: La dashboard mostra lo stato di avanzamento per articolo — quanti articoli sono in ogni fase, quanti completati
+- [x] **VISTA-03**: La dashboard mostra lo stato di avanzamento per articolo — quanti articoli sono in ogni fase, quanti completati
 
 ## Requisiti Futuri
 

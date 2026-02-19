@@ -10,18 +10,18 @@ Vedi: .planning/PROJECT.md (aggiornato 2026-02-19)
 ## Posizione Attuale
 
 Fase: 3 di 3 (Viste Reparto)
-Piano: 1 di 2 nella fase attuale
-Stato: Piano 03-01 completato — API arricchita per-articolo + laser.html riscritto
-Ultima attivita: 2026-02-19 — Piano 03-01 completato: API phase_status + laser.html con Avvia Tutti e UUID-based completion (VISTA-01/02 soddisfatti)
+Piano: 2 di 2 nella fase attuale — FASE COMPLETATA
+Stato: Piano 03-02 completato — piega.html e saldatura.html aggiornati; dashboard con progress bar per-articolo
+Ultima attivita: 2026-02-19 — Piano 03-02 completato: piega/saldatura con Avvia Tutti + timer + UUID modal; dashboard con phase progress bar (VISTA-01/02/03 soddisfatti)
 
-Progresso: [████████░░] 80%
+Progresso: [██████████] 100%
 
 ## Metriche Prestazioni
 
 **Velocita:**
-- Piani completati totali: 5
-- Durata media: ~4min
-- Tempo esecuzione totale: ~20 min
+- Piani completati totali: 6
+- Durata media: ~4.5min
+- Tempo esecuzione totale: ~27 min
 
 **Per Fase:**
 
@@ -29,7 +29,7 @@ Progresso: [████████░░] 80%
 |------|-------|--------|-------------|
 | 1. Modello Dati | 3/3 | ~12min | 4min |
 | 2. Assegnazione Fasi | 1/1 | ~4min | 4min |
-| 3. Viste Reparto | 1/2 | ~4min | 4min |
+| 3. Viste Reparto | 2/2 | ~11min | 5.5min |
 
 ## Contesto Accumulato
 
@@ -64,6 +64,10 @@ Progresso: [████████░░] 80%
 - articles_next_phase mantenuto come alias di articles_in_phase in get_orders_by_phase — backward compat
 - Seleziona Tutti (seleziona checkbox) + Completa Selezionati (invia) separati nel modale — controllo granulare operatori
 - JSON articoli passato via onclick attribute con encoding &quot; — evita fetch aggiuntivo per dati già caricati
+- Timer piega/saldatura integrato con Avvia Tutti: avvio su successo API, pausa su apertura modale, ripresa su Annulla, stop su submitPartialComplete
+- escapeHtml() aggiunto a piega e saldatura per parità sicurezza con laser.html
+- Progress bar dashboard: segmenti flex proporzionali al conteggio articoli per fase; height% per riempimento verticale
+- article_records.has_started_steps usato per contatore compatto su card calendario — nessuna chiamata API extra
 
 ### Problemi Noti
 
@@ -88,5 +92,5 @@ Nessuno.
 ## Continuita Sessione
 
 Ultima sessione: 2026-02-19
-Fermato a: Completed 03-01-PLAN.md — piano 03-02 pronto per esecuzione
-File di ripresa: .planning/phases/03-viste-reparto/03-01-SUMMARY.md
+Fermato a: Completed 03-02-PLAN.md — tutte le fasi completate (VISTA-01/02/03)
+File di ripresa: .planning/phases/03-viste-reparto/03-02-SUMMARY.md
