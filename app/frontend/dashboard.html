@@ -361,6 +361,12 @@
             background: rgba(255, 99, 72, 0.05);
         }
 
+        .day-order-card.spedito {
+            border-left-color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.05);
+            opacity: 0.7;
+        }
+
         /* ===== MODAL ===== */
         .modal {
             display: none;
@@ -841,8 +847,8 @@
 
             if (isOtherMonth) {
                 dayDiv.classList.add('other-month');
-                if (month < 0) month = 11;
-                if (month > 11) month = 0;
+                if (month < 0) { month = 11; year--; }
+                if (month > 11) { month = 0; year++; }
             }
 
             const today = new Date();
@@ -862,8 +868,7 @@
                 const orderDate = new Date(order.data_consegna);
                 return orderDate.getDate() === day &&
                        orderDate.getMonth() === month &&
-                       orderDate.getFullYear() === year &&
-                       order.status !== 'SPEDITO';
+                       orderDate.getFullYear() === year;
             });
 
             ordersForDay.forEach(order => {

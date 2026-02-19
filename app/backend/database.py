@@ -27,21 +27,36 @@ class OrderManager:
         session = get_session()
         
         try:
+            # Calcola le fasi effettivamente richieste dagli articoli
+            # SEMPRE derivare da articles se presenti (anche se required_phases è passato)
+            if articles:
+                phase_order = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE']
+                all_phases = set()
+                for article in articles:
+                    for p in article.get('required_phases', []):
+                        all_phases.add(p)
+                # Mantieni l'ordine canonico
+                actual_phases = [p for p in phase_order if p in all_phases]
+                if not actual_phases:
+                    actual_phases = required_phases or ['LASER', 'PIEGA', 'SALDATURA']
+            else:
+                actual_phases = required_phases or ['LASER', 'PIEGA', 'SALDATURA']
+
             order = Order(
                 id=str(uuid.uuid4()),
                 cliente=cliente,
                 data_consegna=datetime.fromisoformat(data_consegna),
                 articles=articles or [],
-                required_phases=required_phases or ['LASER', 'PIEGA', 'SALDATURA'],
+                required_phases=actual_phases,
                 preventivo_minuti=preventivo_minuti,
                 note=note
             )
-            
+
             # Calcola total_quantity
             if articles:
                 order.total_quantity = sum(article.get('qty', 0) for article in articles)
-            
-            # Inizializza ProcessingStep per ogni fase richiesta
+
+            # Inizializza ProcessingStep solo per le fasi effettivamente necessarie
             for phase in order.required_phases:
                 step = ProcessingStep(
                     id=str(uuid.uuid4()),
@@ -183,9 +198,14 @@ class OrderManager:
             if processing_step and not processing_step.timestamp_fine:
                 processing_step.timestamp_fine = datetime.utcnow()
                 processing_step.note = note
-                
+
                 # Ottieni l'ordine
                 order = session.query(Order).filter(Order.id == order_id).first()
+
+                # Popola completed_articles con tutti gli indici degli articoli
+                if order and order.articles:
+                    processing_step.completed_articles = list(range(len(order.articles)))
+                    flag_modified(processing_step, 'completed_articles')
                 
                 # Commit prima di fare ulteriori query
                 session.commit()
