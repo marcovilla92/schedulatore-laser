@@ -59,22 +59,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATI-01 | — | Pending |
-| DATI-02 | — | Pending |
-| DATI-03 | — | Pending |
-| DATI-04 | — | Pending |
-| FASE-01 | — | Pending |
-| FASE-02 | — | Pending |
-| FASE-03 | — | Pending |
-| VISTA-01 | — | Pending |
-| VISTA-02 | — | Pending |
-| VISTA-03 | — | Pending |
+| DATI-01 | Phase 1: Modello Dati per Articolo | Pending |
+| DATI-02 | Phase 1: Modello Dati per Articolo | Pending |
+| DATI-03 | Phase 1: Modello Dati per Articolo | Pending |
+| DATI-04 | Phase 1: Modello Dati per Articolo | Pending |
+| FASE-01 | Phase 2: Assegnazione Fasi | Pending |
+| FASE-02 | Phase 2: Assegnazione Fasi | Pending |
+| FASE-03 | Phase 2: Assegnazione Fasi | Pending |
+| VISTA-01 | Phase 3: Viste Reparto | Pending |
+| VISTA-02 | Phase 3: Viste Reparto | Pending |
+| VISTA-03 | Phase 3: Viste Reparto | Pending |
 
 **Coverage:**
 - v1.1 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-19 after roadmap creation — traceability table populated*
