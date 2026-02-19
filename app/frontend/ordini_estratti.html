@@ -516,6 +516,136 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* ===== RIGA ORDINE ESPANDIBILE ===== */
+        .order-row { cursor: pointer; }
+        .order-row:hover { background: rgba(255, 255, 255, 0.05); }
+        .order-row .expand-icon {
+            transition: transform 0.2s;
+            display: inline-block;
+            margin-right: 8px;
+            color: var(--text-secondary);
+        }
+        .order-row.expanded .expand-icon { transform: rotate(90deg); }
+
+        /* ===== PANNELLO ARTICOLI ===== */
+        .articles-panel { display: none; }
+        .articles-panel.open { display: table-row; }
+        .articles-panel td {
+            padding: 0;
+            background: rgba(168, 85, 247, 0.03);
+            border-left: 3px solid var(--accent-purple);
+        }
+        .articles-container { padding: 16px 24px; }
+
+        /* ===== RIGA ARTICOLO CON CHECKBOX ===== */
+        .article-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-glass);
+            flex-wrap: wrap;
+        }
+        .article-row:last-child { border-bottom: none; }
+        .article-info { flex: 0 0 250px; }
+        .article-info .article-name { font-weight: 600; font-size: 13px; }
+        .article-info .article-code { font-size: 11px; color: var(--text-secondary); }
+
+        /* ===== CHECKBOX FASI — STILE CUSTOM ===== */
+        .phase-checkboxes { display: flex; gap: 8px; flex-wrap: wrap; }
+        .phase-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: var(--transition);
+            user-select: none;
+        }
+        .phase-checkbox:hover { background: rgba(255, 255, 255, 0.06); }
+        .phase-checkbox input[type="checkbox"] {
+            accent-color: var(--accent-purple);
+            width: 14px; height: 14px;
+            cursor: pointer;
+        }
+        .phase-checkbox.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .phase-checkbox.checked {
+            background: rgba(168, 85, 247, 0.12);
+            border-color: rgba(168, 85, 247, 0.3);
+            color: var(--accent-purple);
+        }
+
+        /* ===== BADGE IN LAVORAZIONE ===== */
+        .badge-working {
+            background: rgba(255, 165, 2, 0.1);
+            color: var(--accent-amber);
+            border: 1px solid rgba(255, 165, 2, 0.2);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-left: 8px;
+        }
+
+        /* ===== PULSANTE SALVA FASI ===== */
+        .btn-save-phases {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 12px;
+        }
+        .btn-save-phases:hover {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-save-phases:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* ===== FEEDBACK SALVATAGGIO ===== */
+        .save-feedback {
+            display: inline-block;
+            margin-left: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .save-feedback.show { opacity: 1; }
+        .save-feedback.success { color: var(--accent-green); }
+        .save-feedback.error { color: var(--accent-red); }
+
+        /* ===== FOOTER PANNELLO ARTICOLI ===== */
+        .articles-footer {
+            display: flex;
+            align-items: center;
+            margin-top: 4px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-glass);
+        }
     </style>
 </head>
 <body>
@@ -533,7 +663,7 @@
     <main>
         <div class="page-header">
             <h2>Ordini Estratti dai PDF</h2>
-            <p>Sistema di elaborazione automatica degli ordini</p>
+            <p>Sistema di elaborazione automatica degli ordini — assegna le fasi di lavorazione per ogni articolo</p>
         </div>
 
         <div class="controls-card">
@@ -569,17 +699,18 @@
                     <table id="ordersTable">
                         <thead>
                             <tr>
-                                <th style="width: 25%">Cliente</th>
+                                <th style="width: 5%"></th>
+                                <th style="width: 23%">Cliente</th>
                                 <th style="width: 15%">N. Ordine</th>
-                                <th style="width: 10%">Articoli</th>
-                                <th style="width: 20%">Data Consegna</th>
-                                <th style="width: 20%">Stato</th>
-                                <th style="width: 10%">Azioni</th>
+                                <th style="width: 9%">Articoli</th>
+                                <th style="width: 18%">Data Consegna</th>
+                                <th style="width: 18%">Stato</th>
+                                <th style="width: 12%">Fasi</th>
                             </tr>
                         </thead>
                         <tbody id="ordersBody">
                             <tr>
-                                <td colspan="6" class="no-data">
+                                <td colspan="7" class="no-data">
                                     <p>Nessun ordine caricato. Clicca su "Elabora Tutti i PDF" per iniziare.</p>
                                 </td>
                             </tr>
@@ -593,6 +724,9 @@
     </main>
 
     <script>
+        // Stato locale delle modifiche pendenti: { orderId: { articleId: [fasi checked] } }
+        const pendingChanges = {};
+
         // Carica gli ordini quando la pagina si apre
         window.addEventListener('load', loadOrders);
 
@@ -663,7 +797,7 @@
             if (!orders || orders.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="no-data">
+                        <td colspan="7" class="no-data">
                             <p>Nessun ordine disponibile.</p>
                         </td>
                     </tr>
@@ -671,37 +805,264 @@
                 return;
             }
 
-            tbody.innerHTML = orders.map(order => {
+            const PHASES = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE'];
+
+            let html = '';
+            orders.forEach(order => {
                 const dataConsegna = order.data_consegna
                     ? new Date(order.data_consegna).toLocaleDateString('it-IT')
                     : '-';
 
-                const articoliCount = order.articles ? order.articles.length : 0;
+                // Conta articoli preferendo article_records (v1.1+)
+                const articleRecords = order.article_records || [];
+                const articoliCount = articleRecords.length > 0
+                    ? articleRecords.length
+                    : (order.articles ? order.articles.length : 0);
 
-                return `
-                    <tr>
+                // Numero ordine abbreviato
+                const nOrdine = order.numero_ordine || order.id.substring(0, 8);
+
+                // Riga principale ordine (cliccabile per espandere)
+                html += `
+                    <tr class="order-row" id="row-${order.id}" onclick="toggleOrderExpand('${order.id}')">
+                        <td><span class="expand-icon">&#9654;</span></td>
                         <td><strong>${order.cliente || 'Sconosciuto'}</strong></td>
-                        <td>${order.numero_ordine || order.id.substring(0, 8)}</td>
+                        <td>${nOrdine}</td>
                         <td>${articoliCount}</td>
                         <td>${dataConsegna}</td>
                         <td>
                             <span class="badge success">${order.status || 'ATTIVO'}</span>
                         </td>
                         <td>
-                            <a href="#" onclick="viewOrder('${order.id}'); return false;" class="action-link">
-                                Dettagli
+                            <a href="#" onclick="event.stopPropagation(); toggleOrderExpand('${order.id}'); return false;" class="action-link">
+                                Assegna Fasi
                             </a>
                         </td>
                     </tr>
                 `;
-            }).join('');
+
+                // Riga pannello articoli (inizialmente nascosta)
+                let articlesHtml = '';
+                if (articleRecords.length === 0) {
+                    articlesHtml = '<p style="color: var(--text-muted); font-size: 13px; padding: 8px 0;">Nessun articolo disponibile per questo ordine.</p>';
+                } else {
+                    articlesHtml = articleRecords.map(article => {
+                        const phases = article.required_phases || [];
+                        const disabled = article.has_started_steps;
+
+                        const checkboxes = PHASES.map(phase => {
+                            const isChecked = phases.includes(phase);
+                            const checkedAttr = isChecked ? 'checked' : '';
+                            const disabledAttr = disabled ? 'disabled' : '';
+                            const checkedClass = isChecked ? 'checked' : '';
+                            const disabledClass = disabled ? 'disabled' : '';
+                            return `<label class="phase-checkbox ${checkedClass} ${disabledClass}" onclick="handleLabelClick(event, this)">
+                                <input type="checkbox" value="${phase}" ${checkedAttr} ${disabledAttr}
+                                       data-article-id="${article.id}" data-order-id="${order.id}"
+                                       onchange="onPhaseCheckboxChange(this)">
+                                ${phase}
+                            </label>`;
+                        }).join('');
+
+                        const qtaInfo = article.qty ? `- Qty: ${article.qty}` : '';
+                        const codeInfo = article.code ? `${article.code} ` : '';
+
+                        return `<div class="article-row" data-article-id="${article.id}">
+                            <div class="article-info">
+                                <div class="article-name">
+                                    ${escapeHtml(article.name || 'Articolo')}
+                                    ${disabled ? '<span class="badge-working">In lavorazione</span>' : ''}
+                                </div>
+                                <div class="article-code">${escapeHtml(codeInfo)}${qtaInfo}</div>
+                            </div>
+                            <div class="phase-checkboxes">${checkboxes}</div>
+                        </div>`;
+                    }).join('');
+                }
+
+                html += `
+                    <tr class="articles-panel" id="panel-${order.id}">
+                        <td colspan="7">
+                            <div class="articles-container">
+                                ${articlesHtml}
+                                ${articleRecords.length > 0 ? `
+                                <div class="articles-footer">
+                                    <button class="btn-save-phases" id="saveBtn-${order.id}"
+                                            onclick="savePhases('${order.id}')" disabled>
+                                        Salva Fasi
+                                    </button>
+                                    <span class="save-feedback" id="feedback-${order.id}"></span>
+                                </div>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        function handleLabelClick(event, label) {
+            // Previeni doppio toggle: il click sul label gia gestisce il checkbox internamente
+            // Ferma solo la propagazione verso la riga ordine (che aprirebbe/chiuderebbe il pannello)
+            event.stopPropagation();
+        }
+
+        function toggleOrderExpand(orderId) {
+            const row = document.getElementById('row-' + orderId);
+            const panel = document.getElementById('panel-' + orderId);
+
+            if (!row || !panel) return;
+
+            const isExpanded = row.classList.contains('expanded');
+
+            if (isExpanded) {
+                row.classList.remove('expanded');
+                panel.classList.remove('open');
+            } else {
+                row.classList.add('expanded');
+                panel.classList.add('open');
+            }
+        }
+
+        function onPhaseCheckboxChange(checkbox) {
+            const articleId = checkbox.dataset.articleId;
+            const orderId = checkbox.dataset.orderId;
+
+            // Aggiorna la classe "checked" sul label parent
+            const label = checkbox.closest('.phase-checkbox');
+            if (label) {
+                if (checkbox.checked) {
+                    label.classList.add('checked');
+                } else {
+                    label.classList.remove('checked');
+                }
+            }
+
+            // Traccia le modifiche pendenti per questo ordine
+            if (!pendingChanges[orderId]) {
+                pendingChanges[orderId] = {};
+            }
+            pendingChanges[orderId][articleId] = true;
+
+            // Abilita il pulsante Salva Fasi
+            const saveBtn = document.getElementById('saveBtn-' + orderId);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function savePhases(orderId) {
+            const saveBtn = document.getElementById('saveBtn-' + orderId);
+            const feedbackEl = document.getElementById('feedback-' + orderId);
+
+            if (saveBtn) saveBtn.disabled = true;
+
+            // Nascondi feedback precedente
+            if (feedbackEl) {
+                feedbackEl.className = 'save-feedback';
+                feedbackEl.textContent = '';
+            }
+
+            // Trova tutti gli articoli modificati in questo ordine
+            const modifiedArticles = pendingChanges[orderId] || {};
+            const articleIds = Object.keys(modifiedArticles);
+
+            if (articleIds.length === 0) {
+                showFeedback(orderId, 'Nessuna modifica da salvare', 'error');
+                if (saveBtn) saveBtn.disabled = false;
+                return;
+            }
+
+            let hasError = false;
+            let errorMessage = '';
+
+            // Salva in sequenza per evitare conflitti
+            for (const articleId of articleIds) {
+                // Raccoglie tutte le checkbox checked per questo articolo
+                const checkboxes = document.querySelectorAll(
+                    `input[type="checkbox"][data-article-id="${articleId}"][data-order-id="${orderId}"]`
+                );
+                const checkedPhases = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+
+                if (checkedPhases.length === 0) {
+                    showFeedback(orderId, 'Seleziona almeno una fase per ogni articolo', 'error');
+                    if (saveBtn) saveBtn.disabled = false;
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/orders/${orderId}/articles/${articleId}/phases`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ required_phases: checkedPhases })
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        hasError = true;
+                        if (response.status === 409) {
+                            errorMessage = 'Errore: fase gia avviata — impossibile modificare';
+                        } else {
+                            errorMessage = result.error || 'Errore durante il salvataggio';
+                        }
+                        break;
+                    }
+                } catch (err) {
+                    hasError = true;
+                    errorMessage = `Errore di connessione: ${err}`;
+                    break;
+                }
+            }
+
+            if (hasError) {
+                showFeedback(orderId, errorMessage, 'error');
+                if (saveBtn) saveBtn.disabled = false;
+                // Ricarica l'elenco per aggiornare stato checkbox (potrebbe esserci conflict 409)
+                setTimeout(loadOrders, 800);
+            } else {
+                // Pulisci modifiche pendenti per questo ordine
+                delete pendingChanges[orderId];
+                showFeedback(orderId, 'Fasi aggiornate', 'success');
+                // Il pulsante rimane disabilitato dopo un salvataggio riuscito
+            }
+        }
+
+        function showFeedback(orderId, message, type) {
+            const feedbackEl = document.getElementById('feedback-' + orderId);
+            if (!feedbackEl) return;
+            feedbackEl.textContent = message;
+            feedbackEl.className = `save-feedback show ${type}`;
+
+            // Nascondi il feedback dopo 3 secondi (solo per successo)
+            if (type === 'success') {
+                setTimeout(() => {
+                    feedbackEl.className = 'save-feedback';
+                    feedbackEl.textContent = '';
+                }, 3000);
+            }
         }
 
         function updateStats(orders) {
             let totalArticles = 0;
 
             orders.forEach(order => {
-                totalArticles += (order.articles ? order.articles.length : 0);
+                // Usa article_records (v1.1+) con fallback a articles legacy
+                const records = order.article_records;
+                if (records && records.length > 0) {
+                    totalArticles += records.length;
+                } else {
+                    totalArticles += (order.articles ? order.articles.length : 0);
+                }
             });
 
             document.getElementById('totalOrders').textContent = orders.length;
@@ -711,8 +1072,9 @@
             document.getElementById('lastProcessed').textContent = lastProcessed || '-';
         }
 
+        // viewOrder ora espande la riga invece di mostrare un alert
         function viewOrder(orderId) {
-            alert(`Dettagli ordine: ${orderId}\n\nFunzionalità in implementazione...`);
+            toggleOrderExpand(orderId);
         }
     </script>
 </body>
