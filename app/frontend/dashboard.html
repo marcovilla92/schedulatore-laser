@@ -367,6 +367,24 @@
             opacity: 0.7;
         }
 
+        .day-order-card.pulizia_completata {
+            border-left-color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.05);
+        }
+
+        /* Contatore articoli sotto il nome nella card calendario */
+        .day-order-progress {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-top: 1px;
+            font-weight: 500;
+        }
+
+        .day-order-progress.done {
+            color: var(--accent-green);
+            opacity: 0.8;
+        }
+
         /* ===== MODAL ===== */
         .modal {
             display: none;
@@ -637,6 +655,122 @@
             margin-bottom: 8px;
         }
 
+        /* ===== PROGRESS BAR PER-ARTICOLO (v1.1+) ===== */
+        .article-progress-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(0, 212, 255, 0.03);
+            border: 1px solid rgba(0, 212, 255, 0.08);
+            border-radius: var(--radius-md);
+        }
+
+        .article-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .article-progress-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--accent-cyan);
+        }
+
+        .article-completion-counter {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .article-completion-counter.all-done {
+            color: var(--accent-green);
+        }
+
+        .phase-progress-bar {
+            display: flex;
+            gap: 4px;
+            height: 24px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .phase-segment {
+            display: flex;
+            flex-direction: column;
+            min-width: 40px;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+        }
+
+        .phase-segment-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 2px 4px;
+            z-index: 1;
+            position: relative;
+        }
+
+        .phase-segment-bar {
+            flex: 1;
+            position: relative;
+        }
+
+        .phase-segment-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: height 0.5s ease;
+        }
+
+        /* Stato: in attesa (grigio) */
+        .phase-segment.attesa .phase-segment-label {
+            color: var(--text-muted);
+        }
+        .phase-segment.attesa .phase-segment-fill {
+            background: rgba(74, 85, 104, 0.3);
+        }
+
+        /* Stato: in lavorazione (cyan) */
+        .phase-segment.lavorazione .phase-segment-label {
+            color: var(--accent-cyan);
+        }
+        .phase-segment.lavorazione .phase-segment-fill {
+            background: rgba(0, 212, 255, 0.4);
+            animation: progressPulse 2s ease-in-out infinite;
+        }
+
+        /* Stato: completato (verde) */
+        .phase-segment.completato .phase-segment-label {
+            color: var(--accent-green);
+        }
+        .phase-segment.completato .phase-segment-fill {
+            background: rgba(0, 230, 118, 0.4);
+        }
+
+        @keyframes progressPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        /* Completato badge sulla card del calendario */
+        .day-order-card.completato-badge::after {
+            content: '✓';
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--accent-green);
+            margin-left: 4px;
+        }
+
         /* ===== ANIMATIONS ===== */
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
@@ -739,6 +873,13 @@
                         <span class="info-label">Stato</span>
                         <span class="info-value" id="modalStatus">-</span>
                     </div>
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h3>Progresso Articoli</h3>
+                <div id="modalArticleProgress">
+                    <p style="color: var(--text-secondary); font-size: 13px;">Caricamento...</p>
                 </div>
             </div>
 
@@ -874,8 +1015,27 @@
             ordersForDay.forEach(order => {
                 const orderCard = document.createElement('div');
                 orderCard.className = `day-order-card ${order.status.toLowerCase()}`;
-                orderCard.textContent = order.cliente.substring(0, 15);
-                orderCard.title = `${order.cliente} - ${order.articles ? order.articles.length : 0} articoli`;
+
+                // Calcola completamento articoli per la card
+                const articleRecords = order.article_records || [];
+                const totalArt = order.articles ? order.articles.length : 0;
+                const completedStatuses = ['SPEDITO', 'PULIZIA_COMPLETATA'];
+                const isFullyComplete = completedStatuses.includes(order.status);
+
+                // Contenuto card: nome + mini contatore
+                const clienteShort = order.cliente.substring(0, 15);
+                if (articleRecords.length > 0) {
+                    const startedCount = articleRecords.filter(ar => ar.has_started_steps).length;
+                    const progressText = isFullyComplete
+                        ? `${totalArt}/${totalArt} ✓`
+                        : `${startedCount}/${totalArt}`;
+                    const progressClass = isFullyComplete ? 'done' : '';
+                    orderCard.innerHTML = `<div>${clienteShort}</div><div class="day-order-progress ${progressClass}">${progressText}</div>`;
+                } else {
+                    orderCard.textContent = clienteShort;
+                }
+
+                orderCard.title = `${order.cliente} - ${totalArt} articoli`;
                 orderCard.onclick = (e) => {
                     e.stopPropagation();
                     openOrderModal(order.id);
@@ -905,6 +1065,76 @@
                 document.getElementById('modalDataConsegna').textContent = new Date(order.data_consegna).toLocaleDateString('it-IT');
                 document.getElementById('modalQuantita').textContent = order.total_quantity || 0;
                 document.getElementById('modalStatus').textContent = order.status || 'RICEVUTO';
+
+                // ===== PROGRESS BAR PER-ARTICOLO =====
+                const progressSection = document.getElementById('modalArticleProgress');
+                const articles = order.articles || [];
+                if (articles.length > 0 && articles[0].required_phases !== undefined) {
+                    // v1.1+ articles con per-article phase tracking
+                    const totalArticles = articles.length;
+                    const completedArticles = articles.filter(a =>
+                        a.next_phase === 'Completato' || (a.required_phases && a.required_phases.length > 0 &&
+                        a.completed_phases && a.completed_phases.length >= a.required_phases.length)
+                    ).length;
+
+                    const isAllDone = completedArticles === totalArticles;
+                    const counterClass = isAllDone ? 'all-done' : '';
+
+                    // Calcola statistiche per fase
+                    const phases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE'];
+                    const phaseStats = phases.map(phase => {
+                        const required = articles.filter(a => (a.required_phases || []).includes(phase)).length;
+                        if (required === 0) return null;
+                        const completed = articles.filter(a => (a.completed_phases || []).includes(phase)).length;
+                        // In lavorazione: ha avuto started_phases ma non ancora completato
+                        const inProgress = articles.filter(a =>
+                            (a.required_phases || []).includes(phase) &&
+                            !(a.completed_phases || []).includes(phase) &&
+                            (a.started_phases || []).includes(phase)
+                        ).length;
+                        return { phase, required, completed, inProgress };
+                    }).filter(ps => ps !== null);
+
+                    // Genera barre di fase
+                    const segmentsHtml = phaseStats.map(ps => {
+                        let segClass = 'attesa';
+                        if (ps.completed >= ps.required) segClass = 'completato';
+                        else if (ps.inProgress > 0 || ps.completed > 0) segClass = 'lavorazione';
+
+                        const pct = ps.required > 0 ? Math.round((ps.completed / ps.required) * 100) : 0;
+                        const title = `${ps.phase}: ${ps.completed}/${ps.required} completati`;
+
+                        return `
+                            <div class="phase-segment ${segClass}" title="${title}" style="flex: ${ps.required};">
+                                <div class="phase-segment-label">${ps.phase.substring(0, 4)}</div>
+                                <div class="phase-segment-bar">
+                                    <div class="phase-segment-fill" style="height: ${Math.max(pct, 8)}%;"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    progressSection.innerHTML = `
+                        <div class="article-progress-section">
+                            <div class="article-progress-header">
+                                <span class="article-progress-label">Avanzamento Fasi</span>
+                                <span class="article-completion-counter ${counterClass}">${completedArticles}/${totalArticles} articoli completati</span>
+                            </div>
+                            <div class="phase-progress-bar">${segmentsHtml || '<div style="color: var(--text-muted); font-size: 12px; padding: 4px;">Nessuna fase assegnata</div>'}</div>
+                        </div>
+                    `;
+                } else if (articles.length > 0) {
+                    // v1.0 ordini legacy — fallback senza progress bar
+                    progressSection.innerHTML = `
+                        <p style="color: var(--text-secondary); font-size: 13px;">
+                            Avanzamento non disponibile (ordine pre-v1.1)
+                        </p>
+                    `;
+                } else {
+                    progressSection.innerHTML = `
+                        <p style="color: var(--text-secondary); font-size: 13px;">Nessun articolo</p>
+                    `;
+                }
 
                 const articlesBody = document.getElementById('modalArticlesBody');
                 articlesBody.innerHTML = order.articles.map(article => {
