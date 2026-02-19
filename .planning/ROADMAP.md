@@ -140,4 +140,4 @@ Fase 4 (sequenziale) → Fase 5 (wave parallela: tutti i 5 piani simultaneamente
 | 2. Assegnazione Fasi | v1.1 | 1/1 | Complete | 2026-02-19 |
 | 3. Viste Reparto | v1.1 | 2/2 | Complete | 2026-02-19 |
 | 4. Design System Condiviso | v1.2 | 0/1 | Planned | - |
-| 5. Redesign Tutte le Pagine | 4/5 | In Progress|  | - |
+| 5. Redesign Tutte le Pagine | 5/5 | Complete   | 2026-02-19 | - |
