@@ -233,6 +233,273 @@
 
         nav a { min-height: 40px; display: flex; align-items: center; }
 
+        /* ===== NUOVO ORDINE BUTTON ===== */
+        .btn-new-order {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: color-mix(in srgb, var(--accent-cyan) 15%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            border-radius: var(--radius-sm);
+            color: var(--accent-cyan);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            min-height: 48px;
+        }
+        .btn-new-order:hover {
+            background: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+            border-color: var(--accent-cyan);
+        }
+
+        /* ===== CREATE MODAL ===== */
+        .create-form .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .create-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .create-form .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        .create-form label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .create-form input, .create-form textarea {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .create-form input:focus, .create-form textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+        .create-form textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .articles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .article-entry {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+        }
+        .article-entry input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+        }
+        .article-entry input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+        .btn-remove-article {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            border-radius: var(--radius-sm);
+            color: var(--accent-red);
+            font-size: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            padding: 0;
+        }
+        .btn-remove-article:hover {
+            background: rgba(255, 71, 87, 0.2);
+        }
+        .btn-add-article {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+        .btn-add-article:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .phases-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .phases-checkboxes label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 500;
+        }
+        .phases-checkboxes input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-cyan);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-glass);
+        }
+        .btn-cancel {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            min-height: 48px;
+        }
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .btn-submit-order {
+            padding: 10px 24px;
+            background: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan) 50%, transparent);
+            border-radius: var(--radius-sm);
+            color: var(--accent-cyan);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            min-height: 48px;
+        }
+        .btn-submit-order:hover {
+            background: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+            border-color: var(--accent-cyan);
+        }
+        .btn-submit-order:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== PDF UPLOAD ZONE ===== */
+        .pdf-upload-zone {
+            border: 2px dashed var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 16px;
+        }
+        .pdf-upload-zone:hover, .pdf-upload-zone.dragover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+        .pdf-upload-zone .upload-icon {
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+        .pdf-upload-zone .upload-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .pdf-upload-zone .upload-text strong {
+            color: var(--accent-cyan);
+        }
+        .pdf-upload-status {
+            display: none;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 16px;
+            align-items: center;
+            gap: 8px;
+        }
+        .pdf-upload-status.loading {
+            display: flex;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            color: var(--accent-cyan);
+        }
+        .pdf-upload-status.success {
+            display: flex;
+            background: rgba(46, 213, 115, 0.08);
+            border: 1px solid rgba(46, 213, 115, 0.2);
+            color: var(--accent-green, #2ed573);
+        }
+        .pdf-upload-status.error {
+            display: flex;
+            background: rgba(255, 71, 87, 0.08);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            color: var(--accent-red);
+        }
+        .pdf-separator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .pdf-separator::before, .pdf-separator::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-glass);
+        }
+
         /* ===== PAGE HEADER ===== */
         .page-header {
             display: flex;
@@ -806,9 +1073,12 @@
     <main>
         <div class="page-header">
             <h2>Dashboard</h2>
-            <div class="refresh-indicator">
-                <span id="lastRefreshText">Aggiornato adesso</span>
-                <button class="btn-refresh-now" onclick="loadOrders(true)">Aggiorna ora</button>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <button class="btn-new-order" onclick="openCreateModal()">+ Nuovo Ordine</button>
+                <div class="refresh-indicator">
+                    <span id="lastRefreshText">Aggiornato adesso</span>
+                    <button class="btn-refresh-now" onclick="loadOrders(true)">Aggiorna ora</button>
+                </div>
             </div>
         </div>
 
@@ -927,6 +1197,67 @@
                 <h3>Fasi di Lavorazione</h3>
                 <div class="timeline" id="modalTimeline">
                     <p style="color: var(--text-secondary); font-size: 13px;">Caricamento...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Creazione Ordine -->
+    <div id="createModal" class="modal">
+        <div class="modal-content" style="max-width:640px;">
+            <div class="modal-header">
+                <h2>Nuovo Ordine</h2>
+                <button class="close-modal" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <div class="create-form">
+                <div class="pdf-upload-zone" id="pdfUploadZone" onclick="document.getElementById('pdfFileInput').click()">
+                    <div class="upload-icon">&#128196;</div>
+                    <div class="upload-text"><strong>Carica PDF</strong> per compilare automaticamente</div>
+                    <div class="upload-text" style="font-size:11px;margin-top:4px;">Trascina qui o clicca per selezionare</div>
+                    <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="handlePdfUpload(this)">
+                </div>
+                <div class="pdf-upload-status" id="pdfUploadStatus"></div>
+                <div class="pdf-separator">oppure compila manualmente</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <input type="text" id="newCliente" placeholder="Nome cliente">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Consegna *</label>
+                        <input type="date" id="newDataConsegna">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>Note</label>
+                        <textarea id="newNote" placeholder="Note opzionali..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-section" style="padding:16px;">
+                    <h3 style="font-size:15px;margin-bottom:12px;">Articoli</h3>
+                    <div class="articles-list" id="articlesList">
+                        <!-- articoli dinamici -->
+                    </div>
+                    <button class="btn-add-article" onclick="addArticleRow()">+ Aggiungi Articolo</button>
+                </div>
+
+                <div class="modal-section" style="padding:16px;">
+                    <h3 style="font-size:15px;margin-bottom:8px;">Fasi di Lavorazione</h3>
+                    <div class="phases-checkboxes">
+                        <label><input type="checkbox" value="LASER" checked> Laser</label>
+                        <label><input type="checkbox" value="PIEGA" checked> Piega</label>
+                        <label><input type="checkbox" value="SALDATURA" checked> Saldatura</label>
+                        <label><input type="checkbox" value="PULIZIA"> Pulizia</label>
+                        <label><input type="checkbox" value="SPEDIZIONE"> Spedizione</label>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeCreateModal()">Annulla</button>
+                    <button class="btn-submit-order" id="btnSubmitOrder" onclick="submitNewOrder()">Crea Ordine</button>
                 </div>
             </div>
         </div>
@@ -1274,7 +1605,187 @@
         window.addEventListener('click', (e) => {
             const modal = document.getElementById('orderModal');
             if (e.target === modal) closeModal();
+            const createModal = document.getElementById('createModal');
+            if (e.target === createModal) closeCreateModal();
         });
+
+        // ===== CREAZIONE ORDINE =====
+        let articleCounter = 0;
+
+        function openCreateModal() {
+            articleCounter = 0;
+            document.getElementById('newCliente').value = '';
+            document.getElementById('newDataConsegna').value = '';
+            document.getElementById('newNote').value = '';
+            document.getElementById('articlesList').innerHTML = '';
+            document.getElementById('pdfFileInput').value = '';
+            const status = document.getElementById('pdfUploadStatus');
+            status.className = 'pdf-upload-status';
+            status.textContent = '';
+            document.querySelectorAll('.phases-checkboxes input').forEach(cb => {
+                cb.checked = ['LASER', 'PIEGA', 'SALDATURA'].includes(cb.value);
+            });
+            addArticleRow();
+            document.getElementById('createModal').classList.add('show');
+            document.getElementById('newCliente').focus();
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+        }
+
+        // PDF upload drag & drop
+        (function() {
+            const zone = document.getElementById('pdfUploadZone');
+            if (!zone) return;
+            zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.name.toLowerCase().endsWith('.pdf')) {
+                    uploadPdfFile(file);
+                }
+            });
+        })();
+
+        function handlePdfUpload(input) {
+            const file = input.files[0];
+            if (file) uploadPdfFile(file);
+        }
+
+        async function uploadPdfFile(file) {
+            const status = document.getElementById('pdfUploadStatus');
+            status.className = 'pdf-upload-status loading';
+            status.textContent = 'Estrazione dati da ' + file.name + '...';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const resp = await fetch(API_URL + '/extract-pdf-data', { method: 'POST', body: formData });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Errore estrazione');
+                }
+                const result = await resp.json();
+                const data = result.data;
+
+                // Pre-compila cliente
+                if (data.cliente) document.getElementById('newCliente').value = data.cliente;
+
+                // Pre-compila data consegna
+                if (data.data_consegna) {
+                    // Prova vari formati: dd/mm/yyyy, yyyy-mm-dd
+                    let dc = data.data_consegna;
+                    if (dc.includes('/')) {
+                        const parts = dc.split('/');
+                        if (parts.length === 3) dc = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+                    }
+                    document.getElementById('newDataConsegna').value = dc;
+                }
+
+                // Pre-compila articoli
+                const articoli = data.articoli || [];
+                if (articoli.length > 0) {
+                    document.getElementById('articlesList').innerHTML = '';
+                    articleCounter = 0;
+                    articoli.forEach(art => {
+                        addArticleRow();
+                        const row = document.getElementById('article-' + articleCounter);
+                        if (row) {
+                            row.querySelector('.art-name').value = art.nome || art.name || '';
+                            row.querySelector('.art-code').value = art.codice || art.code || '';
+                            row.querySelector('.art-qty').value = art.quantita || art.qty || 1;
+                        }
+                    });
+                }
+
+                status.className = 'pdf-upload-status success';
+                status.textContent = 'Dati estratti da ' + file.name + ' — ' + articoli.length + ' articoli trovati';
+            } catch (e) {
+                status.className = 'pdf-upload-status error';
+                status.textContent = 'Errore: ' + e.message;
+            }
+        }
+
+        function addArticleRow() {
+            articleCounter++;
+            const row = document.createElement('div');
+            row.className = 'article-entry';
+            row.id = 'article-' + articleCounter;
+            row.innerHTML = `
+                <input type="text" placeholder="Nome articolo" class="art-name">
+                <input type="text" placeholder="Codice" class="art-code">
+                <input type="number" placeholder="Qtà" min="1" value="1" class="art-qty">
+                <button class="btn-remove-article" onclick="removeArticle(${articleCounter})">&times;</button>
+            `;
+            document.getElementById('articlesList').appendChild(row);
+        }
+
+        function removeArticle(id) {
+            const el = document.getElementById('article-' + id);
+            if (el) el.remove();
+            if (document.getElementById('articlesList').children.length === 0) {
+                addArticleRow();
+            }
+        }
+
+        async function submitNewOrder() {
+            const cliente = document.getElementById('newCliente').value.trim();
+            const dataConsegna = document.getElementById('newDataConsegna').value;
+            const note = document.getElementById('newNote').value.trim();
+
+            if (!cliente) { alert('Inserisci il nome del cliente.'); return; }
+            if (!dataConsegna) { alert('Inserisci la data di consegna.'); return; }
+
+            const selectedPhases = [];
+            document.querySelectorAll('.phases-checkboxes input:checked').forEach(cb => {
+                selectedPhases.push(cb.value);
+            });
+            if (selectedPhases.length === 0) { alert('Seleziona almeno una fase.'); return; }
+
+            const articles = [];
+            document.querySelectorAll('.article-entry').forEach(row => {
+                const name = row.querySelector('.art-name').value.trim();
+                const code = row.querySelector('.art-code').value.trim();
+                const qty = parseInt(row.querySelector('.art-qty').value) || 1;
+                if (name) {
+                    articles.push({ name, code: code || name, qty, required_phases: selectedPhases });
+                }
+            });
+
+            if (articles.length === 0) { alert('Aggiungi almeno un articolo con un nome.'); return; }
+
+            const btn = document.getElementById('btnSubmitOrder');
+            btn.disabled = true;
+            btn.textContent = 'Creazione...';
+
+            try {
+                const resp = await fetch(API_URL + '/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cliente,
+                        data_consegna: dataConsegna,
+                        articles,
+                        required_phases: selectedPhases,
+                        note
+                    })
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Errore creazione ordine');
+                }
+                closeCreateModal();
+                loadOrders(true);
+            } catch (e) {
+                alert('Errore: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Crea Ordine';
+            }
+        }
 
         // ===== CALENDARIO =====
         function previousMonth() {
