@@ -611,6 +611,183 @@
             .kpi-row { grid-template-columns: 1fr; }
             .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
         }
+
+        /* ===== CALENDARIO CONSEGNE ===== */
+        .calendar-section {
+            margin-bottom: 32px;
+        }
+
+        .calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .calendar-controls h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            margin-bottom: 1px;
+        }
+
+        .weekday {
+            text-align: center;
+            padding: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+        }
+
+        .calendar-day {
+            min-height: 110px;
+            padding: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calendar-day:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.4;
+        }
+
+        .calendar-day.today {
+            border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+            background: color-mix(in srgb, var(--accent-cyan) 3%, transparent);
+        }
+
+        .calendar-day-number {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .calendar-day.today .calendar-day-number {
+            color: var(--accent-cyan);
+        }
+
+        .calendar-day.other-month .calendar-day-number {
+            color: var(--text-muted);
+        }
+
+        .day-orders {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .day-orders::-webkit-scrollbar { width: 3px; }
+        .day-orders::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .day-order-card {
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            border-left: 3px solid var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: var(--transition);
+            line-height: 1.3;
+        }
+
+        .day-order-card:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: translateX(2px);
+        }
+
+        .day-order-card.ricevuto {
+            border-left-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .day-order-card.laser_completato {
+            border-left-color: var(--accent-red);
+            background: rgba(255, 71, 87, 0.05);
+        }
+
+        .day-order-card.piega_completata {
+            border-left-color: var(--accent-amber);
+            background: rgba(255, 165, 2, 0.05);
+        }
+
+        .day-order-card.saldatura_completata {
+            border-left-color: var(--accent-orange);
+            background: rgba(255, 99, 72, 0.05);
+        }
+
+        .day-order-card.pulizia_completata {
+            border-left-color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.05);
+        }
+
+        .day-order-card.spedito {
+            border-left-color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.05);
+            opacity: 0.7;
+        }
+
+        .day-orders-more {
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            text-align: center;
+            padding: 2px 0;
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        .day-order-progress {
+            font-size: 9px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .day-order-progress.done {
+            color: var(--accent-green);
+            opacity: 0.8;
+        }
+
+        @media (max-width: 900px) {
+            .calendar-day { min-height: 80px; padding: 4px; }
+            .calendar-day-number { font-size: 11px; }
+            .day-order-card { font-size: 9px; padding: 2px 4px; }
+            .weekday { font-size: 10px; padding: 6px; }
+        }
     </style>
 </head>
 <body>
@@ -663,6 +840,29 @@
         <div class="orders-section">
             <h3>Ordini per Urgenza Consegna</h3>
             <div class="orders-grid" id="ordersGrid"></div>
+        </div>
+
+        <!-- Calendario Consegne -->
+        <div class="calendar-section">
+            <div class="calendar-controls">
+                <h3>Calendario Consegne</h3>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="btn-refresh-now" onclick="previousMonth()">&larr;</button>
+                    <span id="monthYear" style="font-size:14px;font-weight:600;min-width:160px;text-align:center;color:var(--text-primary);"></span>
+                    <button class="btn-refresh-now" onclick="nextMonth()">&rarr;</button>
+                    <button class="btn-refresh-now" onclick="goToToday()">Oggi</button>
+                </div>
+            </div>
+            <div class="calendar-weekdays">
+                <div class="weekday">Lun</div>
+                <div class="weekday">Mar</div>
+                <div class="weekday">Mer</div>
+                <div class="weekday">Gio</div>
+                <div class="weekday">Ven</div>
+                <div class="weekday">Sab</div>
+                <div class="weekday">Dom</div>
+            </div>
+            <div class="calendar-days" id="calendarDays"></div>
         </div>
 
         <!-- Empty state -->
@@ -740,6 +940,7 @@
         let searchQuery = '';
         let lastDataHash = null;
         let lastRefreshTime = Date.now();
+        let currentDate = new Date();
 
         // ===== LOAD ORDERS =====
         async function loadOrders(forceRender) {
@@ -767,6 +968,7 @@
             updateKPIs(activeOrders);
             renderPhasesSummary(activeOrders);
             renderOrders(filtered);
+            renderCalendar();
         }
 
         // ===== KPI COMPUTATION =====
@@ -1074,6 +1276,130 @@
             const modal = document.getElementById('orderModal');
             if (e.target === modal) closeModal();
         });
+
+        // ===== CALENDARIO =====
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        }
+
+        function goToToday() {
+            currentDate = new Date();
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            const monthName = new Date(year, month).toLocaleString('it-IT', { month: 'long', year: 'numeric' });
+            document.getElementById('monthYear').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+            const prevMonthLastDay = new Date(year, month, 0).getDate();
+            const calendarContainer = document.getElementById('calendarDays');
+            calendarContainer.innerHTML = '';
+
+            for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+                const day = prevMonthLastDay - i;
+                calendarContainer.appendChild(createDayElement(day, month - 1, year, true));
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                calendarContainer.appendChild(createDayElement(day, month, year, false));
+            }
+
+            const totalCells = calendarContainer.childElementCount;
+            const remainingCells = 42 - totalCells;
+            for (let day = 1; day <= remainingCells; day++) {
+                calendarContainer.appendChild(createDayElement(day, month + 1, year, true));
+            }
+        }
+
+        function createDayElement(day, month, year, isOtherMonth) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day';
+
+            if (isOtherMonth) {
+                dayDiv.classList.add('other-month');
+                if (month < 0) { month = 11; year--; }
+                if (month > 11) { month = 0; year++; }
+            }
+
+            const today = new Date();
+            if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear() && !isOtherMonth) {
+                dayDiv.classList.add('today');
+            }
+
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'calendar-day-number';
+            dayNumber.textContent = day;
+            dayDiv.appendChild(dayNumber);
+
+            const ordersDiv = document.createElement('div');
+            ordersDiv.className = 'day-orders';
+
+            const ordersForDay = allOrders.filter(order => {
+                if (!order.data_consegna) return false;
+                const orderDate = new Date(order.data_consegna);
+                return orderDate.getDate() === day &&
+                       orderDate.getMonth() === month &&
+                       orderDate.getFullYear() === year;
+            });
+
+            const MAX_VISIBLE = 3;
+            const visibleOrders = ordersForDay.slice(0, MAX_VISIBLE);
+            const hiddenCount = ordersForDay.length - MAX_VISIBLE;
+
+            visibleOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = `day-order-card ${(order.status || '').toLowerCase()}`;
+
+                const totalArt = order.articles ? order.articles.length : 0;
+                const clienteShort = (order.cliente || 'N/A').substring(0, 12);
+                const completedStatuses = ['SPEDITO', 'PULIZIA_COMPLETATA'];
+                const isFullyComplete = completedStatuses.includes(order.status);
+
+                if (totalArt > 0) {
+                    const articleRecords = order.article_records || [];
+                    const startedCount = articleRecords.length > 0
+                        ? articleRecords.filter(ar => ar.has_started_steps).length
+                        : 0;
+                    const progressText = isFullyComplete ? '✓' : `${startedCount}/${totalArt}`;
+                    const progressClass = isFullyComplete ? 'done' : '';
+                    orderCard.innerHTML = `${clienteShort} <span class="day-order-progress ${progressClass}">${progressText}</span>`;
+                } else {
+                    orderCard.textContent = clienteShort;
+                }
+
+                orderCard.title = `${order.cliente || 'N/A'} - ${totalArt} articoli`;
+                orderCard.onclick = (e) => {
+                    e.stopPropagation();
+                    openOrderModal(order.id);
+                };
+                ordersDiv.appendChild(orderCard);
+            });
+
+            if (hiddenCount > 0) {
+                const moreDiv = document.createElement('div');
+                moreDiv.className = 'day-orders-more';
+                moreDiv.textContent = `+${hiddenCount} altri`;
+                moreDiv.title = ordersForDay.slice(MAX_VISIBLE).map(o => o.cliente || 'N/A').join(', ');
+                ordersDiv.appendChild(moreDiv);
+            }
+
+            dayDiv.appendChild(ordersDiv);
+            return dayDiv;
+        }
 
         // ===== INIT =====
         window.addEventListener('DOMContentLoaded', () => {
