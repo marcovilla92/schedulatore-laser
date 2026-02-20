@@ -1,6 +1,6 @@
 # Roadmap: Schedulatore Laser
 
-**Last updated:** 2026-02-19
+**Last updated:** 2026-02-20
 
 ## Milestones
 
@@ -118,11 +118,11 @@ Plans:
   2. I campi estratti con confidenza bassa sono visivamente distinti nella pagina ordini estratti (es. bordo colorato, icona, tooltip) cosi l'utente sa immediatamente cosa deve verificare manualmente
   3. Se l'API Gemini non e raggiungibile al momento del caricamento, il sistema usa automaticamente i parser esistenti e l'utente vede un messaggio informativo — senza errori bloccanti o pagine bianche
   4. I 16 formati noti continuano a estrarre correttamente dopo l'integrazione — nessuna regressione sui parser esistenti
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md — load_dotenv in run.py + integrazione extract_universal() con fallback in app.py (PIPE-01, PIPE-03)
+- [ ] 06-02-PLAN.md — Sezione upload singolo PDF e confidence badges in ordini_estratti.html (PIPE-02, PIPE-03)
 
 ---
 
@@ -139,4 +139,4 @@ Phases execute in numeric order: 4 → 5 → 6
 | 3. Viste Reparto | v1.1 | 0/0 | Deferred | - |
 | 4. Audit Parser | v1.2 | 1/1 | Complete | 2026-02-19 |
 | 5. Estrattore Universale | 2/2 | Complete   | 2026-02-19 | - |
-| 6. Integrazione Pipeline | v1.2 | 0/0 | Not started | - |
+| 6. Integrazione Pipeline | v1.2 | 0/2 | Not started | - |
