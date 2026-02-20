@@ -11,6 +11,17 @@ from .models import initialize_database
 from .database import OrderManager
 from .pdf_parser import extract_pdf_content
 
+# Estrattore universale (Docling + Gemini 2.0 Flash) — importato con guard
+# perche universal_extractor.py importa google.genai a livello modulo.
+# Se google-genai non e installato, Flask si avvia comunque usando i parser classici.
+try:
+    from .universal_extractor import extract_universal
+    from .universal_extractor import ExtractionError as UniversalExtractionError
+    _UNIVERSAL_EXTRACTOR_AVAILABLE = True
+except ImportError as _ue_import_err:
+    _UNIVERSAL_EXTRACTOR_AVAILABLE = False
+    print(f"[INFO] Estrattore universale non disponibile (ImportError): {_ue_import_err}")
+
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
 CORS(app)
@@ -244,12 +255,27 @@ def extract_pdf_data():
         print(f"   ✅ File salvato")
         
         # Estrae contenuto
-        print(f"   → Inizio estrazione PDF...")
+        print(f"   -> Inizio estrazione PDF...")
         sys.stdout.flush()
-        
-        pdf_data = extract_pdf_content(filepath)
-        
-        print(f"\n   ✅ Estrazione completata!")
+
+        if _UNIVERSAL_EXTRACTOR_AVAILABLE:
+            try:
+                print(f"   -> Estrattore universale (Docling + Gemini)...")
+                sys.stdout.flush()
+                pdf_data = extract_universal(filepath)
+                print(f"   OK Universale: {len(pdf_data.get('articoli', []))} articoli, estrattore={pdf_data.get('estrattore')}")
+                sys.stdout.flush()
+            except UniversalExtractionError as _ue_exc:
+                print(f"   [FALLBACK] Universale non disponibile: {_ue_exc}")
+                print(f"   -> Parser classici in uso...")
+                sys.stdout.flush()
+                pdf_data = extract_pdf_content(filepath)
+                pdf_data["estrattore"] = "legacy"
+        else:
+            pdf_data = extract_pdf_content(filepath)
+            pdf_data["estrattore"] = "legacy"
+
+        print(f"\n   Estrazione completata!")
         print(f"   → Cliente: {pdf_data.get('cliente', 'N/A')}")
         print(f"   → Articoli: {len(pdf_data.get('articoli', []))}")
         print("="*70 + "\n")
