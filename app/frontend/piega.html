@@ -1149,6 +1149,15 @@
                         ? `Fase ${PHASE} completata!`
                         : `${selectedIndices.length} articolo/i completato/i`;
                     showMessage(msg, 'success');
+
+                    // HOTFIX v1.2.1: Se il completamento è PARZIALE (non tutti gli articoli), ferma il timer
+                    if (!data.phase_complete && activePhases[currentOrderForCompletion]) {
+                        if (timers[currentOrderForCompletion]) {
+                            clearInterval(timers[currentOrderForCompletion]);
+                        }
+                        activePhases[currentOrderForCompletion] = null;
+                    }
+
                     closePartialModal();
                     await loadOrders();
                 } else {
