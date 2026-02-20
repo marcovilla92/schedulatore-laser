@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 6 of 6 (Integrazione Pipeline)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: Phase 6 Plan 1 complete — universal extractor integrato nella pipeline Flask con fallback automatico a parser classici
-Last activity: 2026-02-20 — load_dotenv in entry point, guarded import + fallback in /api/extract-pdf-data
+Plan: 2 of 2 in current phase — COMPLETE
+Status: Phase 6 COMPLETE — universal extractor integrato nella pipeline Flask + UI confidence badges in ordini_estratti.html + PDF upload singolo
+Last activity: 2026-02-20 — CSS confidence badges, upload singolo section, JS confidenceBadge() + uploadSinglePDF() functions tested and verified
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% — Milestone v1.2 COMPLETE
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 8 min
-- Total execution time: 0.13 hours
+- Total execution time: 0.25 hours
 
 **By Phase:**
 
@@ -29,7 +29,7 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 4. Audit Parser | 1/1 | — | — |
 | 5. Estrattore Universale | 2/2 | 8 min | 4 min |
-| 6. Integrazione Pipeline | 1/1 | 8 min | 8 min |
+| 6. Integrazione Pipeline | 2/2 | 16 min | 8 min |
 
 ## Accumulated Context
 
@@ -45,9 +45,12 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 05-estrattore-universale]: ExtractionError typed exception as unified failure surface — GEMINI_API_KEY missing raises ExtractionError not KeyError
 - [Phase 05-estrattore-universale]: Pydantic Literal confidence labels declared by Gemini (not heuristic) — response_schema=OrdineEstratto enforces schema syntactically
 - [Phase 05-estrattore-universale]: Baseline hardcoded in validation script (not read from audit_reports JSON) — avoids coupling to file format changes
-- [Phase 06-integrazione-pipeline]: load_dotenv chiamato PRIMA dell'import di backend.app — garantisce GEMINI_API_KEY in os.environ quando i moduli vengono inizializzati
-- [Phase 06-integrazione-pipeline]: Import guard try/except ImportError per google-genai — Flask si avvia anche senza il package installato
-- [Phase 06-integrazione-pipeline]: estrattore="legacy" impostato esplicitamente nei fallback path — campo sempre presente nella risposta JSON
+- [Phase 06-integrazione-pipeline Plan 1]: load_dotenv chiamato PRIMA dell'import di backend.app — garantisce GEMINI_API_KEY in os.environ quando i moduli vengono inizializzati
+- [Phase 06-integrazione-pipeline Plan 1]: Import guard try/except ImportError per google-genai — Flask si avvia anche senza il package installato
+- [Phase 06-integrazione-pipeline Plan 1]: estrattore="legacy" impostato esplicitamente nei fallback path — campo sempre presente nella risposta JSON
+- [Phase 06-integrazione-pipeline Plan 2]: Confidence badges CSS: amber per bassa, cyan per media, nessun badge per alta
+- [Phase 06-integrazione-pipeline Plan 2]: Upload singolo section con file input e result box con 4 campi estratti
+- [Phase 06-integrazione-pipeline Plan 2]: Legacy notice blu informativa (non errore rosso) quando estrattore != 'universal'
 
 ### Pending Todos
 
@@ -64,5 +67,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 06-integrazione-pipeline/06-01-PLAN.md
-Resume file: .planning/phases/06-integrazione-pipeline/06-01-SUMMARY.md
+Stopped at: Completed 06-integrazione-pipeline/06-02-PLAN.md (all phases complete)
+Next: gsd-verify to audit milestone v1.2 completeness
+Resume file: .planning/phases/06-integrazione-pipeline/06-02-SUMMARY.md

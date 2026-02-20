@@ -226,33 +226,33 @@ def get_orders_by_phase(phase):
 def extract_pdf_data():
     """Estrae dati dal PDF caricato"""
     print("\n" + "="*70)
-    print("🔔 RICHIESTA RICEVUTA: /api/extract-pdf-data")
+    print("[RECEIVE] /api/extract-pdf-data")
     print("="*70)
-    
+
     try:
-        print("📋 Verifica file caricato...")
+        print("[CHECK] Verifica file caricato...")
         if 'file' not in request.files:
-            print("❌ Errore: Nessun file caricato")
+            print("[ERROR] Nessun file caricato")
             return jsonify({'error': 'Nessun file caricato'}), 400
-        
+
         file = request.files['file']
-        print(f"   ✅ File ricevuto: {file.filename}")
-        
+        print(f"   [OK] File ricevuto: {file.filename}")
+
         if file.filename == '':
-            print("❌ Errore: File non selezionato")
+            print("[ERROR] File non selezionato")
             return jsonify({'error': 'File non selezionato'}), 400
-        
+
         if not file.filename.lower().endswith('.pdf'):
-            print(f"❌ Errore: File non è PDF: {file.filename}")
+            print(f"[ERROR] File non è PDF: {file.filename}")
             return jsonify({'error': 'Solo file PDF sono supportati'}), 400
-        
-        print(f"   ✅ File è un PDF valido")
-        
+
+        print(f"   [OK] File è un PDF valido")
+
         # Salva temporaneamente e processa
         filepath = os.path.join(PDFS_FOLDER, file.filename)
-        print(f"   → Salvataggio in: {filepath}")
+        print(f"   [SAVE] {filepath}")
         file.save(filepath)
-        print(f"   ✅ File salvato")
+        print(f"   [OK] File salvato")
         
         # Estrae contenuto
         print(f"   -> Inizio estrazione PDF...")
@@ -276,8 +276,8 @@ def extract_pdf_data():
             pdf_data["estrattore"] = "legacy"
 
         print(f"\n   Estrazione completata!")
-        print(f"   → Cliente: {pdf_data.get('cliente', 'N/A')}")
-        print(f"   → Articoli: {len(pdf_data.get('articoli', []))}")
+        print(f"   [CLIENT] {pdf_data.get('cliente', 'N/A')}")
+        print(f"   [ITEMS] {len(pdf_data.get('articoli', []))} articoli")
         print("="*70 + "\n")
         sys.stdout.flush()
         
@@ -287,7 +287,7 @@ def extract_pdf_data():
         }), 200
         
     except Exception as e:
-        print(f"\n❌ ERRORE: {str(e)}")
+        print(f"\n[ERROR] {str(e)}")
         import traceback
         traceback.print_exc()
         print("="*70 + "\n")
