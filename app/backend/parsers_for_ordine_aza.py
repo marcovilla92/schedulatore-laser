@@ -119,10 +119,13 @@ def extract_articoli_aza(text: str, markdown_text: str = None) -> list:
                 # Indice 4 dovrebbe ripartire la descrizione
                 desc_parts = parts[4:code_idx]
                 desc = ' '.join(desc_parts) if desc_parts else ''
-                
+
                 # Rimuovi simboli € dalla descrizione
                 desc = desc.replace('€', '').replace('Ç', '').strip()
-                
+
+                # Rimuovi numeri di prezzo (pattern: numero,numero o numero.numero preceduto da spazio)
+                desc = re.sub(r'\s*\d+[.,]\d+\s*', ' ', desc).strip()
+
                 if 0 < qty <= 10000 and code and desc:
                     articoli.append({
                         'code': code,
