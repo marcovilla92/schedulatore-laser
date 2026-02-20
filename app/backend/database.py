@@ -1,5 +1,5 @@
 """CRUD operations for Order management"""
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm.attributes import flag_modified
 from .models import (
     Order, OrderFile, ProcessingStep, OrderNotification,
@@ -10,7 +10,45 @@ import json
 
 class OrderManager:
     """Gestore operazioni su ordini con articoli"""
-    
+
+    @staticmethod
+    def _format_duration(td: timedelta) -> str:
+        """Formatta un timedelta in stringa leggibile (es: '2h 30min')"""
+        if not td:
+            return "0min"
+        total_seconds = int(td.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+
+        if hours > 0 and minutes > 0:
+            return f"{hours}h {minutes}min"
+        elif hours > 0:
+            return f"{hours}h"
+        else:
+            return f"{minutes}min"
+
+    @staticmethod
+    def _calculate_order_total_time(order_id: str, session) -> str:
+        """Calcola il tempo totale di tutte le fasi completate di un ordine"""
+        try:
+            steps = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id,
+                ProcessingStep.timestamp_inizio.isnot(None),
+                ProcessingStep.timestamp_fine.isnot(None)
+            ).all()
+
+            if not steps:
+                return "0min"
+
+            total_duration = timedelta(0)
+            for step in steps:
+                duration = step.timestamp_fine - step.timestamp_inizio
+                total_duration += duration
+
+            return OrderManager._format_duration(total_duration)
+        except Exception:
+            return "Errore calcolo"
+
     @staticmethod
     def create_order(cliente: str, data_consegna: str, articles: list = None, 
                      required_phases: list = None, preventivo_minuti: int = 0, 
@@ -223,12 +261,13 @@ class OrderManager:
                 
                 if all_completed:
                     order.status = OrderStatus.SPEDITO.value
-                    
-                    # Crea notifica di completamento
+
+                    # Crea notifica di completamento con tempi totali calcolati
+                    total_time = OrderManager._calculate_order_total_time(order_id, session)
                     notification = OrderNotification(
                         id=str(uuid.uuid4()),
                         order_id=order_id,
-                        tempi_totali="Ordine completato"
+                        tempi_totali=total_time
                     )
                     session.add(notification)
                     session.commit()
@@ -304,10 +343,12 @@ class OrderManager:
             
             if all_completed:
                 order.status = OrderStatus.SPEDITO.value
+                # HOTFIX v1.2.1: Calcola i tempi totali di tutte le fasi
+                total_time = OrderManager._calculate_order_total_time(order_id, session)
                 notification = OrderNotification(
                     id=str(uuid.uuid4()),
                     order_id=order_id,
-                    tempi_totali="Ordine completato"
+                    tempi_totali=total_time
                 )
                 session.add(notification)
                 session.commit()
