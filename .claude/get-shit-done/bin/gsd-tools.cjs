@@ -130,13 +130,13 @@ const { execSync } = require('child_process');
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
 const MODEL_PROFILES = {
-  'gsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet' },
-  'gsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
+  'gsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'haiku' },
+  'gsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
+  'gsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
   'gsd-phase-researcher':     { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
   'gsd-project-researcher':   { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
   'gsd-research-synthesizer': { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
+  'gsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
   'gsd-codebase-mapper':      { quality: 'sonnet', balanced: 'haiku', budget: 'haiku' },
   'gsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
   'gsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
