@@ -21,9 +21,9 @@ Requirements for milestone v1.2 — Parser Universale. Each maps to roadmap phas
 
 ### Integrazione Pipeline
 
-- [ ] **PIPE-01**: La pipeline di parsing usa l'estrattore universale come primo tentativo; i parser specifici esistenti rimangono disponibili come fallback per i 16 formati noti
+- [x] **PIPE-01**: La pipeline di parsing usa l'estrattore universale come primo tentativo; i parser specifici esistenti rimangono disponibili come fallback per i 16 formati noti
 - [ ] **PIPE-02**: Nella pagina ordini estratti, i campi con confidenza bassa sono evidenziati visivamente cosi l'utente sa cosa verificare manualmente
-- [ ] **PIPE-03**: Se Gemini API non e raggiungibile, il sistema cade in fallback sui parser esistenti senza errori bloccanti per l'utente
+- [x] **PIPE-03**: Se Gemini API non e raggiungibile, il sistema cade in fallback sui parser esistenti senza errori bloccanti per l'utente
 
 ## Future Requirements
 
@@ -64,9 +64,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXTR-02 | Phase 5: Estrattore Universale | Complete |
 | EXTR-03 | Phase 5: Estrattore Universale | Complete |
 | EXTR-04 | Phase 5: Estrattore Universale | Complete |
-| PIPE-01 | Phase 6: Integrazione Pipeline | Pending |
+| PIPE-01 | Phase 6: Integrazione Pipeline | Complete |
 | PIPE-02 | Phase 6: Integrazione Pipeline | Pending |
-| PIPE-03 | Phase 6: Integrazione Pipeline | Pending |
+| PIPE-03 | Phase 6: Integrazione Pipeline | Complete |
 
 **Coverage:**
 - v1.2 requirements: 9 total
@@ -75,4 +75,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 — Roadmap v1.2 created, traceability confirmed*
+*Last updated: 2026-02-20 — Phase 6 Plan 1 complete, PIPE-01 e PIPE-03 completati*
