@@ -516,6 +516,133 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* ===== CONFIDENCE BADGES (Phase 6 — estrattore universale) ===== */
+        .confidence-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            margin-left: 6px;
+            vertical-align: middle;
+            cursor: default;
+        }
+
+        .confidence-bassa {
+            background: rgba(255, 165, 2, 0.15);
+            color: var(--accent-amber);
+            border: 1px solid rgba(255, 165, 2, 0.3);
+        }
+
+        .confidence-media {
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+        }
+
+        /* ===== UPLOAD SINGOLO (Phase 6) ===== */
+        .upload-singolo-section {
+            margin-bottom: 24px;
+            animation: fadeInUp 0.6s ease both;
+            animation-delay: 0.15s;
+        }
+
+        .upload-area-small {
+            border: 1px dashed var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            transition: var(--transition);
+        }
+
+        .upload-area-small:hover {
+            border-color: rgba(168, 85, 247, 0.3);
+            background: rgba(168, 85, 247, 0.03);
+        }
+
+        .upload-area-small label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .upload-area-small input[type="file"] {
+            flex: 1;
+            min-width: 200px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-family: inherit;
+            background: transparent;
+            border: none;
+            outline: none;
+        }
+
+        /* Result box per upload singolo */
+        .upload-result-box {
+            margin-top: 16px;
+            padding: 20px;
+            background: rgba(168, 85, 247, 0.05);
+            border: 1px solid rgba(168, 85, 247, 0.15);
+            border-radius: var(--radius-md);
+            display: none;
+            animation: fadeInUp 0.3s ease both;
+        }
+
+        .upload-result-box.visible {
+            display: block;
+        }
+
+        .upload-result-box h4 {
+            color: var(--accent-purple);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .result-field {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-glass);
+            font-size: 13px;
+        }
+
+        .result-field:last-child {
+            border-bottom: none;
+        }
+
+        .result-field .field-label {
+            color: var(--text-secondary);
+            font-weight: 600;
+            min-width: 140px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .result-field .field-value {
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .legacy-notice {
+            margin-top: 12px;
+            padding: 8px 14px;
+            background: rgba(0, 212, 255, 0.06);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
