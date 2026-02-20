@@ -75,7 +75,7 @@ Plans:
 - [x] **Phase 5: Estrattore Universale** — Costruisce l'estrattore Docling + Gemini 2.0 Flash con confidence scoring, capace di estrarre dati strutturati da qualsiasi PDF senza configurazione (completed 2026-02-19)
 
 #### Phase 6: Integrazione Pipeline
-- [ ] **Phase 6: Integrazione Pipeline** — Integra l'estrattore universale nella pipeline esistente con fallback ai parser noti, indicatori di confidenza in UI, e gestione degradata senza Gemini (1/2 piani completati — 2026-02-20)
+- [x] **Phase 6: Integrazione Pipeline** — Integra l'estrattore universale nella pipeline esistente con fallback ai parser noti, indicatori di confidenza in UI, e gestione degradata senza Gemini (2/2 piani completati — 2026-02-20)
 
 ## Phase Details
 
@@ -122,7 +122,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md — load_dotenv in run.py + integrazione extract_universal() con fallback in app.py (PIPE-01, PIPE-03)
-- [ ] 06-02-PLAN.md — Sezione upload singolo PDF e confidence badges in ordini_estratti.html (PIPE-02, PIPE-03)
+- [x] 06-02-PLAN.md — Sezione upload singolo PDF e confidence badges in ordini_estratti.html (PIPE-02, PIPE-03)
 
 ---
 
@@ -138,5 +138,5 @@ Phases execute in numeric order: 4 → 5 → 6
 | 2. Assegnazione Fasi | v1.1 | 0/0 | Deferred | - |
 | 3. Viste Reparto | v1.1 | 0/0 | Deferred | - |
 | 4. Audit Parser | v1.2 | 1/1 | Complete | 2026-02-19 |
-| 5. Estrattore Universale | 2/2 | Complete   | 2026-02-19 | - |
-| 6. Integrazione Pipeline | v1.2 | 1/2 | In progress | - |
+| 5. Estrattore Universale | v1.2 | 2/2 | Complete | 2026-02-19 |
+| 6. Integrazione Pipeline | v1.2 | 2/2 | Complete | 2026-02-20 |
