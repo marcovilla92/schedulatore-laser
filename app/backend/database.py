@@ -252,9 +252,14 @@ class OrderManager:
                 # Ottieni l'ordine
                 order = session.query(Order).filter(Order.id == order_id).first()
 
-                # Popola completed_articles con tutti gli indici degli articoli
+                # HOTFIX v1.2.1: Popola completed_articles solo con articoli che richiedono questa fase
                 if order and order.articles:
-                    processing_step.completed_articles = list(range(len(order.articles)))
+                    # Articoli che richiedono questa fase
+                    articles_requiring_phase = [
+                        idx for idx, article in enumerate(order.articles)
+                        if phase in article.get('required_phases', [])
+                    ]
+                    processing_step.completed_articles = articles_requiring_phase
                     flag_modified(processing_step, 'completed_articles')
                 
                 # Commit prima di fare ulteriori query
@@ -333,8 +338,13 @@ class OrderManager:
             processing_step.completed_articles = current
             flag_modified(processing_step, 'completed_articles')
 
-            # Controlla se TUTTI gli articoli sono stati completati per questa fase
-            all_articles_completed = len(processing_step.completed_articles) == len(order.articles)
+            # HOTFIX v1.2.1: Conta solo gli articoli che richiedono questa fase
+            # (gli articoli potrebbero avere fasi diverse)
+            articles_requiring_phase = sum(
+                1 for article in order.articles
+                if phase in article.get('required_phases', [])
+            )
+            all_articles_completed = len(processing_step.completed_articles) == articles_requiring_phase
 
             # Se tutti gli articoli sono completati, segna la fase come completata
             if all_articles_completed and not processing_step.timestamp_fine:
