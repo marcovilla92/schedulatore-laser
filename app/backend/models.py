@@ -65,6 +65,7 @@ class ProcessingStep(Base):
     fase = Column(String, nullable=False)  # LASER, PIEGA, SALDATURA, ecc
     timestamp_inizio = Column(DateTime, nullable=True)
     timestamp_fine = Column(DateTime, nullable=True)
+    timestamp_ultimo_partial = Column(DateTime, nullable=True)  # HOTFIX v1.2.1: Registra quando il lavoro viene momentaneamente sospeso (partial completion)
     operatore = Column(String, nullable=True)
     note = Column(Text, nullable=True)
     # ✅ NUOVO: Traccia articoli completati per questa fase (lista di indici)

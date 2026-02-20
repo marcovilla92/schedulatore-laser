@@ -284,10 +284,13 @@ class OrderManager:
 
             # Controlla se TUTTI gli articoli sono stati completati per questa fase
             all_articles_completed = len(processing_step.completed_articles) == len(order.articles)
-            
+
             # Se tutti gli articoli sono completati, segna la fase come completata
             if all_articles_completed and not processing_step.timestamp_fine:
                 processing_step.timestamp_fine = datetime.utcnow()
+            # HOTFIX v1.2.1: Se solo alcuni articoli sono completati, traccia il partial completion
+            elif not all_articles_completed:
+                processing_step.timestamp_ultimo_partial = datetime.utcnow()
             
             processing_step.note = note
             session.commit()
