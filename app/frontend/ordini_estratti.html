@@ -663,6 +663,25 @@
             <p>Sistema di elaborazione automatica degli ordini</p>
         </div>
 
+        <!-- Upload singolo PDF con confidence display (Phase 6) -->
+        <div class="upload-singolo-section">
+            <div class="glass-card" style="padding: 20px 24px;">
+                <div style="margin-bottom: 12px;">
+                    <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Carica PDF singolo</span>
+                    <span style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;">estrattore universale con indicatori di confidenza</span>
+                </div>
+                <div class="upload-area-small">
+                    <label for="singlePdfInput">Seleziona PDF:</label>
+                    <input type="file" id="singlePdfInput" accept=".pdf" onchange="uploadSinglePDF(this)">
+                    <div id="uploadSingleStatus" class="status" style="display:none; margin-left: auto;"></div>
+                </div>
+                <div id="uploadResultBox" class="upload-result-box">
+                    <h4>Risultato Estrazione</h4>
+                    <div id="uploadResultContent"></div>
+                </div>
+            </div>
+        </div>
+
         <div class="controls-card">
             <div class="glass-card" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 20px 24px; width: 100%;">
                 <button id="processBtn" class="btn-primary" onclick="processAllPDFs()">
@@ -840,6 +859,94 @@
 
         function viewOrder(orderId) {
             alert(`Dettagli ordine: ${orderId}\n\nFunzionalità in implementazione...`);
+        }
+
+        // ========== UPLOAD SINGOLO — Phase 6 ==========
+
+        function confidenceBadge(level) {
+            // Mostra badge solo per confidenza bassa o media.
+            // Alta = nessun badge (campo affidabile, non disturbare l'utente).
+            if (!level || level === 'alta') return '';
+            const label = level === 'bassa' ? '! bassa' : '~ media';
+            const title = level === 'bassa'
+                ? 'Confidenza bassa — verificare manualmente'
+                : 'Confidenza media — controllare se necessario';
+            return `<span class="confidence-badge confidence-${level}" title="${title}">${label}</span>`;
+        }
+
+        function showSingleStatus(message, type) {
+            const el = document.getElementById('uploadSingleStatus');
+            el.textContent = message;
+            el.className = `status ${type}`;
+            el.style.display = 'block';
+        }
+
+        function uploadSinglePDF(inputEl) {
+            const file = inputEl.files[0];
+            if (!file) return;
+
+            // Reset stato precedente
+            document.getElementById('uploadResultBox').classList.remove('visible');
+            document.getElementById('uploadResultContent').innerHTML = '';
+            showSingleStatus('Estrazione in corso...', 'loading');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/extract-pdf-data', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    showSingleStatus(`Errore: ${data.error}`, 'error');
+                    return;
+                }
+
+                const d = data.data || {};
+                const estrattore = d.estrattore || 'legacy';
+
+                // Nasconde stato loading
+                document.getElementById('uploadSingleStatus').style.display = 'none';
+
+                // Mostra risultato con confidence badges
+                const articoliCount = Array.isArray(d.articoli) ? d.articoli.length : 0;
+                const dataConsegna = d.data_consegna
+                    ? new Date(d.data_consegna).toLocaleDateString('it-IT')
+                    : 'Non trovata';
+
+                document.getElementById('uploadResultContent').innerHTML = `
+                    <div class="result-field">
+                        <span class="field-label">Cliente</span>
+                        <span class="field-value"><strong>${d.cliente || 'N/D'}</strong>${confidenceBadge(d.cliente_confidence)}</span>
+                    </div>
+                    <div class="result-field">
+                        <span class="field-label">N. Ordine</span>
+                        <span class="field-value">${d.numero_ordine || 'N/D'}${confidenceBadge(d.numero_ordine_confidence)}</span>
+                    </div>
+                    <div class="result-field">
+                        <span class="field-label">Data Consegna</span>
+                        <span class="field-value">${dataConsegna}${confidenceBadge(d.data_consegna_confidence)}</span>
+                    </div>
+                    <div class="result-field">
+                        <span class="field-label">Articoli</span>
+                        <span class="field-value">${articoliCount} articoli${confidenceBadge(d.articoli_confidence)}</span>
+                    </div>
+                    ${estrattore !== 'universal' ? `
+                    <div class="legacy-notice">
+                        Estratto con parser classici (Gemini non disponibile) — i dati sono corretti ma senza indicatori di confidenza.
+                    </div>` : ''}
+                `;
+
+                document.getElementById('uploadResultBox').classList.add('visible');
+
+                // Reset input per permettere ricaricamento dello stesso file
+                inputEl.value = '';
+            })
+            .catch(error => {
+                showSingleStatus(`Errore di connessione: ${error}`, 'error');
+            });
         }
     </script>
 </body>
