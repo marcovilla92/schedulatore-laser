@@ -10,6 +10,10 @@ import os
 # Aggiungi la cartella app al path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(Path(__file__).parent / ".env")  # Carica app/.env (contiene GEMINI_API_KEY)
+
 # Importa app dal backend
 from backend.app import app
 from backend.models import initialize_database

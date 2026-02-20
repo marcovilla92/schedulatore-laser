@@ -6,6 +6,10 @@ import os
 # Aggiungi la cartella app al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(Path(os.path.abspath(__file__)).parent / ".env")  # Carica app/.env
+
 print("🚀 Caricamento backend...", flush=True)
 
 try:
