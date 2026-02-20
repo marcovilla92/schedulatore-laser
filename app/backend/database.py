@@ -203,20 +203,32 @@ class OrderManager:
     
     @staticmethod
     def start_phase(order_id: str, phase: str, operatore: str = "") -> bool:
-        """Inizia l'elaborazione di una fase"""
+        """Inizia l'elaborazione di una fase (o riprende se in pausa)"""
         session = get_session()
         try:
             processing_step = session.query(ProcessingStep).filter(
                 ProcessingStep.order_id == order_id,
                 ProcessingStep.fase == phase
             ).first()
-            
-            if processing_step and not processing_step.timestamp_inizio:
+
+            if not processing_step:
+                return False
+
+            # HOTFIX v1.2.1: Permetti di riprendere una fase in pausa (timestamp_ultimo_partial settato, timestamp_fine NON settato)
+            # Se timestamp_fine è settato, la fase è già completata → non permettere
+            if processing_step.timestamp_fine:
+                return False
+
+            # Se timestamp_inizio NON è ancora settato, inizia la fase
+            if not processing_step.timestamp_inizio:
                 processing_step.timestamp_inizio = datetime.utcnow()
                 processing_step.operatore = operatore
-                session.commit()
-                return True
-            return False
+            # HOTFIX v1.2.1: Se timestamp_ultimo_partial è settato (fase in pausa), resettalo per riprendere
+            elif processing_step.timestamp_ultimo_partial:
+                processing_step.timestamp_ultimo_partial = None
+
+            session.commit()
+            return True
         except Exception as e:
             session.rollback()
             raise e
