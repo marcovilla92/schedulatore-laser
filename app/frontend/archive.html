@@ -41,25 +41,28 @@
             overflow-x: hidden;
         }
 
-        /* Ambient background */
+        /* Aurora Background — React Bits inspired */
         body::before {
             content: '';
             position: fixed;
             top: -50%; left: -50%;
             width: 200%; height: 200%;
             background:
-                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
-                radial-gradient(circle at 50% 80%, rgba(0, 230, 118, 0.02) 0%, transparent 50%);
-            animation: ambientFloat 25s ease-in-out infinite;
+                radial-gradient(ellipse at 20% 50%, rgba(0, 212, 255, 0.12) 0%, transparent 45%),
+                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 80%, rgba(0, 230, 118, 0.06) 0%, transparent 45%),
+                radial-gradient(ellipse at 70% 60%, rgba(0, 212, 255, 0.04) 0%, transparent 40%);
+            filter: blur(40px);
+            animation: auroraFloat 20s ease-in-out infinite;
             z-index: 0;
             pointer-events: none;
         }
 
-        @keyframes ambientFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, -1%) rotate(1deg); }
-            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        @keyframes auroraFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+            25% { transform: translate(3%, -2%) scale(1.02); opacity: 1; }
+            50% { transform: translate(-2%, 3%) scale(0.98); opacity: 0.9; }
+            75% { transform: translate(2%, 2%) scale(1.01); opacity: 1; }
         }
 
         /* ===== NAVBAR ===== */
