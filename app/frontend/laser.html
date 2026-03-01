@@ -883,8 +883,19 @@
             }, 30);
         }
 
+        // Session check
+        let currentUser = null;
+
         // Carica ordini al caricamento
         window.addEventListener('DOMContentLoaded', () => {
+            // Check sessione
+            const saved = localStorage.getItem('currentUser');
+            if (!saved) {
+                window.location.href = '/login.html';
+                return;
+            }
+            currentUser = JSON.parse(saved);
+
             loadOrders();
             // Aggiorna ogni 5 secondi
             setInterval(loadOrders, 5000);
@@ -977,7 +988,10 @@
                 const response = await fetch(`${API_URL}/orders/${orderId}/phase/${PHASE}/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ operatore: 'Operatore' })
+                    body: JSON.stringify({
+                        operatore: currentUser?.name || 'Operatore',
+                        operatore_id: currentUser?.id
+                    })
                 });
 
                 const data = await response.json();
@@ -1064,7 +1078,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         article_indices: selectedIndices,
-                        note: ''
+                        note: '',
+                        operatore_id: currentUser?.id
                     })
                 });
 

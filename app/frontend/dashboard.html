@@ -775,7 +775,7 @@
         let allOrders = [];
         let currentDate = new Date();
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener("DOMContentLoaded", () => { const saved = localStorage.getItem("currentUser"); if (!saved) { window.location.href = "/login.html"; return; } 
             loadOrders();
             renderCalendar();
             setInterval(loadOrders, 10000);

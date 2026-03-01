@@ -933,7 +933,7 @@
         let currentOrderArticles = [];
 
         // Carica ordini al caricamento
-        window.addEventListener('DOMContentLoaded', () => {
+        let currentUser = null; window.addEventListener("DOMContentLoaded", () => { const saved = localStorage.getItem("currentUser"); if (!saved) { window.location.href = "/login.html"; return; } currentUser = JSON.parse(saved); 
             loadOrders();
             // Aggiorna ogni 5 secondi
             setInterval(loadOrders, 5000);
@@ -1043,7 +1043,7 @@
                 const response = await fetch(`${API_URL}/orders/${orderId}/phase/${PHASE}/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ operatore: 'Operatore' })
+                    body: JSON.stringify({ operatore, operatore_id: currentUser?.id, 'Operatore' })
                 });
 
                 const data = await response.json();
