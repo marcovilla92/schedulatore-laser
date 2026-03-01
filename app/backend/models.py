@@ -82,6 +82,33 @@ class OrderNotification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     order = relationship('Order', back_populates='notifications')
 
+class User(Base):
+    """Utenti del sistema con ruoli e permessi"""
+    __tablename__ = 'users'
+    id = Column(String, primary_key=True)  # es: 'luigi-laser'
+    name = Column(String, nullable=False)  # 'Luigi Verdi'
+    role = Column(String, nullable=False)  # 'Operaio Laser', 'Amministratore', ecc
+    initials = Column(String)  # 'LV'
+    phase = Column(String)  # 'LASER', 'PIEGA', 'SALDATURA', 'ALL'
+    permissions = Column(JSON, default=list)  # ['overview', 'lavorazione', 'supervisione', 'archive']
+    machines = Column(JSON, default=list)  # ['CNC 01', 'Laser CO₂']
+    is_active = Column(Boolean, default=True)
+    last_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AuditLog(Base):
+    """Log di audit per tracciare azioni degli utenti"""
+    __tablename__ = 'audit_log'
+    id = Column(String, primary_key=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(String, ForeignKey('users.id'), nullable=True)  # FK a users.id
+    user_name = Column(String)  # Denormalizzato per query veloci
+    action = Column(String, nullable=False)  # 'LOGIN', 'LOGOUT', 'START_PHASE', 'COMPLETE_PHASE', 'CREA_ORDINE'
+    entity_type = Column(String)  # 'order', 'phase', 'user'
+    entity_id = Column(String)  # order_id correlato
+    detail = Column(Text)  # JSON stringificato con dettagli aggiuntivi
+    ip_address = Column(String, nullable=True)
+
 # Configurazione database
 engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -89,6 +116,75 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def get_session():
     return SessionLocal()
 
+def seed_users():
+    """Inserisce gli utenti di default se non esistono (idempotente)"""
+    session = SessionLocal()
+    try:
+        # Lista degli utenti di default
+        default_users = [
+            {
+                'id': 'luigi-laser',
+                'name': 'Luigi Verdi',
+                'role': 'Operaio Laser',
+                'initials': 'LV',
+                'phase': 'LASER',
+                'permissions': ['overview', 'lavorazione'],
+                'machines': ['CNC 01', 'Laser CO₂']
+            },
+            {
+                'id': 'andrea-saldatura',
+                'name': 'Andrea Bianchi',
+                'role': 'Operaio Saldatura',
+                'initials': 'AB',
+                'phase': 'SALDATURA',
+                'permissions': ['overview', 'lavorazione'],
+                'machines': ['Saldatrice MIG-1', 'Saldatrice TIG']
+            },
+            {
+                'id': 'sara-piega',
+                'name': 'Sara Neri',
+                'role': 'Operaio Piega',
+                'initials': 'SN',
+                'phase': 'PIEGA',
+                'permissions': ['overview', 'lavorazione'],
+                'machines': ['Piegatrice CLP-80', 'Piegatrice Idraulica']
+            },
+            {
+                'id': 'marco-admin',
+                'name': 'Marco Rossi',
+                'role': 'Supervisore',
+                'initials': 'MR',
+                'phase': 'ALL',
+                'permissions': ['overview', 'supervisione', 'lavorazione', 'archive'],
+                'machines': ['Tutte']
+            },
+            {
+                'id': 'admin',
+                'name': 'Amministratore',
+                'role': 'Amministratore',
+                'initials': 'AD',
+                'phase': 'ALL',
+                'permissions': ['overview', 'supervisione', 'lavorazione', 'archive'],
+                'machines': ['Tutte']
+            }
+        ]
+
+        # Inserisci utenti se non esistono (idempotente con merge)
+        for user_data in default_users:
+            existing = session.query(User).filter(User.id == user_data['id']).first()
+            if not existing:
+                user = User(**user_data)
+                session.add(user)
+
+        session.commit()
+        print("[OK] Seed users completato")
+    except Exception as e:
+        session.rollback()
+        print(f"[WARN] Seed users error: {e}")
+    finally:
+        session.close()
+
 def initialize_database():
-    """Crea le tabelle se non esistono"""
+    """Crea le tabelle se non esistono e popola i dati di default"""
     Base.metadata.create_all(bind=engine)
+    seed_users()

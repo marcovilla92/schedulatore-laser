@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm.attributes import flag_modified
 from .models import (
     Order, OrderFile, ProcessingStep, OrderNotification,
-    OrderStatus, ProcessingPhase, get_session
+    OrderStatus, ProcessingPhase, get_session, User, AuditLog
 )
 import uuid
 import json
@@ -477,5 +477,355 @@ class OrderManager:
         except Exception as e:
             session.rollback()
             raise e
+        finally:
+            session.close()
+
+
+class UserManager:
+    """Gestore operazioni su utenti"""
+
+    @staticmethod
+    def get_user(user_id: str) -> dict | None:
+        """Recupera un utente per ID, restituisce dict serializzabile"""
+        session = get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if user:
+                return {
+                    'id': user.id,
+                    'name': user.name,
+                    'role': user.role,
+                    'initials': user.initials,
+                    'phase': user.phase,
+                    'permissions': user.permissions,
+                    'machines': user.machines,
+                    'is_active': user.is_active,
+                    'last_login': user.last_login.isoformat() if user.last_login else None,
+                    'created_at': user.created_at.isoformat() if user.created_at else None
+                }
+            return None
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_all_users() -> list[dict]:
+        """Recupera tutti gli utenti attivi"""
+        session = get_session()
+        try:
+            users = session.query(User).filter(User.is_active == True).all()
+            return [
+                {
+                    'id': u.id,
+                    'name': u.name,
+                    'role': u.role,
+                    'initials': u.initials,
+                    'phase': u.phase,
+                    'permissions': u.permissions,
+                    'machines': u.machines,
+                    'is_active': u.is_active,
+                    'last_login': u.last_login.isoformat() if u.last_login else None,
+                    'created_at': u.created_at.isoformat() if u.created_at else None
+                }
+                for u in users
+            ]
+        finally:
+            session.close()
+
+    @staticmethod
+    def authenticate(user_id: str) -> dict | None:
+        """Autentica un utente (mock): aggiorna last_login e registra login nell'audit log"""
+        session = get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id, User.is_active == True).first()
+            if user:
+                user.last_login = datetime.utcnow()
+                session.commit()
+
+                # Log login in audit
+                AuditManager.log(
+                    user_id=user.id,
+                    user_name=user.name,
+                    action='LOGIN'
+                )
+
+                return {
+                    'id': user.id,
+                    'name': user.name,
+                    'role': user.role,
+                    'initials': user.initials,
+                    'phase': user.phase,
+                    'permissions': user.permissions,
+                    'machines': user.machines,
+                    'is_active': user.is_active,
+                    'last_login': user.last_login.isoformat() if user.last_login else None
+                }
+            return None
+        except Exception as e:
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+    @staticmethod
+    def create_user(user_id: str, name: str, role: str, phase: str,
+                   permissions: list = None, machines: list = None,
+                   initials: str = None) -> dict | None:
+        """Crea un nuovo utente"""
+        session = get_session()
+        try:
+            # Verifica che l'utente non esista già
+            existing = session.query(User).filter(User.id == user_id).first()
+            if existing:
+                return None  # Utente esiste già
+
+            user = User(
+                id=user_id,
+                name=name,
+                role=role,
+                phase=phase,
+                permissions=permissions or [],
+                machines=machines or [],
+                initials=initials or name[:2].upper(),
+                is_active=True,
+                created_at=datetime.utcnow()
+            )
+            session.add(user)
+            session.commit()
+
+            # Log creazione utente
+            AuditManager.log(
+                user_id='admin',
+                user_name='Sistema',
+                action='CREA_UTENTE',
+                entity_type='user',
+                entity_id=user_id,
+                detail=f'Creato utente {name} ({role})'
+            )
+
+            return {
+                'id': user.id,
+                'name': user.name,
+                'role': user.role,
+                'initials': user.initials,
+                'phase': user.phase,
+                'permissions': user.permissions,
+                'machines': user.machines,
+                'is_active': user.is_active,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            }
+        except Exception as e:
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+    @staticmethod
+    def update_user(user_id: str, name: str = None, role: str = None,
+                   phase: str = None, permissions: list = None,
+                   machines: list = None, is_active: bool = None) -> dict | None:
+        """Modifica un utente esistente"""
+        session = get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                return None
+
+            # Aggiorna solo i campi forniti
+            if name:
+                user.name = name
+            if role:
+                user.role = role
+            if phase:
+                user.phase = phase
+            if permissions is not None:
+                user.permissions = permissions
+            if machines is not None:
+                user.machines = machines
+            if is_active is not None:
+                user.is_active = is_active
+
+            session.commit()
+
+            # Log modifica utente
+            AuditManager.log(
+                user_id='admin',
+                user_name='Sistema',
+                action='MODIFICA_UTENTE',
+                entity_type='user',
+                entity_id=user_id,
+                detail=f'Modificato utente {user.name}'
+            )
+
+            return {
+                'id': user.id,
+                'name': user.name,
+                'role': user.role,
+                'initials': user.initials,
+                'phase': user.phase,
+                'permissions': user.permissions,
+                'machines': user.machines,
+                'is_active': user.is_active,
+                'last_login': user.last_login.isoformat() if user.last_login else None
+            }
+        except Exception as e:
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+    @staticmethod
+    def delete_user(user_id: str) -> bool:
+        """Disattiva un utente (soft delete)"""
+        session = get_session()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                return False
+
+            user.is_active = False
+            session.commit()
+
+            # Log cancellazione utente
+            AuditManager.log(
+                user_id='admin',
+                user_name='Sistema',
+                action='DISATTIVA_UTENTE',
+                entity_type='user',
+                entity_id=user_id,
+                detail=f'Disattivato utente {user.name}'
+            )
+
+            return True
+        except Exception as e:
+            session.rollback()
+            return False
+        finally:
+            session.close()
+
+class AuditManager:
+    """Gestore operazioni di audit log"""
+
+    @staticmethod
+    def log(user_id: str = None, user_name: str = None, action: str = None,
+            entity_type: str = None, entity_id: str = None, detail: str = None,
+            ip_address: str = None) -> None:
+        """Crea un record audit log (try/except silenzioso per non bloccare l'app)"""
+        session = get_session()
+        try:
+            log_entry = AuditLog(
+                id=str(uuid.uuid4()),
+                timestamp=datetime.utcnow(),
+                user_id=user_id,
+                user_name=user_name,
+                action=action,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                detail=detail,
+                ip_address=ip_address
+            )
+            session.add(log_entry)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            # Silenzioso: non bloccare l'app se l'audit fallisce
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_recent(limit: int = 100, user_id: str = None) -> list[dict]:
+        """Recupera log recenti, opzionalmente filtrati per utente"""
+        session = get_session()
+        try:
+            query = session.query(AuditLog)
+            if user_id:
+                query = query.filter(AuditLog.user_id == user_id)
+
+            logs = query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+            return [
+                {
+                    'id': log.id,
+                    'timestamp': log.timestamp.isoformat(),
+                    'user_id': log.user_id,
+                    'user_name': log.user_name,
+                    'action': log.action,
+                    'entity_type': log.entity_type,
+                    'entity_id': log.entity_id,
+                    'detail': log.detail,
+                    'ip_address': log.ip_address
+                }
+                for log in logs
+            ]
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_kpi_operai() -> list[dict]:
+        """
+        Calcola KPI per ogni operaio da processing_steps:
+        - ordini completati (count WHERE timestamp_fine IS NOT NULL)
+        - tempo medio per ordine
+        - ultimo accesso (da users.last_login)
+        """
+        session = get_session()
+        try:
+            from sqlalchemy import func, and_
+
+            # Query: JOIN processing_steps on operatore = user.name
+            # WHERE timestamp_fine IS NOT NULL GROUP BY operatore
+            query = session.query(
+                User.name,
+                User.id,
+                User.role,
+                User.initials,
+                User.last_login,
+                func.count(ProcessingStep.id).label('completed_phases_count')
+            ).outerjoin(
+                ProcessingStep,
+                and_(
+                    ProcessingStep.operatore == User.name,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                )
+            ).filter(
+                User.is_active == True
+            ).group_by(
+                User.id
+            ).all()
+
+            kpi_list = []
+            for row in query:
+                name, user_id, role, initials, last_login, completed_count = row
+
+                # Calcola tempo medio per operaio
+                avg_time = session.query(
+                    func.avg(ProcessingStep.timestamp_fine - ProcessingStep.timestamp_inizio)
+                ).filter(
+                    ProcessingStep.operatore == name,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).scalar()
+
+                tempo_medio = OrderManager._format_duration(avg_time) if avg_time else "N/A"
+
+                # Conteggio ordini unici completati (non fasi, ma ordini)
+                ordini_completati = session.query(
+                    func.count(func.distinct(ProcessingStep.order_id))
+                ).filter(
+                    ProcessingStep.operatore == name,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).scalar() or 0
+
+                kpi_list.append({
+                    'operaio': name,
+                    'user_id': user_id,
+                    'role': role,
+                    'initials': initials,
+                    'ordini_completati': ordini_completati,
+                    'tempo_medio': tempo_medio,
+                    'ultimo_accesso': last_login.isoformat() if last_login else 'Mai',
+                    'efficienza': 85 + (ordini_completati % 15),  # Mock: 85-99%
+                    'ritardi': max(0, 5 - (ordini_completati // 10)),  # Mock
+                    'rating': min(5.0, 3.5 + (ordini_completati / 20))  # Mock: 3.5-5.0
+                })
+
+            return kpi_list
         finally:
             session.close()

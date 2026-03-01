@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Importa moduli locali
 from .models import initialize_database
-from .database import OrderManager
+from .database import OrderManager, UserManager, AuditManager
 from .pdf_parser import extract_pdf_content
 
 # Estrattore universale (Docling + Gemini 2.0 Flash) — importato con guard
@@ -42,8 +42,8 @@ initialize_database()
 
 @app.route('/')
 def index():
-    """Serve welcome page"""
-    return send_from_directory(FRONTEND_FOLDER, 'welcome.html')
+    """Serve login page"""
+    return send_from_directory(FRONTEND_FOLDER, 'login.html')
 
 @app.route('/ordini-estratti')
 def ordini_dashboard():
@@ -54,6 +54,71 @@ def ordini_dashboard():
 def serve_frontend(filename):
     """Serve frontend files"""
     return send_from_directory(FRONTEND_FOLDER, filename)
+
+# ============ API AUTH ============
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Autentica utente e registra nel log di audit"""
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'user_id obbligatorio'}), 400
+
+        # Autentica e aggiorna last_login
+        user = UserManager.authenticate(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'Utente non trovato'}), 404
+
+        return jsonify({
+            'success': True,
+            'user_id': user['id'],
+            'name': user['name'],
+            'role': user['role'],
+            'phase': user['phase'],
+            'permissions': user['permissions'],
+            'machines': user['machines']
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    """Registra logout nel log di audit"""
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id')
+
+        if user_id:
+            user = UserManager.get_user(user_id)
+            if user:
+                AuditManager.log(
+                    user_id=user_id,
+                    user_name=user.get('name'),
+                    action='LOGOUT',
+                    ip_address=request.remote_addr
+                )
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """Recupera lista utenti attivi"""
+    try:
+        users = UserManager.get_all_users()
+        return jsonify({
+            'success': True,
+            'users': users
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 # ============ API ORDINI ============
 
@@ -121,6 +186,61 @@ def update_order_articles(order_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
+@app.route('/api/orders/confirm-phases', methods=['POST'])
+def confirm_phases():
+    """Crea ordine confermando fasi selezionate"""
+    try:
+        data = request.get_json() or {}
+
+        cliente = data.get('cliente')
+        data_consegna = data.get('data_consegna')
+        articles = data.get('articles', [])
+        selected_phases = data.get('selected_phases', [])
+        operatore_id = data.get('operatore_id')
+
+        if not cliente or not data_consegna or not articles or not selected_phases:
+            return jsonify({
+                'success': False,
+                'error': 'Parametri obbligatori: cliente, data_consegna, articles, selected_phases'
+            }), 400
+
+        # Crea ordine con fasi selezionate
+        order = OrderManager.create_order(
+            cliente=cliente,
+            data_consegna=data_consegna,
+            articles=articles,
+            required_phases=selected_phases,
+            preventivo_minuti=0,
+            note=''
+        )
+
+        # Registra azione nel audit log
+        if operatore_id:
+            operatore = UserManager.get_user(operatore_id)
+            operatore_name = operatore.get('name') if operatore else operatore_id
+            AuditManager.log(
+                user_id=operatore_id,
+                user_name=operatore_name,
+                action='CREA_ORDINE',
+                entity_type='order',
+                entity_id=order.id,
+                detail=f"Fasi: {', '.join(selected_phases)}",
+                ip_address=request.remote_addr
+            )
+
+        return jsonify({
+            'success': True,
+            'order_id': order.id,
+            'cliente': order.cliente,
+            'data_consegna': order.data_consegna.isoformat(),
+            'articles': order.articles,
+            'required_phases': selected_phases,
+            'total_quantity': order.total_quantity
+        }), 201
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 # ============ API FASI ============
 
 @app.route('/api/orders/<order_id>/phase/<phase>/start', methods=['POST'])
@@ -129,12 +249,27 @@ def start_phase(order_id, phase):
     try:
         data = request.get_json() or {}
         operatore = data.get('operatore', '')
-        
+        operatore_id = data.get('operatore_id')
+
         success = OrderManager.start_phase(order_id, phase, operatore)
         if success:
+            # Registra azione nel audit log
+            if operatore_id:
+                operatore_user = UserManager.get_user(operatore_id)
+                operatore_name = operatore_user.get('name') if operatore_user else operatore_id
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=operatore_name,
+                    action='START_PHASE',
+                    entity_type='phase',
+                    entity_id=order_id,
+                    detail=f"Phase: {phase}",
+                    ip_address=request.remote_addr
+                )
+
             return jsonify({'success': True, 'phase': phase}), 200
         return jsonify({'success': False, 'error': 'Fase non trovata o già iniziata'}), 404
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
@@ -144,9 +279,24 @@ def complete_phase(order_id, phase):
     try:
         data = request.get_json() or {}
         note = data.get('note', '')
-        
+        operatore_id = data.get('operatore_id')
+
         result = OrderManager.complete_phase(order_id, phase, note)
         if result.get('success'):
+            # Registra azione nel audit log
+            if operatore_id:
+                operatore_user = UserManager.get_user(operatore_id)
+                operatore_name = operatore_user.get('name') if operatore_user else operatore_id
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=operatore_name,
+                    action='COMPLETE_PHASE',
+                    entity_type='phase',
+                    entity_id=order_id,
+                    detail=f"Phase: {phase}",
+                    ip_address=request.remote_addr
+                )
+
             # Recupera dettagli aggiornati
             details = OrderManager.get_order_details(order_id)
             return jsonify({
@@ -154,9 +304,9 @@ def complete_phase(order_id, phase):
                 'phase': phase,
                 'order_details': details
             }), 200
-        
+
         return jsonify(result), 400
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -167,15 +317,30 @@ def complete_phase_partial(order_id, phase):
         data = request.get_json() or {}
         article_indices = data.get('article_indices', [])  # Es: [0, 1, 3]
         note = data.get('note', '')
-        
+        operatore_id = data.get('operatore_id')
+
         if not article_indices:
             return jsonify({'success': False, 'error': 'Nessun articolo selezionato'}), 400
 
         if not all(isinstance(i, int) and i >= 0 for i in article_indices):
             return jsonify({'success': False, 'error': 'Indici articoli non validi'}), 400
-        
+
         result = OrderManager.complete_phase_partial(order_id, phase, article_indices, note)
         if result.get('success'):
+            # Registra azione nel audit log
+            if operatore_id:
+                operatore_user = UserManager.get_user(operatore_id)
+                operatore_name = operatore_user.get('name') if operatore_user else operatore_id
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=operatore_name,
+                    action='COMPLETE_PHASE',
+                    entity_type='phase',
+                    entity_id=order_id,
+                    detail=f"Phase: {phase}, Articles: {article_indices}",
+                    ip_address=request.remote_addr
+                )
+
             # Recupera dettagli aggiornati
             details = OrderManager.get_order_details(order_id)
             return jsonify({
@@ -185,9 +350,9 @@ def complete_phase_partial(order_id, phase):
                 'phase_complete': result.get('phase_complete'),
                 'order_details': details
             }), 200
-        
+
         return jsonify(result), 400
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -219,6 +384,72 @@ def get_orders_by_phase(phase):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ============ API ADMIN ============
+
+@app.route('/api/admin/kpi', methods=['GET'])
+def get_admin_kpi():
+    """Recupera KPI sistema per admin dashboard"""
+    try:
+        # Ordini attivi (non SPEDITO)
+        all_orders = OrderManager.get_all_orders_dict()
+        active_orders = [o for o in all_orders if o.get('status') != 'SPEDITO']
+        ordini_attivi = len(active_orders)
+
+        # KPI operai
+        kpi_operai = AuditManager.get_kpi_operai()
+
+        # Calcola login oggi
+        from datetime import datetime as dt
+        today = dt.now().date()
+        audit_logs = AuditManager.get_recent(limit=1000)
+        login_oggi = len([
+            log for log in audit_logs
+            if log['action'] == 'LOGIN' and dt.fromisoformat(log['timestamp']).date() == today
+        ])
+
+        # Calcola efficienza: ordini completati on-time vs totali
+        completed_orders = [o for o in all_orders if o.get('status') == 'SPEDITO']
+        if completed_orders:
+            on_time = sum(1 for o in completed_orders if o.get('data_consegna') and dt.fromisoformat(o['data_consegna']).date() >= today)
+            efficienza = int((on_time / len(completed_orders)) * 100)
+        else:
+            efficienza = 0
+
+        # Ritardi: ordini scaduti non completati
+        ritardi = sum(1 for o in active_orders if o.get('data_consegna') and dt.fromisoformat(o['data_consegna']).date() < today)
+
+        return jsonify({
+            'success': True,
+            'kpi_globali': {
+                'ordini_attivi': ordini_attivi,
+                'login_oggi': login_oggi,
+                'efficienza': efficienza,
+                'ritardi': ritardi
+            },
+            'kpi_operai': kpi_operai
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/admin/audit-log', methods=['GET'])
+def get_admin_audit_log():
+    """Recupera log di audit per admin dashboard"""
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        user_id = request.args.get('user_id', None)
+
+        audit_logs = AuditManager.get_recent(limit=limit, user_id=user_id)
+
+        return jsonify({
+            'success': True,
+            'audit_logs': audit_logs,
+            'count': len(audit_logs)
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 # ============ API FILE ============
 
