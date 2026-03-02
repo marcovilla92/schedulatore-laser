@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS — FerroTrack Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; }
+
+:root {
+  /* LS Brand Colors */
+  --ls-green: #1a7a48;
+  --ls-green-light: #22a060;
+  --ls-gray: #c8c2b8;
+  --ls-gray-light: #e2ddd5;
+  --ls-gray-dark: #9c9488;
+
+  /* Background */
+  --bg-dark: #0f0f0f;
+  --bg-light: #fafafa;
+
+  /* Text */
+  --text-primary: #000000;
+  --text-secondary: #666666;
+
+  /* Accents */
+  --accent: var(--ls-green);
+  --accent-secondary: var(--ls-gray);
+
+  /* Borders & Shadows */
+  --border: #e5e5e5;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-light);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* ── BARCODE PATTERN BACKGROUND ── */
+.barcode-pattern {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+}
+
+.barcode-pattern svg {
+  width: 100%;
+  height: 100%;
+  filter: repeat(100px);
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: var(--bg-light);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  background: rgba(250,250,250,0.95);
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+  font-family: 'Geist', sans-serif;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo-main {
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.logo-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.status-bar {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: var(--bg-dark);
+  color: var(--bg-light);
+  cursor: pointer;
+  transition: transform 0.2s;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.user-profile:hover {
+  transform: translateY(-2px);
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--ls-gray-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── MAIN CONTAINER ── */
+.main-container {
+  position: fixed;
+  top: 72px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background: var(--bg-dark);
+  color: var(--bg-light);
+  padding: 48px 24px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.nav-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-bottom: 8px;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--bg-light);
+  transform: translateX(8px);
+}
+
+.nav-item.active {
+  background: var(--accent);
+  color: var(--bg-light);
+  font-weight: 600;
+}
+
+/* ── CONTENT AREA ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  background: var(--bg-light);
+}
+
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.hero {
+  min-height: 100vh;
+  padding: 80px 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 60% 40%, rgba(26, 122, 72, 0.08) 0%, transparent 50%);
+  animation: float 20s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -30px); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+}
+
+.hero-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
+}
+
+.hero-logo-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--ls-green-light));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: -1px;
+}
+
+.hero-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-logo-main {
+  font-family: 'Geist', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.hero-logo-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.hero-label {
+  font-family: 'Geist', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 24px;
+  letter-spacing: -1px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+}
+
+.hero-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 48px;
+  max-width: 600px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+  font-weight: 400;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 16px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both;
+}
+
+.btn {
+  padding: 16px 32px;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  letter-spacing: 0px;
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 8px 24px rgba(26, 122, 72, 0.3);
+}
+
+.btn.primary:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(26, 122, 72, 0.4);
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--accent);
+}
+
+.btn.secondary:hover {
+  background: var(--accent);
+  color: white;
+  transform: translateY(-4px);
+}
+
+/* ── SECTIONS ── */
+.section {
+  padding: 80px 64px;
+  min-height: auto;
+}
+
+.section-label {
+  font-family: 'Geist', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1.15;
+  margin-bottom: 64px;
+  letter-spacing: -0.5px;
+}
+
+/* ── KPI GRID ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 32px;
+  margin-bottom: 80px;
+}
+
+.kpi-card {
+  padding: 40px 32px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-light);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.kpi-card:hover::before {
+  opacity: 1;
+}
+
+.kpi-card:hover {
+  transform: translateY(-12px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
+}
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.kpi-label {
+  font-family: 'Geist', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.kpi-change {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0px;
+}
+
+.kpi-change.up { color: var(--accent); }
+.kpi-change.down { color: #ef4444; }
+.kpi-change.flat { color: var(--text-secondary); }
+
+.kpi-chart {
+  height: 80px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.kpi-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.kpi-value {
+  font-family: 'Geist', sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.kpi-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ── MACHINE GRID ── */
+.machine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  margin-bottom: 80px;
+}
+
+.machine-card {
+  padding: 40px 32px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-light);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.machine-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--status-color, var(--text-secondary));
+  transition: background 0.4s;
+}
+
+.machine-card:hover {
+  transform: translateY(-12px);
+  border-color: var(--status-color, var(--accent));
+  box-shadow: var(--shadow-lg);
+}
+
+.machine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.machine-name {
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.machine-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-color, #999);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.machine-operator {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+.machine-gauge {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.machine-gauge-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--status-color), var(--accent));
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: width;
+}
+
+.machine-percent {
+  font-family: 'Geist', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--status-color);
+}
+
+/* ── FOOTER ── */
+.footer-section {
+  padding: 80px 64px;
+  background: linear-gradient(135deg, var(--bg-dark), #1a1a1a);
+  color: var(--bg-light);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.footer-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(26, 122, 72, 0.1), transparent);
+  pointer-events: none;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-logo-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--accent), var(--ls-green-light));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 24px;
+}
+
+.footer-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-logo-main {
+  font-family: 'Geist', sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.footer-logo-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ls-green-light);
+}
+
+.footer-label {
+  font-family: 'Geist', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ls-green-light);
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 32px;
+  letter-spacing: -0.5px;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-description {
+  font-size: 15px;
+  color: rgba(255,255,255,0.6);
+  max-width: 600px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
+  font-weight: 400;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-cta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 80px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .topbar { padding: 0 32px; }
+  .sidebar { width: 200px; }
+  .hero { padding: 60px 32px; }
+  .section { padding: 60px 32px; }
+  .hero-title { font-size: 48px; }
+  .section-title { font-size: 36px; }
+}
+
+@media (max-width: 640px) {
+  .topbar { padding: 0 20px; height: 64px; }
+  .sidebar { width: 100%; }
+  .main-container { flex-direction: column; }
+  .sidebar { max-height: 200px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .content { flex: 1; }
+  .hero { padding: 40px 20px; min-height: auto; }
+  .hero-title { font-size: 36px; }
+  .section { padding: 40px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- BARCODE PATTERN -->
+<div class="barcode-pattern">
+  <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+    <rect x="10" y="10" width="3" height="80" fill="currentColor"/>
+    <rect x="16" y="10" width="4" height="80" fill="currentColor"/>
+    <rect x="23" y="10" width="3" height="80" fill="currentColor"/>
+    <rect x="29" y="10" width="4" height="80" fill="currentColor"/>
+    <rect x="36" y="10" width="2" height="80" fill="currentColor"/>
+    <rect x="41" y="10" width="2" height="80" fill="currentColor"/>
+    <rect x="46" y="10" width="3" height="80" fill="currentColor"/>
+    <rect x="52" y="30" width="2" height="60" fill="currentColor"/>
+    <rect x="57" y="20" width="3" height="70" fill="currentColor"/>
+    <rect x="63" y="10" width="2" height="80" fill="currentColor"/>
+    <rect x="68" y="25" width="3" height="65" fill="currentColor"/>
+    <rect x="74" y="10" width="4" height="80" fill="currentColor"/>
+    <rect x="81" y="10" width="3" height="80" fill="currentColor"/>
+  </svg>
+</div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo-section">
+    <div class="logo-icon">LS</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS s.r.l.</div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot"></div>
+      Impianto Attivo
+    </div>
+    <div class="status-item" id="clock">--:--:--</div>
+    <div class="user-profile">
+      <div class="user-avatar">LV</div>
+      <span>Luigi Verdi</span>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="main-container">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div>
+      <div class="nav-title">Dashboard</div>
+      <div class="nav-item active">📊 Overview</div>
+      <div class="nav-item">📋 Supervisione</div>
+      <div class="nav-item">👷 Lavorazione</div>
+      <div class="nav-item">🗄 Archivio</div>
+
+      <div class="nav-title" style="margin-top: 48px;">Macchine</div>
+      <div class="nav-item">⚙️ CNC 01</div>
+      <div class="nav-item">🔥 Saldatrice</div>
+      <div class="nav-item">🔩 Piegatrice</div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-logo">
+          <div class="hero-logo-icon">LS</div>
+          <div class="hero-logo-text">
+            <div class="hero-logo-main">LS s.r.l.</div>
+            <div class="hero-logo-sub">Manufacturing Excellence</div>
+          </div>
+        </div>
+        <span class="hero-label">FerroTrack Dashboard</span>
+        <h1 class="hero-title">Gestisci in Tempo Reale</h1>
+        <p class="hero-subtitle">Monitorizza gli ordini, visualizza lo stato delle macchine e ottimizza i tempi di produzione con un'interfaccia minimalista e intuitiva.</p>
+        <div class="hero-cta">
+          <button class="btn primary">Carica Ordine</button>
+          <button class="btn secondary">Visualizza Report</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI SECTION -->
+    <section class="section">
+      <span class="section-label">Metriche Chiave</span>
+      <h2 class="section-title">KPI di Questa Settimana</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-label">Ordini Attivi</div>
+            <div class="kpi-change up">↑ +3</div>
+          </div>
+          <div class="kpi-chart">
+            <svg viewBox="0 0 280 80" style="width: 100%; height: 100%;">
+              <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style="stop-color:#1a7a48;stop-opacity:0.3" />
+                  <stop offset="100%" style="stop-color:#1a7a48;stop-opacity:0" />
+                </linearGradient>
+              </defs>
+              <polyline points="10,50 40,40 70,35 100,30 130,28 160,32 190,25 220,20 250,18 270,22" style="fill:none;stroke:#1a7a48;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+              <polygon points="10,50 40,40 70,35 100,30 130,28 160,32 190,25 220,20 250,18 270,22 270,80 10,80" style="fill:url(#grad1)"/>
+            </svg>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-value">18</span>
+            <span class="kpi-unit">ordini</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-label">Pezzi Completati</div>
+            <div class="kpi-change up">↑ +12%</div>
+          </div>
+          <div class="kpi-chart">
+            <svg viewBox="0 0 280 80" style="width: 100%; height: 100%;">
+              <defs>
+                <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style="stop-color:#22a060;stop-opacity:0.3" />
+                  <stop offset="100%" style="stop-color:#22a060;stop-opacity:0" />
+                </linearGradient>
+              </defs>
+              <polyline points="10,60 40,45 70,35 100,25 130,20 160,15 190,12 220,10 250,8 270,5" style="fill:none;stroke:#22a060;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+              <polygon points="10,60 40,45 70,35 100,25 130,20 160,15 190,12 220,10 250,8 270,5 270,80 10,80" style="fill:url(#grad2)"/>
+            </svg>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-value">247</span>
+            <span class="kpi-unit">pezzi</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-label">Ritardi Critici</div>
+            <div class="kpi-change down">↓ -1</div>
+          </div>
+          <div class="kpi-chart">
+            <svg viewBox="0 0 280 80" style="width: 100%; height: 100%;">
+              <defs>
+                <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.3" />
+                  <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0" />
+                </linearGradient>
+              </defs>
+              <polyline points="10,20 40,35 70,45 100,55 130,58 160,52 190,48 220,42 250,38 270,35" style="fill:none;stroke:#ef4444;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>
+              <polygon points="10,20 40,35 70,45 100,55 130,58 160,52 190,48 220,42 250,38 270,35 270,80 10,80" style="fill:url(#grad3)"/>
+            </svg>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-value">4</span>
+            <span class="kpi-unit">ordini</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-label">Efficienza</div>
+            <div class="kpi-change up">↑ +2%</div>
+          </div>
+          <div class="kpi-chart">
+            <svg viewBox="0 0 280 80" style="width: 100%; height: 100%;">
+              <rect x="20" y="50" width="20" height="30" fill="#1a7a48" opacity="0.6" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.2s both"/>
+              <rect x="50" y="40" width="20" height="40" fill="#1a7a48" opacity="0.7" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.3s both"/>
+              <rect x="80" y="30" width="20" height="50" fill="#1a7a48" opacity="0.8" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.4s both"/>
+              <rect x="110" y="20" width="20" height="60" fill="#1a7a48" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.5s both"/>
+              <rect x="140" y="25" width="20" height="55" fill="#1a7a48" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.6s both"/>
+              <rect x="170" y="15" width="20" height="65" fill="#1a7a48" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.7s both"/>
+              <rect x="200" y="10" width="20" height="70" fill="#1a7a48" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.8s both"/>
+              <rect x="230" y="5" width="20" height="75" fill="#1a7a48" style="animation: grow 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.9s both"/>
+            </svg>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-value">83</span>
+            <span class="kpi-unit">%</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-label">Tempo Medio</div>
+            <div class="kpi-change flat">→ Stabile</div>
+          </div>
+          <div class="kpi-chart">
+            <svg viewBox="0 0 280 80" style="width: 100%; height: 100%;">
+              <circle cx="140" cy="40" r="35" fill="none" stroke="#e5e5e5" stroke-width="4"/>
+              <circle cx="140" cy="40" r="35" fill="none" stroke="#1a7a48" stroke-width="4" stroke-dasharray="110 220" stroke-linecap="round" style="animation: spin 2s cubic-bezier(0.34,1.56,0.64,1) 0.3s both"/>
+            </svg>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-value">3h</span>
+            <span class="kpi-unit">24m</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MACHINE STATUS -->
+    <section class="section">
+      <span class="section-label">Stato Impianti</span>
+      <h2 class="section-title">Macchine di Produzione</h2>
+
+      <div class="machine-grid">
+        <div class="machine-card" style="--status-color: #22a060;">
+          <div class="machine-header">
+            <div class="machine-name">CNC 01 — Okuma</div>
+            <div class="machine-status"><div class="status-indicator"></div>Attiva</div>
+          </div>
+          <div class="machine-operator">Luigi Verdi</div>
+          <div class="machine-gauge"><div class="machine-gauge-fill" style="width: 87%;"></div></div>
+          <div class="machine-percent">87%</div>
+        </div>
+
+        <div class="machine-card" style="--status-color: #ef4444;">
+          <div class="machine-header">
+            <div class="machine-name">CNC 02 — Fanuc</div>
+            <div class="machine-status"><div class="status-indicator"></div>Guasto</div>
+          </div>
+          <div class="machine-operator">Encoder bloccato</div>
+          <div class="machine-gauge"><div class="machine-gauge-fill" style="width: 0%; background: #ef4444;"></div></div>
+          <div class="machine-percent">0%</div>
+        </div>
+
+        <div class="machine-card" style="--status-color: #22a060;">
+          <div class="machine-header">
+            <div class="machine-name">Saldatrice MIG-1</div>
+            <div class="machine-status"><div class="status-indicator"></div>Attiva</div>
+          </div>
+          <div class="machine-operator">Andrea Bianchi</div>
+          <div class="machine-gauge"><div class="machine-gauge-fill" style="width: 92%;"></div></div>
+          <div class="machine-percent">92%</div>
+        </div>
+
+        <div class="machine-card" style="--status-color: #f59e0b;">
+          <div class="machine-header">
+            <div class="machine-name">Piegatrice CLP-80</div>
+            <div class="machine-status"><div class="status-indicator"></div>Setup</div>
+          </div>
+          <div class="machine-operator">Setup in corso</div>
+          <div class="machine-gauge"><div class="machine-gauge-fill" style="width: 30%;"></div></div>
+          <div class="machine-percent">30%</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <section class="footer-section">
+      <div class="footer-logo">
+        <div class="footer-logo-icon">LS</div>
+        <div class="footer-logo-text">
+          <div class="footer-logo-main">LS s.r.l.</div>
+          <div class="footer-logo-sub">Manufacturing Excellence</div>
+        </div>
+      </div>
+      <span class="footer-label">Gestione della Produzione</span>
+      <h2 class="footer-title">FerroTrack v1.0</h2>
+      <p class="footer-description">Il sistema di gestione della produzione di LS s.r.l. — designed per efficienza, monitoraggio in tempo reale e controllo totale della lavorazione.</p>
+      <div class="footer-cta">
+        <button class="btn primary">Accedi al Dashboard</button>
+        <button class="btn secondary">Documentazione</button>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+
+<style>
+@keyframes grow {
+  from { height: 0; y: 80; }
+  to { height: var(--final-height); }
+}
+@keyframes spin {
+  from { stroke-dashoffset: 220; }
+  to { stroke-dashoffset: 0; }
+}
+</style>
+
+<script>
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('it-IT');
+}, 1000);
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>

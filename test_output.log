@@ -1,0 +1,33 @@
+
+[TEST] Starting Modifica Dati workflow test...
+
+[STEP 1] Logging in as Giulia Gallo (impiegata)...
+[OK] Logged in as Giulia Gallo
+
+[STEP 2] Clicking 'Nuovo Ordine' button...
+[OK] Navigated to carica-ordine.html
+
+[STEP 3] Uploading PDF...
+[OK] PDF uploaded
+
+[STEP 4] Checking if Modifica Dati form appeared...
+[OK] Modifica Dati form is visible
+
+[STEP 5] Editing Cliente field...
+[INFO] Current cliente value: DECA S.r.l.
+[OK] Cliente field updated to 'ACME Corporation - MODIFIED'
+
+[STEP 6] Editing Numero Ordine field...
+[INFO] Current numero value: A000125
+[OK] Numero Ordine field updated to 'TEST-2026-999'
+
+[STEP 7] Testing Aggiungi Articolo button...
+[INFO] Skipping manual articolo addition (requires prompt)
+
+[STEP 8] Clicking 'Salva Modifiche' button...
+[OK] Changes saved
+
+[STEP 9] Confirming order...
+[OK] Order confirmed
+
+[SUCCESS] Modifica Dati workflow test completed!

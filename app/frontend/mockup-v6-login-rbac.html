@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; }
+
+:root {
+  --ls-green: #1a7a48;
+  --ls-green-light: #22a060;
+  --ls-gray: #c8c2b8;
+  --ls-gray-light: #e2ddd5;
+  --bg-light: #fafafa;
+  --text-primary: #000000;
+  --text-secondary: #666666;
+  --border: #e5e5e5;
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── LOGIN PAGE ── */
+.login-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.login-left {
+  flex: 1;
+  background: linear-gradient(135deg, var(--ls-green) 0%, #0f5c35 100%);
+  color: white;
+  padding: 80px 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-left::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  animation: float 20s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -30px); }
+}
+
+.login-left-content {
+  position: relative;
+  z-index: 1;
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.login-logo-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 32px;
+}
+
+.login-logo-text h1 {
+  font-family: 'Geist', sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.login-logo-text p {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.login-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  letter-spacing: -1px;
+}
+
+.login-subtitle {
+  font-size: 16px;
+  line-height: 1.6;
+  opacity: 0.9;
+  margin-bottom: 48px;
+  max-width: 400px;
+}
+
+.login-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.feature-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.login-right {
+  flex: 1;
+  padding: 80px 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-form h2 {
+  font-family: 'Geist', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.login-form p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--ls-green);
+  box-shadow: 0 0 0 3px rgba(26, 122, 72, 0.1);
+}
+
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--ls-green);
+  box-shadow: 0 0 0 3px rgba(26, 122, 72, 0.1);
+}
+
+.btn-login {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--ls-green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  letter-spacing: 0.5px;
+  will-change: transform, box-shadow;
+}
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26, 122, 72, 0.3);
+}
+
+.btn-login:active {
+  transform: scale(0.98);
+}
+
+.demo-users {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.demo-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.demo-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn-demo {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-demo:hover {
+  background: var(--ls-gray-light);
+  border-color: var(--ls-green);
+}
+
+/* ── DASHBOARD HIDDEN ── */
+.dashboard {
+  display: none;
+}
+
+.dashboard.active {
+  display: flex;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo-main {
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.logo-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ls-green);
+}
+
+.status-bar {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ls-green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: var(--ls-gray-light);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+}
+
+.user-profile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-role {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 180px;
+  margin-top: 8px;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  flex-direction: column;
+  z-index: 1001;
+}
+
+.user-dropdown.active {
+  display: flex;
+}
+
+.dropdown-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background: var(--ls-gray-light);
+}
+
+.dropdown-item.logout {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* ── DASHBOARD LAYOUT ── */
+.dashboard-container {
+  position: fixed;
+  top: 72px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background: #0f0f0f;
+  color: white;
+  padding: 48px 24px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.nav-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  transform: translateX(8px);
+}
+
+.nav-item.active {
+  background: var(--ls-green);
+  color: white;
+  font-weight: 600;
+}
+
+.nav-item.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-light);
+  padding: 48px 64px;
+}
+
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); }
+
+.screen {
+  display: none;
+}
+
+.screen.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.section-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  margin-bottom: 32px;
+  letter-spacing: -0.5px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(26, 122, 72, 0.1);
+  color: var(--ls-green);
+  margin-bottom: 16px;
+}
+
+.access-denied {
+  padding: 32px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.access-denied h3 {
+  font-family: 'Geist', sans-serif;
+  font-size: 20px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .login-left { padding: 60px 40px; }
+  .login-right { padding: 60px 40px; }
+  .content { padding: 32px; }
+}
+
+@media (max-width: 768px) {
+  .login-container { flex-direction: column; }
+  .login-left { padding: 40px 24px; min-height: 50vh; }
+  .login-right { padding: 40px 24px; min-height: 50vh; }
+  .login-title { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div class="login-container" id="loginPage">
+  <div class="login-left">
+    <div class="login-left-content">
+      <div class="login-logo">
+        <div class="login-logo-icon">LS</div>
+        <div class="login-logo-text">
+          <h1>FerroTrack</h1>
+          <p>LS s.r.l.</p>
+        </div>
+      </div>
+
+      <h2 class="login-title">Gestione della Produzione</h2>
+      <p class="login-subtitle">Sistema integrato per il controllo in tempo reale di ordini, macchine e operai nelle fasi di produzione.</p>
+
+      <div class="login-features">
+        <div class="feature">
+          <div class="feature-icon">✓</div>
+          <span>Monitoring real-time di ordini e macchine</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✓</div>
+          <span>Accesso basato su ruolo e autorizzazioni</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✓</div>
+          <span>Dashboard personalizzato per ogni operaio</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✓</div>
+          <span>Tracciamento completo delle fasi di lavorazione</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-right">
+    <form class="login-form" id="loginForm">
+      <h2>Login</h2>
+      <p>Accedi con il tuo account di operaio</p>
+
+      <div class="form-group">
+        <label class="form-label">Seleziona Operaio</label>
+        <select class="form-select" id="operatorSelect" required>
+          <option value="">-- Scegli un operaio --</option>
+          <option value="luigi-laser">Luigi Verdi - Operaio Laser</option>
+          <option value="andrea-saldatura">Andrea Bianchi - Operaio Saldatura</option>
+          <option value="sara-piega">Sara Neri - Operaio Piega</option>
+          <option value="marco-admin">Marco Rossi - Supervisore</option>
+          <option value="admin">Admin - Amministratore</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password (Demo)</label>
+        <input type="password" class="form-input" id="passwordInput" placeholder="••••••••" required>
+      </div>
+
+      <button type="submit" class="btn-login">Accedi al Dashboard</button>
+
+      <div class="demo-users">
+        <div class="demo-title">Quick Login (Demo)</div>
+        <div class="demo-buttons">
+          <button type="button" class="btn-demo" onclick="quickLogin('luigi-laser')">Luigi (Laser)</button>
+          <button type="button" class="btn-demo" onclick="quickLogin('andrea-saldatura')">Andrea (Saldatura)</button>
+          <button type="button" class="btn-demo" onclick="quickLogin('sara-piega')">Sara (Piega)</button>
+          <button type="button" class="btn-demo" onclick="quickLogin('marco-admin')">Marco (Supervisore)</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD PAGE -->
+<div class="dashboard" id="dashboard">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="logo-section">
+      <div class="logo-icon">LS</div>
+      <div class="logo-text">
+        <div class="logo-main">FerroTrack</div>
+        <div class="logo-sub">LS s.r.l.</div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="status-dot"></div>
+        Impianto Attivo
+      </div>
+      <div class="status-item" id="clock">--:--:--</div>
+      <div class="user-menu">
+        <div class="user-profile" onclick="toggleUserDropdown()">
+          <div class="user-avatar" id="userInitials">--</div>
+          <div class="user-info">
+            <div class="user-name" id="userName">Nome Operaio</div>
+            <div class="user-role" id="userRole">Ruolo</div>
+          </div>
+        </div>
+        <div class="user-dropdown" id="userDropdown">
+          <div class="dropdown-item" onclick="openProfile()">Profilo</div>
+          <div class="dropdown-item" onclick="logout()" style="color: #ef4444;">Logout</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- DASHBOARD LAYOUT -->
+  <div class="dashboard-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div>
+        <div class="nav-title">Dashboard</div>
+        <div class="nav-item active" onclick="switchScreen('overview')">📊 Overview</div>
+        <div class="nav-item" id="navSupervisione" onclick="switchScreen('supervisione')">📋 Supervisione</div>
+        <div class="nav-item" onclick="switchScreen('lavorazione')">👷 Lavorazione</div>
+        <div class="nav-item" id="navArchivio" onclick="switchScreen('archive')">🗄 Archivio</div>
+
+        <div class="nav-title" style="margin-top: 48px;">Mie Macchine</div>
+        <div class="nav-item" id="mioMachines">Caricamento...</div>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <!-- Overview Screen -->
+      <div class="screen active" id="screen-overview">
+        <div class="role-badge" id="roleBadge">OPERAIO</div>
+        <h1 class="section-title">Dashboard Personale</h1>
+        <p>Benvenuto! Visualizzi i dati in base al tuo ruolo e autorizzazioni.</p>
+        <div style="margin-top: 32px; padding: 24px; border: 1px solid #e5e5e5; border-radius: 12px; background: #f9f9f9;">
+          <h3 style="margin-bottom: 16px; font-family: 'Geist', sans-serif; font-weight: 700;">Info Sessione</h3>
+          <p><strong>Operaio:</strong> <span id="infoName">--</span></p>
+          <p><strong>Ruolo:</strong> <span id="infoRole">--</span></p>
+          <p><strong>Macchine Assegnate:</strong> <span id="infoMachines">--</span></p>
+          <p><strong>Autorizzazioni:</strong> <span id="infoPermissions">--</span></p>
+        </div>
+      </div>
+
+      <!-- Supervisione Screen -->
+      <div class="screen" id="screen-supervisione">
+        <div class="role-badge">SUPERVISORE</div>
+        <h1 class="section-title">Supervisione Ordini</h1>
+        <div class="access-denied" id="supervisioneContent">
+          <h3>Accesso Negato</h3>
+          <p>Solo supervisori e amministratori possono accedere a questa sezione.</p>
+        </div>
+      </div>
+
+      <!-- Lavorazione Screen -->
+      <div class="screen" id="screen-lavorazione">
+        <div class="role-badge">OPERAIO</div>
+        <h1 class="section-title">La Mia Lavorazione</h1>
+        <div id="lavorazioneContent">
+          <p>Caricamento dati...</p>
+        </div>
+      </div>
+
+      <!-- Archive Screen -->
+      <div class="screen" id="screen-archive">
+        <div class="role-badge">ARCHIVIO</div>
+        <h1 class="section-title">Archivio Ordini</h1>
+        <div class="access-denied" id="archiveContent">
+          <h3>Accesso Negato</h3>
+          <p>Solo supervisori e amministratori possono accedere all'archivio.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── USERS DATABASE ──
+const users = {
+  'luigi-laser': {
+    name: 'Luigi Verdi',
+    role: 'Operaio Laser',
+    initials: 'LV',
+    machines: ['CNC 01', 'Laser CO₂'],
+    permissions: ['overview', 'lavorazione'],
+    phase: 'LASER'
+  },
+  'andrea-saldatura': {
+    name: 'Andrea Bianchi',
+    role: 'Operaio Saldatura',
+    initials: 'AB',
+    machines: ['Saldatrice MIG-1', 'Saldatrice TIG'],
+    permissions: ['overview', 'lavorazione'],
+    phase: 'SALDATURA'
+  },
+  'sara-piega': {
+    name: 'Sara Neri',
+    role: 'Operaio Piega',
+    initials: 'SN',
+    machines: ['Piegatrice CLP-80', 'Piegatrice Idraulica'],
+    permissions: ['overview', 'lavorazione'],
+    phase: 'PIEGA'
+  },
+  'marco-admin': {
+    name: 'Marco Rossi',
+    role: 'Supervisore',
+    initials: 'MR',
+    machines: ['Tutte'],
+    permissions: ['overview', 'supervisione', 'lavorazione', 'archive'],
+    phase: 'ALL'
+  },
+  'admin': {
+    name: 'Amministratore',
+    role: 'Amministratore',
+    initials: 'AD',
+    machines: ['Tutte'],
+    permissions: ['overview', 'supervisione', 'lavorazione', 'archive'],
+    phase: 'ALL'
+  }
+};
+
+let currentUser = null;
+
+// ── LOGIN HANDLER ──
+document.getElementById('loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const userId = document.getElementById('operatorSelect').value;
+  if (users[userId]) {
+    loginUser(userId);
+  }
+});
+
+function quickLogin(userId) {
+  loginUser(userId);
+}
+
+function loginUser(userId) {
+  currentUser = { id: userId, ...users[userId] };
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+  // Hide login, show dashboard
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('dashboard').classList.add('active');
+
+  // Update UI
+  updateDashboardUI();
+  updatePermissions();
+
+  // Update clock
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+
+  document.getElementById('dashboard').classList.remove('active');
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginForm').reset();
+
+  toggleUserDropdown(); // Close dropdown
+}
+
+function updateDashboardUI() {
+  document.getElementById('userInitials').textContent = currentUser.initials;
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userRole').textContent = currentUser.role;
+
+  document.getElementById('infoName').textContent = currentUser.name;
+  document.getElementById('infoRole').textContent = currentUser.role;
+  document.getElementById('infoMachines').textContent = currentUser.machines.join(', ');
+  document.getElementById('infoPermissions').textContent = currentUser.permissions.join(', ');
+
+  // Update role badge
+  document.getElementById('roleBadge').textContent = currentUser.role.toUpperCase();
+
+  // Update sidebar
+  if (currentUser.machines.length > 0 && currentUser.machines[0] !== 'Tutte') {
+    document.getElementById('mioMachines').textContent = currentUser.machines[0];
+  } else {
+    document.getElementById('mioMachines').textContent = '⚙️ Tutte le Macchine';
+  }
+}
+
+function updatePermissions() {
+  // Supervisione
+  if (currentUser.permissions.includes('supervisione')) {
+    document.getElementById('navSupervisione').classList.remove('disabled');
+    document.getElementById('supervisioneContent').innerHTML = `
+      <h3>Supervisione Ordini</h3>
+      <p>Visualizzi tutti gli ordini e macchine del sistema.</p>
+      <p style="margin-top: 16px;"><strong>Ordini Attivi:</strong> 18</p>
+      <p><strong>Macchine in Uso:</strong> ${currentUser.machines.join(', ')}</p>
+    `;
+  } else {
+    document.getElementById('navSupervisione').classList.add('disabled');
+  }
+
+  // Archive
+  if (currentUser.permissions.includes('archive')) {
+    document.getElementById('navArchivio').classList.remove('disabled');
+    document.getElementById('archiveContent').innerHTML = `
+      <h3>Archivio Ordini</h3>
+      <p>Visualizzi lo storico di tutti gli ordini completati.</p>
+      <p style="margin-top: 16px;"><strong>Ordini Completati (2026):</strong> 142</p>
+    `;
+  } else {
+    document.getElementById('navArchivio').classList.add('disabled');
+  }
+
+  // Lavorazione
+  if (currentUser.phase === 'LASER') {
+    document.getElementById('lavorazioneContent').innerHTML = `
+      <p><strong>Fase:</strong> Laser Cutting</p>
+      <p>Ordini in attesa di taglio laser: 5</p>
+      <p><strong>Macchine assegnate:</strong> ${currentUser.machines.join(', ')}</p>
+    `;
+  } else if (currentUser.phase === 'SALDATURA') {
+    document.getElementById('lavorazioneContent').innerHTML = `
+      <p><strong>Fase:</strong> Saldatura</p>
+      <p>Ordini in attesa di saldatura: 3</p>
+      <p><strong>Macchine assegnate:</strong> ${currentUser.machines.join(', ')}</p>
+    `;
+  } else if (currentUser.phase === 'PIEGA') {
+    document.getElementById('lavorazioneContent').innerHTML = `
+      <p><strong>Fase:</strong> Piega</p>
+      <p>Ordini in attesa di piega: 4</p>
+      <p><strong>Macchine assegnate:</strong> ${currentUser.machines.join(', ')}</p>
+    `;
+  } else if (currentUser.phase === 'ALL') {
+    document.getElementById('lavorazioneContent').innerHTML = `
+      <p><strong>Ruolo Supervisore:</strong> Visualizzi tutte le fasi di lavorazione</p>
+      <p><strong>Ordini Attivi:</strong> 18 (distribuiti tra tutte le fasi)</p>
+      <p><strong>Macchine Totali:</strong> 6</p>
+    `;
+  }
+}
+
+function switchScreen(screenId) {
+  // Check permission
+  if (!currentUser.permissions.includes(screenId)) {
+    alert('Non hai i permessi per accedere a questa sezione.');
+    return;
+  }
+
+  // Hide all screens
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+  // Show selected screen
+  document.getElementById(`screen-${screenId}`).classList.add('active');
+
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  event.target.closest('.nav-item').classList.add('active');
+}
+
+function toggleUserDropdown() {
+  document.getElementById('userDropdown').classList.toggle('active');
+}
+
+function openProfile() {
+  alert(`Profilo: ${currentUser.name}\nRuolo: ${currentUser.role}`);
+  toggleUserDropdown();
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('it-IT');
+}
+
+// Check if user is already logged in
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('currentUser');
+  if (saved) {
+    currentUser = JSON.parse(saved);
+    loginUser(currentUser.id);
+  }
+});
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.user-menu')) {
+    document.getElementById('userDropdown').classList.remove('active');
+  }
+});
+</script>
+
+</body>
+</html>

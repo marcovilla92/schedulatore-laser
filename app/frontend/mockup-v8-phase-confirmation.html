@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LS FerroTrack — Carica Ordine</title>
+<title>LS FerroTrack — Conferma Fasi Ordine</title>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -538,12 +538,12 @@ button.primary:disabled {
 
   <!-- BREADCRUMB -->
   <div class="breadcrumb">
-    <span>Caricamento Ordine</span>
+    <span>Caricamento Ordine</span> / <span>Conferma Fasi</span> / Workflow
   </div>
 
   <!-- TITLE -->
-  <h1>Carica Ordine</h1>
-  <p class="subtitle">Carica PDF e disegni tecnici. Le fasi verranno confermate dal capo produzione.</p>
+  <h1>Conferma Fasi Ordine</h1>
+  <p class="subtitle">Carica i file e seleziona le fasi richieste per questo ordine</p>
 
   <!-- STEPS INDICATOR -->
   <div class="steps-indicator">
@@ -581,13 +581,13 @@ button.primary:disabled {
           <div class="upload-subtext">Clicca per cambiare</div>
           <input type="file" id="pdf-input" accept=".pdf">
         </div>
-        <div class="file-info uploaded" id="pdf-info" style="display: none;">
+        <div class="file-info uploaded">
           <div class="file-info-icon">✓</div>
           <div class="file-info-text">
-            <strong id="pdf-filename">file.pdf</strong>
-            <br><small id="pdf-size">0 MB</small>
+            <strong>OR-2024-001_DIVISIONE_CUCINE.pdf</strong>
+            <br><small>2.4 MB • Caricato correttamente</small>
           </div>
-          <div class="file-info-action" onclick="document.getElementById('pdf-input').click()">Cambia</div>
+          <div class="file-info-action" onclick="alert('Cambia file')">Cambia</div>
         </div>
       </div>
 
@@ -598,12 +598,17 @@ button.primary:disabled {
         </label>
         <div class="upload-area" id="dxf-upload-area" onclick="document.getElementById('dxf-input').click()">
           <div class="upload-icon">📐</div>
-          <div class="upload-text">Trascina file DXF</div>
-          <div class="upload-subtext">oppure clicca per selezionare (multipli file OK)</div>
-          <input type="file" id="dxf-input" accept=".dxf,.dwg" multiple>
+          <div class="upload-text">Trascina qui il file DXF</div>
+          <div class="upload-subtext">oppure clicca per selezionare</div>
+          <input type="file" id="dxf-input" accept=".dxf,.dwg">
         </div>
-        <div style="margin-top: 16px;" id="dxf-files-list">
-          <!-- File list will be populated here -->
+        <div class="file-info" style="display: none; margin-top: 16px;" id="dxf-info">
+          <div class="file-info-icon">✓</div>
+          <div class="file-info-text">
+            <strong id="dxf-filename">file.dxf</strong>
+            <br><small id="dxf-size">1.2 MB</small>
+          </div>
+          <div class="file-info-action" onclick="clearDXF()">Rimuovi</div>
         </div>
       </div>
     </div>
@@ -618,7 +623,7 @@ button.primary:disabled {
       </div>
 
       <div class="preview-content" id="pdf-preview">
-        <iframe id="pdf-iframe" style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 297'%3E%3Crect fill='white' width='210' height='297'/%3E%3Ctext x='20' y='40' font-size='16' font-weight='bold'%3EDIVISIONE CUCINE%3C/text%3E%3Ctext x='20' y='70' font-size='12'%3EOrdine: OR-2024-001%3C/text%3E%3Ctext x='20' y='100' font-size='11'%3EArticoli:%3C/text%3E%3Ctext x='25' y='115' font-size='10'%3E- Elemento 1: 500x200x50 mm%3C/text%3E%3Ctext x='25' y='130' font-size='10'%3E- Elemento 2: 300x150x25 mm%3C/text%3E%3Ctext x='25' y='145' font-size='10'%3E- Elemento 3: 600x100x40 mm%3C/text%3E%3C/svg%3E" class="preview-image" alt="PDF Preview">
       </div>
 
       <div class="preview-content" id="dxf-preview" style="display: none;">
@@ -653,127 +658,66 @@ button.primary:disabled {
     </div>
   </div>
 
-  <!-- MODIFICA DATI SECTION -->
-  <div id="modify-section" style="display: none; margin-bottom: 32px; padding: 24px; background: rgba(26, 122, 72, 0.05); border-radius: 12px;">
-    <h3 style="margin-bottom: 20px;">Modifica Dati Ordine</h3>
+  <!-- PHASE SELECTION SECTION -->
+  <div class="phases-section">
+    <h3>Fasi di Lavorazione Richieste</h3>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
-      <div>
-        <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px;">Cliente</label>
-        <input type="text" id="mod-cliente" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+    <div class="phases-grid">
+      <!-- LASER -->
+      <div class="phase-card selected" onclick="togglePhase(this, 'laser')">
+        <input type="checkbox" name="phases" value="laser" checked>
+        <div class="phase-icon">🔴</div>
+        <div class="phase-name">LASER</div>
+        <div class="phase-time">~2h 30min</div>
       </div>
-      <div>
-        <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px;">Numero Ordine</label>
-        <input type="text" id="mod-numero" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+
+      <!-- PIEGA -->
+      <div class="phase-card selected" onclick="togglePhase(this, 'piega')">
+        <input type="checkbox" name="phases" value="piega" checked>
+        <div class="phase-icon">🔶</div>
+        <div class="phase-name">PIEGA</div>
+        <div class="phase-time">~1h 15min</div>
+      </div>
+
+      <!-- SALDATURA -->
+      <div class="phase-card" onclick="togglePhase(this, 'saldatura')">
+        <input type="checkbox" name="phases" value="saldatura">
+        <div class="phase-icon">🟠</div>
+        <div class="phase-name">SALDATURA</div>
+        <div class="phase-time">~1h 45min</div>
+      </div>
+
+      <!-- PULIZIA -->
+      <div class="phase-card" onclick="togglePhase(this, 'pulizia')">
+        <input type="checkbox" name="phases" value="pulizia">
+        <div class="phase-icon">🟡</div>
+        <div class="phase-name">PULIZIA</div>
+        <div class="phase-time">~30min</div>
       </div>
     </div>
 
-    <div style="margin-bottom: 24px;">
-      <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px;">Data Consegna</label>
-      <input type="date" id="mod-data" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-    </div>
-
-    <div style="margin-bottom: 24px;">
-      <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 12px;">Articoli</label>
-      <div id="articoli-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 12px;">
-        <!-- Articoli will be populated here -->
+    <!-- SELECTED PHASES SUMMARY -->
+    <div style="background: rgba(26, 122, 72, 0.08); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">Percorso di Lavorazione:</div>
+      <div style="font-size: 15px; color: var(--text-primary);">
+        <strong>LASER</strong> <span style="margin: 0 8px; color: var(--ls-green);">→</span>
+        <strong>PIEGA</strong> <span style="margin: 0 8px; color: var(--ls-green);">→</span>
+        <span style="color: #999;">SALDATURA</span> <span style="margin: 0 8px; color: #999;">→</span>
+        <span style="color: #999;">PULIZIA</span>
       </div>
-      <button onclick="addArticolo()" style="margin-top: 12px; padding: 8px 16px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 13px;">+ Aggiungi Articolo</button>
+      <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">Tempo totale stimato: <strong>~4h 15min</strong></div>
     </div>
-
-    <button onclick="saveModifications()" style="width: 100%; padding: 12px; background: var(--ls-green); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Salva Modifiche</button>
   </div>
 
   <!-- ACTION BUTTONS -->
   <div class="actions">
     <button class="secondary" onclick="cancelOrder()">ANNULLA</button>
-    <button class="primary" onclick="confirmOrder()">CARICA ORDINE</button>
+    <button class="primary" onclick="confirmOrder()">CONFERMA E AVVIA ORDINE</button>
   </div>
 
 </div>
 
 <script>
-const API_BASE = '';
-let currentUser = null;
-let pdfData = null;
-let uploadedPDFFilename = null;  // Track PDF filename
-let uploadedDXFFilenames = [];   // Track DXF filenames
-
-// ── SESSION CHECK ──
-function checkSession() {
-  const saved = localStorage.getItem('currentUser');
-  if (!saved) {
-    window.location.href = '/login.html';
-    return false;
-  }
-
-  currentUser = JSON.parse(saved);
-  const perms = currentUser.permissions || [];
-  const role = currentUser.role || '';
-
-  // Solo impiegata può caricare ordini
-  if (role !== 'Impiegata') {
-    alert('Accesso negato. Solo l\'impiegata può creare ordini.');
-    window.location.href = '/login.html';
-    return false;
-  }
-
-  return true;
-}
-
-// ── PDF UPLOAD & EXTRACT ──
-async function uploadPDF(file) {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const resp = await fetch(`${API_BASE}/api/extract-pdf-data`, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!resp.ok) throw new Error('PDF extraction failed');
-    const data = await resp.json();
-    pdfData = data.data;
-
-    console.log('PDF extracted:', pdfData);
-    alert(`[OK] PDF estratto: ${pdfData.cliente || 'Cliente'}\n${pdfData.articoli?.length || 0} articoli trovati`);
-
-    // Mostra form di modifica dati
-    showModifySection();
-    return true;
-  } catch (e) {
-    console.error('PDF upload error:', e);
-    alert('Errore nell\'estrazione del PDF: ' + e.message);
-    return false;
-  }
-}
-
-// ── DXF UPLOAD ──
-async function uploadDXF(file, orderId = 'draft') {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('order_id', orderId);
-
-    const resp = await fetch(`${API_BASE}/api/upload-drawing`, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!resp.ok) throw new Error('DXF upload failed');
-    const data = await resp.json();
-
-    console.log('DXF uploaded:', data);
-    // Return the actual filename saved on server (includes order_id prefix)
-    return data.filename || null;
-  } catch (e) {
-    console.error('DXF upload error:', e);
-    alert('Errore nel caricamento del DXF: ' + e.message);
-    return null;
-  }
-}
-
 function togglePhase(element, phase) {
   const checkbox = element.querySelector('input[type="checkbox"]');
   checkbox.checked = !checkbox.checked;
@@ -819,252 +763,41 @@ function switchPreview(type) {
 
 function clearDXF() {
   document.getElementById('dxf-input').value = '';
-  document.getElementById('dxf-files-list').innerHTML = '';
+  document.getElementById('dxf-info').style.display = 'none';
   document.getElementById('dxf-upload-area').classList.remove('has-file');
 }
 
 function cancelOrder() {
   if (confirm('Sei sicuro? L\'ordine non sarà caricato nel sistema.')) {
-    window.location.href = '/login.html';
+    window.location.href = 'welcome.html';
   }
 }
 
-async function confirmOrder() {
-  if (!pdfData) {
-    alert('Carica un PDF prima di confermare l\'ordine!');
+function confirmOrder() {
+  const selected = Array.from(document.querySelectorAll('.phase-card.selected')).map(el =>
+    el.querySelector('input[type="checkbox"]').value.toUpperCase()
+  );
+
+  if (selected.length === 0) {
+    alert('Seleziona almeno una fase di lavorazione!');
     return;
   }
 
-  try {
-    // Crea ordine SENZA fasi (il capo produzione le definirà)
-    const resp = await fetch(`${API_BASE}/api/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cliente: pdfData.cliente || 'Cliente Generico',
-        data_consegna: pdfData.data_consegna || new Date(Date.now() + 7*24*60*60*1000).toISOString(),
-        articles: pdfData.articoli || [],
-        required_phases: [],
-        operatore_id: currentUser.id,
-        pdf_filename: uploadedPDFFilename,  // Send PDF filename
-        dxf_filenames: uploadedDXFFilenames  // Send DXF filenames
-      })
-    });
-
-    if (!resp.ok) throw new Error('Order creation failed');
-    const data = await resp.json();
-    const orderId = data.order_id;
-
-    alert(`[OK] Ordine ${orderId} caricato!\n\nIl capo produzione definira le fasi di lavorazione.`);
-    window.location.href = '/login.html';
-  } catch (e) {
-    console.error('Confirm error:', e);
-    alert('Errore nella creazione dell\'ordine: ' + e.message);
-  }
+  console.log('Ordine confermato con fasi:', selected);
+  alert('✓ Ordine OR-2024-001 confermato con fasi: ' + selected.join(', ') + '\n\nL\'ordine entrerà nel sistema e sarà assegnato al LASER.');
+  window.location.href = 'laser.html';
 }
 
-// ── PDF FILE UPLOAD ──
-document.getElementById('pdf-input').addEventListener('change', async function(e) {
+// Simulate DXF file upload
+document.getElementById('dxf-input').addEventListener('change', function(e) {
   if (e.target.files.length > 0) {
     const file = e.target.files[0];
-    uploadedPDFFilename = file.name;  // Track filename
-    await uploadPDF(file);
-
-    // Aggiorna info file PDF
-    document.getElementById('pdf-filename').textContent = file.name;
-    document.getElementById('pdf-size').textContent = (file.size / 1024 / 1024).toFixed(1) + ' MB • Caricato correttamente';
-    document.getElementById('pdf-info').style.display = 'block';
-
-    // Mostra anteprima PDF
-    const fileURL = URL.createObjectURL(file);
-    const pdfIframe = document.getElementById('pdf-iframe');
-    if (pdfIframe) {
-      pdfIframe.src = fileURL;
-    }
-    // Auto-switch a preview PDF
-    switchPreview('pdf');
-  }
-});
-
-// ── DXF FILE UPLOAD (MULTIPLO) ──
-document.getElementById('dxf-input').addEventListener('change', async function(e) {
-  if (e.target.files.length > 0) {
-    const files = Array.from(e.target.files);
-    const filesList = document.getElementById('dxf-files-list');
-    let filesHTML = '<div style="margin-top: 16px;">';
-    uploadedDXFFilenames = [];  // Reset and fill with actual server filenames
-
-    // Upload tutti i file e traccia i nomi effettivi salvati sul server
-    for (const file of files) {
-      const actualFilename = await uploadDXF(file);
-      if (actualFilename) {
-        uploadedDXFFilenames.push(actualFilename);  // Track actual filename from server
-      }
-      filesHTML += `
-        <div class="file-info" style="display: flex; margin-bottom: 12px;">
-          <div class="file-info-icon">✓</div>
-          <div class="file-info-text">
-            <strong>${file.name}</strong>
-            <br><small>${(file.size / 1024 / 1024).toFixed(1)} MB • Caricato</small>
-          </div>
-        </div>
-      `;
-    }
-    filesHTML += '</div>';
-
-    filesList.innerHTML = filesHTML;
+    document.getElementById('dxf-filename').textContent = file.name;
+    document.getElementById('dxf-size').textContent = (file.size / 1024 / 1024).toFixed(1) + ' MB';
+    document.getElementById('dxf-info').style.display = 'flex';
     document.getElementById('dxf-upload-area').classList.add('has-file');
     document.getElementById('dxf-tab').disabled = false;
-
-    // Mostra anteprima DXF con lista file
-    const dxfPreviewContent = document.querySelector('#dxf-preview .preview-empty-text');
-    if (dxfPreviewContent) {
-      const fileCount = files.length;
-      const fileNames = files.map(f => f.name).join(', ');
-      dxfPreviewContent.innerHTML = `
-        <div style="padding: 24px; text-align: center;">
-          <div style="font-size: 48px; margin-bottom: 16px;">📐</div>
-          <div style="font-weight: 600; font-size: 16px; margin-bottom: 8px;">${fileCount} file tecnico${fileCount > 1 ? 'i' : ''} caricato${fileCount > 1 ? 'i' : ''}</div>
-          <div style="color: #999; font-size: 13px; margin-bottom: 12px; word-break: break-all;">${fileNames}</div>
-          <div style="margin-top: 16px; padding: 12px; background: #f0f0f0; border-radius: 8px; font-size: 13px; color: #666;">
-            File tecnico${fileCount > 1 ? 'i' : ''} caricato${fileCount > 1 ? 'i' : ''} correttamente
-          </div>
-        </div>
-      `;
-    }
-
-    console.log('DXF files tracked for order creation:', uploadedDXFFilenames);
   }
-});
-
-// ── SHOW MODIFY SECTION & POPULATE FORM ──
-function showModifySection() {
-  if (!pdfData) return;
-
-  const modifySection = document.getElementById('modify-section');
-  if (!modifySection) return;
-
-  // Popola campi principali
-  document.getElementById('mod-cliente').value = pdfData.cliente || '';
-  document.getElementById('mod-numero').value = pdfData.numero_ordine || '';
-
-  // Popola data consegna (formato YYYY-MM-DD per input date)
-  if (pdfData.data_consegna) {
-    const dateStr = pdfData.data_consegna;
-    if (typeof dateStr === 'string') {
-      const dateOnly = dateStr.split('T')[0]; // Prendi solo YYYY-MM-DD
-      document.getElementById('mod-data').value = dateOnly;
-    }
-  }
-
-  // Popola articoli
-  renderArticoli();
-
-  // Mostra la sezione
-  modifySection.style.display = 'block';
-
-  // Scroll to modify section
-  setTimeout(() => {
-    modifySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-}
-
-// ── RENDER ARTICOLI LIST ──
-function renderArticoli() {
-  const articoliList = document.getElementById('articoli-list');
-  if (!articoliList) return;
-
-  const articoli = pdfData.articoli || [];
-  let html = '';
-
-  articoli.forEach((articolo, idx) => {
-    const descrizione = articolo.descrizione || articolo.description || 'Articolo senza descrizione';
-    const quantita = articolo.quantita || articolo.quantity || 1;
-
-    html += `
-      <div style="padding: 12px; margin-bottom: 12px; background: white; border: 1px solid #e5e5e5; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="flex: 1;">
-          <div style="font-weight: 600; font-size: 13px;">${descrizione}</div>
-          <div style="font-size: 12px; color: #666;">Quantita: ${quantita}</div>
-        </div>
-        <button onclick="removeArticolo(${idx})" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 12px; color: #d32f2f;">Rimuovi</button>
-      </div>
-    `;
-  });
-
-  articoliList.innerHTML = html || '<div style="text-align: center; color: #999; padding: 20px;">Nessun articolo trovato</div>';
-}
-
-// ── ADD ARTICOLO ──
-function addArticolo() {
-  if (!pdfData.articoli) {
-    pdfData.articoli = [];
-  }
-
-  // Chiedi descrizione all'utente
-  const descrizione = prompt('Inserisci descrizione articolo:');
-  if (!descrizione) return;
-
-  const quantita = prompt('Inserisci quantita (default 1):', '1');
-  const qty = parseInt(quantita) || 1;
-
-  pdfData.articoli.push({
-    descrizione: descrizione,
-    quantita: qty
-  });
-
-  renderArticoli();
-}
-
-// ── REMOVE ARTICOLO ──
-function removeArticolo(idx) {
-  if (confirm('Sei sicuro di voler rimuovere questo articolo?')) {
-    pdfData.articoli.splice(idx, 1);
-    renderArticoli();
-  }
-}
-
-// ── SAVE MODIFICATIONS ──
-function saveModifications() {
-  try {
-    // Leggi valori dai campi modifica
-    const clienteMod = document.getElementById('mod-cliente').value.trim();
-    const numeroMod = document.getElementById('mod-numero').value.trim();
-    const dataMod = document.getElementById('mod-data').value;
-
-    // Valida campi obbligatori
-    if (!clienteMod) {
-      alert('Il campo Cliente è obbligatorio');
-      return;
-    }
-    if (!numeroMod) {
-      alert('Il campo Numero Ordine è obbligatorio');
-      return;
-    }
-    if (!dataMod) {
-      alert('Il campo Data Consegna è obbligatorio');
-      return;
-    }
-
-    // Aggiorna pdfData con valori modificati
-    pdfData.cliente = clienteMod;
-    pdfData.numero_ordine = numeroMod;
-    pdfData.data_consegna = dataMod;
-
-    alert('[OK] Dati ordine salvati correttamente');
-
-    // Opzionale: nascondi il form di modifica dopo il salvataggio
-    // document.getElementById('modify-section').style.display = 'none';
-
-  } catch (e) {
-    console.error('Save modifications error:', e);
-    alert('Errore nel salvataggio: ' + e.message);
-  }
-}
-
-// ── INIT ──
-document.addEventListener('DOMContentLoaded', () => {
-  checkSession();
 });
 </script>
 

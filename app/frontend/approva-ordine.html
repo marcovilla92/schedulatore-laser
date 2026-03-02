@@ -571,8 +571,11 @@ async function loadDXFFilesPreview(orderId) {
     const dxfPreviewDiv = document.getElementById(`dxf-preview-${orderId}`);
     const dxfFiles = order.dxf_files || [];
 
+    console.log(`[DXF Preview] Order ${orderId}: ${dxfFiles.length} files`, dxfFiles);
+
     if (dxfFiles.length === 0) {
       dxfPreviewDiv.innerHTML = '<div class="pdf-preview-empty">Nessun file tecnico caricato</div>';
+      console.log(`[DXF Preview] No files for order ${orderId}`);
       return;
     }
 

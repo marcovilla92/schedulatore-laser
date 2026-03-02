@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(start:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(py -0)",
+      "Bash(python run.py:*)",
+      "Bash(git fetch:*)",
+      "Bash(netstat:*)",
+      "Skill(gsd:progress)",
+      "Skill(gsd:progress:*)",
+      "Skill(gsd:execute-phase)",
+      "Skill(gsd:execute-phase:*)",
+      "Bash(git commit:*)",
+      "Skill(gsd:plan-phase)",
+      "Skill(gsd:plan-phase:*)",
+      "Bash(python:*)",
+      "Bash(powershell -Command \"Stop-Process -Name python -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\")"
+    ]
+  }
+}

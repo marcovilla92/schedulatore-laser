@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FerroTrack 2026 — Minimal Immersive</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Work+Sans:wght@100;300;400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; }
+
+:root {
+  --bg-dark: #0f0f0f;
+  --bg-light: #ffffff;
+  --text-primary: #000000;
+  --text-secondary: #666666;
+  --accent: #ff6b35;
+  --accent-secondary: #004e89;
+  --accent-tertiary: #9d4edd;
+  --border: #e0e0e0;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+body {
+  font-family: 'Work Sans', sans-serif;
+  background: var(--bg-light);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* ── HERO TOPBAR (Minimal) ── */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: var(--bg-light);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,0.8);
+}
+
+.logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.logo:hover {
+  transform: scale(1.05);
+}
+
+.status-bar {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 40px;
+  background: var(--bg-dark);
+  color: var(--bg-light);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.user-profile:hover {
+  transform: translateY(-2px);
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-tertiary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── MAIN CONTAINER ── */
+.main-container {
+  position: fixed;
+  top: 72px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background: var(--bg-dark);
+  color: var(--bg-light);
+  padding: 48px 24px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+.nav-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-bottom: 8px;
+  color: rgba(255,255,255,0.6);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--bg-light);
+  transform: translateX(8px);
+}
+
+.nav-item.active {
+  background: var(--accent);
+  color: var(--bg-light);
+  font-weight: 600;
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+/* ── CONTENT AREA (Minimal & Immersive) ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.hero {
+  min-height: 100vh;
+  padding: 80px 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 60% 40%, rgba(255, 107, 53, 0.08) 0%, transparent 50%);
+  animation: float 20s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -30px); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+}
+
+.hero-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 24px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-title {
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  letter-spacing: -1px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+.hero-subtitle {
+  font-size: 18px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 48px;
+  max-width: 600px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 16px;
+  animation: slideDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s both;
+}
+
+.btn {
+  padding: 16px 32px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Work Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
+}
+
+.btn.primary:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(255, 107, 53, 0.4);
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--text-primary);
+}
+
+.btn.secondary:hover {
+  background: var(--text-primary);
+  color: var(--bg-light);
+  transform: translateY(-4px);
+}
+
+/* ── DASHBOARD SECTION ── */
+.section {
+  padding: 80px 64px;
+  min-height: auto;
+}
+
+.section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 64px;
+  letter-spacing: -0.5px;
+}
+
+/* ── KPI GRID (Minimal) ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 32px;
+  margin-bottom: 80px;
+}
+
+.kpi-card {
+  padding: 40px 32px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-light);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 107, 53, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
+.kpi-card:hover::before {
+  opacity: 1;
+}
+
+.kpi-card:hover {
+  transform: translateY(-12px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
+}
+
+.kpi-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  display: block;
+}
+
+.kpi-value {
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.kpi-unit {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: inline-block;
+  margin-left: 4px;
+}
+
+.kpi-change {
+  font-size: 13px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+}
+
+.kpi-change.up { color: #22c55e; }
+.kpi-change.down { color: #ef4444; }
+
+/* ── MACHINE STATUS GRID ── */
+.machine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  margin-bottom: 80px;
+}
+
+.machine-card {
+  padding: 40px 32px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-light);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.machine-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--status-color, var(--text-secondary));
+  transition: background 0.4s;
+}
+
+.machine-card:hover {
+  transform: translateY(-12px);
+  border-color: var(--status-color, var(--accent));
+  box-shadow: var(--shadow-lg);
+}
+
+.machine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.machine-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.machine-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-color, #999);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.machine-operator {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-family: 'Space Mono', monospace;
+}
+
+.machine-gauge {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.machine-gauge-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--status-color), var(--accent));
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: width;
+}
+
+.machine-percent {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--status-color);
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── FOOTER SECTION ── */
+.footer-section {
+  padding: 80px 64px;
+  background: var(--bg-dark);
+  color: var(--bg-light);
+  text-align: center;
+}
+
+.footer-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 24px;
+}
+
+.footer-title {
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 32px;
+  letter-spacing: -0.5px;
+}
+
+.footer-description {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+  max-width: 600px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
+}
+
+.footer-cta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 80px;
+}
+
+/* ── RETRO MODERN ELEMENTS ── */
+.retro-box {
+  border: 2px dashed rgba(0,0,0,0.1);
+  padding: 32px;
+  border-radius: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  margin: 40px 0;
+  letter-spacing: 0.5px;
+  background: rgba(255,107,53,0.02);
+}
+
+.retro-box h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── MOUSE TRACKER (Parallax effect) ── */
+.parallax-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── MICRO INTERACTIONS ── */
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .topbar { padding: 0 32px; }
+  .sidebar { width: 200px; }
+  .hero { padding: 60px 32px; }
+  .section { padding: 60px 32px; }
+  .hero-title { font-size: 48px; }
+  .section-title { font-size: 36px; }
+}
+
+@media (max-width: 640px) {
+  .topbar { padding: 0 20px; height: 64px; }
+  .sidebar { width: 100%; }
+  .main-container { flex-direction: column; }
+  .sidebar { max-height: 200px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .content { flex: 1; }
+  .hero { padding: 40px 20px; min-height: auto; }
+  .hero-title { font-size: 36px; }
+  .section { padding: 40px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo">FerroTrack</div>
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot"></div>
+      Impianto Attivo
+    </div>
+    <div class="status-item" id="clock">--:--:--</div>
+    <div class="user-profile">
+      <div class="user-avatar">LV</div>
+      <span>Luigi Verdi</span>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="main-container">
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div>
+      <div class="nav-title">Dashboard</div>
+      <div class="nav-item active">
+        <span class="nav-icon">📊</span>
+        <span>Overview</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">📋</span>
+        <span>Supervisione</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">👷</span>
+        <span>Lavorazione</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🗄</span>
+        <span>Archivio</span>
+      </div>
+
+      <div class="nav-title" style="margin-top: 48px;">Macchine</div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <span>CNC 01</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🔥</span>
+        <span>Saldatrice</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🔩</span>
+        <span>Piegatrice</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT AREA -->
+  <main class="content">
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div class="parallax-bg"></div>
+      <div class="hero-content">
+        <span class="hero-label">Dashboard di Produzione</span>
+        <h1 class="hero-title">Gestisci in Tempo Reale</h1>
+        <p class="hero-subtitle">Monitorizza gli ordini, visualizza lo stato delle macchine e ottimizza i tempi di produzione con un'interfaccia minimalista e intuitiva.</p>
+        <div class="hero-cta">
+          <button class="btn primary">Carica Ordine</button>
+          <button class="btn secondary">Visualizza Report</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI SECTION -->
+    <section class="section">
+      <span class="section-label">Metriche Chiave</span>
+      <h2 class="section-title">KPI di Questa Settimana</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <label class="kpi-label">Ordini Attivi</label>
+          <div>
+            <span class="kpi-value">18</span>
+            <span class="kpi-unit">ord.</span>
+          </div>
+          <div class="kpi-change up">↑ +3 da ieri</div>
+        </div>
+
+        <div class="kpi-card">
+          <label class="kpi-label">Pezzi Completati</label>
+          <div>
+            <span class="kpi-value">247</span>
+            <span class="kpi-unit">pz</span>
+          </div>
+          <div class="kpi-change up">↑ +12% questa settimana</div>
+        </div>
+
+        <div class="kpi-card">
+          <label class="kpi-label">Ritardi Critici</label>
+          <div>
+            <span class="kpi-value">4</span>
+            <span class="kpi-unit">ord.</span>
+          </div>
+          <div class="kpi-change down">↓ -1 da ieri</div>
+        </div>
+
+        <div class="kpi-card">
+          <label class="kpi-label">Efficienza</label>
+          <div>
+            <span class="kpi-value">83</span>
+            <span class="kpi-unit">%</span>
+          </div>
+          <div class="kpi-change up">↑ +2% da ieri</div>
+        </div>
+
+        <div class="kpi-card">
+          <label class="kpi-label">Tempo Medio</label>
+          <div>
+            <span class="kpi-value">3h</span>
+            <span class="kpi-unit">24m</span>
+          </div>
+          <div class="kpi-change">→ Stabile</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MACHINE STATUS SECTION -->
+    <section class="section">
+      <span class="section-label">Stato Impianti</span>
+      <h2 class="section-title">Macchine di Produzione</h2>
+
+      <div class="machine-grid">
+        <div class="machine-card" style="--status-color: #22c55e;">
+          <div class="machine-header">
+            <div class="machine-name">CNC 01 — Okuma</div>
+            <div class="machine-status">
+              <div class="status-indicator"></div>
+              Attiva
+            </div>
+          </div>
+          <div class="machine-operator">Luigi Verdi</div>
+          <div class="machine-gauge">
+            <div class="machine-gauge-fill" style="width: 87%;"></div>
+          </div>
+          <div class="machine-percent">87%</div>
+        </div>
+
+        <div class="machine-card" style="--status-color: #ef4444;">
+          <div class="machine-header">
+            <div class="machine-name">CNC 02 — Fanuc</div>
+            <div class="machine-status">
+              <div class="status-indicator"></div>
+              Guasto
+            </div>
+          </div>
+          <div class="machine-operator">Encoder bloccato</div>
+          <div class="machine-gauge">
+            <div class="machine-gauge-fill" style="width: 0%; background: #ef4444;"></div>
+          </div>
+          <div class="machine-percent">0%</div>
+        </div>
+
+        <div class="machine-card" style="--status-color: #22c55e;">
+          <div class="machine-header">
+            <div class="machine-name">Saldatrice MIG-1</div>
+            <div class="machine-status">
+              <div class="status-indicator"></div>
+              Attiva
+            </div>
+          </div>
+          <div class="machine-operator">Andrea Bianchi</div>
+          <div class="machine-gauge">
+            <div class="machine-gauge-fill" style="width: 92%;"></div>
+          </div>
+          <div class="machine-percent">92%</div>
+        </div>
+
+        <div class="machine-card" style="--status-color: #f59e0b;">
+          <div class="machine-header">
+            <div class="machine-name">Piegatrice CLP-80</div>
+            <div class="machine-status">
+              <div class="status-indicator"></div>
+              Setup
+            </div>
+          </div>
+          <div class="machine-operator">Setup in corso</div>
+          <div class="machine-gauge">
+            <div class="machine-gauge-fill" style="width: 30%;"></div>
+          </div>
+          <div class="machine-percent">30%</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DESIGN INFO SECTION -->
+    <section class="section">
+      <span class="section-label">Design 2026</span>
+      <h2 class="section-title">Principi di Questo Design</h2>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 48px; margin-bottom: 80px;">
+        <div class="retro-box">
+          <h4>Minimalismo Interattivo</h4>
+          <p>Layout puliti con ampi spazi bianchi (whitespace), arricchiti da micro-interazioni che rispondono al movimento del mouse.</p>
+        </div>
+
+        <div class="retro-box">
+          <h4>Tipografia Audace</h4>
+          <p>Font grandi e audaci per i titoli (hero section) per un impatto visivo immediato e professionale.</p>
+        </div>
+
+        <div class="retro-box">
+          <h4>Parallasse & Scroll</h4>
+          <p>Effetti di parallasse (elementi che si muovono a velocità diverse) per rendere la navigazione un viaggio narrativo.</p>
+        </div>
+
+        <div class="retro-box">
+          <h4>Retro Moderno</h4>
+          <p>Ritorno nostalgico ma funzionale, richiama lo stile dei vecchi OS rivisitato con estetica moderna e pulita.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <section class="footer-section">
+      <span class="footer-label">Pronto per Iniziare?</span>
+      <h2 class="footer-title">Comincia Oggi</h2>
+      <p class="footer-description">Implementa FerroTrack nel tuo sistema di produzione e guarda come migliorano efficienza e tempistiche.</p>
+      <div class="footer-cta">
+        <button class="btn primary">Accedi al Dashboard</button>
+        <button class="btn secondary">Leggi la Documentazione</button>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+
+<script>
+// Clock update
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('it-IT');
+}, 1000);
+
+// Interactive button feedback
+document.querySelectorAll('.btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const ripple = document.createElement('div');
+    ripple.style.cssText = `
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: rgba(255,255,255,0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: ripple-animation 0.6s ease-out;
+    `;
+    this.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+  });
+});
+
+// Add ripple animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes ripple-animation {
+    from {
+      transform: scale(0);
+      opacity: 1;
+    }
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+`;
+document.head.appendChild(style);
+
+// Parallax effect on scroll
+const parallaxBgs = document.querySelectorAll('.parallax-bg');
+window.addEventListener('scroll', () => {
+  parallaxBgs.forEach(bg => {
+    const yPos = window.scrollY * 0.5;
+    bg.style.transform = `translateY(${yPos}px)`;
+  });
+});
+
+// Nav item interactions
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>
