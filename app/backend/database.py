@@ -285,7 +285,44 @@ class OrderManager:
                 
                 # Commit prima di fare ulteriori query
                 session.commit()
-                
+
+                # AUTO-CASCATA: Crea processing_steps per la prossima fase se necessario
+                if order and order.articles:
+                    # Trova la prossima fase dai required_phases
+                    next_phases = set()
+                    for article in order.articles:
+                        required_phases = article.get('required_phases', [])
+                        if isinstance(required_phases, list):
+                            # Trova quale è la prossima fase dopo quella corrente
+                            try:
+                                current_idx = required_phases.index(phase)
+                                if current_idx + 1 < len(required_phases):
+                                    next_phases.add(required_phases[current_idx + 1])
+                            except ValueError:
+                                pass
+
+                    # Crea processing_steps per le prossime fasi
+                    for next_phase in next_phases:
+                        existing = session.query(ProcessingStep).filter(
+                            ProcessingStep.order_id == order_id,
+                            ProcessingStep.fase == next_phase
+                        ).first()
+
+                        if not existing:
+                            # Crea nuovo processing_step per la prossima fase
+                            new_step = ProcessingStep(
+                                id=str(uuid.uuid4()),
+                                order_id=order_id,
+                                fase=next_phase,
+                                timestamp_inizio=datetime.utcnow(),
+                                timestamp_fine=None,
+                                operatore='',
+                                completed_articles=[]
+                            )
+                            session.add(new_step)
+
+                    session.commit()
+
                 # Adesso ricarica tutti gli step per controllare stato completo
                 session.refresh(order)
                 all_steps = session.query(ProcessingStep).filter(
