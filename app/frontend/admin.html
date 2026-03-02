@@ -964,30 +964,99 @@ body {
 
       <!-- TAB: MACCHINE -->
       <div id="tab-machines" class="settings-content" style="display: none;">
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Configurazione Macchine</h2>
-        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
-          <p style="color: var(--text-secondary); margin-bottom: 16px;">Macchine disponibili nel sistema:</p>
-          <div id="machinesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
-            <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #f9f9f9;">
-              <div style="font-weight: 600; margin-bottom: 8px;">CNC Laser CO2</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Potenza: 150W</div>
-              <div style="display: flex; gap: 8px; font-size: 11px;">
-                <span style="background: #e0f2f1; color: var(--ls-green); padding: 4px 8px; border-radius: 4px;">LASER</span>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Configurazione Macchine & KPI</h2>
+        <div id="machinesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+          <!-- Machine KPI Cards -->
+          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div>
+                <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">🔴 CNC Laser CO2</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">Potenza: 150W | LASER</div>
+              </div>
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: #e0f2f1; display: flex; align-items: center; justify-content: center; color: var(--ls-green); font-weight: 700;">✓</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Uptime</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--ls-green);">98.5%</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Articoli Oggi</div>
+                <div style="font-size: 18px; font-weight: 700; color: #1976d2;">24</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Ore Utilizzo</div>
+                <div style="font-size: 18px; font-weight: 700; color: #d81b60;">7.2h</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Velocità Media</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ff6348;">3.3 art/h</div>
               </div>
             </div>
-            <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #f9f9f9;">
-              <div style="font-weight: 600; margin-bottom: 8px;">Pressa Piega</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Capacità: 50 Ton</div>
-              <div style="display: flex; gap: 8px; font-size: 11px;">
-                <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px;">PIEGA</span>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);">
+              Ultimo controllo: Oggi 14:32
+            </div>
+          </div>
+
+          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div>
+                <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">🔵 Pressa Piega</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">Capacità: 50 Ton | PIEGA</div>
+              </div>
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: #e3f2fd; display: flex; align-items: center; justify-content: center; color: #1976d2; font-weight: 700;">✓</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Uptime</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--ls-green);">96.8%</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Articoli Oggi</div>
+                <div style="font-size: 18px; font-weight: 700; color: #1976d2;">18</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Ore Utilizzo</div>
+                <div style="font-size: 18px; font-weight: 700; color: #d81b60;">6.5h</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Velocità Media</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ff6348;">2.8 art/h</div>
               </div>
             </div>
-            <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #f9f9f9;">
-              <div style="font-weight: 600; margin-bottom: 8px;">Stazione Saldatura</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Tipo: MIG/TIG</div>
-              <div style="display: flex; gap: 8px; font-size: 11px;">
-                <span style="background: #fce4ec; color: #d81b60; padding: 4px 8px; border-radius: 4px;">SALDATURA</span>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);">
+              Ultimo controllo: Oggi 14:28
+            </div>
+          </div>
+
+          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div>
+                <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">🟣 Stazione Saldatura</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">Tipo: MIG/TIG | SALDATURA</div>
               </div>
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: #fce4ec; display: flex; align-items: center; justify-content: center; color: #d81b60; font-weight: 700;">✓</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Uptime</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--ls-green);">99.2%</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Articoli Oggi</div>
+                <div style="font-size: 18px; font-weight: 700; color: #1976d2;">12</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Ore Utilizzo</div>
+                <div style="font-size: 18px; font-weight: 700; color: #d81b60;">5.8h</div>
+              </div>
+              <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Velocità Media</div>
+                <div style="font-size: 18px; font-weight: 700; color: #ff6348;">2.1 art/h</div>
+              </div>
+            </div>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);">
+              Ultimo controllo: Oggi 14:35
             </div>
           </div>
         </div>
