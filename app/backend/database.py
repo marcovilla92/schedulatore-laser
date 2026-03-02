@@ -257,7 +257,7 @@ class OrderManager:
             session.close()
     
     @staticmethod
-    def complete_phase(order_id: str, phase: str, note: str = "") -> dict:
+    def complete_phase(order_id: str, phase: str, note: str = "", operatore: str = "") -> dict:
         """Completa una fase e ritorna info sull'ordine"""
         session = get_session()
         try:
@@ -265,10 +265,13 @@ class OrderManager:
                 ProcessingStep.order_id == order_id,
                 ProcessingStep.fase == phase
             ).first()
-            
+
             if processing_step and not processing_step.timestamp_fine:
                 processing_step.timestamp_fine = datetime.utcnow()
                 processing_step.note = note
+                # Se operatore è fornito, aggiorna il campo operatore se non è già settato
+                if operatore and not processing_step.operatore:
+                    processing_step.operatore = operatore
 
                 # Ottieni l'ordine
                 order = session.query(Order).filter(Order.id == order_id).first()
@@ -367,10 +370,10 @@ class OrderManager:
             session.close()
     
     @staticmethod
-    def complete_phase_partial(order_id: str, phase: str, article_indices: list, note: str = "") -> dict:
+    def complete_phase_partial(order_id: str, phase: str, article_indices: list, note: str = "", operatore: str = "") -> dict:
         """
         Completa una fase solo per specifici articoli (completamento parziale)
-        
+
         article_indices: lista di indici degli articoli da completare per questa fase
         Es: [0, 1, 3] = completa articoli con indice 0, 1, 3
         """
@@ -380,14 +383,18 @@ class OrderManager:
                 ProcessingStep.order_id == order_id,
                 ProcessingStep.fase == phase
             ).first()
-            
+
             if not processing_step:
                 return {"success": False, "error": "Fase non trovata"}
-            
+
             order = session.query(Order).filter(Order.id == order_id).first()
             if not order:
                 return {"success": False, "error": "Ordine non trovato"}
-            
+
+            # Se operatore è fornito, aggiorna il campo operatore se non è già settato
+            if operatore and not processing_step.operatore:
+                processing_step.operatore = operatore
+
             # Crea nuova lista per forzare il change-tracking di SQLAlchemy JSON
             current = list(processing_step.completed_articles or [])
             for idx in article_indices:

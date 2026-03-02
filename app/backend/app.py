@@ -390,6 +390,12 @@ def start_phase(order_id, phase):
         operatore = data.get('operatore', '')
         operatore_id = data.get('operatore_id')
 
+        # Se operatore_id è fornito ma operatore non lo è, recupera il nome dal database
+        if operatore_id and not operatore:
+            user = UserManager.get_user(operatore_id)
+            if user:
+                operatore = user.get('name', operatore_id)
+
         success = OrderManager.start_phase(order_id, phase, operatore)
         if success:
             # Registra azione nel audit log
@@ -420,7 +426,13 @@ def complete_phase(order_id, phase):
         note = data.get('note', '')
         operatore_id = data.get('operatore_id')
 
-        result = OrderManager.complete_phase(order_id, phase, note)
+        # Se operatore_id è fornito, recupera il nome dal database per aggiornare processing_step
+        operatore_name = ''
+        if operatore_id:
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+
+        result = OrderManager.complete_phase(order_id, phase, note, operatore_name)
         if result.get('success'):
             # Registra azione nel audit log
             if operatore_id:
@@ -464,7 +476,13 @@ def complete_phase_partial(order_id, phase):
         if not all(isinstance(i, int) and i >= 0 for i in article_indices):
             return jsonify({'success': False, 'error': 'Indici articoli non validi'}), 400
 
-        result = OrderManager.complete_phase_partial(order_id, phase, article_indices, note)
+        # Se operatore_id è fornito, recupera il nome dal database
+        operatore_name = ''
+        if operatore_id:
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+
+        result = OrderManager.complete_phase_partial(order_id, phase, article_indices, note, operatore_name)
         if result.get('success'):
             # Registra azione nel audit log
             if operatore_id:
