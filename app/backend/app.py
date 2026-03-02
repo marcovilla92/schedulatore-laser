@@ -225,8 +225,17 @@ def approve_order(order_id):
             if not order:
                 return jsonify({'error': 'Ordine non trovato'}), 404
 
-            # Assegna fasi come JSON
+            # Assegna fasi come JSON all'ordine
             order.required_phases = required_phases
+
+            # IMPORTANTE: Assegna fasi anche ai singoli articoli
+            # Altrimenti get_order_details non saprà quale fase assegnare a ogni articolo
+            from sqlalchemy.orm.attributes import flag_modified
+            for article in order.articles:
+                if 'required_phases' not in article or not article['required_phases']:
+                    article['required_phases'] = required_phases
+            flag_modified(order, 'articles')  # Notifica SQLAlchemy del cambiamento
+
             session.commit()
 
             # Crea processing_steps per ogni fase selezionata
