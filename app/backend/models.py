@@ -150,6 +150,15 @@ def seed_users():
                 'machines': ['Piegatrice CLP-80', 'Piegatrice Idraulica']
             },
             {
+                'id': 'giulia-impiegata',
+                'name': 'Giulia Gallo',
+                'role': 'Impiegata',
+                'initials': 'GG',
+                'phase': 'ALL',
+                'permissions': ['overview', 'supervisione'],
+                'machines': ['Tutte']
+            },
+            {
                 'id': 'marco-admin',
                 'name': 'Marco Rossi',
                 'role': 'Supervisore',
