@@ -555,8 +555,8 @@ class OrderManager:
                 "processing_steps": [
                     {
                         "fase": s.fase,
-                        "timestamp_inizio": s.timestamp_inizio.isoformat() if s.timestamp_inizio else None,
-                        "timestamp_fine": s.timestamp_fine.isoformat() if s.timestamp_fine else None,
+                        "timestamp_inizio": s.timestamp_inizio.isoformat() + 'Z' if s.timestamp_inizio else None,
+                        "timestamp_fine": s.timestamp_fine.isoformat() + 'Z' if s.timestamp_fine else None,
                         "operatore": s.operatore,
                         "note": s.note,
                         "completed_articles": s.completed_articles or []  # Indici degli articoli completati
