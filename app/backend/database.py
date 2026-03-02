@@ -426,40 +426,7 @@ class OrderManager:
                 ProcessingStep.order_id == order_id
             ).all()
             
-            # Calcola stato per ogni articolo
-            article_statuses = []
-            for article_idx, article in enumerate(order.articles):
-                required_phases = article.get('required_phases', [])
-                
-                # Se required_phases è stringa, convertila in lista
-                if isinstance(required_phases, str):
-                    required_phases = required_phases.split()
-                
-                # Calcola fasi completate per questo articolo specifico
-                completed = []
-                for step in processing_steps:
-                    # Controlla se questo articolo è nel completed_articles per questo step
-                    if article_idx in (step.completed_articles or []):
-                        completed.append(step.fase)
-                
-                # Prossima fase = prima fase richiesta non completata
-                next_phase = None
-                for phase in required_phases:
-                    if phase not in completed:
-                        next_phase = phase
-                        break
-                
-                article_statuses.append({
-                    "idx": article_idx,  # Indice articolo (per API parziale)
-                    "name": article.get('name', 'N/A'),
-                    "code": article.get('code', ''),
-                    "qty": article.get('qty', 0),
-                    "required_phases": required_phases,
-                    "completed_phases": completed,
-                    "next_phase": next_phase if next_phase else "✅ Completato"
-                })
-            
-            # Estrai PDF e DXF files
+            # Estrai PDF e DXF files first
             pdf_file = None
             dxf_files = []
             if order.files:
@@ -468,6 +435,74 @@ class OrderManager:
                         pdf_file = f.filename
                     elif f.file_type == 'DXF':
                         dxf_files.append({'filename': f.filename, 'filepath': f.filepath})
+
+            # Helper function: match articolo code to DXF file
+            def find_matching_dxf(article_code, dxf_list):
+                """Trova il DXF che corrisponde al codice articolo"""
+                if not article_code or not dxf_list:
+                    return None
+
+                for dxf in dxf_list:
+                    dxf_name = dxf['filename'].replace('.dxf', '').lower()
+                    code_lower = article_code.lower()
+
+                    # Exact match
+                    if code_lower == dxf_name:
+                        return dxf
+
+                    # Match ignoring suffix (-00, -01, etc)
+                    code_base = code_lower.split('-')[0]
+                    dxf_base = dxf_name.split('-')[0]
+                    if code_base == dxf_base:
+                        return dxf
+
+                    # DXF name starts with code
+                    if dxf_name.startswith(code_lower):
+                        return dxf
+
+                    # Code in DXF name
+                    if code_lower in dxf_name:
+                        return dxf
+
+                return None
+
+            # Calcola stato per ogni articolo
+            article_statuses = []
+            for article_idx, article in enumerate(order.articles):
+                required_phases = article.get('required_phases', [])
+
+                # Se required_phases è stringa, convertila in lista
+                if isinstance(required_phases, str):
+                    required_phases = required_phases.split()
+
+                # Calcola fasi completate per questo articolo specifico
+                completed = []
+                for step in processing_steps:
+                    # Controlla se questo articolo è nel completed_articles per questo step
+                    if article_idx in (step.completed_articles or []):
+                        completed.append(step.fase)
+
+                # Prossima fase = prima fase richiesta non completata
+                next_phase = None
+                for phase in required_phases:
+                    if phase not in completed:
+                        next_phase = phase
+                        break
+
+                # Find matching DXF file
+                article_code = article.get('code', '')
+                matching_dxf = find_matching_dxf(article_code, dxf_files)
+
+                article_statuses.append({
+                    "idx": article_idx,  # Indice articolo (per API parziale)
+                    "name": article.get('name', 'N/A'),
+                    "code": article_code,
+                    "qty": article.get('qty', 0),
+                    "required_phases": required_phases,
+                    "completed_phases": completed,
+                    "next_phase": next_phase if next_phase else "✅ Completato",
+                    "dxf_file": matching_dxf  # DXF file associato all'articolo
+                })
 
             return {
                 "id": order.id,
