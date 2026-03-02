@@ -516,7 +516,8 @@ def get_orders_by_phase(phase):
                     'cliente': order.cliente,
                     'total_quantity': order.total_quantity,
                     'articles_next_phase': articles_for_this_phase,
-                    'data_consegna': order.data_consegna.isoformat()
+                    'data_consegna': order.data_consegna.isoformat(),
+                    'processing_steps': details.get('processing_steps', [])
                 })
         
         return jsonify(result), 200
