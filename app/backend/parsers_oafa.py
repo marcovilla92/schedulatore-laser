@@ -112,9 +112,11 @@ def extract_articoli_oafa(text: str, filepath: str = None, markdown_text: str = 
     lines = extract_text.split('\n')
     
     # Prima passa: trova TUTTI i codici articolo
+    # Pattern: numeri (2-3 cifre) + lettere + numeri/trattini (es: 13R025108, 12A402101-00, 12B200103-01)
     codici_trovati = []
     for i, line in enumerate(lines):
-        if re.match(r'^25[A-Z]{2}[A-Z0-9\-]{0,10}$', line.strip()):
+        # Cerca codici formato: 2-3 cifre + 1-2 lettere + cifre/trattini
+        if re.match(r'^\d{2,3}[A-Z]{1,2}[A-Z0-9\-]{3,10}$', line.strip()):
             codici_trovati.append((i, line.strip()))
     
     print(f"      OK PyPDF2 found {len(codici_trovati)} articles")
@@ -146,17 +148,22 @@ def extract_articoli_oafa(text: str, filepath: str = None, markdown_text: str = 
             if qty is None:
                 continue
             
-            # Descrizione: tra riga 1 (skip commessa) e qty
+            # Descrizione: tra riga 1 (skip codice+commessa) e qty
             desc_lines = []
-            for j in range(2, qty_line_idx):
+            for j in range(1, qty_line_idx):  # Include anche riga commessa potrebbe avere info utili
                 line_text = articolo_lines[j].strip()
+                # Skip linee vuote e pipes
                 if line_text and '|' not in line_text:
                     desc_lines.append(line_text)
-            
-            descrizione = ' '.join(desc_lines)[:200]
-            
-            # Validazione
-            if not descrizione or len(descrizione) < 3:
+
+            # Unisci linee e ripulisci
+            descrizione = ' '.join(desc_lines)[:300]
+
+            # Se la descrizione è TROPPO corta o solo numeri/simboli, salta
+            # Ma accetta descrizioni con "Piastra", "Nervatura", etc anche se hanno specifiche materiale
+            if (not descrizione or len(descrizione) < 5 or
+                (re.match(r'^[\d\s\(\)\.]+$', descrizione) and
+                 not any(word in descrizione.upper() for word in ['PIASTRA', 'NERVATURA', 'ORDINE']))):
                 continue
             
             articoli.append({
