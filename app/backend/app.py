@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Importa moduli locali
 from .models import initialize_database, Order, OrderFile, get_session
-from .database import OrderManager, UserManager, AuditManager, ArchiveManager
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager, NotificationManager
 from .pdf_parser import extract_pdf_content
 
 # Estrattore universale (Docling + Gemini 2.0 Flash) — importato con guard
@@ -930,6 +930,63 @@ def get_extracted_orders():
             'orders': orders
         }), 200
         
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+# ============ NOTIFICATION SYSTEM (WhatsApp-like) ============
+
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    """Recupera notifiche dell'utente loggato (tipo WhatsApp)"""
+    try:
+        user_id = request.args.get('user_id')
+        limit = request.args.get('limit', 50, type=int)
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'user_id obbligatorio'}), 400
+
+        notifications = NotificationManager.get_notifications(user_id, limit=limit)
+        unread_count = NotificationManager.get_unread_count(user_id)
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'notifications': notifications,
+                'unread_count': unread_count,
+                'total': len(notifications)
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/notifications/<notification_id>', methods=['DELETE'])
+def delete_notification(notification_id):
+    """Cancella una singola notifica (soft delete)"""
+    try:
+        success = NotificationManager.delete_notification(notification_id)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Notifica cancellata'}), 200
+        else:
+            return jsonify({'success': False, 'error': 'Notifica non trovata'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/notifications/clear-all', methods=['DELETE'])
+def clear_all_notifications():
+    """Cancella tutte le notifiche dell'utente"""
+    try:
+        user_id = request.args.get('user_id')
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'user_id obbligatorio'}), 400
+
+        success = NotificationManager.delete_all_notifications(user_id)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Tutte le notifiche cancellate'}), 200
+        else:
+            return jsonify({'success': False, 'error': 'Errore durante la cancellazione'}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 

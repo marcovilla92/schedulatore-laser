@@ -109,6 +109,19 @@ class AuditLog(Base):
     detail = Column(Text)  # JSON stringificato con dettagli aggiuntivi
     ip_address = Column(String, nullable=True)
 
+class Notification(Base):
+    """Notifiche UI persisted - sistema tipo WhatsApp per supervisore"""
+    __tablename__ = 'notifications'
+    id = Column(String, primary_key=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(String, ForeignKey('users.id'), nullable=False)  # Supervisore/Admin che riceve
+    order_id = Column(String, ForeignKey('orders.id'), nullable=True)  # Ordine correlato
+    title = Column(String, nullable=False)  # "Nuovo ordine", "Ordine completato", ecc
+    message = Column(String, nullable=False)  # Testo notifica
+    notification_type = Column(String, default='order')  # 'order', 'completion', 'alert'
+    is_read = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)  # Soft delete
+
 # Configurazione database
 engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

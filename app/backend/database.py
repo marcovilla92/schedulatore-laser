@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm.attributes import flag_modified
 from .models import (
     Order, OrderFile, ProcessingStep, OrderNotification,
-    OrderStatus, ProcessingPhase, get_session, User, AuditLog
+    OrderStatus, ProcessingPhase, get_session, User, AuditLog, Notification
 )
 import uuid
 import json
@@ -1183,5 +1183,160 @@ class ArchiveManager:
                 })
 
             return csv_data
+        finally:
+            session.close()
+
+
+class NotificationManager:
+    """Gestore notifiche UI tipo WhatsApp per supervisore/admin"""
+
+    @staticmethod
+    def create_notification(user_id: str, order_id: str, title: str, message: str, notification_type: str = 'order') -> dict:
+        """Crea una notifica e la salva nel DB"""
+        session = get_session()
+        try:
+            notification = Notification(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                order_id=order_id,
+                title=title,
+                message=message,
+                notification_type=notification_type,
+                is_read=False,
+                is_deleted=False
+            )
+            session.add(notification)
+            session.commit()
+            return {
+                'id': notification.id,
+                'timestamp': notification.timestamp.isoformat() + 'Z',
+                'user_id': user_id,
+                'order_id': order_id,
+                'title': title,
+                'message': message,
+                'notification_type': notification_type,
+                'is_read': notification.is_read,
+                'is_deleted': notification.is_deleted
+            }
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] create_notification: {e}")
+            return None
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_notifications(user_id: str, limit: int = 50, unread_only: bool = False) -> list:
+        """Recupera notifiche per un utente (non cancellate)"""
+        session = get_session()
+        try:
+            query = session.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.is_deleted == False
+            )
+
+            if unread_only:
+                query = query.filter(Notification.is_read == False)
+
+            notifications = query.order_by(Notification.timestamp.desc()).limit(limit).all()
+
+            result = []
+            for n in notifications:
+                result.append({
+                    'id': n.id,
+                    'timestamp': n.timestamp.isoformat() + 'Z',
+                    'user_id': n.user_id,
+                    'order_id': n.order_id,
+                    'title': n.title,
+                    'message': n.message,
+                    'notification_type': n.notification_type,
+                    'is_read': n.is_read,
+                    'is_deleted': n.is_deleted
+                })
+            return result
+        except Exception as e:
+            print(f"[ERROR] get_notifications: {e}")
+            return []
+        finally:
+            session.close()
+
+    @staticmethod
+    def delete_notification(notification_id: str) -> bool:
+        """Soft delete di una notifica (is_deleted = True)"""
+        session = get_session()
+        try:
+            notification = session.query(Notification).filter(
+                Notification.id == notification_id
+            ).first()
+
+            if notification:
+                notification.is_deleted = True
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] delete_notification: {e}")
+            return False
+        finally:
+            session.close()
+
+    @staticmethod
+    def delete_all_notifications(user_id: str) -> bool:
+        """Cancella tutte le notifiche di un utente (soft delete)"""
+        session = get_session()
+        try:
+            notifications = session.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.is_deleted == False
+            ).all()
+
+            for n in notifications:
+                n.is_deleted = True
+
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] delete_all_notifications: {e}")
+            return False
+        finally:
+            session.close()
+
+    @staticmethod
+    def mark_as_read(notification_id: str) -> bool:
+        """Marca una notifica come letta"""
+        session = get_session()
+        try:
+            notification = session.query(Notification).filter(
+                Notification.id == notification_id
+            ).first()
+
+            if notification:
+                notification.is_read = True
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] mark_as_read: {e}")
+            return False
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_unread_count(user_id: str) -> int:
+        """Conta notifiche non lette per un utente"""
+        session = get_session()
+        try:
+            count = session.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.is_read == False,
+                Notification.is_deleted == False
+            ).count()
+            return count
+        except Exception as e:
+            print(f"[ERROR] get_unread_count: {e}")
+            return 0
         finally:
             session.close()
