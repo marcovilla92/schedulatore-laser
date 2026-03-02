@@ -929,9 +929,13 @@ function updatePermissions() {
       <p>Visualizzi tutti gli ordini del sistema.</p>
       <p style="margin-top: 16px;"><strong>Macchine in Uso:</strong> ${(currentUser.machines || []).join(', ')}</p>
     `;
-    // Aggiungi bottone "Nuovo Ordine" solo per impiegata
+    // Bottone "Nuovo Ordine" solo per impiegata
     if (currentUser.role === 'Impiegata') {
       supervisionContent += `<a href="/carica-ordine.html" style="display: inline-block; margin-top: 24px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">+ Nuovo Ordine</a>`;
+    }
+    // Bottone "Approva Ordini" solo per supervisore/admin
+    if (currentUser.role === 'Supervisore' || currentUser.role === 'Admin') {
+      supervisionContent += `<a href="/approva-ordine.html" style="display: inline-block; margin-top: 24px; margin-left: 12px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">✓ Approva Ordini</a>`;
     }
     document.getElementById('supervisioneContent').innerHTML = supervisionContent;
   } else {

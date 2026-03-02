@@ -160,6 +160,51 @@ def get_order(order_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/orders/<order_id>/approve', methods=['POST'])
+def approve_order(order_id):
+    """Supervisore approva ordine e seleziona fasi"""
+    try:
+        data = request.get_json()
+        required_phases = data.get('required_phases', [])
+        operatore_id = data.get('operatore_id', 'unknown')
+
+        if not required_phases or len(required_phases) == 0:
+            return jsonify({'error': 'Seleziona almeno una fase'}), 400
+
+        # Aggiorna ordine con fasi selezionate
+        order = OrderManager.session.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            return jsonify({'error': 'Ordine non trovato'}), 404
+
+        order.required_phases = required_phases
+        OrderManager.session.commit()
+
+        # Crea processing_steps per ogni fase selezionata
+        for phase in required_phases:
+            OrderManager.create_processing_step(order_id, phase)
+
+        # Audit log
+        AuditManager.log(
+            user_id=operatore_id,
+            action='APPROVE_ORDER',
+            entity_type='order',
+            entity_id=order_id,
+            detail=f'Ordine approvato con fasi: {", ".join(required_phases)}'
+        )
+
+        return jsonify({
+            'success': True,
+            'order_id': order_id,
+            'numero_ordine': order.cliente,  # Fallback
+            'required_phases': required_phases
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR] Approve order error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
     """Recupera lista ordini"""
