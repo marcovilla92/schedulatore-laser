@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 # Importa moduli locali
-from .models import initialize_database, OrderFile
+from .models import initialize_database, OrderFile, get_session
 from .database import OrderManager, UserManager, AuditManager
 from .pdf_parser import extract_pdf_content
 
@@ -159,19 +159,24 @@ def create_order():
         # DXF files
         dxf_filenames = data.get('dxf_filenames', [])
         drawings_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'drawings')
-        for dxf_filename in dxf_filenames:
-            dxf_path = os.path.join(drawings_folder, dxf_filename)
-            if os.path.exists(dxf_path):
-                file_record = OrderFile(
-                    id=str(uuid.uuid4()),
-                    order_id=order.id,
-                    filename=dxf_filename,
-                    filepath=dxf_path,
-                    file_type='DXF'
-                )
-                OrderManager.session.add(file_record)
 
-        OrderManager.session.commit()
+        # Register file records with proper session management
+        session = get_session()
+        try:
+            for dxf_filename in dxf_filenames:
+                dxf_path = os.path.join(drawings_folder, dxf_filename)
+                if os.path.exists(dxf_path):
+                    file_record = OrderFile(
+                        id=str(uuid.uuid4()),
+                        order_id=order.id,
+                        filename=dxf_filename,
+                        filepath=dxf_path,
+                        file_type='DXF'
+                    )
+                    session.add(file_record)
+            session.commit()
+        finally:
+            session.close()
 
         return jsonify({
             'success': True,
