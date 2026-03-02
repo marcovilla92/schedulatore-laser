@@ -574,6 +574,9 @@ body {
 
       <div class="nav-title" style="margin-top: 48px;">Mie Macchine</div>
       <div class="nav-item" onclick="switchScreen('machines')">🔧 Tutte le Macchine</div>
+
+      <div class="nav-title" style="margin-top: 48px;">Archivio</div>
+      <div class="nav-item" onclick="switchScreen('archive')">📦 Ordini Completati</div>
     </div>
   </aside>
 
@@ -1225,6 +1228,137 @@ body {
       </div>
     </div>
 
+    <!-- ARCHIVE SCREEN -->
+    <div class="screen" id="screen-archive">
+      <h1 class="section-title">Archivio Ordini Completati</h1>
+
+      <!-- Filters -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; margin-bottom: 24px; padding: 16px; background: white; border-radius: 8px; border: 1px solid var(--border);">
+        <input type="date" id="filter-date-from" placeholder="Data inizio" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
+        <input type="date" id="filter-date-to" placeholder="Data fine" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
+        <input type="text" id="filter-cliente" placeholder="Cerca per cliente..." style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
+        <button onclick="applyArchiveFilters()" style="padding: 8px 16px; background: var(--ls-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          Filtra
+        </button>
+      </div>
+
+      <!-- Export Button -->
+      <div style="margin-bottom: 16px; display: flex; justify-content: flex-end;">
+        <button onclick="exportArchiveCSV()" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+          📥 Scarica CSV
+        </button>
+      </div>
+
+      <!-- Orders Table -->
+      <div style="background: white; border-radius: 8px; border: 1px solid var(--border); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead style="background: #f5f5f5; border-bottom: 1px solid var(--border);">
+            <tr>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">ID Ordine</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Cliente</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Data Consegna</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Completamento</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Articoli</th>
+              <th style="padding: 12px; text-align: left; font-weight: 600;">Tempo Totale</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600;">Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="archive-table-body">
+            <tr style="border-top: 1px solid var(--border);">
+              <td colspan="7" style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                Caricamento ordini...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div style="display: flex; justify-content: center; gap: 12px; margin-top: 24px;">
+        <button onclick="previousArchivePage()" style="padding: 8px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          ← Precedente
+        </button>
+        <div id="archive-page-info" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: white; border: 1px solid var(--border); border-radius: 6px;">
+          Pagina <span id="current-page">1</span> di <span id="total-pages">1</span>
+        </div>
+        <button onclick="nextArchivePage()" style="padding: 8px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          Prossimo →
+        </button>
+      </div>
+    </div>
+
+    <!-- ARCHIVE DETAILS MODAL -->
+    <div id="archive-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+      <div style="background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Dettagli Ordine</h2>
+          <button onclick="closeArchiveModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);">✕</button>
+        </div>
+
+        <div id="modal-content" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Header Info -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">ID Ordine</div>
+              <div id="modal-order-id" style="font-size: 16px; font-weight: 700;">—</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Cliente</div>
+              <div id="modal-cliente" style="font-size: 16px; font-weight: 700;">—</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Articoli</div>
+              <div id="modal-articoli-count" style="font-size: 16px; font-weight: 700;">—</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Tempo Totale</div>
+              <div id="modal-tempo-totale" style="font-size: 16px; font-weight: 700;">—</div>
+            </div>
+          </div>
+
+          <!-- Dates -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="padding: 12px; background: #f9f9f9; border-radius: 8px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Consegna Prevista</div>
+              <div id="modal-data-consegna" style="font-size: 14px;">—</div>
+            </div>
+            <div style="padding: 12px; background: #f9f9f9; border-radius: 8px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Completato il</div>
+              <div id="modal-data-completamento" style="font-size: 14px;">—</div>
+            </div>
+          </div>
+
+          <!-- Fasi -->
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Fasi Lavoro</div>
+            <div id="modal-fasi" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Articoli -->
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Articoli</div>
+            <div id="modal-articoli-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Note -->
+          <div id="modal-note-section" style="display: none;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Note</div>
+            <div id="modal-note" style="padding: 12px; background: #f9f9f9; border-radius: 8px; font-size: 14px;">—</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <button onclick="closeArchiveModal()" style="flex: 1; padding: 12px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-primary);">
+            Chiudi
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1298,6 +1432,8 @@ function switchScreen(screenId) {
     loadKPI();
   } else if (screenId === 'audit') {
     loadAuditLog();
+  } else if (screenId === 'archive') {
+    loadArchiveOrders(1, {});
   }
 }
 
@@ -1543,6 +1679,204 @@ async function deleteOperator(userId, userName) {
       resolve(true);
     });
   });
+}
+
+// ── ARCHIVE MANAGEMENT ──
+let archiveCurrentPage = 1;
+let archiveTotalPages = 1;
+let archiveCurrentFilters = {};
+
+async function loadArchiveOrders(page = 1, filters = {}) {
+  try {
+    archiveCurrentPage = page;
+    archiveCurrentFilters = filters;
+
+    const params = new URLSearchParams({
+      page: page,
+      limit: 10,
+      sort_by: 'data_consegna',
+      sort_dir: 'desc'
+    });
+
+    if (filters.cliente) params.append('cliente', filters.cliente);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+
+    const response = await fetch(`${API_BASE}/api/archive/orders?${params}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      document.getElementById('archive-table-body').innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Errore nel caricamento</td></tr>';
+      return;
+    }
+
+    const orders = data.data.orders;
+    archiveTotalPages = data.data.pages;
+
+    let html = '';
+    if (orders.length === 0) {
+      html = '<tr><td colspan="7" style="padding: 24px; text-align: center; color: var(--text-secondary);">Nessun ordine trovato</td></tr>';
+    } else {
+      orders.forEach(order => {
+        const consegna = new Date(order.data_consegna).toLocaleDateString('it-IT');
+        const completamento = order.data_completamento
+          ? new Date(order.data_completamento).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit'})
+          : '—';
+
+        html += `
+          <tr style="border-top: 1px solid var(--border); transition: background 0.2s; hover: background-color: #f9f9f9;">
+            <td style="padding: 12px; font-weight: 600; font-family: monospace; font-size: 12px;">${order.numero_ordine}</td>
+            <td style="padding: 12px;">${order.cliente}</td>
+            <td style="padding: 12px; font-size: 13px;">${consegna}</td>
+            <td style="padding: 12px; font-size: 13px;">${completamento}</td>
+            <td style="padding: 12px; text-align: center;">${order.numero_articoli}</td>
+            <td style="padding: 12px; font-weight: 600;">${order.tempo_totale}</td>
+            <td style="padding: 12px; text-align: center;">
+              <button onclick="viewArchiveOrderDetails('${order.id}')" style="background: var(--ls-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+                Dettagli
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    document.getElementById('archive-table-body').innerHTML = html;
+    document.getElementById('current-page').textContent = page;
+    document.getElementById('total-pages').textContent = archiveTotalPages;
+  } catch (e) {
+    console.error('Error loading archive:', e);
+    document.getElementById('archive-table-body').innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Errore nel caricamento</td></tr>';
+  }
+}
+
+function applyArchiveFilters() {
+  const filters = {
+    cliente: document.getElementById('filter-cliente').value || undefined,
+    date_from: document.getElementById('filter-date-from').value || undefined,
+    date_to: document.getElementById('filter-date-to').value || undefined
+  };
+
+  // Remove undefined filters
+  Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
+
+  loadArchiveOrders(1, filters);
+}
+
+function nextArchivePage() {
+  if (archiveCurrentPage < archiveTotalPages) {
+    loadArchiveOrders(archiveCurrentPage + 1, archiveCurrentFilters);
+  }
+}
+
+function previousArchivePage() {
+  if (archiveCurrentPage > 1) {
+    loadArchiveOrders(archiveCurrentPage - 1, archiveCurrentFilters);
+  }
+}
+
+async function viewArchiveOrderDetails(orderId) {
+  try {
+    const response = await fetch(`${API_BASE}/api/archive/orders/${orderId}/details`);
+    const data = await response.json();
+
+    if (!data.success) {
+      alert('Errore nel caricamento dei dettagli');
+      return;
+    }
+
+    const order = data.data;
+
+    // Populate modal
+    document.getElementById('modal-order-id').textContent = order.numero_ordine;
+    document.getElementById('modal-cliente').textContent = order.cliente;
+    document.getElementById('modal-articoli-count').textContent = order.numero_articoli;
+    document.getElementById('modal-tempo-totale').textContent = order.tempo_totale;
+    document.getElementById('modal-data-consegna').textContent = new Date(order.data_consegna).toLocaleDateString('it-IT');
+    document.getElementById('modal-data-completamento').textContent = order.data_completamento
+      ? new Date(order.data_completamento).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})
+      : '—';
+
+    // Fasi
+    let fasiHtml = '';
+    order.fasi.forEach(fase => {
+      fasiHtml += `
+        <div style="padding: 8px; background: #f9f9f9; border-left: 3px solid var(--ls-green); border-radius: 4px; font-size: 13px;">
+          <div style="font-weight: 600;">${fase.fase}</div>
+          <div style="color: var(--text-secondary); font-size: 12px;">
+            Operatore: ${fase.operatore} | Tempo: ${fase.tempo}
+          </div>
+          ${fase.data_inizio ? `<div style="color: var(--text-secondary); font-size: 11px;">
+            ${new Date(fase.data_inizio).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}
+            →
+            ${fase.data_fine ? new Date(fase.data_fine).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}) : '—'}
+          </div>` : ''}
+        </div>
+      `;
+    });
+    document.getElementById('modal-fasi').innerHTML = fasiHtml;
+
+    // Articoli
+    let articoliHtml = '';
+    order.articoli.forEach((art, idx) => {
+      articoliHtml += `
+        <div style="padding: 8px; background: #f9f9f9; border-radius: 4px; font-size: 13px;">
+          <div style="font-weight: 600;">${art.name || `Articolo ${idx + 1}`}</div>
+          <div style="color: var(--text-secondary); font-size: 12px;">
+            Codice: ${art.code || 'N/A'} | Qty: ${art.qty || '—'} ${art.unit || ''}
+          </div>
+        </div>
+      `;
+    });
+    document.getElementById('modal-articoli-list').innerHTML = articoliHtml;
+
+    // Note (if present)
+    if (order.note) {
+      document.getElementById('modal-note-section').style.display = 'block';
+      document.getElementById('modal-note').textContent = order.note;
+    } else {
+      document.getElementById('modal-note-section').style.display = 'none';
+    }
+
+    // Show modal
+    document.getElementById('archive-modal').style.display = 'flex';
+  } catch (e) {
+    console.error('Error loading order details:', e);
+    alert('Errore nel caricamento dei dettagli');
+  }
+}
+
+function closeArchiveModal() {
+  document.getElementById('archive-modal').style.display = 'none';
+}
+
+async function exportArchiveCSV() {
+  try {
+    const params = new URLSearchParams();
+    if (archiveCurrentFilters.cliente) params.append('cliente', archiveCurrentFilters.cliente);
+    if (archiveCurrentFilters.date_from) params.append('date_from', archiveCurrentFilters.date_from);
+    if (archiveCurrentFilters.date_to) params.append('date_to', archiveCurrentFilters.date_to);
+
+    const response = await fetch(`${API_BASE}/api/archive/export/csv?${params}`);
+
+    if (!response.ok) {
+      alert('Errore nell\'esportazione');
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `archivio-ordini-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('Error exporting CSV:', e);
+    alert('Errore nell\'esportazione');
+  }
 }
 
 // ── INIT ──

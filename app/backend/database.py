@@ -941,3 +941,245 @@ class AuditManager:
             return kpi_list
         finally:
             session.close()
+
+
+class ArchiveManager:
+    """Gestore operazioni su archivio ordini completati"""
+
+    @staticmethod
+    def _calculate_phase_times(order_id: str, session) -> dict:
+        """
+        Calcola i tempi per ogni fase completata di un ordine
+        Ritorna dict con fasi come chiavi e durate come valori (formato stringa)
+        """
+        try:
+            steps = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id,
+                ProcessingStep.timestamp_inizio.isnot(None),
+                ProcessingStep.timestamp_fine.isnot(None)
+            ).all()
+
+            phase_times = {}
+            for step in steps:
+                duration = step.timestamp_fine - step.timestamp_inizio
+                phase_times[step.fase] = OrderManager._format_duration(duration)
+
+            return phase_times
+        except Exception:
+            return {}
+
+    @staticmethod
+    def get_completed_orders(filters: dict = None, page: int = 1, limit: int = 10,
+                            sort_by: str = 'data_consegna', sort_dir: str = 'desc') -> dict:
+        """
+        Recupera ordini completati (status = SPEDITO) con paginazione e filtri
+
+        filters: {
+            'cliente': 'nome cliente',
+            'date_from': '2026-01-01',
+            'date_to': '2026-12-31'
+        }
+
+        Ritorna: {
+            'orders': [...],
+            'total': <count>,
+            'page': <page>,
+            'pages': <total_pages>
+        }
+        """
+        session = get_session()
+        try:
+            from sqlalchemy import func
+
+            # Query base: solo ordini SPEDITO
+            query = session.query(Order).filter(
+                Order.status == OrderStatus.SPEDITO.value
+            )
+
+            # Applica filtri
+            if filters:
+                if 'cliente' in filters and filters['cliente']:
+                    query = query.filter(Order.cliente.ilike(f"%{filters['cliente']}%"))
+
+                if 'date_from' in filters and filters['date_from']:
+                    date_from = datetime.fromisoformat(filters['date_from'])
+                    query = query.filter(Order.data_consegna >= date_from)
+
+                if 'date_to' in filters and filters['date_to']:
+                    date_to = datetime.fromisoformat(filters['date_to'])
+                    # Aggiungi 1 giorno per includere tutto il giorno finale
+                    date_to = date_to.replace(hour=23, minute=59, second=59)
+                    query = query.filter(Order.data_consegna <= date_to)
+
+            # Conta totale ordini
+            total = query.count()
+
+            # Sort
+            if sort_dir.lower() == 'asc':
+                query = query.order_by(getattr(Order, sort_by).asc())
+            else:
+                query = query.order_by(getattr(Order, sort_by).desc())
+
+            # Paginazione
+            offset = (page - 1) * limit
+            orders = query.offset(offset).limit(limit).all()
+
+            # Serializza orders
+            orders_data = []
+            for order in orders:
+                # Ricava tempo totale dalla notifica di completamento
+                notification = session.query(OrderNotification).filter(
+                    OrderNotification.order_id == order.id
+                ).first()
+
+                total_time = notification.tempi_totali if notification else "N/A"
+
+                # Calcola date di completamento (da processing_steps)
+                last_step = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order.id,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).order_by(ProcessingStep.timestamp_fine.desc()).first()
+
+                completion_date = last_step.timestamp_fine if last_step else None
+
+                orders_data.append({
+                    'id': order.id,
+                    'numero_ordine': getattr(order, 'numero_ordine', order.id[:8]),
+                    'cliente': order.cliente,
+                    'data_consegna': order.data_consegna.isoformat(),
+                    'data_completamento': completion_date.isoformat() if completion_date else None,
+                    'numero_articoli': len(order.articles or []),
+                    'tempo_totale': total_time,
+                    'status': order.status
+                })
+
+            total_pages = (total + limit - 1) // limit
+
+            return {
+                'orders': orders_data,
+                'total': total,
+                'page': page,
+                'pages': total_pages
+            }
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_order_details(order_id: str) -> dict | None:
+        """
+        Recupera dettagli completi di un ordine con fasi e tempi
+        """
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return None
+
+            # Recupera processing steps
+            steps = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id
+            ).order_by(ProcessingStep.fase).all()
+
+            # Calcola tempi per fase
+            phase_times = ArchiveManager._calculate_phase_times(order_id, session)
+
+            # Recupera notifica di completamento
+            notification = session.query(OrderNotification).filter(
+                OrderNotification.order_id == order_id
+            ).first()
+
+            # Calcola data di completamento (ultima fase)
+            completion_date = None
+            if steps:
+                last_completed = [s for s in steps if s.timestamp_fine]
+                if last_completed:
+                    completion_date = max(s.timestamp_fine for s in last_completed)
+
+            return {
+                'id': order.id,
+                'numero_ordine': getattr(order, 'numero_ordine', order.id[:8]),
+                'cliente': order.cliente,
+                'data_consegna': order.data_consegna.isoformat(),
+                'data_completamento': completion_date.isoformat() if completion_date else None,
+                'articoli': order.articles or [],
+                'numero_articoli': len(order.articles or []),
+                'tempo_totale': notification.tempi_totali if notification else "N/A",
+                'note': order.note or '',
+                'fasi': [
+                    {
+                        'fase': step.fase,
+                        'operatore': step.operatore or 'N/A',
+                        'data_inizio': step.timestamp_inizio.isoformat() if step.timestamp_inizio else None,
+                        'data_fine': step.timestamp_fine.isoformat() if step.timestamp_fine else None,
+                        'tempo': phase_times.get(step.fase, 'N/A'),
+                        'articoli_completati': len(step.completed_articles or [])
+                    }
+                    for step in steps
+                ],
+                'status': order.status
+            }
+        finally:
+            session.close()
+
+    @staticmethod
+    def export_csv_data(filters: dict = None) -> list[dict]:
+        """
+        Esporta dati di archivio in formato CSV (lista di dict serializzabili)
+
+        Ritorna lista di dict pronta per conversione a CSV
+        """
+        session = get_session()
+        try:
+            from sqlalchemy import func
+
+            # Query base: solo ordini SPEDITO
+            query = session.query(Order).filter(
+                Order.status == OrderStatus.SPEDITO.value
+            )
+
+            # Applica filtri
+            if filters:
+                if 'cliente' in filters and filters['cliente']:
+                    query = query.filter(Order.cliente.ilike(f"%{filters['cliente']}%"))
+
+                if 'date_from' in filters and filters['date_from']:
+                    date_from = datetime.fromisoformat(filters['date_from'])
+                    query = query.filter(Order.data_consegna >= date_from)
+
+                if 'date_to' in filters and filters['date_to']:
+                    date_to = datetime.fromisoformat(filters['date_to'])
+                    date_to = date_to.replace(hour=23, minute=59, second=59)
+                    query = query.filter(Order.data_consegna <= date_to)
+
+            # Sort per data consegna
+            orders = query.order_by(Order.data_consegna.desc()).all()
+
+            csv_data = []
+            for order in orders:
+                # Recupera dati di completamento
+                notification = session.query(OrderNotification).filter(
+                    OrderNotification.order_id == order.id
+                ).first()
+
+                last_step = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order.id,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).order_by(ProcessingStep.timestamp_fine.desc()).first()
+
+                completion_date = last_step.timestamp_fine if last_step else None
+
+                # Crea record CSV (una riga per ordine)
+                csv_data.append({
+                    'ID Ordine': order.id[:8],
+                    'Cliente': order.cliente,
+                    'Data Consegna': order.data_consegna.strftime('%Y-%m-%d'),
+                    'Data Completamento': completion_date.strftime('%Y-%m-%d %H:%M') if completion_date else 'N/A',
+                    'Numero Articoli': len(order.articles or []),
+                    'Tempo Totale': notification.tempi_totali if notification else 'N/A',
+                    'Status': order.status,
+                    'Note': order.note or ''
+                })
+
+            return csv_data
+        finally:
+            session.close()

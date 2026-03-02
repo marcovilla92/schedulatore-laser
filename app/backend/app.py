@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Importa moduli locali
 from .models import initialize_database, Order, OrderFile, get_session
-from .database import OrderManager, UserManager, AuditManager
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager
 from .pdf_parser import extract_pdf_content
 
 # Estrattore universale (Docling + Gemini 2.0 Flash) — importato con guard
@@ -650,6 +650,99 @@ def get_admin_audit_log():
             'audit_logs': audit_logs,
             'count': len(audit_logs)
         }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+# ============ API ARCHIVE ============
+
+@app.route('/api/archive/orders', methods=['GET'])
+def get_archive_orders():
+    """Recupera ordini completati con paginazione e filtri"""
+    try:
+        # Parametri paginazione
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 10, type=int)
+        sort_by = request.args.get('sort_by', 'data_consegna')
+        sort_dir = request.args.get('sort_dir', 'desc')
+
+        # Parametri filtri
+        filters = {}
+        if request.args.get('cliente'):
+            filters['cliente'] = request.args.get('cliente')
+        if request.args.get('date_from'):
+            filters['date_from'] = request.args.get('date_from')
+        if request.args.get('date_to'):
+            filters['date_to'] = request.args.get('date_to')
+
+        result = ArchiveManager.get_completed_orders(
+            filters=filters if filters else None,
+            page=page,
+            limit=limit,
+            sort_by=sort_by,
+            sort_dir=sort_dir
+        )
+
+        return jsonify({
+            'success': True,
+            'data': result
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/archive/orders/<order_id>/details', methods=['GET'])
+def get_archive_order_details(order_id):
+    """Recupera dettagli completi di un ordine completato"""
+    try:
+        order_details = ArchiveManager.get_order_details(order_id)
+        if not order_details:
+            return jsonify({'success': False, 'error': 'Ordine non trovato'}), 404
+
+        return jsonify({
+            'success': True,
+            'data': order_details
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/archive/export/csv', methods=['GET'])
+def export_archive_csv():
+    """Esporta ordini completati come CSV"""
+    try:
+        import csv
+        import io
+
+        # Parametri filtri
+        filters = {}
+        if request.args.get('cliente'):
+            filters['cliente'] = request.args.get('cliente')
+        if request.args.get('date_from'):
+            filters['date_from'] = request.args.get('date_from')
+        if request.args.get('date_to'):
+            filters['date_to'] = request.args.get('date_to')
+
+        csv_data = ArchiveManager.export_csv_data(
+            filters=filters if filters else None
+        )
+
+        if not csv_data:
+            return jsonify({'success': False, 'error': 'Nessun dato da esportare'}), 400
+
+        # Crea buffer CSV
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=csv_data[0].keys())
+        writer.writeheader()
+        writer.writerows(csv_data)
+
+        # Converti in bytes
+        csv_bytes = output.getvalue().encode('utf-8-sig')
+
+        return csv_bytes, 200, {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': 'attachment; filename=archivio-ordini.csv'
+        }
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
