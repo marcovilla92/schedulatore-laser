@@ -1619,7 +1619,8 @@ async function updatePermissions() {
   // Load orders from API
   try {
     const resp = await fetch(apiEndpoint);
-    const orders = await resp.json();
+    const data = await resp.json();
+    const orders = data.orders || data || [];
 
     if (!orders || orders.length === 0) {
       document.getElementById('orders-list').innerHTML = '<p style="color: #666;">Nessun ordine in questa fase</p>';
@@ -2112,8 +2113,8 @@ async function loadCalendar() {
   try {
     // Fetch all orders
     const resp = await fetch('/api/orders');
-    const orders = await resp.json();
-    allOrders = orders || [];
+    const data = await resp.json();
+    allOrders = (data.orders || data.data?.orders || data || []);
 
     // Render calendar
     renderCalendar();
