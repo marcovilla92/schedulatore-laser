@@ -3,608 +3,914 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LS FerroTrack — Approva Ordine con Articoli</title>
+<title>LS FerroTrack — Approva Ordini</title>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three-dxf@1.5.28/lib/three-dxf.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: 'Inter', sans-serif;
-  background: #fafafa;
-  color: #000;
-  padding: 40px 20px;
-}
+html, body { height: 100%; }
 
 :root {
   --ls-green: #1a7a48;
   --ls-green-light: #22a060;
+  --ls-gray: #c8c2b8;
+  --ls-gray-light: #e2ddd5;
+  --bg-light: #fafafa;
+  --text-primary: #000000;
+  --text-secondary: #666666;
   --border: #e5e5e5;
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
 }
 
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-light);
+  color: var(--text-primary);
+}
+
+/* TOPBAR */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  overflow: hidden;
-}
-
-/* Header */
-.header {
-  padding: 32px 40px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.header h1 {
-  font-size: 24px;
-  font-weight: 700;
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo-main {
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.logo-sub {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ls-green);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.user-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+button.logout {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+button.logout:hover {
+  background: var(--bg-light);
+}
+
+/* MAIN */
+.main-wrapper {
+  margin-top: 72px;
+  padding: 48px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+h1 {
+  font-family: 'Geist', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
   margin-bottom: 8px;
+  letter-spacing: -1px;
 }
 
-.header p {
-  font-size: 13px;
-  color: #666;
+.subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  font-size: 15px;
 }
 
-/* Order Info */
-.order-info {
-  padding: 0 40px 24px;
+/* ORDERS LIST */
+.orders-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr;
   gap: 24px;
-  font-size: 13px;
 }
 
-.info-item {
+.order-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+}
+
+.order-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.order-card-header {
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(26, 122, 72, 0.05), rgba(34, 160, 96, 0.05));
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 32px;
+  align-items: center;
+}
+
+.order-info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.info-label {
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
+.order-label {
   font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
-.info-value {
-  font-weight: 500;
-  color: #000;
+.order-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-/* Table */
-.table-wrapper {
-  overflow-x: auto;
-  padding: 0 40px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 40px;
-}
-
-thead {
-  background: #f5f5f5;
-  border-bottom: 1px solid var(--border);
-}
-
-th {
-  padding: 12px 16px;
-  text-align: left;
-  font-weight: 600;
+.order-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 6px;
   font-size: 12px;
-  color: #333;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-weight: 600;
 }
 
-td {
-  padding: 24px 16px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+.order-card-content {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
 }
 
-/* Column: Articolo */
-.col-articolo {
-  font-weight: 500;
+/* PDF PREVIEW */
+.pdf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdf-section h4 {
   font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
-.col-articolo small {
-  display: block;
-  font-size: 11px;
-  color: #999;
-  margin-top: 4px;
-  font-weight: normal;
-}
-
-/* Column: Codice */
-.col-codice {
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ls-green);
-  background: rgba(26, 122, 72, 0.05);
-  padding: 6px 12px !important;
-  border-radius: 4px;
-  width: fit-content;
-}
-
-/* Column: Qty */
-.col-qty {
-  text-align: center;
-  font-weight: 600;
-  color: #333;
-}
-
-/* Column: Disegno */
-.col-disegno {
-  width: 160px;
-}
-
-.drawing-preview {
-  width: 160px;
-  height: 120px;
-  background: #f9f9f9;
+.pdf-preview {
+  width: 100%;
+  height: 400px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
+  background: #f9f9f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
   overflow: hidden;
 }
 
-.drawing-preview:hover {
-  background: #f0f0f0;
-  border-color: var(--ls-green);
-  box-shadow: 0 2px 8px rgba(26, 122, 72, 0.15);
+.pdf-preview iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
-.drawing-preview svg {
-  width: 90%;
-  height: 90%;
-}
-
-.drawing-empty {
-  color: #999;
-  font-size: 11px;
+.pdf-preview-empty {
+  color: var(--text-secondary);
   text-align: center;
+  font-size: 13px;
 }
 
-.drawing-label {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  font-size: 8px;
-  background: var(--ls-green);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 2px;
-}
-
-/* Column: Fasi */
-.col-fasi {
-  width: 320px;
-}
-
-.phase-group {
+/* PHASES & DXF */
+.phases-section {
   display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.phases-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .phase-checkbox {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 8px;
   cursor: pointer;
-  user-select: none;
+  transition: all 0.2s ease;
 }
 
-.phase-checkbox input[type="checkbox"] {
+.phase-checkbox:hover {
+  border-color: var(--ls-green);
+  background: rgba(26, 122, 72, 0.02);
+}
+
+.phase-checkbox input {
+  cursor: pointer;
   width: 18px;
   height: 18px;
-  cursor: pointer;
   accent-color: var(--ls-green);
 }
 
 .phase-checkbox label {
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  color: #333;
-  padding-top: 2px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
 }
 
-/* Modal per visualizzare disegno grande */
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 1000;
-  align-items: center;
-  justify-content: center;
+.phase-checkbox.selected {
+  border-color: var(--ls-green);
+  background: rgba(26, 122, 72, 0.08);
 }
 
-.modal.active {
+/* DXF FILES */
+.dxf-section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.dxf-files-list {
   display: flex;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  padding: 32px;
-  max-width: 900px;
-  width: 90%;
-  max-height: 90vh;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
   overflow-y: auto;
 }
 
-.modal-header {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-close {
-  width: 32px;
-  height: 32px;
+.dxf-file-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 20px;
-  color: #999;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.modal-drawing {
-  width: 100%;
-  height: 500px;
-  background: #f9f9f9;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 24px;
+.dxf-file-icon {
+  color: var(--ls-green);
+  font-weight: bold;
 }
 
-.modal-drawing svg {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-/* Footer */
-.footer {
-  padding: 24px 40px;
-  background: #f9f9f9;
+/* ACTIONS */
+.order-card-actions {
+  padding: 24px;
   border-top: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.footer-actions {
-  display: flex;
   gap: 12px;
+  justify-content: flex-end;
 }
 
-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary {
+button.approve {
+  padding: 12px 32px;
   background: var(--ls-green);
   color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
-.btn-primary:hover {
-  background: #157a3f;
+button.approve:hover {
+  background: var(--ls-green-light);
+  box-shadow: 0 4px 12px rgba(26, 122, 72, 0.3);
 }
 
-.btn-secondary {
-  background: #f0f0f0;
-  color: #333;
+button.approve:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+button.cancel {
+  padding: 12px 32px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* EMPTY STATE */
+.empty-state {
+  padding: 48px;
+  text-align: center;
+  background: white;
+  border-radius: 16px;
   border: 1px solid var(--border);
 }
 
-.btn-secondary:hover {
-  background: #e5e5e5;
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .order-info {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.empty-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
 
-  table {
-    font-size: 12px;
-  }
-
-  th, td {
-    padding: 12px 8px;
-  }
+.empty-subtext {
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- Header -->
-  <div class="header">
-    <h1>Approva Ordine</h1>
-    <p>Seleziona le fasi di lavorazione per ogni articolo in base ai disegni tecnici</p>
-  </div>
-
-  <!-- Order Info -->
-  <div class="order-info">
-    <div class="info-item">
-      <span class="info-label">Cliente</span>
-      <span class="info-value">DECA S.r.l.</span>
-    </div>
-    <div class="info-item">
-      <span class="info-label">Numero Ordine</span>
-      <span class="info-value">A000072</span>
-    </div>
-    <div class="info-item">
-      <span class="info-label">Data Consegna</span>
-      <span class="info-value">22 Gen 2024</span>
-    </div>
-    <div class="info-item">
-      <span class="info-label">Articoli</span>
-      <span class="info-value">10 art.</span>
+<div class="topbar">
+  <div class="logo-section">
+    <div class="logo-icon">LS</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">Schedulatore</div>
     </div>
   </div>
-
-  <!-- Table -->
-  <div class="table-wrapper">
-    <table>
-      <thead>
-        <tr>
-          <th>Articolo</th>
-          <th>Codice</th>
-          <th style="text-align: center;">Qty</th>
-          <th>Disegno Tecnico</th>
-          <th>Fasi di Lavorazione</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Row 1 -->
-        <tr>
-          <td class="col-articolo">
-            Piastra inf.colonna sostegno 401501 TR 1.0037
-            <small>C23-304-17</small>
-          </td>
-          <td class="col-codice">12A402101-00</td>
-          <td class="col-qty">1</td>
-          <td class="col-disegno">
-            <div class="drawing-preview" onclick="openModal('12A402101-00.dxf', 'Piastra inf.colonna sostegno')">
-              <svg viewBox="0 0 200 200" style="width: 90%; height: 90%;">
-                <line x1="20" y1="180" x2="180" y2="180" stroke="#1a7a48" stroke-width="2"/>
-                <line x1="20" y1="20" x2="180" y2="20" stroke="#1a7a48" stroke-width="2"/>
-                <line x1="20" y1="20" x2="20" y2="180" stroke="#1a7a48" stroke-width="2"/>
-                <line x1="180" y1="20" x2="180" y2="180" stroke="#1a7a48" stroke-width="2"/>
-                <circle cx="50" cy="100" r="15" fill="none" stroke="#1a7a48" stroke-width="1.5"/>
-                <circle cx="150" cy="100" r="15" fill="none" stroke="#1a7a48" stroke-width="1.5"/>
-              </svg>
-              <span class="drawing-label">DXF</span>
-            </div>
-          </td>
-          <td class="col-fasi">
-            <div class="phase-group">
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art1_laser" checked>
-                <label for="art1_laser">LASER</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art1_piega" checked>
-                <label for="art1_piega">PIEGA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art1_saldatura">
-                <label for="art1_saldatura">SALDATURA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art1_pulizia">
-                <label for="art1_pulizia">PULIZIA</label>
-              </div>
-            </div>
-          </td>
-        </tr>
-
-        <!-- Row 2 -->
-        <tr>
-          <td class="col-articolo">
-            Nervatura inferiore per CVE 025
-            <small>C23-304-03</small>
-          </td>
-          <td class="col-codice">12B200103-01</td>
-          <td class="col-qty">2</td>
-          <td class="col-disegno">
-            <div class="drawing-preview" onclick="openModal('12B200103.dxf', 'Nervatura inferiore')">
-              <svg viewBox="0 0 200 200" style="width: 90%; height: 90%;">
-                <polyline points="20,180 80,30 140,100 180,50" fill="none" stroke="#1a7a48" stroke-width="2"/>
-                <circle cx="100" cy="80" r="20" fill="none" stroke="#1a7a48" stroke-width="1.5"/>
-              </svg>
-              <span class="drawing-label">DXF</span>
-            </div>
-          </td>
-          <td class="col-fasi">
-            <div class="phase-group">
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art2_laser" checked>
-                <label for="art2_laser">LASER</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art2_piega">
-                <label for="art2_piega">PIEGA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art2_saldatura" checked>
-                <label for="art2_saldatura">SALDATURA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art2_pulizia">
-                <label for="art2_pulizia">PULIZIA</label>
-              </div>
-            </div>
-          </td>
-        </tr>
-
-        <!-- Row 3 -->
-        <tr>
-          <td class="col-articolo">
-            Piastra inf.colonna sostegno
-            <small>Supporto strutturale</small>
-          </td>
-          <td class="col-codice">12A401102-00</td>
-          <td class="col-qty">1</td>
-          <td class="col-disegno">
-            <div class="drawing-preview" onclick="openModal('12A401102-00.dxf', 'Piastra inf.colonna')">
-              <svg viewBox="0 0 200 200" style="width: 90%; height: 90%;">
-                <rect x="30" y="40" width="140" height="120" fill="none" stroke="#1a7a48" stroke-width="2"/>
-                <line x1="100" y1="40" x2="100" y2="160" stroke="#1a7a48" stroke-width="1"/>
-                <circle cx="60" cy="100" r="12" fill="none" stroke="#1a7a48" stroke-width="1.5"/>
-                <circle cx="140" cy="100" r="12" fill="none" stroke="#1a7a48" stroke-width="1.5"/>
-              </svg>
-              <span class="drawing-label">DXF</span>
-            </div>
-          </td>
-          <td class="col-fasi">
-            <div class="phase-group">
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art3_laser" checked>
-                <label for="art3_laser">LASER</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art3_piega">
-                <label for="art3_piega">PIEGA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art3_saldatura">
-                <label for="art3_saldatura">SALDATURA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art3_pulizia">
-                <label for="art3_pulizia">PULIZIA</label>
-              </div>
-            </div>
-          </td>
-        </tr>
-
-        <!-- Row 4 - Senza disegno -->
-        <tr>
-          <td class="col-articolo">
-            Nervatura vasca sp.5 S235JR
-            <small>Componente strutturale</small>
-          </td>
-          <td class="col-codice">13R025106</td>
-          <td class="col-qty">6</td>
-          <td class="col-disegno">
-            <div class="drawing-preview">
-              <div class="drawing-empty">Nessun disegno</div>
-            </div>
-          </td>
-          <td class="col-fasi">
-            <div class="phase-group">
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art4_laser">
-                <label for="art4_laser">LASER</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art4_piega">
-                <label for="art4_piega">PIEGA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art4_saldatura">
-                <label for="art4_saldatura">SALDATURA</label>
-              </div>
-              <div class="phase-checkbox">
-                <input type="checkbox" id="art4_pulizia">
-                <label for="art4_pulizia">PULIZIA</label>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <div>
-      <small style="color: #999;">4 articoli visualizzati su 10 totali</small>
-    </div>
-    <div class="footer-actions">
-      <button class="btn-secondary">Annulla</button>
-      <button class="btn-primary">Conferma Selezione Fasi</button>
-    </div>
+  <div class="topbar-actions">
+    <div class="user-info" id="user-display">Admin</div>
+    <button class="logout" onclick="logout()">Logout</button>
   </div>
 </div>
 
-<!-- Modal per visualizzare disegno grande -->
-<div class="modal" id="drawingModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <div>
-        <div id="modalTitle">Disegno Tecnico</div>
-        <small style="color: #999; font-weight: normal; font-size: 12px; margin-top: 4px; display: block;">Clicca sulla preview per ingrandire e visualizzare il disegno completo</small>
-      </div>
-      <div class="modal-close" onclick="closeModal()">×</div>
-    </div>
-    <div class="modal-drawing" id="modalDrawing"></div>
-    <div style="display: flex; gap: 12px;">
-      <button class="btn-primary" style="flex: 1;">📥 Scarica DXF</button>
-      <button class="btn-secondary" style="flex: 1;" onclick="closeModal()">Chiudi</button>
-    </div>
+<div class="main-wrapper">
+  <h1>Approva Ordini</h1>
+  <p class="subtitle">Seleziona le fasi di lavorazione per ogni ordine e approva</p>
+
+  <div class="orders-grid" id="orders-container">
+    <!-- Orders will be loaded here -->
+  </div>
+
+  <div id="empty-state" class="empty-state" style="display: none;">
+    <div class="empty-icon">✓</div>
+    <div class="empty-text">Nessun ordine in attesa</div>
+    <div class="empty-subtext">Tutti gli ordini sono stati approvati</div>
   </div>
 </div>
 
 <script>
-function openModal(dxfFile, articleName) {
-  const modal = document.getElementById('drawingModal');
-  document.getElementById('modalTitle').textContent = `${articleName} (${dxfFile})`;
+const API_BASE = '';
+let currentUser = null;
+let pendingOrders = [];
 
-  // Simulate SVG drawing
-  document.getElementById('modalDrawing').innerHTML = `
-    <svg viewBox="0 0 1000 800" style="width: 100%; height: 100%;">
-      <line x1="100" y1="700" x2="900" y2="700" stroke="#1a7a48" stroke-width="3"/>
-      <line x1="100" y1="100" x2="900" y2="100" stroke="#1a7a48" stroke-width="3"/>
-      <line x1="100" y1="100" x2="100" y2="700" stroke="#1a7a48" stroke-width="3"/>
-      <line x1="900" y1="100" x2="900" y2="700" stroke="#1a7a48" stroke-width="3"/>
-      <circle cx="300" cy="400" r="80" fill="none" stroke="#1a7a48" stroke-width="2"/>
-      <circle cx="700" cy="400" r="80" fill="none" stroke="#1a7a48" stroke-width="2"/>
-      <line x1="200" y1="200" x2="800" y2="600" stroke="#1a7a48" stroke-width="2"/>
-    </svg>
-  `;
+// Session check
+function checkSession() {
+  const saved = localStorage.getItem('currentUser');
+  if (!saved) {
+    window.location.href = '/login.html';
+    return false;
+  }
 
-  modal.classList.add('active');
+  currentUser = JSON.parse(saved);
+  const role = currentUser.role || '';
+
+  // Solo supervisore/admin possono approvare
+  if (role !== 'Supervisore' && role !== 'Admin') {
+    alert('Accesso negato. Solo il supervisore può approvare ordini.');
+    window.location.href = '/login.html';
+    return false;
+  }
+
+  document.getElementById('user-display').textContent = currentUser.name || 'Supervisore';
+  return true;
 }
 
-function closeModal() {
-  document.getElementById('drawingModal').classList.remove('active');
+// Load pending orders
+async function loadPendingOrders() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/orders`);
+    if (!resp.ok) throw new Error('Failed to load orders');
+
+    const orders = await resp.json();
+
+    // Filter: ordini con required_phases vuoto (in attesa di approvazione)
+    pendingOrders = orders.filter(order => {
+      const phases = order.required_phases;
+      return (!phases || phases.length === 0) && order.status === 'RICEVUTO';
+    });
+
+    console.log(`Loaded ${pendingOrders.length} pending orders`);
+
+    if (pendingOrders.length === 0) {
+      document.getElementById('orders-container').style.display = 'none';
+      document.getElementById('empty-state').style.display = 'block';
+    } else {
+      renderOrders();
+    }
+
+  } catch (e) {
+    console.error('Load orders error:', e);
+    alert('Errore nel caricamento ordini: ' + e.message);
+  }
 }
+
+// Render orders
+function renderOrders() {
+  const container = document.getElementById('orders-container');
+  container.innerHTML = '';
+
+  pendingOrders.forEach(order => {
+    const orderId = order.id;
+    const clienteName = order.cliente || 'Cliente';
+    const orderNum = order.numero_ordine || 'N/A';
+    const deliveryDate = new Date(order.data_consegna).toLocaleDateString('it-IT');
+    const articles = order.articles || [];
+
+    const html = `
+      <div class="order-card">
+        <div class="order-card-header">
+          <div class="order-info-item">
+            <div class="order-label">Cliente</div>
+            <div class="order-value">${clienteName}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-label">Numero Ordine</div>
+            <div class="order-value">${orderNum}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-label">Data Consegna</div>
+            <div class="order-value">${deliveryDate}</div>
+          </div>
+          <div class="order-status">
+            ⏳ In Attesa
+          </div>
+        </div>
+
+        <div class="order-card-content">
+          <!-- DXF FILES PREVIEW -->
+          <div class="pdf-section">
+            <h4>File Tecnici (DXF)</h4>
+            <div class="pdf-preview" id="dxf-preview-${orderId}">
+              <div class="pdf-preview-empty">Caricamento file...</div>
+            </div>
+          </div>
+
+          <!-- PHASES -->
+          <div class="phases-section">
+            <div>
+              <h4 style="margin-bottom: 12px;">Fasi di Lavorazione Richieste</h4>
+              <div class="phases-grid">
+                <label class="phase-checkbox" onclick="togglePhase(this)">
+                  <input type="checkbox" class="phase-input" value="LASER" data-order-id="${orderId}">
+                  <label style="margin: 0;">LASER</label>
+                </label>
+                <label class="phase-checkbox" onclick="togglePhase(this)">
+                  <input type="checkbox" class="phase-input" value="PIEGA" data-order-id="${orderId}">
+                  <label style="margin: 0;">PIEGA</label>
+                </label>
+                <label class="phase-checkbox" onclick="togglePhase(this)">
+                  <input type="checkbox" class="phase-input" value="SALDATURA" data-order-id="${orderId}">
+                  <label style="margin: 0;">SALDATURA</label>
+                </label>
+                <label class="phase-checkbox" onclick="togglePhase(this)">
+                  <input type="checkbox" class="phase-input" value="PULIZIA" data-order-id="${orderId}">
+                  <label style="margin: 0;">PULIZIA</label>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-card-actions">
+          <button class="cancel" onclick="goBack()">ANNULLA</button>
+          <button class="approve" onclick="approveOrder('${orderId}')">APPROVA ORDINE</button>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML += html;
+
+    // Load DXF files preview for this order
+    loadDXFFilesPreview(orderId);
+  });
+}
+
+// Load DXF files preview - tabbed interface for visual inspection
+async function loadDXFFilesPreview(orderId) {
+  try {
+    const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
+    if (!resp.ok) throw new Error('Failed to load order');
+
+    const order = await resp.json();
+    const dxfPreviewDiv = document.getElementById(`dxf-preview-${orderId}`);
+    const dxfFiles = order.dxf_files || [];
+
+    console.log(`[DXF Preview] Order ${orderId}: ${dxfFiles.length} files`, dxfFiles);
+
+    if (dxfFiles.length === 0) {
+      dxfPreviewDiv.innerHTML = '<div class="pdf-preview-empty">Nessun file tecnico caricato</div>';
+      return;
+    }
+
+    // Create tabbed interface for DXF files
+    let html = `<div style="display: flex; flex-direction: column; height: 100%; background: white;">`;
+
+    // Tab buttons
+    html += `<div style="display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: #fafafa; align-items: center;">`;
+    html += `<span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-right: auto;">DISEGNI TECNICI (${dxfFiles.length})</span>`;
+
+    dxfFiles.forEach((dxf, idx) => {
+      const fileName = typeof dxf === 'string' ? dxf : (dxf.filename || dxf.file_name || 'drawing.dxf');
+      const displayName = fileName.replace('draft_', '');
+      const isActive = idx === 0;
+      html += `
+        <button
+          onclick="switchDXFTab('${orderId}', ${idx})"
+          id="dxf-tab-${orderId}-${idx}"
+          style="
+            padding: 6px 10px;
+            border: 1px solid ${isActive ? 'var(--ls-green)' : '#ddd'};
+            background: ${isActive ? 'var(--ls-green)' : '#f5f5f5'};
+            color: ${isActive ? 'white' : '#333'};
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s;
+          "
+        >
+          📐 ${displayName}
+        </button>
+      `;
+    });
+    html += `</div>`;
+
+    // Preview container
+    html += `<div id="dxf-preview-container-${orderId}" style="flex: 1; background: white; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">`;
+    html += `<div style="color: #999; text-align: center;">Caricamento disegni tecnici...</div>`;
+    html += `</div>`;
+    html += `</div>`;
+
+    dxfPreviewDiv.innerHTML = html;
+
+    // Load first file
+    setTimeout(() => switchDXFTab(orderId, 0), 200);
+
+  } catch (e) {
+    console.error(`Error loading DXF files for order ${orderId}:`, e);
+    document.getElementById(`dxf-preview-${orderId}`).innerHTML =
+      '<div class="pdf-preview-empty">Errore caricamento disegni</div>';
+  }
+}
+
+// Parse DXF file and extract entities
+function parseDXF(dxfText) {
+  const entities = [];
+  const lines = dxfText.split('\n');
+  let i = 0;
+
+  // Find ENTITIES section
+  while (i < lines.length) {
+    if (lines[i].trim() === 'ENTITIES') {
+      i += 2; // Skip "2" and "ENTITIES"
+      break;
+    }
+    i++;
+  }
+
+  // Parse entities
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (line === 'ENDSEC') break;
+
+    if (line === 'LINE') {
+      const entity = { type: 'LINE' };
+      i++;
+      while (i < lines.length && lines[i].trim() !== '0') {
+        const code = lines[i].trim();
+        const value = lines[i + 1].trim();
+        if (code === '10') entity.x1 = parseFloat(value);
+        if (code === '20') entity.y1 = parseFloat(value);
+        if (code === '11') entity.x2 = parseFloat(value);
+        if (code === '21') entity.y2 = parseFloat(value);
+        i += 2;
+      }
+      if (entity.x1 !== undefined && entity.y1 !== undefined) {
+        entities.push(entity);
+      }
+      continue;
+    }
+
+    if (line === 'CIRCLE') {
+      const entity = { type: 'CIRCLE' };
+      i++;
+      while (i < lines.length && lines[i].trim() !== '0') {
+        const code = lines[i].trim();
+        const value = lines[i + 1].trim();
+        if (code === '10') entity.cx = parseFloat(value);
+        if (code === '20') entity.cy = parseFloat(value);
+        if (code === '40') entity.r = parseFloat(value);
+        i += 2;
+      }
+      if (entity.cx !== undefined && entity.cy !== undefined && entity.r !== undefined) {
+        entities.push(entity);
+      }
+      continue;
+    }
+
+    if (line === 'POLYLINE') {
+      const entity = { type: 'POLYLINE', points: [] };
+      i++;
+      while (i < lines.length && lines[i].trim() !== '0') {
+        const code = lines[i].trim();
+        const value = lines[i + 1].trim();
+        i += 2;
+      }
+      // Read vertex points
+      while (i < lines.length && lines[i].trim() === 'VERTEX') {
+        i++;
+        const vertex = {};
+        while (i < lines.length && lines[i].trim() !== '0') {
+          const code = lines[i].trim();
+          const value = lines[i + 1].trim();
+          if (code === '10') vertex.x = parseFloat(value);
+          if (code === '20') vertex.y = parseFloat(value);
+          i += 2;
+        }
+        if (vertex.x !== undefined && vertex.y !== undefined) {
+          entity.points.push(vertex);
+        }
+      }
+      if (entity.points.length > 0) {
+        entities.push(entity);
+      }
+      continue;
+    }
+
+    i++;
+  }
+
+  return entities;
+}
+
+// Render DXF entities as SVG
+function renderDXFAsSVG(dxfText) {
+  const entities = parseDXF(dxfText);
+  if (entities.length === 0) return null;
+
+  // Find bounds
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  entities.forEach(e => {
+    if (e.type === 'LINE') {
+      minX = Math.min(minX, e.x1, e.x2);
+      maxX = Math.max(maxX, e.x1, e.x2);
+      minY = Math.min(minY, e.y1, e.y2);
+      maxY = Math.max(maxY, e.y1, e.y2);
+    } else if (e.type === 'CIRCLE') {
+      minX = Math.min(minX, e.cx - e.r);
+      maxX = Math.max(maxX, e.cx + e.r);
+      minY = Math.min(minY, e.cy - e.r);
+      maxY = Math.max(maxY, e.cy + e.r);
+    } else if (e.type === 'POLYLINE') {
+      e.points.forEach(p => {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      });
+    }
+  });
+
+  const padding = 40;
+  const width = maxX - minX + padding * 2;
+  const height = maxY - minY + padding * 2;
+  const scale = Math.min(800 / width, 600 / height);
+
+  let svg = `<svg viewBox="0 0 800 600" style="width: 100%; height: 100%; background: white; border: 1px solid #ddd; border-radius: 4px;">`;
+  svg += `<g transform="translate(${padding}, ${padding}) scale(${scale}, ${-scale}) translate(${-minX}, ${-maxY})">`;
+
+  entities.forEach(e => {
+    if (e.type === 'LINE') {
+      svg += `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="#1a7a48" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    } else if (e.type === 'CIRCLE') {
+      svg += `<circle cx="${e.cx}" cy="${e.cy}" r="${e.r}" fill="none" stroke="#1a7a48" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    } else if (e.type === 'POLYLINE') {
+      const points = e.points.map(p => `${p.x},${p.y}`).join(' ');
+      svg += `<polyline points="${points}" fill="none" stroke="#1a7a48" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    }
+  });
+
+  svg += `</g></svg>`;
+  return svg;
+}
+
+// Switch DXF tab and render preview with geometry
+async function switchDXFTab(orderId, fileIndex) {
+  try {
+    const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
+    const order = await resp.json();
+    const dxfFiles = order.dxf_files || [];
+
+    if (fileIndex >= dxfFiles.length) return;
+
+    const dxfFile = dxfFiles[fileIndex];
+    const fileName = typeof dxfFile === 'string' ? dxfFile : (dxfFile.filename || dxfFile.file_name || 'drawing.dxf');
+    const displayName = fileName.replace('draft_', '');
+
+    // Update tab buttons
+    document.querySelectorAll(`[id^="dxf-tab-${orderId}-"]`).forEach((btn, idx) => {
+      if (idx === fileIndex) {
+        btn.style.background = 'var(--ls-green)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'var(--ls-green)';
+      } else {
+        btn.style.background = '#f5f5f5';
+        btn.style.color = '#333';
+        btn.style.borderColor = '#ddd';
+      }
+    });
+
+    const container = document.getElementById(`dxf-preview-container-${orderId}`);
+    const dxfUrl = `${API_BASE}/api/orders/${orderId}/dxf/${fileName}`;
+
+    // Show loading
+    container.innerHTML = '<div style="color: #999; padding: 20px;">Caricamento disegno...</div>';
+
+    // Fetch DXF file
+    const dxfResp = await fetch(dxfUrl);
+    const dxfText = await dxfResp.text();
+
+    // Render as SVG
+    const svgHtml = renderDXFAsSVG(dxfText);
+
+    if (svgHtml) {
+      container.innerHTML = `
+        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; background: #f9f9f9; position: relative;">
+          <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+            ${svgHtml}
+          </div>
+          <div style="position: absolute; bottom: 12px; right: 12px;">
+            <a href="${dxfUrl}" download="${displayName}" style="
+              display: inline-block;
+              padding: 6px 12px;
+              background: var(--ls-green);
+              color: white;
+              text-decoration: none;
+              border-radius: 4px;
+              font-weight: 600;
+              font-size: 11px;
+              cursor: pointer;
+            ">📥 Scarica</a>
+          </div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = '<div style="color: #999; padding: 20px;">Errore nel parsing del disegno</div>';
+    }
+
+    console.log(`[DXF Tab] Switched to ${displayName}`);
+
+  } catch (e) {
+    console.error(`Error switching DXF tab:`, e);
+    document.getElementById(`dxf-preview-container-${orderId}`).innerHTML =
+      '<div style="color: #d32f2f; text-align: center; padding: 20px;">Errore caricamento disegno</div>';
+  }
+}
+
+// Toggle phase checkbox
+function togglePhase(element) {
+  element.classList.toggle('selected');
+}
+
+// Approve order
+async function approveOrder(orderId) {
+  try {
+    // Get selected phases
+    const checkboxes = document.querySelectorAll(`.phase-input[data-order-id="${orderId}"]:checked`);
+    const selectedPhases = Array.from(checkboxes).map(cb => cb.value);
+
+    if (selectedPhases.length === 0) {
+      alert('Seleziona almeno una fase di lavorazione');
+      return;
+    }
+
+    // Call approval endpoint
+    const resp = await fetch(`${API_BASE}/api/orders/${orderId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        required_phases: selectedPhases,
+        operatore_id: currentUser.id
+      })
+    });
+
+    if (!resp.ok) throw new Error('Approval failed');
+
+    const result = await resp.json();
+    alert(`[OK] Ordine ${result.numero_ordine} approvato!\nFasi: ${selectedPhases.join(', ')}`);
+
+    // Reload pending orders
+    loadPendingOrders();
+
+  } catch (e) {
+    console.error('Approve order error:', e);
+    alert('Errore nell\'approvazione: ' + e.message);
+  }
+}
+
+function goBack() {
+  window.location.href = '/login.html';
+}
+
+async function logout() {
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id })
+    });
+  } catch (e) {
+    console.error('Logout error:', e);
+  }
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  if (checkSession()) {
+    loadPendingOrders();
+  }
+});
 </script>
 
 </body>
