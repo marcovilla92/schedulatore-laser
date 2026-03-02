@@ -207,6 +207,9 @@ def get_order(order_id):
 @app.route('/api/orders/<order_id>/approve', methods=['POST'])
 def approve_order(order_id):
     """Supervisore approva ordine e seleziona fasi"""
+    from .models import get_session, ProcessingStep
+    import uuid
+
     try:
         data = request.get_json()
         required_phases = data.get('required_phases', [])
@@ -215,33 +218,46 @@ def approve_order(order_id):
         if not required_phases or len(required_phases) == 0:
             return jsonify({'error': 'Seleziona almeno una fase'}), 400
 
-        # Aggiorna ordine con fasi selezionate
-        order = OrderManager.session.query(Order).filter(Order.id == order_id).first()
-        if not order:
-            return jsonify({'error': 'Ordine non trovato'}), 404
+        session = get_session()
+        try:
+            # Aggiorna ordine con fasi selezionate
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return jsonify({'error': 'Ordine non trovato'}), 404
 
-        order.required_phases = required_phases
-        OrderManager.session.commit()
+            # Assegna fasi come JSON
+            order.required_phases = required_phases
+            session.commit()
 
-        # Crea processing_steps per ogni fase selezionata
-        for phase in required_phases:
-            OrderManager.create_processing_step(order_id, phase)
+            # Crea processing_steps per ogni fase selezionata
+            for phase in required_phases:
+                step = ProcessingStep(
+                    id=str(uuid.uuid4()),
+                    order_id=order_id,
+                    fase=phase
+                )
+                session.add(step)
 
-        # Audit log
-        AuditManager.log(
-            user_id=operatore_id,
-            action='APPROVE_ORDER',
-            entity_type='order',
-            entity_id=order_id,
-            detail=f'Ordine approvato con fasi: {", ".join(required_phases)}'
-        )
+            session.commit()
 
-        return jsonify({
-            'success': True,
-            'order_id': order_id,
-            'numero_ordine': order.cliente,  # Fallback
-            'required_phases': required_phases
-        }), 200
+            # Audit log
+            AuditManager.log(
+                user_id=operatore_id,
+                action='APPROVE_ORDER',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f'Ordine approvato con fasi: {", ".join(required_phases)}'
+            )
+
+            return jsonify({
+                'success': True,
+                'order_id': order_id,
+                'numero_ordine': order.numero_ordine or 'N/A',
+                'required_phases': required_phases
+            }), 200
+
+        finally:
+            session.close()
 
     except Exception as e:
         print(f"[ERROR] Approve order error: {e}")
