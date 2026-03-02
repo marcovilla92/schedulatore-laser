@@ -249,6 +249,31 @@ def approve_order(order_id):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/orders/<order_id>/dxf/<filename>', methods=['GET'])
+def get_dxf_file(order_id, filename):
+    """Serve DXF file per download"""
+    try:
+        # Sanitize filename to prevent directory traversal
+        filename = os.path.basename(filename)
+
+        # Verify file exists in drawings folder
+        dxf_path = os.path.join(DRAWINGS_FOLDER, filename)
+
+        if not os.path.exists(dxf_path):
+            return jsonify({'error': 'File non trovato'}), 404
+
+        # Serve file for download with proper headers
+        return send_file(
+            dxf_path,
+            mimetype='application/dxf',
+            as_attachment=True,
+            download_name=filename.replace('draft_', '')
+        )
+
+    except Exception as e:
+        print(f"[ERROR] Get DXF file error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
     """Recupera lista ordini"""

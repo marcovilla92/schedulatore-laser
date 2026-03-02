@@ -561,7 +561,7 @@ function renderOrders() {
   });
 }
 
-// Load DXF files preview
+// Load DXF files preview - show as downloadable technical drawings
 async function loadDXFFilesPreview(orderId) {
   try {
     const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
@@ -575,32 +575,66 @@ async function loadDXFFilesPreview(orderId) {
 
     if (dxfFiles.length === 0) {
       dxfPreviewDiv.innerHTML = '<div class="pdf-preview-empty">Nessun file tecnico caricato</div>';
-      console.log(`[DXF Preview] No files for order ${orderId}`);
       return;
     }
 
-    // Mostra lista file DXF nel preview area
-    let dxfHTML = '<div style="padding: 16px; display: flex; flex-direction: column; gap: 8px; height: 100%; justify-content: flex-start;">';
-
-    dxfFiles.forEach(dxf => {
-      const fileName = typeof dxf === 'string' ? dxf : (dxf.filename || dxf.file_name || 'drawing.dxf');
-      dxfHTML += `
-        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; border-left: 4px solid var(--ls-green);">
-          <span style="font-size: 20px; color: var(--ls-green);">📐</span>
-          <div style="flex: 1;">
-            <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">${fileName}</div>
-            <div style="font-size: 11px; color: var(--text-secondary);">File tecnico DXF</div>
+    // Show DXF files as downloadable technical drawings
+    let dxfHTML = `
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%); border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 18px;">📐</span>
+          <div style="font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ls-green);">
+            File Tecnici (${dxfFiles.length})
           </div>
         </div>
+    `;
+
+    dxfFiles.forEach((dxf, idx) => {
+      const fileName = typeof dxf === 'string' ? dxf : (dxf.filename || dxf.file_name || 'drawing.dxf');
+      const displayName = fileName.replace('draft_', '');
+      const dxfUrl = `${API_BASE}/api/orders/${orderId}/dxf/${fileName}`;
+
+      dxfHTML += `
+        <a
+          href="${dxfUrl}"
+          download="${displayName}"
+          style="
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            cursor: pointer;
+          "
+          onmouseover="this.style.borderColor='var(--ls-green)'; this.style.boxShadow='0 2px 8px rgba(26,122,72,0.1)';"
+          onmouseout="this.style.borderColor='var(--border)'; this.style.boxShadow='none';"
+        >
+          <span style="font-size: 20px; color: var(--ls-green); flex-shrink: 0;">📥</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${displayName}
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+              File tecnico DXF - Scarica per aprire
+            </div>
+          </div>
+          <span style="font-size: 16px; color: var(--text-secondary); flex-shrink: 0;">→</span>
+        </a>
       `;
     });
 
     dxfHTML += '</div>';
     dxfPreviewDiv.innerHTML = dxfHTML;
+
   } catch (e) {
     console.error(`Error loading DXF files for order ${orderId}:`, e);
     document.getElementById(`dxf-preview-${orderId}`).innerHTML =
-      '<div class="pdf-preview-empty">Errore caricamento file</div>';
+      '<div class="pdf-preview-empty">Errore caricamento file tecnico</div>';
   }
 }
 
