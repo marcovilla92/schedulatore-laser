@@ -860,8 +860,8 @@ async function loginUser(userId) {
     document.getElementById('dashboard').classList.add('active');
 
     // Update UI
-    updateDashboardUI();
-    updatePermissions();
+    await updateDashboardUI();
+    await updatePermissions();
 
     // Update clock
     updateClock();
@@ -897,7 +897,7 @@ async function logout() {
   }
 }
 
-function updateDashboardUI() {
+async function updateDashboardUI() {
   document.getElementById('userInitials').textContent = currentUser.initials || currentUser.id.substring(0, 2).toUpperCase();
   document.getElementById('userName').textContent = currentUser.name || currentUser.id;
   document.getElementById('userRole').textContent = currentUser.role || 'Operaio';
@@ -918,7 +918,7 @@ function updateDashboardUI() {
   }
 }
 
-function updatePermissions() {
+async function updatePermissions() {
   const perms = currentUser.permissions || ['overview'];
 
   // Supervisione
@@ -960,27 +960,118 @@ function updatePermissions() {
     document.getElementById('navAdmin').style.display = 'none';
   }
 
-  // Lavorazione per fase
+  // Lavorazione per fase - Load orders from API
   const phase = currentUser.phase || 'LASER';
+  let apiEndpoint = '';
+  let phaseLabel = '';
+  let machinesLabel = '';
+
   if (phase === 'LASER') {
-    document.getElementById('lavorazioneContent').innerHTML = `
-      <p><strong>Fase:</strong> Laser Cutting</p>
-      <p><strong>Macchine assegnate:</strong> ${(currentUser.machines || []).join(', ')}</p>
-    `;
+    phaseLabel = 'Laser Cutting';
+    machinesLabel = (currentUser.machines || []).join(', ') || 'CNC 01, Laser CO2';
+    apiEndpoint = '/api/phase/LASER/orders';
   } else if (phase === 'SALDATURA') {
-    document.getElementById('lavorazioneContent').innerHTML = `
-      <p><strong>Fase:</strong> Saldatura</p>
-      <p><strong>Macchine assegnate:</strong> ${(currentUser.machines || []).join(', ')}</p>
-    `;
+    phaseLabel = 'Saldatura';
+    machinesLabel = (currentUser.machines || []).join(', ') || 'Stazione Saldatura';
+    apiEndpoint = '/api/phase/SALDATURA/orders';
   } else if (phase === 'PIEGA') {
-    document.getElementById('lavorazioneContent').innerHTML = `
-      <p><strong>Fase:</strong> Piega</p>
-      <p><strong>Macchine assegnate:</strong> ${(currentUser.machines || []).join(', ')}</p>
-    `;
+    phaseLabel = 'Piega';
+    machinesLabel = (currentUser.machines || []).join(', ') || 'Pressa Piega';
+    apiEndpoint = '/api/phase/PIEGA/orders';
   } else if (phase === 'ALL') {
-    document.getElementById('lavorazioneContent').innerHTML = `
-      <p><strong>Ruolo Supervisore:</strong> Visualizzi tutte le fasi di lavorazione</p>
-    `;
+    phaseLabel = 'Supervisore - Tutte le Fasi';
+    apiEndpoint = '/api/orders';
+  }
+
+  // Show phase info
+  let html = `
+    <p><strong>Fase:</strong> ${phaseLabel}</p>
+    <p><strong>Macchine assegnate:</strong> ${machinesLabel}</p>
+    <div id="orders-list" style="margin-top: 24px;">
+      <p style="color: #666;">Caricamento ordini...</p>
+    </div>
+  `;
+
+  document.getElementById('lavorazioneContent').innerHTML = html;
+
+  // Load orders from API
+  try {
+    const resp = await fetch(apiEndpoint);
+    const orders = await resp.json();
+
+    if (!orders || orders.length === 0) {
+      document.getElementById('orders-list').innerHTML = '<p style="color: #666;">Nessun ordine in questa fase</p>';
+      return;
+    }
+
+    // Render orders
+    let ordersHtml = '<div style="display: grid; gap: 16px;">';
+
+    orders.forEach(order => {
+      const articles = order.articles_next_phase || order.articles || [];
+      const totalQty = articles.reduce((sum, a) => sum + (a.qty || 0), 0);
+
+      ordersHtml += `
+        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: white;">
+          <h3 style="margin: 0 0 8px 0; font-size: 16px;">${order.cliente}</h3>
+          <p style="margin: 0 0 12px 0; color: #666; font-size: 14px;">
+            ${articles.length} articoli • Quantità: ${totalQty}
+          </p>
+          <div style="margin-bottom: 12px;">
+      `;
+
+      articles.slice(0, 3).forEach((article, idx) => {
+        ordersHtml += `
+          <div style="font-size: 13px; color: #555; padding: 4px 0;">
+            • ${article.name} (${article.code}): ${article.qty} pz
+          </div>
+        `;
+      });
+
+      if (articles.length > 3) {
+        ordersHtml += `<div style="font-size: 13px; color: #999; padding: 4px 0;">... e ${articles.length - 3} altri</div>`;
+      }
+
+      ordersHtml += `
+          </div>
+          <button onclick="startPhase('${order.id}')" style="
+            background: #22c55e; color: white; border: none; padding: 8px 16px;
+            border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
+          ">Inizia Lavorazione</button>
+        </div>
+      `;
+    });
+
+    ordersHtml += '</div>';
+    document.getElementById('orders-list').innerHTML = ordersHtml;
+
+  } catch (e) {
+    console.error('Error loading orders:', e);
+    document.getElementById('orders-list').innerHTML = '<p style="color: red;">Errore nel caricamento degli ordini</p>';
+  }
+}
+
+async function startPhase(orderId) {
+  try {
+    const phase = currentUser.phase || 'LASER';
+    const response = await fetch(`/api/orders/${orderId}/phase/${phase}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operatore_id: currentUser.id
+      })
+    });
+
+    if (!response.ok) {
+      alert('Errore nell\'avvio della fase');
+      return;
+    }
+
+    alert('Fase avviata con successo!');
+    await updatePermissions(); // Reload orders
+  } catch (e) {
+    console.error('Error:', e);
+    alert('Errore nel completamento della richiesta');
   }
 }
 
@@ -1031,8 +1122,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUser = userData;
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').classList.add('active');
-      updateDashboardUI();
-      updatePermissions();
+      await updateDashboardUI();
+      await updatePermissions();
       updateClock();
       setInterval(updateClock, 1000);
     } catch (e) {
