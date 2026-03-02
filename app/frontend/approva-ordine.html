@@ -462,7 +462,8 @@ async function loadPendingOrders() {
     const resp = await fetch(`${API_BASE}/api/orders`);
     if (!resp.ok) throw new Error('Failed to load orders');
 
-    const orders = await resp.json();
+    const data = await resp.json();
+    const orders = data.orders || data || [];
 
     // Filter: ordini con required_phases vuoto (in attesa di approvazione)
     pendingOrders = orders.filter(order => {
