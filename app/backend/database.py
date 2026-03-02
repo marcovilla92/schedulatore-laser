@@ -314,7 +314,7 @@ class OrderManager:
                                 id=str(uuid.uuid4()),
                                 order_id=order_id,
                                 fase=next_phase,
-                                timestamp_inizio=datetime.utcnow(),
+                                timestamp_inizio=None,  # Will be set by start_phase()
                                 timestamp_fine=None,
                                 operatore='',
                                 completed_articles=[]
