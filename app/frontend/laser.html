@@ -795,6 +795,82 @@
             .modal-content { padding: 24px; width: 95%; }
         }
 
+        /* ===== URGENCY BADGES (EDD Prioritization) ===== */
+        .urgency-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+        }
+
+        .urgency-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        /* Green: >= 7 days (SAFE) */
+        .urgency-badge.urgency-green {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--accent-green);
+        }
+
+        .urgency-badge.urgency-green .urgency-indicator {
+            background: var(--accent-green);
+            box-shadow: 0 0 6px rgba(0, 230, 118, 0.4);
+        }
+
+        /* Yellow: 3-7 days (MODERATE) */
+        .urgency-badge.urgency-yellow {
+            background: rgba(255, 165, 2, 0.15);
+            color: var(--accent-amber);
+        }
+
+        .urgency-badge.urgency-yellow .urgency-indicator {
+            background: var(--accent-amber);
+            box-shadow: 0 0 6px rgba(255, 165, 2, 0.4);
+        }
+
+        /* Red: < 3 days or overdue (CRITICAL) */
+        .urgency-badge.urgency-red {
+            background: rgba(255, 71, 87, 0.15);
+            color: var(--accent-red);
+        }
+
+        .urgency-badge.urgency-red .urgency-indicator {
+            background: var(--accent-red);
+            box-shadow: 0 0 8px rgba(255, 71, 87, 0.6);
+            animation: pulse-urgent 2s infinite;
+        }
+
+        @keyframes pulse-urgent {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Order card border accent based on urgency */
+        .order-card.urgency-green {
+            border-top: 2px solid rgba(0, 230, 118, 0.3);
+        }
+
+        .order-card.urgency-yellow {
+            border-top: 2px solid rgba(255, 165, 2, 0.3);
+        }
+
+        .order-card.urgency-red {
+            border-top: 2px solid rgba(255, 71, 87, 0.5);
+        }
+
+        .order-card.urgency-red:hover {
+            box-shadow: 0 0 50px rgba(255, 71, 87, 0.15), 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -907,12 +983,43 @@
                 const response = await fetch(`${API_URL}/phase/${PHASE}/orders`);
                 const orders = await response.json();
 
-                renderOrders(Array.isArray(orders) ? orders : []);
+                // Sort orders by EDD (Earliest Due Date)
+                const sortedOrders = sortOrdersByEDD(Array.isArray(orders) ? orders : []);
+                renderOrders(sortedOrders);
                 updateSummary(orders);
             } catch (error) {
                 console.error('Errore caricamento ordini:', error);
                 showMessage('Errore connessione al server', 'error');
             }
+        }
+
+        // ── ORDER PRIORITIZATION FUNCTIONS ──
+        function getDaysRemaining(deliveryDate) {
+            const delivery = new Date(deliveryDate).setHours(0, 0, 0, 0);
+            const today = new Date().setHours(0, 0, 0, 0);
+            const diffMs = delivery - today;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
+        function getUrgencyTier(daysRemaining) {
+            if (daysRemaining < 3) return 'red';     // < 3 days or overdue = CRITICAL
+            if (daysRemaining < 7) return 'yellow';  // 3-7 days = MODERATE
+            return 'green';                           // >= 7 days = SAFE
+        }
+
+        function getUrgencyLabel(daysRemaining) {
+            if (daysRemaining < 0) return 'Scaduto';
+            if (daysRemaining === 0) return 'Oggi';
+            return `${daysRemaining} giorn${daysRemaining !== 1 ? 'i' : 'o'}`;
+        }
+
+        function sortOrdersByEDD(orders) {
+            return [...orders].sort((a, b) => {
+                const dateA = new Date(a.data_consegna).getTime();
+                const dateB = new Date(b.data_consegna).getTime();
+                return dateA - dateB; // Earliest due date first
+            });
         }
 
         function renderOrders(orders) {
@@ -940,11 +1047,19 @@
                 const totalArticles = order.articles_next_phase ? order.articles_next_phase.length : 0;
                 const totalPieces = order.articles_next_phase ? order.articles_next_phase.reduce((sum, a) => sum + a.qty, 0) : 0;
 
+                // Calculate urgency
+                const daysRemaining = getDaysRemaining(order.data_consegna);
+                const urgencyTier = getUrgencyTier(daysRemaining);
+                const urgencyLabel = getUrgencyLabel(daysRemaining);
+
                 return `
-                    <div class="order-card">
+                    <div class="order-card urgency-${urgencyTier}">
                         <div class="order-header">
                             <h3>${order.cliente}</h3>
-                            <div class="order-id">${order.id.substring(0, 8)}</div>
+                            <div class="urgency-badge urgency-${urgencyTier}">
+                                <span class="urgency-indicator"></span>
+                                ${urgencyLabel}
+                            </div>
                         </div>
 
                         <div class="order-info">
