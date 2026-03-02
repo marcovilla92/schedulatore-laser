@@ -824,6 +824,46 @@ button.primary:disabled {
     <button onclick="saveModifications()" style="width: 100%; padding: 12px; background: var(--ls-green); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Salva Modifiche</button>
   </div>
 
+  <!-- PHASE SELECTION SECTION -->
+  <div style="margin-bottom: 32px; padding: 24px; background: rgba(26, 122, 72, 0.05); border-radius: 12px;">
+    <h3 style="margin-bottom: 20px;">Fasi di Lavorazione</h3>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Seleziona le fasi richieste per questo ordine:</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+      <label style="display: flex; align-items: center; cursor: pointer; padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.2s;">
+        <input type="checkbox" id="phase-laser" checked style="width: 18px; height: 18px; cursor: pointer; margin-right: 10px;">
+        <div>
+          <div style="font-weight: 600; font-size: 14px;">LASER</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Taglio laser</div>
+        </div>
+      </label>
+
+      <label style="display: flex; align-items: center; cursor: pointer; padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.2s;">
+        <input type="checkbox" id="phase-piega" checked style="width: 18px; height: 18px; cursor: pointer; margin-right: 10px;">
+        <div>
+          <div style="font-weight: 600; font-size: 14px;">PIEGA</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Piegatura</div>
+        </div>
+      </label>
+
+      <label style="display: flex; align-items: center; cursor: pointer; padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.2s;">
+        <input type="checkbox" id="phase-saldatura" checked style="width: 18px; height: 18px; cursor: pointer; margin-right: 10px;">
+        <div>
+          <div style="font-weight: 600; font-size: 14px;">SALDATURA</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Saldatura</div>
+        </div>
+      </label>
+
+      <label style="display: flex; align-items: center; cursor: pointer; padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.2s;">
+        <input type="checkbox" id="phase-pulizia" style="width: 18px; height: 18px; cursor: pointer; margin-right: 10px;">
+        <div>
+          <div style="font-weight: 600; font-size: 14px;">PULIZIA</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Pulizia finale</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
   <!-- ACTION BUTTONS -->
   <div class="actions">
     <button class="secondary" onclick="cancelOrder()">ANNULLA</button>
@@ -970,14 +1010,31 @@ function cancelOrder() {
   }
 }
 
+// Raccoglie le fasi selezionate dai checkbox
+function getSelectedPhases() {
+  const phases = [];
+  if (document.getElementById('phase-laser').checked) phases.push('LASER');
+  if (document.getElementById('phase-piega').checked) phases.push('PIEGA');
+  if (document.getElementById('phase-saldatura').checked) phases.push('SALDATURA');
+  if (document.getElementById('phase-pulizia').checked) phases.push('PULIZIA');
+  return phases;
+}
+
 async function confirmOrder() {
   if (!pdfData) {
     showWarning('Attenzione', 'Carica un PDF prima di confermare l\'ordine!');
     return;
   }
 
+  // Verifica che almeno una fase sia selezionata
+  const selectedPhases = getSelectedPhases();
+  if (selectedPhases.length === 0) {
+    showWarning('Attenzione', 'Seleziona almeno una fase di lavorazione!');
+    return;
+  }
+
   try {
-    // Crea ordine SENZA fasi (il capo produzione le definirà)
+    // Crea ordine con le fasi selezionate
     const resp = await fetch(`${API_BASE}/api/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -985,7 +1042,7 @@ async function confirmOrder() {
         cliente: pdfData.cliente || 'Cliente Generico',
         data_consegna: pdfData.data_consegna || new Date(Date.now() + 7*24*60*60*1000).toISOString(),
         articles: pdfData.articoli || [],
-        required_phases: [],
+        required_phases: selectedPhases,  // Use selected phases instead of empty array
         operatore_id: currentUser.id,
         pdf_filename: uploadedPDFFilename,  // Send PDF filename
         dxf_filenames: uploadedDXFFilenames  // Send DXF filenames
@@ -996,7 +1053,7 @@ async function confirmOrder() {
     const data = await resp.json();
     const orderId = data.order_id;
 
-    showSuccess('Ordine Creato', `Ordine ${orderId} creato con successo!\n\nIl capo produzione definirà le fasi di lavorazione.`);
+    showSuccess('Ordine Creato', `Ordine ${orderId} creato con successo!\n\nFasi: ${selectedPhases.join(', ')}`);
     window.location.href = '/login.html';
   } catch (e) {
     console.error('Confirm error:', e);

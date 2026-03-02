@@ -229,6 +229,7 @@ def create_order():
             'cliente': order.cliente,
             'data_consegna': order.data_consegna.isoformat(),
             'articles': order.articles,
+            'required_phases': order.required_phases,
             'total_quantity': order.total_quantity
         }), 201
 
