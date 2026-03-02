@@ -121,6 +121,51 @@ def get_users():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    """Crea un nuovo utente"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', '').strip()
+        name = data.get('name', '').strip()
+        role = data.get('role', '').strip()
+        phase = data.get('phase', 'LASER').strip()
+        permissions = data.get('permissions', [])
+        machines = data.get('machines', [])
+
+        if not user_id or not name or not role:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        result = UserManager.create_user(
+            user_id=user_id,
+            name=name,
+            role=role,
+            phase=phase,
+            permissions=permissions,
+            machines=machines
+        )
+
+        if result is None:
+            return jsonify({'success': False, 'error': 'User already exists'}), 400
+
+        return jsonify({'success': True, 'user': result}), 201
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/users/<user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Disattiva un utente (soft delete)"""
+    try:
+        success = UserManager.delete_user(user_id)
+        if not success:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        return jsonify({'success': True, 'message': f'User {user_id} deleted'}), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 # ============ API ORDINI ============
 
 @app.route('/api/orders', methods=['POST'])

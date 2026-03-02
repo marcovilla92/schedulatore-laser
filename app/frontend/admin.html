@@ -935,7 +935,12 @@ body {
 
       <!-- TAB: OPERATORI -->
       <div id="tab-operators" class="settings-content" style="display: block;">
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Gestione Operai e Ruoli</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="font-size: 20px; font-weight: 700; margin: 0;">Gestione Operai e Ruoli</h2>
+          <button onclick="openAddOperatorModal()" style="background: var(--ls-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+            + Aggiungi Operaio
+          </button>
+        </div>
         <div id="operatorsTable" style="background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden;">
           <table style="width: 100%; border-collapse: collapse;">
             <thead style="background: #f5f5f5; border-bottom: 1px solid var(--border);">
@@ -1079,6 +1084,75 @@ body {
         </div>
       </div>
 
+    </div>
+
+    <!-- MODAL: ADD OPERATOR -->
+    <div id="addOperatorModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
+      <div style="background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 24px 0;">Aggiungi Nuovo Operaio</h2>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">ID Utente</label>
+          <input id="newUserID" type="text" placeholder="es: mario-laser" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: monospace;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Nome Operaio</label>
+          <input id="newUserName" type="text" placeholder="es: Mario Rossi" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Ruolo</label>
+          <select id="newUserRole" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box;">
+            <option value="">-- Seleziona Ruolo --</option>
+            <option value="Operaio">Operaio</option>
+            <option value="Supervisore">Supervisore</option>
+            <option value="Amministratore">Amministratore</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Fase Assegnata</label>
+          <select id="newUserPhase" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box;">
+            <option value="">-- Seleziona Fase --</option>
+            <option value="LASER">LASER</option>
+            <option value="PIEGA">PIEGA</option>
+            <option value="SALDATURA">SALDATURA</option>
+            <option value="ALL">TUTTE (Admin)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">Permessi</label>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="perm-overview" value="overview" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
+              <span>Visualizza Dashboard</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="perm-lavorazione" value="lavorazione" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
+              <span>Accedi a Lavorazione</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="perm-supervisione" value="supervisione" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
+              <span>Supervisore (Approva ordini)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="perm-archive" value="archive" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
+              <span>Accedi ad Archivio</span>
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button onclick="closeAddOperatorModal()" style="flex: 1; padding: 12px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-primary);">
+            Annulla
+          </button>
+          <button onclick="submitAddOperator()" style="flex: 1; padding: 12px; background: var(--ls-green); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+            Crea Operaio
+          </button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1232,9 +1306,12 @@ async function loadOperators() {
               ${statusText}
             </span>
           </td>
-          <td style="padding: 12px 16px; text-align: center; font-size: 12px;">
+          <td style="padding: 12px 16px; text-align: center; font-size: 12px; display: flex; gap: 6px; justify-content: center;">
             <button onclick="toggleOperatorStatus('${user.id}')" style="background: #f5f5f5; border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
               ${isActive ? 'Disattiva' : 'Attiva'}
+            </button>
+            <button onclick="deleteOperator('${user.id}', '${user.name}')" style="background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+              Elimina
             </button>
           </td>
         </tr>
@@ -1276,6 +1353,126 @@ function downloadBackup() {
   URL.revokeObjectURL(url);
 
   alert(`Backup scaricato: ${filename}`);
+}
+
+// ── OPERATOR MANAGEMENT ──
+function openAddOperatorModal() {
+  document.getElementById('addOperatorModal').style.display = 'flex';
+  // Clear form fields
+  document.getElementById('newUserID').value = '';
+  document.getElementById('newUserName').value = '';
+  document.getElementById('newUserRole').value = '';
+  document.getElementById('newUserPhase').value = '';
+  document.querySelectorAll('#addOperatorModal input[type="checkbox"]').forEach(cb => cb.checked = false);
+}
+
+function closeAddOperatorModal() {
+  document.getElementById('addOperatorModal').style.display = 'none';
+}
+
+async function submitAddOperator() {
+  const userId = document.getElementById('newUserID').value.trim();
+  const name = document.getElementById('newUserName').value.trim();
+  const role = document.getElementById('newUserRole').value.trim();
+  const phase = document.getElementById('newUserPhase').value.trim();
+
+  if (!userId || !name || !role || !phase) {
+    alert('Compila tutti i campi obbligatori');
+    return;
+  }
+
+  // Collect permissions
+  const permissions = [];
+  if (document.getElementById('perm-overview').checked) permissions.push('overview');
+  if (document.getElementById('perm-lavorazione').checked) permissions.push('lavorazione');
+  if (document.getElementById('perm-supervisione').checked) permissions.push('supervisione');
+  if (document.getElementById('perm-archive').checked) permissions.push('archive');
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        name: name,
+        role: role,
+        phase: phase,
+        permissions: permissions,
+        machines: []
+      })
+    });
+
+    const data = await resp.json();
+    if (data.success) {
+      alert('Operaio creato con successo!');
+      closeAddOperatorModal();
+      loadOperators();
+    } else {
+      alert(`Errore: ${data.error}`);
+    }
+  } catch (e) {
+    console.error('Error creating operator:', e);
+    alert('Errore nella creazione dell\'operaio');
+  }
+}
+
+async function deleteOperator(userId, userName) {
+  // Use a custom confirmation instead of browser confirm
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5); z-index: 2000;
+    display: flex; justify-content: center; align-items: center;
+  `;
+
+  modal.innerHTML = `
+    <div style="background: white; border-radius: 12px; padding: 32px; max-width: 400px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
+      <h2 style="font-size: 18px; font-weight: 700; margin: 0 0 16px 0;">Conferma Eliminazione</h2>
+      <p style="color: var(--text-secondary); margin: 0 0 24px 0;">Sei sicuro di voler eliminare <strong>${userName}</strong>?</p>
+      <div style="display: flex; gap: 12px;">
+        <button id="confirmDelete-cancel" style="flex: 1; padding: 10px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor: pointer; font-weight: 600;">
+          Annulla
+        </button>
+        <button id="confirmDelete-ok" style="flex: 1; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+          Elimina
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const cancelBtn = modal.querySelector('#confirmDelete-cancel');
+  const okBtn = modal.querySelector('#confirmDelete-ok');
+
+  return new Promise((resolve) => {
+    cancelBtn.addEventListener('click', () => {
+      modal.remove();
+      resolve(false);
+    });
+
+    okBtn.addEventListener('click', async () => {
+      modal.remove();
+      try {
+        const resp = await fetch(`${API_BASE}/api/users/${userId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await resp.json();
+        if (data.success) {
+          alert('Operaio eliminato con successo!');
+          loadOperators();
+        } else {
+          alert(`Errore: ${data.error}`);
+        }
+      } catch (e) {
+        console.error('Error deleting operator:', e);
+        alert('Errore nell\'eliminazione dell\'operaio');
+      }
+      resolve(true);
+    });
+  });
 }
 
 // ── INIT ──
