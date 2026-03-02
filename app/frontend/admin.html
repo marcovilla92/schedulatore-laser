@@ -913,17 +913,172 @@ body {
     <div class="screen" id="screen-settings">
       <div class="admin-badge">IMPOSTAZIONI</div>
       <h1 class="section-title">Impostazioni Sistema</h1>
-      <div style="padding: 32px; background: white; border-radius: 12px; border: 1px solid var(--border);">
-        <p style="color: var(--text-secondary); margin-bottom: 20px;">Sezione Impostazioni in sviluppo...</p>
-        <p style="font-size: 12px; color: var(--text-secondary);">Potrai gestire:</p>
-        <ul style="margin-left: 20px; margin-top: 12px; color: var(--text-secondary); font-size: 12px;">
-          <li>Gestione operai e ruoli</li>
-          <li>Configurazione macchine</li>
-          <li>Backup e ripristino dati</li>
-          <li>Preferenze notifiche</li>
-          <li>Impostazioni di sicurezza</li>
-        </ul>
+
+      <!-- TABS -->
+      <div style="display: flex; gap: 8px; margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+        <button class="settings-tab active" onclick="switchSettingsTab('operators')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 600; color: var(--ls-green); border-bottom: 2px solid var(--ls-green);">
+          👥 Operai e Ruoli
+        </button>
+        <button class="settings-tab" onclick="switchSettingsTab('machines')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+          ⚙️ Macchine
+        </button>
+        <button class="settings-tab" onclick="switchSettingsTab('backup')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+          💾 Backup
+        </button>
+        <button class="settings-tab" onclick="switchSettingsTab('notifications')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+          🔔 Notifiche
+        </button>
+        <button class="settings-tab" onclick="switchSettingsTab('security')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+          🔒 Sicurezza
+        </button>
       </div>
+
+      <!-- TAB: OPERATORI -->
+      <div id="tab-operators" class="settings-content" style="display: block;">
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Gestione Operai e Ruoli</h2>
+        <div id="operatorsTable" style="background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: #f5f5f5; border-bottom: 1px solid var(--border);">
+              <tr>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Nome</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Ruolo</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Fase</th>
+                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Stato</th>
+                <th style="padding: 12px 16px; text-align: center; font-weight: 600; font-size: 12px;">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="operatorsList">
+              <tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: MACCHINE -->
+      <div id="tab-machines" class="settings-content" style="display: none;">
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Configurazione Macchine</h2>
+        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">Macchine disponibili nel sistema:</p>
+          <div id="machinesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
+            <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #f9f9f9;">
+              <div style="font-weight: 600; margin-bottom: 8px;">CNC Laser CO2</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Potenza: 150W</div>
+              <div style="display: flex; gap: 8px; font-size: 11px;">
+                <span style="background: #e0f2f1; color: var(--ls-green); padding: 4px 8px; border-radius: 4px;">LASER</span>
+              </div>
+            </div>
+            <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #f9f9f9;">
+              <div style="font-weight: 600; margin-bottom: 8px;">Pressa Piega</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Capacità: 50 Ton</div>
+              <div style="display: flex; gap: 8px; font-size: 11px;">
+                <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px;">PIEGA</span>
+              </div>
+            </div>
+            <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #f9f9f9;">
+              <div style="font-weight: 600; margin-bottom: 8px;">Stazione Saldatura</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Tipo: MIG/TIG</div>
+              <div style="display: flex; gap: 8px; font-size: 11px;">
+                <span style="background: #fce4ec; color: #d81b60; padding: 4px 8px; border-radius: 4px;">SALDATURA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: BACKUP -->
+      <div id="tab-backup" class="settings-content" style="display: none;">
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Backup e Ripristino</h2>
+        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
+          <div style="margin-bottom: 24px;">
+            <h3 style="font-weight: 600; margin-bottom: 12px;">Backup Dati</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">Scarica una copia completa del database e delle impostazioni.</p>
+            <button onclick="downloadBackup()" style="background: var(--ls-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              📥 Scarica Backup
+            </button>
+          </div>
+          <hr style="border: none; border-top: 1px solid var(--border); margin: 24px 0;">
+          <div>
+            <h3 style="font-weight: 600; margin-bottom: 12px;">Ultimo Backup</h3>
+            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 3px solid var(--ls-green);">
+              <div style="font-size: 12px; color: var(--text-secondary);">Data: 2026-03-02 ore 13:34</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Dimensione: 2.3 MB</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: NOTIFICHE -->
+      <div id="tab-notifications" class="settings-content" style="display: none;">
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Preferenze Notifiche</h2>
+        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Ordini Completati</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Notifiche quando un ordine è completato</div>
+            </div>
+            <input type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Ordini in Ritardo</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Avviso per ordini che superano la data di consegna</div>
+            </div>
+            <input type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Accessi Operai</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Log di accesso al sistema</div>
+            </div>
+            <input type="checkbox" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0;">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Errori Sistema</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Notifiche per errori e malfunzionamenti</div>
+            </div>
+            <input type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: SICUREZZA -->
+      <div id="tab-security" class="settings-content" style="display: none;">
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Impostazioni di Sicurezza</h2>
+        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
+          <div style="margin-bottom: 24px;">
+            <h3 style="font-weight: 600; margin-bottom: 12px;">Protezione Accesso</h3>
+            <div style="margin-bottom: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" checked style="width: 16px; height: 16px; accent-color: var(--ls-green);">
+                <span>Abilita autenticazione per accesso al sistema</span>
+              </label>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" checked style="width: 16px; height: 16px; accent-color: var(--ls-green);">
+                <span>Registra tutti i login nei log di audit</span>
+              </label>
+            </div>
+            <div>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" style="width: 16px; height: 16px; accent-color: var(--ls-green);">
+                <span>Scadenza sessione dopo 30 minuti di inattività</span>
+              </label>
+            </div>
+          </div>
+          <hr style="border: none; border-top: 1px solid var(--border); margin: 24px 0;">
+          <div>
+            <h3 style="font-weight: 600; margin-bottom: 12px;">Versione Sistema</h3>
+            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
+              <div style="font-size: 12px; color: var(--text-secondary);">Versione: 1.2.3</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Build: 2026-03-02</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Database: SQLite 3.x</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -1025,6 +1180,102 @@ async function logout() {
 
 function updateClock() {
   document.getElementById('clock').textContent = new Date().toLocaleTimeString('it-IT');
+}
+
+// ── SETTINGS FUNCTIONS ──
+function switchSettingsTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.settings-content').forEach(tab => {
+    tab.style.display = 'none';
+  });
+
+  // Show selected tab
+  document.getElementById(`tab-${tabName}`).style.display = 'block';
+
+  // Update tab buttons styling
+  document.querySelectorAll('.settings-tab').forEach(btn => {
+    btn.style.color = 'var(--text-secondary)';
+    btn.style.borderBottom = 'none';
+    btn.style.fontWeight = '500';
+  });
+
+  event.target.style.color = 'var(--ls-green)';
+  event.target.style.borderBottom = '2px solid var(--ls-green)';
+  event.target.style.fontWeight = '600';
+
+  // Load data based on tab
+  if (tabName === 'operators') {
+    loadOperators();
+  }
+}
+
+async function loadOperators() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/users`);
+    if (!resp.ok) throw new Error('Failed to load operators');
+    const data = await resp.json();
+    const users = data.users || [];
+
+    let html = '';
+    users.forEach(user => {
+      const isActive = user.is_active !== false;
+      const statusColor = isActive ? '#22c55e' : '#ef4444';
+      const statusText = isActive ? 'Attivo' : 'Disattivo';
+
+      html += `
+        <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;">
+          <td style="padding: 12px 16px; font-weight: 500;">${user.name}</td>
+          <td style="padding: 12px 16px; font-size: 13px; color: var(--text-secondary);">${user.role}</td>
+          <td style="padding: 12px 16px; font-size: 13px; color: var(--text-secondary);">${user.phase || 'N/A'}</td>
+          <td style="padding: 12px 16px;">
+            <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; color: white; background: ${statusColor};">
+              ${statusText}
+            </span>
+          </td>
+          <td style="padding: 12px 16px; text-align: center; font-size: 12px;">
+            <button onclick="toggleOperatorStatus('${user.id}')" style="background: #f5f5f5; border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+              ${isActive ? 'Disattiva' : 'Attiva'}
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    document.getElementById('operatorsList').innerHTML = html;
+  } catch (e) {
+    console.error('Error loading operators:', e);
+    document.getElementById('operatorsList').innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Errore nel caricamento</td></tr>';
+  }
+}
+
+function toggleOperatorStatus(userId) {
+  alert(`Funzione di attivazione/disattivazione operatore in sviluppo.\nOperatore ID: ${userId}`);
+}
+
+function downloadBackup() {
+  const timestamp = new Date().toISOString().split('T')[0];
+  const filename = `backup-scheduler-${timestamp}.json`;
+
+  const backupData = {
+    timestamp: new Date().toISOString(),
+    version: '1.2.3',
+    exportDate: new Date().toLocaleString('it-IT'),
+    info: 'Questo è un backup di esempio. Nel sistema reale conterrebbe il dump del database.'
+  };
+
+  const json = JSON.stringify(backupData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  alert(`Backup scaricato: ${filename}`);
 }
 
 // ── INIT ──
