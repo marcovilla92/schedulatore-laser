@@ -1,11 +1,12 @@
 # Roadmap: Schedulatore Laser
 
-**Last updated:** 2026-02-20
+**Last updated:** 2026-03-02
 
 ## Milestones
 
 - [ ] **v1.1 Fasi per Articolo** — Phases 1-3 (deferred, not yet executed)
-- [ ] **v1.2 Parser Universale** — Phases 4-6 (current, in progress)
+- [x] **v1.2 Parser Universale** — Phases 4-6 (COMPLETED 2026-02-20)
+- [ ] **v1.3 Archivio Avanzato** — Phase 8 (current planning)
 
 ---
 
@@ -64,7 +65,7 @@ Plans:
 
 ---
 
-### v1.2 Parser Universale (Current Milestone)
+### v1.2 Parser Universale (COMPLETED)
 
 **Milestone Goal:** Il sistema estrae automaticamente cliente, articoli, quantita e data di consegna da qualsiasi PDF — inclusi formati mai visti — usando Docling + Gemini 2.0 Flash API, senza dover scrivere parser specifici per ogni nuovo cliente.
 
@@ -76,6 +77,40 @@ Plans:
 
 #### Phase 6: Integrazione Pipeline
 - [x] **Phase 6: Integrazione Pipeline** — Integra l'estrattore universale nella pipeline esistente con fallback ai parser noti, indicatori di confidenza in UI, e gestione degradata senza Gemini (2/2 piani completati — 2026-02-20)
+
+---
+
+### v1.3 Archivio Avanzato (Current Planning)
+
+**Milestone Goal:** Admin visualizza archivio ordini completati con tempi per fase, filtri avanzati (data, cliente, fase), ordinamento, esportazione CSV, e dettagli completi di ogni ordine. KPI per tracciare efficienza (tempi medi per fase, rispetto scadenze).
+
+#### Phase 8: Archivio Avanzato
+- [ ] **Phase 8: Archivio Avanzato** — Backend archive manager + API endpoint + frontend UI con filtri/export/modal
+
+**Goal**: Admin può visualizzare, filtrare e esportare ordini completati (status SPEDITO) con tempi tracciati per fase (LASER, PIEGA, SALDATURA, etc.), calcolo tempo totale, ordinamento per data/cliente/quantità, e export CSV per reportistica.
+
+**Depends on**: v1.2 completed (database schema with processing_steps e timestamps già presenti)
+
+**Requirements**: ARCHIVE-01, ARCHIVE-02, ARCHIVE-03, ARCHIVE-04, ARCHIVE-05, ARCHIVE-06
+
+**Success Criteria** (what must be TRUE):
+  1. Admin accede a nuovo tab "Archivio" in admin.html e vede tabella con 50 ordini per pagina (paginati)
+  2. Tabella mostra: numero_ordine, cliente, data_completamento, LASER_time, PIEGA_time, SALDATURA_time, tempo_totale, numero_articoli, bottone "Dettagli"
+  3. Filtri funzionanti (lato client): data completamento da/a, cliente (substring), fase completata — applicati senza page reload
+  4. Ordinamento per: data_completamento, cliente, numero_articoli (con toggle asc/desc)
+  5. Clic "Dettagli" apre modal con: info ordine, tabella tempi per fase (inizio/fine/durata), articoli liste
+  6. Clic "Scarica CSV" esporta tabella corrente (con filtri applicati) come file CSV valido
+  7. Performance: 100+ ordini caricano in < 2 secondi
+  8. Accessibility: ARIA labels, keyboard navigation (Tab tra input, Enter per submit)
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Backend: ArchiveManager classe + 3 API endpoint + test data
+- [ ] 08-02-PLAN.md — Frontend: screen-archive HTML/CSS + JavaScript (filtri, ordinamento, modal, export)
+- [ ] 08-03-PLAN.md — Test: Playwright test suite + performance test + accessibility test
+
+---
 
 ## Phase Details
 
@@ -124,13 +159,33 @@ Plans:
 - [x] 06-01-PLAN.md — load_dotenv in run.py + integrazione extract_universal() con fallback in app.py (PIPE-01, PIPE-03)
 - [x] 06-02-PLAN.md — Sezione upload singolo PDF e confidence badges in ordini_estratti.html (PIPE-02, PIPE-03)
 
+### Phase 8: Archivio Avanzato
+**Goal**: Admin può visualizzare, filtrare e esportare ordini completati (status SPEDITO) con tempi tracciati per fase, calcolo tempo totale, ordinamento, e export CSV per reportistica
+**Depends on**: v1.2 completed (database schema, models, processing_steps con timestamps)
+**Requirements**: ARCHIVE-01, ARCHIVE-02, ARCHIVE-03, ARCHIVE-04, ARCHIVE-05, ARCHIVE-06
+**Success Criteria** (what must be TRUE):
+  1. Tabella ordini completati mostra: numero_ordine, cliente, data_completamento, tempi per fase (LASER, PIEGA, SALDATURA), tempo totale, numero_articoli
+  2. Filtri applicabili: data da/a, cliente, fase completata (lato client, senza reload)
+  3. Ordinamento per: data, cliente, numero_articoli (toggle asc/desc)
+  4. Paginazione: 50 ordini per pagina, bottoni prev/next, page info
+  5. Modal "Dettagli" mostra: date creazione/consegna, articoli, tempi per fase (inizio/fine/durata)
+  6. Export CSV: file valido con header, scaricabile con timestamp nel filename
+  7. Responsive design (mobile, tablet, desktop)
+  8. Accessibility: ARIA labels, keyboard navigation
+**Plans:** 3/0 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Backend: ArchiveManager + 3 API endpoint + test data
+- [ ] 08-02-PLAN.md — Frontend: screen-archive + JS (filtri, ordinamento, modal, export)
+- [ ] 08-03-PLAN.md — Test: Playwright test suite + performance + accessibility
+
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 4 → 5 → 6
-(Phases 1-3 from v1.1 are deferred — will resume after v1.2)
+Phases execute in numeric order: 4 → 5 → 6 → 8
+(Phases 1-3 from v1.1 are deferred — will resume after v1.3)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -140,3 +195,27 @@ Phases execute in numeric order: 4 → 5 → 6
 | 4. Audit Parser | v1.2 | 1/1 | Complete | 2026-02-19 |
 | 5. Estrattore Universale | v1.2 | 2/2 | Complete | 2026-02-19 |
 | 6. Integrazione Pipeline | v1.2 | 2/2 | Complete | 2026-02-20 |
+| 8. Archivio Avanzato | v1.3 | 0/3 | Planning | - |
+
+---
+
+## Next Steps
+
+**Phase 8 - Archivio Avanzato (READY FOR EXECUTION)**
+
+Execute in order:
+1. `/gsd:execute-phase 08 --plan 1` — Backend ArchiveManager + API endpoints (auto-executable)
+2. `/gsd:execute-phase 08 --plan 2` — Frontend UI + JavaScript (auto-executable)
+3. `/gsd:execute-phase 08 --plan 3` — Playwright tests + validation (auto-executable)
+
+All 3 plans are independent waves and can run in parallel after plan 1 completes (wave 1, 2, 3 structure).
+
+---
+
+## Key Decisions (for v1.3)
+
+- **Technology**: ArchiveManager classe in database.py (pattern consistency with UserManager, AuditManager)
+- **UI Framework**: Vanilla JavaScript (no new dependencies, consistent with admin.html)
+- **Export Format**: CSV (no PDF for now — can add jsPDF later if needed)
+- **Pagination**: Client-side state (not server-side) — 50 items/page, 1000+ items OK
+- **Timeline**: Tempi per fase derivati da ProcessingStep.timestamp_inizio/fine (already tracked since v1.2.1)
