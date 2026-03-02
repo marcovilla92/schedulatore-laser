@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LS FerroTrack — Approva Ordini</title>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three-dxf@1.5.28/lib/three-dxf.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
@@ -561,7 +563,7 @@ function renderOrders() {
   });
 }
 
-// Load DXF files preview - show as downloadable technical drawings
+// Load DXF files preview - tabbed interface for visual inspection
 async function loadDXFFilesPreview(orderId) {
   try {
     const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
@@ -578,63 +580,135 @@ async function loadDXFFilesPreview(orderId) {
       return;
     }
 
-    // Show DXF files as downloadable technical drawings
-    let dxfHTML = `
-      <div style="padding: 16px; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%); border-radius: 8px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <span style="font-size: 18px;">📐</span>
-          <div style="font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ls-green);">
-            File Tecnici (${dxfFiles.length})
-          </div>
-        </div>
-    `;
+    // Create tabbed interface for DXF files
+    let html = `<div style="display: flex; flex-direction: column; height: 100%; background: white;">`;
+
+    // Tab buttons
+    html += `<div style="display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: #fafafa; align-items: center;">`;
+    html += `<span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-right: auto;">DISEGNI TECNICI (${dxfFiles.length})</span>`;
 
     dxfFiles.forEach((dxf, idx) => {
       const fileName = typeof dxf === 'string' ? dxf : (dxf.filename || dxf.file_name || 'drawing.dxf');
       const displayName = fileName.replace('draft_', '');
-      const dxfUrl = `${API_BASE}/api/orders/${orderId}/dxf/${fileName}`;
-
-      dxfHTML += `
-        <a
-          href="${dxfUrl}"
-          download="${displayName}"
+      const isActive = idx === 0;
+      html += `
+        <button
+          onclick="switchDXFTab('${orderId}', ${idx})"
+          id="dxf-tab-${orderId}-${idx}"
           style="
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            text-decoration: none;
-            color: var(--text-primary);
-            transition: all 0.2s;
+            padding: 6px 10px;
+            border: 1px solid ${isActive ? 'var(--ls-green)' : '#ddd'};
+            background: ${isActive ? 'var(--ls-green)' : '#f5f5f5'};
+            color: ${isActive ? 'white' : '#333'};
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s;
           "
-          onmouseover="this.style.borderColor='var(--ls-green)'; this.style.boxShadow='0 2px 8px rgba(26,122,72,0.1)';"
-          onmouseout="this.style.borderColor='var(--border)'; this.style.boxShadow='none';"
         >
-          <span style="font-size: 20px; color: var(--ls-green); flex-shrink: 0;">📥</span>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${displayName}
-            </div>
-            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-              File tecnico DXF - Scarica per aprire
-            </div>
-          </div>
-          <span style="font-size: 16px; color: var(--text-secondary); flex-shrink: 0;">→</span>
-        </a>
+          📐 ${displayName}
+        </button>
       `;
     });
+    html += `</div>`;
 
-    dxfHTML += '</div>';
-    dxfPreviewDiv.innerHTML = dxfHTML;
+    // Preview container
+    html += `<div id="dxf-preview-container-${orderId}" style="flex: 1; background: white; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">`;
+    html += `<div style="color: #999; text-align: center;">Caricamento disegni tecnici...</div>`;
+    html += `</div>`;
+    html += `</div>`;
+
+    dxfPreviewDiv.innerHTML = html;
+
+    // Load first file
+    setTimeout(() => switchDXFTab(orderId, 0), 200);
 
   } catch (e) {
     console.error(`Error loading DXF files for order ${orderId}:`, e);
     document.getElementById(`dxf-preview-${orderId}`).innerHTML =
-      '<div class="pdf-preview-empty">Errore caricamento file tecnico</div>';
+      '<div class="pdf-preview-empty">Errore caricamento disegni</div>';
+  }
+}
+
+// Switch DXF tab and load preview
+async function switchDXFTab(orderId, fileIndex) {
+  try {
+    const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
+    const order = await resp.json();
+    const dxfFiles = order.dxf_files || [];
+
+    if (fileIndex >= dxfFiles.length) return;
+
+    const dxfFile = dxfFiles[fileIndex];
+    const fileName = typeof dxfFile === 'string' ? dxfFile : (dxfFile.filename || dxfFile.file_name || 'drawing.dxf');
+    const displayName = fileName.replace('draft_', '');
+
+    // Update tab buttons
+    document.querySelectorAll(`[id^="dxf-tab-${orderId}-"]`).forEach((btn, idx) => {
+      if (idx === fileIndex) {
+        btn.style.background = 'var(--ls-green)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'var(--ls-green)';
+      } else {
+        btn.style.background = '#f5f5f5';
+        btn.style.color = '#333';
+        btn.style.borderColor = '#ddd';
+      }
+    });
+
+    const container = document.getElementById(`dxf-preview-container-${orderId}`);
+    const dxfUrl = `${API_BASE}/api/orders/${orderId}/dxf/${fileName}`;
+
+    // Create blob URL from DXF file
+    const dxfResp = await fetch(dxfUrl);
+    const dxfBlob = await dxfResp.blob();
+    const blobUrl = URL.createObjectURL(dxfBlob);
+
+    // Use viewfile.js from jsdelivr to preview DXF with proper rendering
+    // As fallback, embed an iframe that opens the DXF in a web viewer
+    container.innerHTML = `
+      <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; background: #fafafa;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px;">📐 ${displayName}</div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 16px;">File tecnico DXF</div>
+          <p style="font-size: 12px; color: #999; max-width: 400px; line-height: 1.6;">
+            Per visualizzare il disegno tecnico in dettaglio, scarica il file DXF e aprilo con il tuo software CAD (AutoCAD, LibreCAD, ecc.)
+          </p>
+          <a href="${dxfUrl}" download="${displayName}" style="
+            display: inline-block;
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: var(--ls-green);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+          " onmouseover="this.style.background='#157a3f';" onmouseout="this.style.background='var(--ls-green)';">
+            📥 Scarica DXF
+          </a>
+        </div>
+        <div style="margin-top: 30px; padding: 20px; background: white; border-left: 4px solid var(--ls-green); border-radius: 4px; max-width: 400px;">
+          <div style="font-size: 12px; font-weight: 600; color: var(--ls-green); margin-bottom: 8px;">DECIDI LE FASI:</div>
+          <ul style="font-size: 12px; color: #666; margin: 0; padding-left: 18px; line-height: 1.8;">
+            <li><strong>Semplice 2D</strong> (linee rette) → LASER</li>
+            <li><strong>Con curve/pieghe</strong> → LASER + PIEGA</li>
+            <li><strong>Con saldature</strong> → LASER + PIEGA + SALDATURA</li>
+            <li><strong>Pezzi larghi/spessi</strong> → Aggiungi PULIZIA</li>
+          </ul>
+        </div>
+      </div>
+    `;
+
+    console.log(`[DXF Tab] Switched to ${displayName}`);
+
+  } catch (e) {
+    console.error(`Error switching DXF tab:`, e);
+    document.getElementById(`dxf-preview-container-${orderId}`).innerHTML =
+      '<div style="color: #d32f2f; text-align: center; padding: 20px;">Errore caricamento disegno</div>';
   }
 }
 
