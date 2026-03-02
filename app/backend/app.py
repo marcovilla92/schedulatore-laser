@@ -935,29 +935,60 @@ def get_extracted_orders():
 
 # ============ NOTIFICATION SYSTEM (WhatsApp-like) ============
 
-@app.route('/api/notifications', methods=['GET'])
-def get_notifications():
-    """Recupera notifiche dell'utente loggato (tipo WhatsApp)"""
-    try:
-        user_id = request.args.get('user_id')
-        limit = request.args.get('limit', 50, type=int)
+@app.route('/api/notifications', methods=['GET', 'POST'])
+def handle_notifications():
+    """GET: Recupera notifiche | POST: Crea notifica"""
+    if request.method == 'GET':
+        try:
+            user_id = request.args.get('user_id')
+            limit = request.args.get('limit', 50, type=int)
 
-        if not user_id:
-            return jsonify({'success': False, 'error': 'user_id obbligatorio'}), 400
+            if not user_id:
+                return jsonify({'success': False, 'error': 'user_id obbligatorio'}), 400
 
-        notifications = NotificationManager.get_notifications(user_id, limit=limit)
-        unread_count = NotificationManager.get_unread_count(user_id)
+            notifications = NotificationManager.get_notifications(user_id, limit=limit)
+            unread_count = NotificationManager.get_unread_count(user_id)
 
-        return jsonify({
-            'success': True,
-            'data': {
-                'notifications': notifications,
-                'unread_count': unread_count,
-                'total': len(notifications)
-            }
-        }), 200
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+            return jsonify({
+                'success': True,
+                'data': {
+                    'notifications': notifications,
+                    'unread_count': unread_count,
+                    'total': len(notifications)
+                }
+            }), 200
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+    elif request.method == 'POST':
+        try:
+            data = request.get_json() or {}
+            user_id = data.get('user_id')
+            order_id = data.get('order_id')
+            title = data.get('title', 'Notifica')
+            message = data.get('message', '')
+            notification_type = data.get('notification_type', 'order')
+
+            if not user_id or not title:
+                return jsonify({'success': False, 'error': 'user_id e title obbligatori'}), 400
+
+            notification = NotificationManager.create_notification(
+                user_id=user_id,
+                order_id=order_id,
+                title=title,
+                message=message,
+                notification_type=notification_type
+            )
+
+            if notification:
+                return jsonify({
+                    'success': True,
+                    'data': notification
+                }), 201
+            else:
+                return jsonify({'success': False, 'error': 'Failed to create notification'}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/notifications/<notification_id>', methods=['DELETE'])
 def delete_notification(notification_id):

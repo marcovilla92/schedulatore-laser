@@ -1466,7 +1466,7 @@ async function loginUser(userId) {
     await updatePermissions();
 
     // Start notification polling for supervisore/admin
-    if (['supervisore', 'admin'].includes(currentUser.role)) {
+    if (['Supervisore', 'Amministratore'].includes(currentUser.role)) {
       startNotificationPolling();
     }
 
@@ -1541,7 +1541,7 @@ async function updatePermissions() {
       supervisionContent += `<a href="/carica-ordine.html" style="display: inline-block; margin-top: 24px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">+ Nuovo Ordine</a>`;
     }
     // Bottone "Approva Ordini" solo per supervisore/admin
-    if (currentUser.role === 'Supervisore' || currentUser.role === 'Admin') {
+    if (currentUser.role === 'Supervisore' || currentUser.role === 'Amministratore') {
       supervisionContent += `<a href="/approva-ordine.html" style="display: inline-block; margin-top: 24px; margin-left: 12px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">✓ Approva Ordini</a>`;
     }
     document.getElementById('supervisioneContent').innerHTML = supervisionContent;
@@ -2050,7 +2050,7 @@ function formatNotificationTime(timestamp) {
 }
 
 async function saveNewOrderNotification(orderId, cliente, articoli) {
-  if (!currentUser || !['supervisore', 'admin'].includes(currentUser.role)) {
+  if (!currentUser || !['Supervisore', 'Amministratore'].includes(currentUser.role)) {
     return; // Only save for supervisore/admin
   }
 
@@ -2058,7 +2058,7 @@ async function saveNewOrderNotification(orderId, cliente, articoli) {
     const title = 'Nuovo Ordine';
     const message = `Ordine da ${cliente} con ${articoli.length} articolo${articoli.length > 1 ? 'i' : ''}`;
 
-    await fetch(`${API_BASE}/notifications`, {
+    const response = await fetch(`${API_BASE}/api/notifications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2069,6 +2069,12 @@ async function saveNewOrderNotification(orderId, cliente, articoli) {
         notification_type: 'order'
       })
     });
+
+    if (response.ok) {
+      console.log('[NOTIFICATION] Saved: ' + message);
+    } else {
+      console.error('[NOTIFICATION] Failed to save:', response.status);
+    }
   } catch (e) {
     console.error('Error saving notification:', e);
   }
@@ -2314,12 +2320,17 @@ function playNotificationSound() {
 
 async function checkNewOrders() {
   try {
-    if (!currentUser || !['supervisore', 'admin'].includes(currentUser.role)) {
+    if (!currentUser || !['Supervisore', 'Amministratore'].includes(currentUser.role)) {
+      console.log('[POLLING] Skipped: user role is', currentUser.role, 'expected Supervisore or Amministratore');
       return; // Only supervisore and admin get notifications
     }
 
+    console.log('[POLLING] checkNewOrders called, fetching RICEVUTO orders...');
     const response = await fetch(`${API_BASE}/api/orders?status=RICEVUTO`);
-    if (!response.ok) return;
+    if (!response.ok) {
+      console.error('[POLLING] Fetch failed:', response.status);
+      return;
+    }
 
     const data = await response.json();
     const newOrders = (data.orders || []);
@@ -2329,17 +2340,14 @@ async function checkNewOrders() {
       const newCount = newOrdersCount - lastCheckedOrderCount;
       showToast('orders', 'Nuovo Ordine!', `${newCount} ordine${newCount > 1 ? 'i' : ''} in attesa di approvazione`);
 
-      // Save notifications for each new order
-      if (lastCheckedOrderCount > 0) {
-        // Get only newly arrived orders (not on first load)
-        const ordersToNotify = newOrders.slice(0, newCount);
-        for (const order of ordersToNotify) {
-          await saveNewOrderNotification(
-            order.id,
-            order.cliente,
-            order.articles || []
-          );
-        }
+      // Save notifications for each new order (get the newly arrived ones)
+      const ordersToNotify = newOrders.slice(0, newCount);
+      for (const order of ordersToNotify) {
+        await saveNewOrderNotification(
+          order.id,
+          order.cliente,
+          order.articles || []
+        );
       }
 
       // Update badge
@@ -2353,19 +2361,8 @@ async function checkNewOrders() {
 }
 
 function updateNotificationBadge(count) {
-  let badge = document.getElementById('notification-badge');
-  if (!badge && count > 0) {
-    // Create badge if it doesn't exist
-    const navApprova = document.querySelector('[onclick*="showApprova"]');
-    if (navApprova) {
-      badge = document.createElement('div');
-      badge.id = 'notification-badge';
-      badge.className = 'notification-badge';
-      badge.textContent = count > 9 ? '9+' : count;
-      navApprova.style.position = 'relative';
-      navApprova.appendChild(badge);
-    }
-  } else if (badge) {
+  let badge = document.getElementById('notificationBadge');
+  if (badge) {
     if (count > 0) {
       badge.textContent = count > 9 ? '9+' : count;
       badge.style.display = 'flex';
