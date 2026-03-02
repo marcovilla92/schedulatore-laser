@@ -513,15 +513,15 @@ function renderOrders() {
         </div>
 
         <div class="order-card-content">
-          <!-- PDF PREVIEW -->
+          <!-- DXF FILES PREVIEW -->
           <div class="pdf-section">
-            <h4>Ordine PDF</h4>
-            <div class="pdf-preview" id="pdf-preview-${orderId}">
-              <div class="pdf-preview-empty">Caricamento PDF...</div>
+            <h4>File Tecnici (DXF)</h4>
+            <div class="pdf-preview" id="dxf-preview-${orderId}">
+              <div class="pdf-preview-empty">Caricamento file...</div>
             </div>
           </div>
 
-          <!-- PHASES & DXF -->
+          <!-- PHASES -->
           <div class="phases-section">
             <div>
               <h4 style="margin-bottom: 12px;">Fasi di Lavorazione Richieste</h4>
@@ -544,13 +544,6 @@ function renderOrders() {
                 </label>
               </div>
             </div>
-
-            <div class="dxf-section">
-              <h4>File Tecnici (DXF)</h4>
-              <div class="dxf-files-list" id="dxf-list-${orderId}">
-                <div style="color: #999; font-size: 12px;">Caricamento file...</div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -563,70 +556,48 @@ function renderOrders() {
 
     container.innerHTML += html;
 
-    // Load PDF preview for this order
-    loadPDFPreview(orderId);
-
-    // Load DXF files for this order
-    loadDXFFiles(orderId);
+    // Load DXF files preview for this order
+    loadDXFFilesPreview(orderId);
   });
 }
 
-// Load PDF preview
-async function loadPDFPreview(orderId) {
+// Load DXF files preview
+async function loadDXFFilesPreview(orderId) {
   try {
     const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
     if (!resp.ok) throw new Error('Failed to load order');
 
     const order = await resp.json();
-    const pdfPreviewDiv = document.getElementById(`pdf-preview-${orderId}`);
+    const dxfPreviewDiv = document.getElementById(`dxf-preview-${orderId}`);
+    const dxfFiles = order.dxf_files || [];
 
-    if (order.pdf_file) {
-      // Se abbiamo il percorso del PDF, carichiamo da uploads
-      const pdfPath = `/uploads/pdfs/${order.pdf_file}`;
-      pdfPreviewDiv.innerHTML = `<iframe src="${pdfPath}"></iframe>`;
-    } else {
-      pdfPreviewDiv.innerHTML = '<div class="pdf-preview-empty">PDF non disponibile</div>';
-    }
-  } catch (e) {
-    console.error(`Error loading PDF for order ${orderId}:`, e);
-    document.getElementById(`pdf-preview-${orderId}`).innerHTML =
-      '<div class="pdf-preview-empty">Errore caricamento PDF</div>';
-  }
-}
-
-// Load DXF files
-async function loadDXFFiles(orderId) {
-  try {
-    const dxfListDiv = document.getElementById(`dxf-list-${orderId}`);
-
-    // Query order_files table for this order
-    const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
-    if (!resp.ok) throw new Error('Failed to load order');
-
-    const order = await resp.json();
-    const drawings = order.drawings || [];
-
-    if (drawings.length === 0) {
-      dxfListDiv.innerHTML = '<div style="color: #999; font-size: 12px;">Nessun file tecnico caricato</div>';
+    if (dxfFiles.length === 0) {
+      dxfPreviewDiv.innerHTML = '<div class="pdf-preview-empty">Nessun file tecnico caricato</div>';
       return;
     }
 
-    let dxfHTML = '';
-    drawings.forEach(drawing => {
-      const fileName = drawing.filename || drawing.file_name || 'drawing.dxf';
+    // Mostra lista file DXF nel preview area
+    let dxfHTML = '<div style="padding: 16px; display: flex; flex-direction: column; gap: 8px; height: 100%; justify-content: flex-start;">';
+
+    dxfFiles.forEach(dxf => {
+      const fileName = typeof dxf === 'string' ? dxf : (dxf.filename || dxf.file_name || 'drawing.dxf');
       dxfHTML += `
-        <div class="dxf-file-item">
-          <span class="dxf-file-icon">📐</span>
-          <span>${fileName}</span>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; border-left: 4px solid var(--ls-green);">
+          <span style="font-size: 20px; color: var(--ls-green);">📐</span>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">${fileName}</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">File tecnico DXF</div>
+          </div>
         </div>
       `;
     });
 
-    dxfListDiv.innerHTML = dxfHTML;
+    dxfHTML += '</div>';
+    dxfPreviewDiv.innerHTML = dxfHTML;
   } catch (e) {
     console.error(`Error loading DXF files for order ${orderId}:`, e);
-    document.getElementById(`dxf-list-${orderId}`).innerHTML =
-      '<div style="color: #999; font-size: 12px;">Errore caricamento file</div>';
+    document.getElementById(`dxf-preview-${orderId}`).innerHTML =
+      '<div class="pdf-preview-empty">Errore caricamento file</div>';
   }
 }
 
