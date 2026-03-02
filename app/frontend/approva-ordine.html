@@ -661,14 +661,46 @@ async function switchDXFTab(orderId, fileIndex) {
     const container = document.getElementById(`dxf-preview-container-${orderId}`);
     const dxfUrl = `${API_BASE}/api/orders/${orderId}/dxf/${fileName}`;
 
-    // Fetch DXF content
-    container.innerHTML = '<div style="color: #999; text-align: center; padding: 40px;">Caricamento disegno...</div>';
+    // Show DXF preview with download option
+    container.innerHTML = `
+      <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%);">
+        <div style="text-align: center; max-width: 500px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">📐</div>
+          <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px;">${displayName}</div>
+          <div style="font-size: 13px; color: #666; margin-bottom: 24px;">File tecnico DXF</div>
 
-    const dxfResp = await fetch(dxfUrl);
-    const dxfText = await dxfResp.text();
+          <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid var(--ls-green); margin-bottom: 24px; text-align: left;">
+            <div style="font-weight: 600; font-size: 12px; color: var(--ls-green); margin-bottom: 12px;">GUIDA SELEZIONE FASI:</div>
+            <ul style="font-size: 12px; color: #666; margin: 0; padding-left: 18px; line-height: 1.8;">
+              <li><strong>Solo linee rette</strong> → LASER</li>
+              <li><strong>Con curve o pieghe</strong> → LASER + PIEGA</li>
+              <li><strong>Con saldature visibili</strong> → LASER + PIEGA + SALDATURA</li>
+              <li><strong>Pezzo spesso/pesante</strong> → Aggiungi PULIZIA</li>
+            </ul>
+          </div>
 
-    // Render DXF geometry as SVG
-    renderDXFPreview(container, dxfText, displayName);
+          <a href="${dxfUrl}" download="${displayName}" style="
+            display: inline-block;
+            padding: 12px 24px;
+            background: var(--ls-green);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+          " onmouseover="this.style.background='#157a3f';" onmouseout="this.style.background='var(--ls-green)';">
+            📥 Apri in CAD (Scarica)
+          </a>
+
+          <div style="font-size: 11px; color: #999; margin-top: 12px;">
+            Scarica il file per visualizzarlo in AutoCAD o LibreCAD
+          </div>
+        </div>
+      </div>
+    `;
 
     console.log(`[DXF Tab] Switched to ${displayName}`);
 
@@ -676,172 +708,6 @@ async function switchDXFTab(orderId, fileIndex) {
     console.error(`Error switching DXF tab:`, e);
     document.getElementById(`dxf-preview-container-${orderId}`).innerHTML =
       '<div style="color: #d32f2f; text-align: center; padding: 20px;">Errore caricamento disegno</div>';
-  }
-}
-
-// Parse DXF and render as SVG
-function renderDXFPreview(container, dxfText, fileName) {
-  try {
-    const lines = dxfText.split('\n');
-    let entities = [];
-    let currentEntity = null;
-    let bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-
-    // Parse DXF - simpler approach: find entity types, then collect coordinates
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-
-      // Check for entity types
-      if (line === 'LINE' || line === 'CIRCLE' || line === 'ARC') {
-        if (currentEntity && currentEntity.type) {
-          entities.push(currentEntity);
-        }
-        currentEntity = { type: line, coords: [] };
-      }
-
-      // Parse coordinate codes (10, 20, 11, 21, 40 for radius)
-      if (currentEntity && (line === '10' || line === '20' || line === '11' || line === '21' || line === '40')) {
-        if (i + 1 < lines.length) {
-          const code = line;
-          const value = parseFloat(lines[++i].trim());
-
-          if (code === '10') {
-            if (!currentEntity.x1) currentEntity.x1 = value;
-            else if (!currentEntity.x) currentEntity.x = value;
-          } else if (code === '20') {
-            if (!currentEntity.y1) currentEntity.y1 = value;
-            else if (!currentEntity.y) currentEntity.y = value;
-          } else if (code === '11') {
-            currentEntity.x2 = value;
-          } else if (code === '21') {
-            currentEntity.y2 = value;
-          } else if (code === '40') {
-            currentEntity.radius = value;
-          }
-
-          // Update bounds
-          if (currentEntity.x1 !== undefined) {
-            bounds.minX = Math.min(bounds.minX, currentEntity.x1);
-            bounds.maxX = Math.max(bounds.maxX, currentEntity.x1);
-          }
-          if (currentEntity.y1 !== undefined) {
-            bounds.minY = Math.min(bounds.minY, currentEntity.y1);
-            bounds.maxY = Math.max(bounds.maxY, currentEntity.y1);
-          }
-          if (currentEntity.x2 !== undefined) {
-            bounds.minX = Math.min(bounds.minX, currentEntity.x2);
-            bounds.maxX = Math.max(bounds.maxX, currentEntity.x2);
-          }
-          if (currentEntity.y2 !== undefined) {
-            bounds.minY = Math.min(bounds.minY, currentEntity.y2);
-            bounds.maxY = Math.max(bounds.maxY, currentEntity.y2);
-          }
-          if (currentEntity.x !== undefined) {
-            bounds.minX = Math.min(bounds.minX, currentEntity.x);
-            bounds.maxX = Math.max(bounds.maxX, currentEntity.x);
-          }
-          if (currentEntity.y !== undefined) {
-            bounds.minY = Math.min(bounds.minY, currentEntity.y);
-            bounds.maxY = Math.max(bounds.maxY, currentEntity.y);
-          }
-        }
-      }
-
-      // End of entity
-      if (line === '0' && currentEntity && currentEntity.type) {
-        entities.push(currentEntity);
-        currentEntity = null;
-      }
-    }
-    if (currentEntity && currentEntity.type) entities.push(currentEntity);
-
-    // Check if we have bounds
-    if (bounds.minX === Infinity || bounds.maxX === -Infinity) {
-      bounds = { minX: 0, maxX: 100, minY: 0, maxY: 100 };
-    }
-
-    // Create SVG
-    const width = 450;
-    const height = 350;
-    const padding = 20;
-    const drawWidth = width - 2 * padding;
-    const drawHeight = height - 2 * padding;
-    const boundsWidth = bounds.maxX - bounds.minX || 100;
-    const boundsHeight = bounds.maxY - bounds.minY || 100;
-    const scale = Math.min(drawWidth / boundsWidth, drawHeight / boundsHeight) * 0.95;
-
-    let svg = `<svg width="${width}" height="${height}" style="border: 1px solid #ddd; background: white; margin: 10px auto; display: block;">`;
-    svg += `<g transform="translate(${padding}, ${padding})">`;
-
-    // Draw grid (optional)
-    svg += `<rect width="${drawWidth}" height="${drawHeight}" fill="none" stroke="#f0f0f0" stroke-width="0.5"/>`;
-
-    // Draw entities
-    let entityCount = 0;
-    entities.forEach(e => {
-      if (e.type === 'LINE' && e.x1 !== undefined && e.y1 !== undefined && e.x2 !== undefined && e.y2 !== undefined) {
-        const x1 = (e.x1 - bounds.minX) * scale;
-        const y1 = (bounds.maxY - e.y1) * scale;
-        const x2 = (e.x2 - bounds.minX) * scale;
-        const y2 = (bounds.maxY - e.y2) * scale;
-        svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1a7a48" stroke-width="1.5" stroke-linecap="round"/>`;
-        entityCount++;
-      } else if (e.type === 'CIRCLE' && e.x !== undefined && e.y !== undefined) {
-        const cx = (e.x - bounds.minX) * scale;
-        const cy = (bounds.maxY - e.y) * scale;
-        const r = Math.max(3, (e.radius || 5) * scale);
-        svg += `<circle cx="${cx}" cy="${cy}" r="${r}" stroke="#1a7a48" fill="none" stroke-width="1.5"/>`;
-        entityCount++;
-      } else if (e.type === 'ARC' && e.x !== undefined && e.y !== undefined) {
-        const cx = (e.x - bounds.minX) * scale;
-        const cy = (bounds.maxY - e.y) * scale;
-        const r = Math.max(3, (e.radius || 5) * scale);
-        svg += `<circle cx="${cx}" cy="${cy}" r="${r}" stroke="#22a060" fill="none" stroke-width="1" opacity="0.7" stroke-dasharray="3,2"/>`;
-        entityCount++;
-      }
-    });
-
-    svg += `</g>`;
-    svg += `<text x="10" y="${height - 5}" font-size="10" fill="#999">${entityCount} elementi</text>`;
-    svg += `</svg>`;
-
-    // Render with download option
-    container.innerHTML = `
-      <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 15px; background: white; overflow-y: auto;">
-        <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px;">📐 ${fileName}</div>
-        ${svg}
-        <a href="${API_BASE}/api/orders/${orderId}/dxf/${fileName}" download="${fileName}" style="
-          margin-top: 12px;
-          padding: 8px 14px;
-          background: var(--ls-green);
-          color: white;
-          text-decoration: none;
-          border-radius: 4px;
-          font-weight: 600;
-          font-size: 12px;
-          cursor: pointer;
-        ">Scarica DXF completo</a>
-      </div>
-    `;
-
-  } catch (e) {
-    console.error('DXF render error:', e);
-    container.innerHTML = `
-      <div style="padding: 20px; text-align: center;">
-        <div style="color: #333; font-weight: 600; margin-bottom: 8px;">Rendering disegno...</div>
-        <div style="color: #999; font-size: 12px; margin-bottom: 16px;">Il disegno è in fase di caricamento dal file DXF</div>
-        <a href="${API_BASE}/api/orders/${orderId}/dxf/${fileName}" download="${fileName}" style="
-          display: inline-block;
-          padding: 8px 14px;
-          background: var(--ls-green);
-          color: white;
-          text-decoration: none;
-          border-radius: 4px;
-          font-weight: 600;
-          font-size: 12px;
-        ">Scarica per visualizzare</a>
-      </div>
-    `;
   }
 }
 
