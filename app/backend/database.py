@@ -148,13 +148,15 @@ class OrderManager:
             session.close()
     
     @staticmethod
-    def get_all_orders_dict(cliente: str = None) -> list:
+    def get_all_orders_dict(cliente: str = None, status: str = None) -> list:
         """Recupera ordini come dizionari con processing_steps serializzati"""
         session = get_session()
         try:
             query = session.query(Order)
             if cliente:
                 query = query.filter(Order.cliente == cliente)
+            if status:
+                query = query.filter(Order.status == status)
             
             orders = query.all()
             result = []

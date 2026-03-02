@@ -349,8 +349,9 @@ def get_orders():
     """Recupera lista ordini"""
     try:
         cliente = request.args.get('cliente')
-        orders_data = OrderManager.get_all_orders_dict(cliente=cliente)
-        return jsonify(orders_data), 200
+        status = request.args.get('status')
+        orders_data = OrderManager.get_all_orders_dict(cliente=cliente, status=status)
+        return jsonify({'orders': orders_data}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
