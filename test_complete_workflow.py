@@ -46,6 +46,16 @@ def test_complete_workflow():
         else:
             print("[WARN] PDF not found")
 
+        print("\n[1.3b] Upload DXF files...")
+        dxf_files = [
+            '072-24/12A401102-00.dxf',
+            '072-24/12A402101-00.dxf',
+            '072-24/12B200103.dxf'
+        ]
+        page.locator('#dxf-input').set_input_files(dxf_files)
+        page.wait_for_timeout(2000)
+        print("[OK] DXF files uploaded")
+
         print("\n[1.4] Confirm order...")
         page.locator('button:has-text("CARICA ORDINE")').click()
         page.wait_for_load_state('networkidle')
