@@ -1,0 +1,38 @@
+1. Navigating to /approva-ordine.html...
+2. Waiting for page load and API calls...
+   Screenshot saved: approva-ordine-step1-loaded.png
+
+3. Checking for real order data...
+Traceback (most recent call last):
+  File "C:\Users\39334\Documents\Visual Studio\schedular ste-marco\schedulatore-laser\test_approva_ordine_dynamic.py", line 121, in <module>
+    test_approva_ordine()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\39334\Documents\Visual Studio\schedular ste-marco\schedulatore-laser\test_approva_ordine_dynamic.py", line 38, in test_approva_ordine
+    print("   \u2717 DECA order numero NOT found")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2717' in position 3: character maps to <undefined>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\39334\Documents\Visual Studio\schedular ste-marco\schedulatore-laser\test_approva_ordine_dynamic.py", line 124, in <module>
+    print(f"\n\u2717 Test failed with error: {e}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2717' in position 2: character maps to <undefined>
+Starting server 1/1: python app/run.py
+Waiting for server on port 5000...
+Server ready on port 5000
+
+All 1 server(s) ready
+Running: python test_approva_ordine_dynamic.py
+
+
+Stopping 1 server(s)...
+Server 1 stopped
+All servers stopped

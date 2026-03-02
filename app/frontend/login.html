@@ -602,6 +602,218 @@ body {
   display: block;
 }
 
+/* ── MODAL STYLES ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease both;
+}
+
+.modal-overlay.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  width: 90%;
+  max-width: 520px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+  animation: fadeInUp 0.3s ease both;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--ls-green), transparent);
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-family: 'Geist', sans-serif;
+}
+
+.modal-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.modal-checkboxes {
+  background: #f9f9f9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 24px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.modal-checkbox-item {
+  padding: 12px;
+  margin-bottom: 6px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.modal-checkbox-item:last-child {
+  margin-bottom: 0;
+}
+
+.modal-checkbox-item:hover {
+  background: #f9f9f9;
+  border-color: var(--ls-green);
+}
+
+.modal-checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ls-green);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.modal-checkbox-item label {
+  flex: 1;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-checkbox-item label .qty-tag {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.modal-checkbox-item label .completed-tag {
+  color: var(--ls-green);
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(26, 122, 72, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.modal-checkbox-item.is-completed {
+  opacity: 0.6;
+}
+
+.modal-checkbox-item.is-completed label {
+  font-weight: 700;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-modal-cancel {
+  flex: 1;
+  background: #f5f5f5;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.btn-modal-cancel:hover {
+  background: #e5e5e5;
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.btn-modal-confirm {
+  flex: 1;
+  background: var(--ls-green);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.btn-modal-confirm:hover {
+  box-shadow: 0 0 20px rgba(26, 122, 72, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-modal-all {
+  flex: 1;
+  background: #0891b2;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.btn-modal-all:hover {
+  box-shadow: 0 0 20px rgba(8, 145, 178, 0.3);
+  transform: translateY(-1px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
   .login-left { padding: 60px 40px; }
@@ -775,6 +987,30 @@ body {
           <p>Solo supervisori e amministratori possono accedere all'archivio.</p>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALE COMPLETAMENTO PARZIALE -->
+<div id="partialCompleteModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-title" id="modalTitle">Completa Fase</div>
+    <p class="modal-subtitle">Seleziona gli articoli completati per questa fase:</p>
+
+    <div id="articlesCheckboxes" class="modal-checkboxes">
+      <!-- Checkbox articoli generati dinamicamente -->
+    </div>
+
+    <div class="modal-buttons">
+      <button class="btn-modal-cancel" onclick="closePartialModal()">
+        Annulla
+      </button>
+      <button class="btn-modal-confirm" onclick="submitPartialComplete()">
+        Completa Selezionati
+      </button>
+      <button class="btn-modal-all" onclick="completeAllPartialModal()" title="Completa tutti gli articoli per questa fase">
+        Completa Tutti
+      </button>
     </div>
   </div>
 </div>
@@ -1057,14 +1293,23 @@ async function updatePermissions() {
 
       ordersHtml += `
           </div>
-          <button onclick="${buttonAction}" style="
-            background: ${buttonColor}; color: white; border: none; padding: 8px 16px;
-            border-radius: 4px; cursor: ${buttonDisabled ? 'not-allowed' : 'pointer'};
-            font-size: 13px; font-weight: 500;
-            opacity: ${buttonDisabled ? '0.6' : '1'};
-          " ${buttonDisabled ? 'disabled' : ''}>
-            ${buttonText}
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <button onclick="startPhase('${order.id}')" style="
+              background: #22c55e; color: white; border: none; padding: 8px 16px;
+              border-radius: 4px; cursor: pointer;
+              font-size: 13px; font-weight: 500; flex: 1;
+            ">
+              Inizia
+            </button>
+            <button onclick="openPartialCompleteModal('${order.id}')" style="
+              background: ${buttonColor}; color: white; border: none; padding: 8px 16px;
+              border-radius: 4px; cursor: ${buttonDisabled ? 'not-allowed' : 'pointer'};
+              font-size: 13px; font-weight: 500; flex: 1;
+              opacity: ${buttonDisabled ? '0.6' : '1'};
+            " ${buttonDisabled ? 'disabled' : ''}>
+              ${isPhaseCompleted ? 'Completata' : 'Completa'}
+            </button>
+          </div>
         </div>
       `;
     });
@@ -1102,31 +1347,6 @@ async function startPhase(orderId) {
   }
 }
 
-async function completePhase(orderId) {
-  try {
-    const phase = currentUser.phase || 'LASER';
-    const response = await fetch(`/api/orders/${orderId}/phase/${phase}/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operatore_id: currentUser.id
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      alert('Errore nel completamento della fase: ' + (error.error || 'Sconosciuto'));
-      return;
-    }
-
-    const result = await response.json();
-    alert('Fase completata con successo!');
-    await updatePermissions(); // Reload orders
-  } catch (e) {
-    console.error('Error:', e);
-    alert('Errore nel completamento della richiesta: ' + e.message);
-  }
-}
 
 function switchScreen(screenId) {
   const perms = currentUser.permissions || ['overview'];
@@ -1160,6 +1380,129 @@ function openProfile() {
 
 function updateClock() {
   document.getElementById('clock').textContent = new Date().toLocaleTimeString('it-IT');
+}
+
+// ── PARTIAL COMPLETION MODAL FUNCTIONS ──
+let currentOrderForCompletion = null;
+let currentOrderArticles = [];
+let currentPhaseForCompletion = null;
+
+async function openPartialCompleteModal(orderId) {
+  try {
+    const phase = currentUser.phase || 'LASER';
+    currentPhaseForCompletion = phase;
+
+    // Recupera dettagli ordine
+    const response = await fetch(`/api/orders/${orderId}`);
+    const order = await response.json();
+
+    if (order.error) {
+      alert('Errore caricamento dettagli ordine');
+      return;
+    }
+
+    currentOrderForCompletion = orderId;
+    currentOrderArticles = order.articles || [];
+
+    // Update modal title
+    document.getElementById('modalTitle').textContent = `Completa Fase ${phase}`;
+
+    // Genera checkbox per articoli
+    const checkboxesDiv = document.getElementById('articlesCheckboxes');
+    checkboxesDiv.innerHTML = currentOrderArticles.map((article, idx) => {
+      const isCompleted = article.completed_phases && article.completed_phases.includes(phase);
+      const disabled = isCompleted ? 'disabled' : '';
+      const checkedAttr = isCompleted ? 'checked' : '';
+      const completedClass = isCompleted ? ' is-completed' : '';
+
+      return `
+        <div class="modal-checkbox-item${completedClass}">
+          <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled}>
+          <label for="article_${idx}">
+            <strong>${article.name}</strong>
+            <span class="qty-tag">(${article.qty} pz)</span>
+            ${isCompleted ? '<span class="completed-tag">Completato</span>' : ''}
+          </label>
+        </div>
+      `;
+    }).join('');
+
+    // Mostra modale
+    document.getElementById('partialCompleteModal').classList.add('show');
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Errore: ' + error.message);
+  }
+}
+
+function closePartialModal() {
+  document.getElementById('partialCompleteModal').classList.remove('show');
+  currentOrderForCompletion = null;
+  currentOrderArticles = [];
+  currentPhaseForCompletion = null;
+}
+
+async function submitPartialComplete() {
+  if (!currentOrderForCompletion) return;
+
+  // Recupera checkbox selezionati
+  const selectedIndices = [];
+  currentOrderArticles.forEach((_, idx) => {
+    const checkbox = document.getElementById(`article_${idx}`);
+    if (checkbox && checkbox.checked && !checkbox.disabled) {
+      selectedIndices.push(idx);
+    }
+  });
+
+  if (selectedIndices.length === 0) {
+    alert('Seleziona almeno un articolo');
+    return;
+  }
+
+  try {
+    const phase = currentPhaseForCompletion || 'LASER';
+    const response = await fetch(`/api/orders/${currentOrderForCompletion}/phase/${phase}/complete-partial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        article_indices: selectedIndices,
+        note: '',
+        operatore_id: currentUser?.id
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      const msg = data.phase_complete
+        ? `Fase ${phase} completata!`
+        : `${selectedIndices.length} articolo/i completato/i`;
+      alert(msg);
+
+      closePartialModal();
+      await updatePermissions(); // Reload orders
+    } else {
+      alert('Errore: ' + (data.error || 'Sconosciuto'));
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Errore: ' + error.message);
+  }
+}
+
+function completeAllPartialModal() {
+  if (!currentOrderForCompletion) return;
+
+  // Seleziona tutti gli articoli non completati
+  currentOrderArticles.forEach((_, idx) => {
+    const checkbox = document.getElementById(`article_${idx}`);
+    if (checkbox && !checkbox.disabled) {
+      checkbox.checked = true;
+    }
+  });
+
+  // Invia il completamento
+  submitPartialComplete();
 }
 
 // ── INIT ──
