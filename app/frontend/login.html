@@ -1011,6 +1011,29 @@ async function updatePermissions() {
       const articles = order.articles_next_phase || order.articles || [];
       const totalQty = articles.reduce((sum, a) => sum + (a.qty || 0), 0);
 
+      // Check if phase is already started (has processing_step with timestamp_inizio)
+      const phase = currentUser.phase || 'LASER';
+      const processingSteps = order.processing_steps || [];
+      const phaseStep = processingSteps.find(s => s.fase === phase);
+      const isPhaseStarted = phaseStep && phaseStep.timestamp_inizio && !phaseStep.timestamp_fine;
+      const isPhaseCompleted = phaseStep && phaseStep.timestamp_fine;
+
+      // Determine button text and action
+      let buttonText = 'Inizia Lavorazione';
+      let buttonColor = '#22c55e'; // green
+      let buttonAction = `startPhase('${order.id}')`;
+      let buttonDisabled = false;
+
+      if (isPhaseCompleted) {
+        buttonText = 'Fase Completata';
+        buttonColor = '#9ca3af'; // gray
+        buttonDisabled = true;
+      } else if (isPhaseStarted) {
+        buttonText = 'Completa Fase';
+        buttonColor = '#3b82f6'; // blue
+        buttonAction = `completePhase('${order.id}')`;
+      }
+
       ordersHtml += `
         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: white;">
           <h3 style="margin: 0 0 8px 0; font-size: 16px;">${order.cliente}</h3>
@@ -1034,10 +1057,14 @@ async function updatePermissions() {
 
       ordersHtml += `
           </div>
-          <button onclick="startPhase('${order.id}')" style="
-            background: #22c55e; color: white; border: none; padding: 8px 16px;
-            border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
-          ">Inizia Lavorazione</button>
+          <button onclick="${buttonAction}" style="
+            background: ${buttonColor}; color: white; border: none; padding: 8px 16px;
+            border-radius: 4px; cursor: ${buttonDisabled ? 'not-allowed' : 'pointer'};
+            font-size: 13px; font-weight: 500;
+            opacity: ${buttonDisabled ? '0.6' : '1'};
+          " ${buttonDisabled ? 'disabled' : ''}>
+            ${buttonText}
+          </button>
         </div>
       `;
     });
@@ -1072,6 +1099,32 @@ async function startPhase(orderId) {
   } catch (e) {
     console.error('Error:', e);
     alert('Errore nel completamento della richiesta');
+  }
+}
+
+async function completePhase(orderId) {
+  try {
+    const phase = currentUser.phase || 'LASER';
+    const response = await fetch(`/api/orders/${orderId}/phase/${phase}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operatore_id: currentUser.id
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      alert('Errore nel completamento della fase: ' + (error.error || 'Sconosciuto'));
+      return;
+    }
+
+    const result = await response.json();
+    alert('Fase completata con successo!');
+    await updatePermissions(); // Reload orders
+  } catch (e) {
+    console.error('Error:', e);
+    alert('Errore nel completamento della richiesta: ' + e.message);
   }
 }
 
