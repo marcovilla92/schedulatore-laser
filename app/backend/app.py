@@ -4,10 +4,11 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
 import sys
+import uuid
 from pathlib import Path
 
 # Importa moduli locali
-from .models import initialize_database
+from .models import initialize_database, OrderFile
 from .database import OrderManager, UserManager, AuditManager
 from .pdf_parser import extract_pdf_content
 
@@ -127,7 +128,7 @@ def create_order():
     """Crea un nuovo ordine con articoli"""
     try:
         data = request.get_json()
-        
+
         order = OrderManager.create_order(
             cliente=data.get('cliente'),
             data_consegna=data.get('data_consegna'),
@@ -136,7 +137,42 @@ def create_order():
             preventivo_minuti=data.get('preventivo_minuti', 0),
             note=data.get('note', '')
         )
-        
+
+        # Registra i file (PDF e DXF) nel DB basato su nomi inviati dal frontend
+        import os
+
+        # PDF file
+        pdf_filename = data.get('pdf_filename')
+        if pdf_filename:
+            pdfs_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'pdfs')
+            pdf_path = os.path.join(pdfs_folder, pdf_filename)
+            if os.path.exists(pdf_path):
+                file_record = OrderFile(
+                    id=str(uuid.uuid4()),
+                    order_id=order.id,
+                    filename=pdf_filename,
+                    filepath=pdf_path,
+                    file_type='PDF'
+                )
+                OrderManager.session.add(file_record)
+
+        # DXF files
+        dxf_filenames = data.get('dxf_filenames', [])
+        drawings_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'drawings')
+        for dxf_filename in dxf_filenames:
+            dxf_path = os.path.join(drawings_folder, dxf_filename)
+            if os.path.exists(dxf_path):
+                file_record = OrderFile(
+                    id=str(uuid.uuid4()),
+                    order_id=order.id,
+                    filename=dxf_filename,
+                    filepath=dxf_path,
+                    file_type='DXF'
+                )
+                OrderManager.session.add(file_record)
+
+        OrderManager.session.commit()
+
         return jsonify({
             'success': True,
             'order_id': order.id,
@@ -145,8 +181,11 @@ def create_order():
             'articles': order.articles,
             'total_quantity': order.total_quantity
         }), 201
-        
+
     except Exception as e:
+        print(f"[ERROR] Create order error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/orders/<order_id>', methods=['GET'])

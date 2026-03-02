@@ -696,6 +696,8 @@ button.primary:disabled {
 const API_BASE = '';
 let currentUser = null;
 let pdfData = null;
+let uploadedPDFFilename = null;  // Track PDF filename
+let uploadedDXFFilenames = [];   // Track DXF filenames
 
 // ── SESSION CHECK ──
 function checkSession() {
@@ -842,7 +844,9 @@ async function confirmOrder() {
         data_consegna: pdfData.data_consegna || new Date(Date.now() + 7*24*60*60*1000).toISOString(),
         articles: pdfData.articoli || [],
         required_phases: [],
-        operatore_id: currentUser.id
+        operatore_id: currentUser.id,
+        pdf_filename: uploadedPDFFilename,  // Send PDF filename
+        dxf_filenames: uploadedDXFFilenames  // Send DXF filenames
       })
     });
 
@@ -862,6 +866,7 @@ async function confirmOrder() {
 document.getElementById('pdf-input').addEventListener('change', async function(e) {
   if (e.target.files.length > 0) {
     const file = e.target.files[0];
+    uploadedPDFFilename = file.name;  // Track filename
     await uploadPDF(file);
 
     // Aggiorna info file PDF
@@ -884,6 +889,7 @@ document.getElementById('pdf-input').addEventListener('change', async function(e
 document.getElementById('dxf-input').addEventListener('change', async function(e) {
   if (e.target.files.length > 0) {
     const files = Array.from(e.target.files);
+    uploadedDXFFilenames = files.map(f => f.name);  // Track filenames
     const filesList = document.getElementById('dxf-files-list');
     let filesHTML = '<div style="margin-top: 16px;">';
 

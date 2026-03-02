@@ -67,7 +67,11 @@ class OrderManager:
         try:
             # Calcola le fasi effettivamente richieste dagli articoli
             # SEMPRE derivare da articles se presenti (anche se required_phases è passato)
-            if articles:
+            # Se required_phases è esplicitamente fornito (anche se vuoto), usalo
+            if required_phases is not None:
+                actual_phases = required_phases
+            elif articles:
+                # Altrimenti, calcola dalle fasi richieste dagli articoli
                 phase_order = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'SPEDIZIONE']
                 all_phases = set()
                 for article in articles:
@@ -76,9 +80,10 @@ class OrderManager:
                 # Mantieni l'ordine canonico
                 actual_phases = [p for p in phase_order if p in all_phases]
                 if not actual_phases:
-                    actual_phases = required_phases or ['LASER', 'PIEGA', 'SALDATURA']
+                    actual_phases = ['LASER', 'PIEGA', 'SALDATURA']
             else:
-                actual_phases = required_phases or ['LASER', 'PIEGA', 'SALDATURA']
+                # Se nessun articolo e required_phases non fornito, usa il default
+                actual_phases = ['LASER', 'PIEGA', 'SALDATURA']
 
             order = Order(
                 id=str(uuid.uuid4()),
@@ -94,14 +99,16 @@ class OrderManager:
             if articles:
                 order.total_quantity = sum(article.get('qty', 0) for article in articles)
 
-            # Inizializza ProcessingStep solo per le fasi effettivamente necessarie
-            for phase in order.required_phases:
-                step = ProcessingStep(
-                    id=str(uuid.uuid4()),
-                    order_id=order.id,
-                    fase=phase
-                )
-                order.processing_steps.append(step)
+            # Inizializza ProcessingStep SOLO se ci sono fasi definite
+            # Se required_phases è vuoto, aspetta l'approvazione del supervisore
+            if order.required_phases:
+                for phase in order.required_phases:
+                    step = ProcessingStep(
+                        id=str(uuid.uuid4()),
+                        order_id=order.id,
+                        fase=phase
+                    )
+                    order.processing_steps.append(step)
             
             session.add(order)
             session.commit()
@@ -154,13 +161,27 @@ class OrderManager:
             
             for order in orders:
                 # Serializza dentro la sessione per evitare lazy loading
+                # Estrai PDF e DXF files
+                pdf_file = None
+                dxf_files = []
+                if order.files:
+                    for f in order.files:
+                        if f.file_type == 'PDF':
+                            pdf_file = f.filename
+                        elif f.file_type == 'DXF':
+                            dxf_files.append({'filename': f.filename, 'filepath': f.filepath})
+
                 result.append({
                     'id': order.id,
                     'cliente': order.cliente,
+                    'numero_ordine': order.numero_ordine if hasattr(order, 'numero_ordine') else None,
                     'data_consegna': order.data_consegna.isoformat(),
                     'total_quantity': order.total_quantity,
                     'status': order.status,
                     'articles': order.articles,
+                    'required_phases': order.required_phases,
+                    'pdf_file': pdf_file,  # Nome del PDF per il supervisore
+                    'dxf_files': dxf_files,  # Lista DXF per il supervisore
                     'processing_steps': [
                         {
                             'fase': ps.fase,
@@ -438,6 +459,16 @@ class OrderManager:
                     "next_phase": next_phase if next_phase else "✅ Completato"
                 })
             
+            # Estrai PDF e DXF files
+            pdf_file = None
+            dxf_files = []
+            if order.files:
+                for f in order.files:
+                    if f.file_type == 'PDF':
+                        pdf_file = f.filename
+                    elif f.file_type == 'DXF':
+                        dxf_files.append({'filename': f.filename, 'filepath': f.filepath})
+
             return {
                 "id": order.id,
                 "cliente": order.cliente,
@@ -446,6 +477,8 @@ class OrderManager:
                 "status": order.status,
                 "total_quantity": order.total_quantity,
                 "preventivo_minuti": order.preventivo_minuti,
+                "pdf_file": pdf_file,  # Per il supervisore
+                "dxf_files": dxf_files,  # Per il supervisore
                 "articles": article_statuses,
                 "processing_steps": [
                     {
