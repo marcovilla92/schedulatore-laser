@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 # Importa moduli locali
-from .models import initialize_database, OrderFile, get_session
+from .models import initialize_database, Order, OrderFile, get_session
 from .database import OrderManager, UserManager, AuditManager
 from .pdf_parser import extract_pdf_content
 
@@ -252,7 +252,7 @@ def approve_order(order_id):
             return jsonify({
                 'success': True,
                 'order_id': order_id,
-                'numero_ordine': order.numero_ordine or 'N/A',
+                'cliente': order.cliente,
                 'required_phases': required_phases
             }), 200
 
