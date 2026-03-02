@@ -1,0 +1,362 @@
+================================================================================
+PHASE 08: ARCHIVIO AVANZATO — PLANNING COMPLETE
+================================================================================
+
+Date: 2026-03-02
+Status: READY FOR EXECUTION
+Estimated Duration: 60-75 minutes (3 executable plans)
+
+================================================================================
+WHAT THIS PHASE BUILDS
+================================================================================
+
+Admin dashboard for ADVANCED ORDER ARCHIVE:
+
+✓ Tabella ordini completati (status SPEDITO)
+  - Numero Ordine | Cliente | Data Completamento
+  - LASER Time | PIEGA Time | SALDATURA Time
+  - Tempo Totale | Numero Articoli | Bottone Dettagli
+
+✓ Filtri interattivi (no page reload)
+  - Data da/a (completamento)
+  - Cliente (substring search)
+  - Fase completata (LASER, PIEGA, SALDATURA, PULIZIA)
+
+✓ Ordinamento
+  - Per data completamento (asc/desc toggle)
+  - Per cliente (asc/desc)
+  - Per numero articoli (asc/desc)
+
+✓ Paginazione
+  - 50 ordini per pagina
+  - Bottoni Precedente/Successivo
+  - Page info (1 di 10, etc.)
+
+✓ Modal Dettagli Ordine
+  - Info base (numero, cliente, date)
+  - Tabella tempi per fase (inizio/fine/durata)
+  - Tabella articoli con fasi richieste
+
+✓ Export CSV
+  - Tabella completa (con filtri applicati)
+  - Header row: numero_ordine, cliente, data_completamento, ...
+  - Downloadabile con timestamp nel filename
+
+✓ Responsive Design
+  - Mobile (375px)
+  - Tablet (768px)
+  - Desktop (1200px+)
+
+✓ Accessibility
+  - ARIA labels su tutti gli input
+  - Keyboard navigation (Tab, Enter)
+  - Screen reader friendly
+
+================================================================================
+PLANNING STRUCTURE: 3 EXECUTABLE PLANS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PLAN 08-01: Backend ArchiveManager + API Endpoints (WAVE 1)                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Duration: 15-20 minutes                                                     │
+│ Dependencies: None (uses existing v1.2 schema)                              │
+│                                                                             │
+│ Task 1: ArchiveManager class in app/backend/database.py                    │
+│   ✓ _calculate_phase_times(order_id, session)                              │
+│     Returns: {"LASER": "2h 15min", "PIEGA": "1h 30min", ...}               │
+│                                                                             │
+│   ✓ get_completed_orders(filters, page, page_size, sort_by, sort_order)    │
+│     Returns: paginated list with all filters applied                        │
+│                                                                             │
+│   ✓ get_order_details(order_id)                                            │
+│     Returns: full order details (dates, articles, phase times)              │
+│                                                                             │
+│   ✓ export_csv_data(filters)                                               │
+│     Returns: list of dicts (CSV-ready)                                      │
+│                                                                             │
+│ Task 2: Add 3 API endpoints in app/backend/app.py                          │
+│   ✓ GET /api/archive/orders — paginated list with filters                  │
+│   ✓ GET /api/archive/orders/<id>/details — single order details            │
+│   ✓ GET /api/archive/export/csv — CSV file download                        │
+│                                                                             │
+│ Verification:                                                               │
+│   ✓ Test data created (10 ordini SPEDITO)                                  │
+│   ✓ All endpoints return 200 OK                                            │
+│   ✓ Filters validated (date, page_size, etc.)                              │
+│   ✓ CSV export produces valid file                                         │
+│   ✓ Phase times calculated correctly                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PLAN 08-02: Frontend UI + JavaScript (WAVE 2)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Duration: 25-30 minutes                                                     │
+│ Dependencies: Plan 08-01 (needs API endpoints)                              │
+│                                                                             │
+│ Task 1: HTML + CSS structure in app/frontend/admin.html                    │
+│   ✓ Nav button "📦 Archivio Ordini" in sidebar                            │
+│   ✓ Screen-archive div with all elements:                                  │
+│     - Filters row (date-from, date-to, cliente, phase, clear-filters)      │
+│     - Controls row (sort dropdown, sort toggle, export buttons)             │
+│     - Data table with thead and tbody                                       │
+│     - Pagination controls (prev/next, page info)                            │
+│     - Modal for order details (hidden)                                      │
+│   ✓ CSS styling (responsive, color scheme, hover states)                   │
+│                                                                             │
+│ Task 2: JavaScript state management + event listeners                       │
+│   ✓ Global archiveState object (page, filters, sort)                       │
+│   ✓ loadArchiveOrders() — fetch API, render table                          │
+│   ✓ renderArchiveTable(orders) — populate tbody                            │
+│   ✓ updatePaginationInfo() — update page counter                           │
+│   ✓ Event listeners on filters — immediate update                          │
+│   ✓ Event listeners on sort — immediate update                             │
+│   ✓ Event listeners on pagination — load next/prev page                    │
+│   ✓ Clear filters button — reset all filters                               │
+│                                                                             │
+│ Task 3: Modal details + CSV export                                         │
+│   ✓ showArchiveDetails(orderId) — fetch & populate modal                   │
+│   ✓ Modal displays: info, phase times table, articles table                │
+│   ✓ Modal close: X button, click outside                                   │
+│   ✓ exportArchiveCSV() — fetch, blob, trigger download                     │
+│   ✓ exportArchivePDF() — placeholder for future                            │
+│                                                                             │
+│ Verification:                                                               │
+│   ✓ Admin.html loads in browser                                            │
+│   ✓ Archive button visible, clickable                                      │
+│   ✓ Screen shows (not blank)                                               │
+│   ✓ Filters update table without reload                                    │
+│   ✓ Sort updates order immediately                                         │
+│   ✓ Pagination works (prev/next, page counter)                             │
+│   ✓ Modal opens on "Dettagli" click                                        │
+│   ✓ Modal closes properly (X or click outside)                             │
+│   ✓ CSV downloads as valid file                                            │
+│   ✓ Mobile responsive (zoom 75%)                                           │
+│   ✓ No console errors                                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PLAN 08-03: Testing + Validation (WAVE 3)                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Duration: 20-25 minutes                                                     │
+│ Dependencies: Plan 08-01 + 08-02 (needs working API + UI)                   │
+│                                                                             │
+│ Task 1: Create test data                                                    │
+│   ✓ Helper function create_archive_test_data() in app/backend/app.py       │
+│   ✓ Creates 10 ordini SPEDITO with:                                        │
+│     - Varied clients (5 different)                                          │
+│     - Multiple articles per order                                           │
+│     - Realistic phase times (LASER 2-3h, PIEGA 1-2h, SALDATURA 2-4h)       │
+│     - Spread dates (-30 days to today)                                      │
+│                                                                             │
+│ Task 2: Playwright test suite                                              │
+│   ✓ File: .claude/skills/webapp-testing/test_archive.py                   │
+│   ✓ 8 test classes, 17 total test cases:                                   │
+│                                                                             │
+│   TestArchiveLoading (3 tests):                                             │
+│     ✓ Screen loads without errors                                          │
+│     ✓ All columns display                                                   │
+│     ✓ Time values formatted correctly                                       │
+│                                                                             │
+│   TestArchiveFilters (3 tests):                                             │
+│     ✓ Date filter 'from' works                                             │
+│     ✓ Cliente filter works                                                 │
+│     ✓ Clear filters button resets                                          │
+│                                                                             │
+│   TestArchiveSort (2 tests):                                                │
+│     ✓ Sort dropdown works                                                   │
+│     ✓ Sort order toggle (↑/↓) works                                        │
+│                                                                             │
+│   TestArchiveModal (3 tests):                                               │
+│     ✓ Modal opens on "Dettagli" click                                      │
+│     ✓ Modal contains order info                                             │
+│     ✓ Modal closes properly                                                 │
+│                                                                             │
+│   TestArchiveExport (1 test):                                               │
+│     ✓ CSV export downloads valid file                                      │
+│                                                                             │
+│   TestArchivePagination (2 tests):                                          │
+│     ✓ Pagination disabled on page 1                                         │
+│     ✓ Page info displays                                                    │
+│                                                                             │
+│   TestArchivePerformance (1 test):                                          │
+│     ✓ Archive loads in < 2 seconds                                         │
+│                                                                             │
+│   TestArchiveAccessibility (2 tests):                                       │
+│     ✓ ARIA labels present                                                   │
+│     ✓ Keyboard navigation works                                             │
+│                                                                             │
+│ Verification:                                                               │
+│   ✓ Pytest runs successfully: 17/17 tests pass                             │
+│   ✓ No Python errors                                                        │
+│   ✓ No browser console errors                                              │
+│   ✓ CSV file valid and readable                                            │
+│   ✓ Performance < 2 seconds                                                │
+│   ✓ Accessibility checks pass                                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+EXECUTION INSTRUCTIONS
+================================================================================
+
+1. EXECUTE PLAN 08-01 (Backend)
+   /gsd:execute-phase 08 --plan 01
+   ✓ ArchiveManager added to database.py
+   ✓ 3 API endpoints added to app.py
+   ✓ All verifications pass
+   → Creates 08-01-SUMMARY.md
+
+2. EXECUTE PLAN 08-02 (Frontend)
+   /gsd:execute-phase 08 --plan 02
+   ✓ screen-archive HTML added to admin.html
+   ✓ CSS and JavaScript implemented
+   ✓ All verifications pass
+   → Creates 08-02-SUMMARY.md
+
+3. EXECUTE PLAN 08-03 (Testing)
+   /gsd:execute-phase 08 --plan 03
+   ✓ Test data created
+   ✓ Playwright test suite created
+   ✓ 17 tests pass
+   ✓ All verifications pass
+   → Creates 08-03-SUMMARY.md
+
+4. POST-EXECUTION
+   - Review all 3 SUMMARY.md files
+   - Run full test: pytest test_archive.py -v
+   - Manual test in browser
+   - Git push: git push origin stefano/sviluppo
+
+================================================================================
+KEY ARCHITECTURE DECISIONS
+================================================================================
+
+Backend:
+  • ArchiveManager = static class (pattern consistent with UserManager)
+  • No new database tables (uses existing Order + ProcessingStep)
+  • No new dependencies (pure SQLAlchemy + Flask)
+
+Frontend:
+  • Vanilla JavaScript (no React/Vue/Svelte)
+  • Inline CSS (single admin.html file)
+  • Client-side state (archiveState global object)
+  • Client-side pagination (50 items/page, OK for 1000 items)
+
+Export:
+  • CSV only (PDF can be added later with jsPDF)
+  • Server-side generation (Python csv module)
+  • Client-side download (blob + link)
+
+Performance:
+  • Single API call per load
+  • No N+1 queries
+  • Expected: < 2 sec for 100+ orders
+
+Accessibility:
+  • ARIA labels on all inputs
+  • Keyboard navigation (Tab, Enter)
+  • Semantic HTML structure
+
+================================================================================
+FILES CREATED
+================================================================================
+
+.planning/phases/08-archive-advanced/
+  ├── 08-01-PLAN.md ..................... Backend plan (ArchiveManager + API)
+  ├── 08-02-PLAN.md ..................... Frontend plan (UI + JavaScript)
+  ├── 08-03-PLAN.md ..................... Testing plan (Playwright suite)
+  ├── CONTEXT.md ........................ Planning decisions & rationale
+  ├── README.md ......................... Detailed implementation guide
+  └── PLANNING-SUMMARY.txt .............. This file
+
+.planning/ROADMAP.md (updated)
+  ├── Added Phase 8 to roadmap
+  ├── Updated milestones section
+  ├── Added v1.3 milestone header
+  └── Added Phase 8 success criteria
+
+================================================================================
+REQUIREMENTS ADDRESSED
+================================================================================
+
+This phase implements all 6 archive-related requirements:
+
+[ARCHIVE-01] Tabella ordini completati
+  → Implementato in 08-02 Task 1 (HTML table)
+  → Data da 08-01 Task 1 (ArchiveManager.get_completed_orders)
+
+[ARCHIVE-02] Filtri (data, cliente, fase)
+  → Implementato in 08-02 Task 2 (event listeners + loadArchiveOrders)
+  → Supportato da 08-01 Task 2 (GET /api/archive/orders?filters=...)
+
+[ARCHIVE-03] Ordinamento (asc/desc)
+  → Implementato in 08-02 Task 2 (sort toggle button + sortOrder)
+  → Supportato da 08-01 Task 1 (sort_by, sort_order params)
+
+[ARCHIVE-04] Modal dettagli ordine
+  → Implementato in 08-02 Task 3 (showArchiveDetails function)
+  → Data da 08-01 Task 2 (GET /api/archive/orders/<id>/details)
+
+[ARCHIVE-05] Export CSV
+  → Implementato in 08-02 Task 3 (exportArchiveCSV function)
+  → File generato da 08-01 Task 2 (GET /api/archive/export/csv)
+
+[ARCHIVE-06] Responsive + Accessibility
+  → Implementato in 08-02 Task 1 (CSS breakpoints, media queries)
+  → ARIA labels in 08-02 Task 2 (label for=... elements)
+  → Tested in 08-03 Task 2 (TestArchiveAccessibility class)
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+After planning is complete:
+
+1. Execute: /gsd:execute-phase 08 --plan 01
+   [Review 08-01-SUMMARY.md]
+
+2. Execute: /gsd:execute-phase 08 --plan 02
+   [Review 08-02-SUMMARY.md]
+
+3. Execute: /gsd:execute-phase 08 --plan 03
+   [Review 08-03-SUMMARY.md]
+
+4. Commit and push changes to GitHub
+
+5. Create pull request (if using standard workflow)
+
+6. Manual testing in staging/production environment
+
+7. Document any issues or enhancements for future phases
+
+================================================================================
+KNOWN LIMITATIONS
+================================================================================
+
+1. Pagination: Assumes < 1000 completed orders
+   → If more: implement server-side pagination
+
+2. PDF Export: Not implemented
+   → Can add with jsPDF library later
+
+3. Real-time Refresh: No auto-update
+   → Can add 30-sec refresh or WebSocket later
+
+4. Advanced Analytics: No KPI cards
+   → Can add avg time/phase, SLA violations later
+
+5. Bulk Operations: No multi-select, bulk delete
+   → Can add later if needed
+
+6. Audit Trail: Archive operations not logged
+   → Can add AuditManager.log calls later
+
+================================================================================
+PLANNING COMPLETE ✓
+Status: Ready for Execution
+Date: 2026-03-02
+Time to Execute: 60-75 minutes
+================================================================================
