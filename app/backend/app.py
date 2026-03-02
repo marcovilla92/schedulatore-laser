@@ -141,28 +141,27 @@ def create_order():
         # Registra i file (PDF e DXF) nel DB basato su nomi inviati dal frontend
         import os
 
-        # PDF file
-        pdf_filename = data.get('pdf_filename')
-        if pdf_filename:
-            pdfs_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'pdfs')
-            pdf_path = os.path.join(pdfs_folder, pdf_filename)
-            if os.path.exists(pdf_path):
-                file_record = OrderFile(
-                    id=str(uuid.uuid4()),
-                    order_id=order.id,
-                    filename=pdf_filename,
-                    filepath=pdf_path,
-                    file_type='PDF'
-                )
-                OrderManager.session.add(file_record)
-
-        # DXF files
-        dxf_filenames = data.get('dxf_filenames', [])
-        drawings_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'drawings')
-
         # Register file records with proper session management
         session = get_session()
         try:
+            # PDF file
+            pdf_filename = data.get('pdf_filename')
+            if pdf_filename:
+                pdfs_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'pdfs')
+                pdf_path = os.path.join(pdfs_folder, pdf_filename)
+                if os.path.exists(pdf_path):
+                    file_record = OrderFile(
+                        id=str(uuid.uuid4()),
+                        order_id=order.id,
+                        filename=pdf_filename,
+                        filepath=pdf_path,
+                        file_type='PDF'
+                    )
+                    session.add(file_record)
+
+            # DXF files
+            dxf_filenames = data.get('dxf_filenames', [])
+            drawings_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'drawings')
             for dxf_filename in dxf_filenames:
                 dxf_path = os.path.join(drawings_folder, dxf_filename)
                 if os.path.exists(dxf_path):
@@ -174,6 +173,7 @@ def create_order():
                         file_type='DXF'
                     )
                     session.add(file_record)
+
             session.commit()
         finally:
             session.close()
