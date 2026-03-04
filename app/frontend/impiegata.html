@@ -224,30 +224,152 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .upload-area:hover { border-color: var(--green); background: rgba(26,122,72,0.02); }
 .upload-area.active { border-color: var(--green); background: rgba(26,122,72,0.05); }
 
-/* PRIMARY UPLOAD (PDF) */
-.upload-area.upload-primary {
-  height: 120px;
-  border: 2px dashed var(--green);
-  background: linear-gradient(135deg, rgba(26,122,72,0.02) 0%, rgba(26,122,72,0.005) 100%);
-}
-.upload-area.upload-primary:hover {
-  border-color: var(--green-light);
-  background: rgba(26,122,72,0.04);
+/* ===== MODERN UPLOAD BUTTONS ===== */
+.upload-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* SECONDARY UPLOAD (DXF) */
-.upload-area.upload-secondary {
-  height: 110px;
-  border: 2px dashed #3b82f6;
-  background: linear-gradient(135deg, rgba(59,130,246,0.02) 0%, rgba(59,130,246,0.005) 100%);
-}
-.upload-area.upload-secondary:hover {
-  border-color: #1d4ed8;
-  background: rgba(59,130,246,0.04);
+.upload-button {
+  padding: 16px 24px;
+  border: 2px solid;
+  border-radius: 8px;
+  background: var(--white);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
-.upload-text { font-size: 14px; font-weight: 500; color: var(--gray-text); }
-.upload-subtext { font-size: 12px; color: var(--gray-muted); }
+/* PDF BUTTON */
+.upload-button-pdf {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.upload-button-pdf:hover {
+  background: var(--green);
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(26, 122, 72, 0.2);
+}
+
+.upload-button-pdf:active {
+  transform: scale(0.98);
+}
+
+.upload-button-pdf:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* DXF BUTTON */
+.upload-button-dxf {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.upload-button-dxf:hover {
+  background: #3b82f6;
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.upload-button-dxf:active {
+  transform: scale(0.98);
+}
+
+.upload-button-dxf:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* UPLOAD STATUS MESSAGE */
+.upload-status {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.upload-status.success {
+  display: flex;
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.upload-status.error {
+  display: flex;
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.upload-status::before {
+  content: '✓';
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.upload-status.error::before {
+  content: '⚠';
+}
+
+/* UPLOAD PROGRESS BAR */
+.upload-progress {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.upload-progress.active {
+  display: flex;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #e5e5e5;
+  border-radius: 3px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  width: 0%;
+  transition: width 0.2s ease;
+  border-radius: 3px;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--gray-muted);
+  text-align: center;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 #pdf-input, #dxf-input { display: none; }
 
@@ -592,27 +714,36 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <div class="form-title">Carica Nuovo Ordine</div>
       <div class="form-sub">Carica il PDF dell'ordine e seleziona la destinazione iniziale.</div>
 
-      <!-- FILE PDF - PRINCIPALE -->
+      <!-- FILE PDF UPLOAD -->
       <div class="form-group">
         <label class="form-label">File PDF Ordine</label>
-        <div class="upload-area upload-primary" id="pdf-upload-area" onclick="document.getElementById('pdf-input').click()">
-          <span class="upload-text">Carica PDF dell'ordine</span>
-          <span class="upload-subtext">o trascina qui</span>
+        <div class="upload-button-wrapper">
+          <button type="button" class="upload-button upload-button-pdf" id="pdf-upload-btn" aria-label="Carica file PDF dell'ordine">
+            Carica PDF
+          </button>
+          <input type="file" id="pdf-input" accept=".pdf" style="display:none;">
+          <div class="upload-status" id="pdf-status"></div>
         </div>
-        <input type="file" id="pdf-input" accept=".pdf">
         <div class="pdf-preview" id="pdf-preview">
           <iframe id="pdf-iframe"></iframe>
         </div>
       </div>
 
-      <!-- FILE DXF/DWG - IMPORTANTE -->
+      <!-- FILE DXF/DWG UPLOAD -->
       <div class="form-group">
-        <label class="form-label">Disegni Tecnici</label>
-        <div class="upload-area upload-secondary" onclick="document.getElementById('dxf-input').click()">
-          <span class="upload-text">Carica disegni (DXF/DWG)</span>
-          <span class="upload-subtext">o trascina qui - supporta file multipli</span>
+        <label class="form-label">Disegni Tecnici (DXF/DWG)</label>
+        <div class="upload-button-wrapper">
+          <button type="button" class="upload-button upload-button-dxf" id="dxf-upload-btn" aria-label="Carica file DXF/DWG per disegni tecnici, supporta file multipli">
+            Carica Disegni
+          </button>
+          <input type="file" id="dxf-input" accept=".dxf,.dwg" multiple style="display:none;">
+          <div class="upload-progress" id="dxf-progress" style="display:none;">
+            <div class="progress-bar">
+              <div class="progress-fill"></div>
+            </div>
+            <span class="progress-label" id="dxf-progress-label">Caricamento...</span>
+          </div>
         </div>
-        <input type="file" id="dxf-input" accept=".dxf,.dwg" multiple>
         <div class="dxf-files-list" id="dxf-list"></div>
       </div>
 
@@ -814,9 +945,25 @@ function switchTab(tabId) {
 // ===========================
 // TAB 1: CARICA ORDINE
 // ===========================
+
+// Upload Button Handlers
+document.getElementById('pdf-upload-btn').addEventListener('click', () => {
+  document.getElementById('pdf-input').click();
+});
+
+document.getElementById('dxf-upload-btn').addEventListener('click', () => {
+  document.getElementById('dxf-input').click();
+});
+
+// PDF File Input Handler
 document.getElementById('pdf-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  const statusEl = document.getElementById('pdf-status');
+  statusEl.className = '';
+  statusEl.style.display = 'none';
+
   const formData = new FormData();
   formData.append('file', file);
   try {
@@ -829,25 +976,60 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
       const blob = new Blob([file], { type: 'application/pdf' });
       document.getElementById('pdf-iframe').src = URL.createObjectURL(blob);
       document.getElementById('pdf-preview').classList.add('active');
-      document.getElementById('pdf-upload-area').classList.add('active');
+
+      // Show success status
+      statusEl.textContent = 'PDF caricato con successo';
+      statusEl.className = 'upload-status success';
+      statusEl.style.display = 'flex';
+      setTimeout(() => statusEl.style.display = 'none', 4000);
+
       showMessage('PDF caricato con successo', 'success');
     } else {
+      statusEl.textContent = 'Errore: ' + result.error;
+      statusEl.className = 'upload-status error';
+      statusEl.style.display = 'flex';
       showMessage('Errore: ' + result.error, 'error');
     }
-  } catch (err) { showMessage('Errore caricamento PDF: ' + err.message, 'error'); }
+  } catch (err) {
+    statusEl.textContent = 'Errore caricamento PDF';
+    statusEl.className = 'upload-status error';
+    statusEl.style.display = 'flex';
+    showMessage('Errore caricamento PDF: ' + err.message, 'error');
+  }
 });
 
 document.getElementById('dxf-input').addEventListener('change', async (e) => {
-  for (const file of e.target.files) {
+  const files = e.target.files;
+  if (files.length === 0) return;
+
+  const progressEl = document.getElementById('dxf-progress');
+  const progressFill = progressEl.querySelector('.progress-fill');
+  const progressLabel = document.getElementById('dxf-progress-label');
+
+  progressEl.classList.add('active');
+  let completed = 0;
+
+  for (const file of files) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('order_id', 'draft');
     try {
       const resp = await fetch(`${API_URL}/api/upload-drawing`, { method: 'POST', body: formData });
       const result = await resp.json();
-      if (result.success) { uploadedDXFFiles.push(result.filename); renderDXFList(); }
-    } catch (err) { showMessage('Errore upload DXF: ' + err.message, 'error'); }
+      if (result.success) {
+        uploadedDXFFiles.push(result.filename);
+        completed++;
+        const progressPercent = (completed / files.length) * 100;
+        progressFill.style.width = progressPercent + '%';
+        progressLabel.textContent = `${completed}/${files.length} file caricati`;
+      }
+    } catch (err) {
+      showMessage('Errore upload DXF: ' + err.message, 'error');
+    }
   }
+
+  renderDXFList();
+  setTimeout(() => progressEl.classList.remove('active'), 1500);
 });
 
 function renderDXFList() {
