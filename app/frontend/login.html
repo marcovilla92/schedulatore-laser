@@ -1352,8 +1352,72 @@ body {
           <h3>Accesso Negato</h3>
           <p>Solo supervisori e amministratori possono accedere all'archivio.</p>
         </div>
+        <div id="archiveReportContainer" style="display:none;">
+          <!-- Filtri -->
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:white;border-radius:8px;border:1px solid var(--border);">
+            <div style="flex:1;min-width:150px;">
+              <label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Cliente</label>
+              <input type="text" id="archFilterCliente" placeholder="Cerca cliente..."
+                     style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:Inter,sans-serif;">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Data da</label>
+              <input type="date" id="archFilterDateFrom"
+                     style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:Inter,sans-serif;">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Data a</label>
+              <input type="date" id="archFilterDateTo"
+                     style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:Inter,sans-serif;">
+            </div>
+            <button onclick="loadArchiveReport()" style="padding:8px 16px;background:var(--ls-green);color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Filtra</button>
+            <button onclick="exportArchiveCSV()" style="padding:8px 16px;background:white;color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Esporta CSV</button>
+          </div>
+
+          <!-- Tabella report -->
+          <div style="background:white;border-radius:8px;border:1px solid var(--border);overflow:hidden;">
+            <div style="overflow-x:auto;">
+              <table id="archiveTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="background:var(--bg-light);border-bottom:2px solid var(--border);">
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">Ordine</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">Cliente</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">PIEGA</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">SALDATURA</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">PULIZIA</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">Totale</th>
+                    <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">Quotato</th>
+                    <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">Costo</th>
+                    <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-secondary);">Margine</th>
+                  </tr>
+                </thead>
+                <tbody id="archiveTableBody">
+                  <tr><td colspan="9" style="padding:24px;text-align:center;color:var(--text-secondary);">Caricamento...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Paginazione -->
+          <div id="archivePagination" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;"></div>
+        </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- MODALE PDF VIEWER -->
+<div id="pdfViewerModal" class="modal-overlay" onclick="if(event.target===this)closePdfModal()">
+  <div style="background:white;border-radius:12px;width:90%;max-width:900px;height:85vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);animation:fadeInUp 0.3s ease both;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--ls-green),transparent);"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);">
+      <div>
+        <div id="pdfModalTitle" style="font-family:'Geist',sans-serif;font-size:16px;font-weight:700;"></div>
+        <div id="pdfModalMeta" style="font-size:12px;color:var(--text-secondary);margin-top:2px;"></div>
+      </div>
+      <button onclick="closePdfModal()" style="background:none;border:none;font-size:24px;cursor:pointer;opacity:0.5;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">&times;</button>
+    </div>
+    <iframe id="pdfModalFrame" style="flex:1;border:none;"></iframe>
   </div>
 </div>
 
@@ -1457,6 +1521,30 @@ async function loginUser(userId) {
     currentUser = { id: userId, ...userData };
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
+    // Redirect impiegata alla pagina dedicata PRIMA di mostrare la dashboard
+    if (currentUser.role === 'Impiegata') {
+      window.location.href = '/impiegata.html';
+      return;
+    }
+
+    // Redirect operatore laser alla pagina laser
+    if (currentUser.phase === 'LASER' && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
+      window.location.href = '/laser-v2.html';
+      return;
+    }
+
+    // Redirect operatori officina (piega/saldatura/pulizia) alla pagina officina
+    if (['PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
+      window.location.href = '/officina.html';
+      return;
+    }
+
+    // Redirect capo officina alla dashboard capo
+    if (currentUser.role === 'Capo Officina' || (currentUser.is_capo && currentUser.role !== 'Amministratore')) {
+      window.location.href = '/approva-ordine.html';
+      return;
+    }
+
     // Hide login, show dashboard
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('dashboard').classList.add('active');
@@ -1465,8 +1553,8 @@ async function loginUser(userId) {
     await updateDashboardUI();
     await updatePermissions();
 
-    // Start notification polling for supervisore/admin
-    if (['Supervisore', 'Amministratore'].includes(currentUser.role)) {
+    // Start notification polling for capo/admin
+    if (['Capo Officina', 'Amministratore'].includes(currentUser.role)) {
       startNotificationPolling();
     }
 
@@ -1481,27 +1569,28 @@ async function loginUser(userId) {
   }
 }
 
-async function logout() {
-  try {
-    if (currentUser) {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.id })
-      });
-    }
-  } catch (e) {
-    console.error('Logout error:', e);
-  } finally {
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-
-    document.getElementById('dashboard').classList.remove('active');
-    document.getElementById('loginPage').style.display = 'flex';
-    document.getElementById('loginForm').reset();
-
-    toggleUserDropdown();
+function logout() {
+  // Fire-and-forget: non bloccare l'UI aspettando il server
+  if (currentUser) {
+    fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id })
+    }).catch(e => console.error('Logout API error:', e));
   }
+
+  // Pulizia immediata (non dipende dal server)
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+
+  // Stop notification polling
+  stopNotificationPolling();
+
+  // Chiudi dropdown e mostra login
+  document.getElementById('userDropdown').classList.remove('active');
+  document.getElementById('dashboard').classList.remove('active');
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginForm').reset();
 }
 
 async function updateDashboardUI() {
@@ -1538,11 +1627,11 @@ async function updatePermissions() {
     `;
     // Bottone "Nuovo Ordine" solo per impiegata
     if (currentUser.role === 'Impiegata') {
-      supervisionContent += `<a href="/carica-ordine.html" style="display: inline-block; margin-top: 24px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">+ Nuovo Ordine</a>`;
+      supervisionContent += `<a href="/impiegata.html" style="display: inline-block; margin-top: 24px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">+ Nuovo Ordine</a>`;
     }
-    // Bottone "Approva Ordini" solo per supervisore/admin
-    if (currentUser.role === 'Supervisore' || currentUser.role === 'Amministratore') {
-      supervisionContent += `<a href="/approva-ordine.html" style="display: inline-block; margin-top: 24px; margin-left: 12px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">✓ Approva Ordini</a>`;
+    // Bottone "Dashboard Capo" per capo officina/admin
+    if (currentUser.is_capo || currentUser.role === 'Capo Officina' || currentUser.role === 'Amministratore') {
+      supervisionContent += `<a href="/approva-ordine.html" style="display: inline-block; margin-top: 24px; margin-left: 12px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">Dashboard Capo Officina</a>`;
     }
     document.getElementById('supervisioneContent').innerHTML = supervisionContent;
   } else {
@@ -1552,10 +1641,9 @@ async function updatePermissions() {
   // Archive
   if (perms.includes('archive')) {
     document.getElementById('navArchivio').classList.remove('disabled');
-    document.getElementById('archiveContent').innerHTML = `
-      <h3>Archivio Ordini</h3>
-      <p>Visualizzi lo storico di tutti gli ordini completati.</p>
-    `;
+    document.getElementById('archiveContent').style.display = 'none';
+    document.getElementById('archiveReportContainer').style.display = 'block';
+    loadArchiveReport();
   } else {
     document.getElementById('navArchivio').classList.add('disabled');
   }
@@ -1567,203 +1655,334 @@ async function updatePermissions() {
     document.getElementById('navAdmin').style.display = 'none';
   }
 
-  // Lavorazione - Hide for Admin (phase === 'ALL')
-  const phase = currentUser.phase || 'LASER';
-  if (phase === 'ALL') {
+  // Lavorazione - Hide for impiegata (phase === null) and ALL (capo)
+  const phase = currentUser.phase;
+  if (!phase || phase === 'ALL') {
     document.getElementById('navLavorazione').style.display = 'none';
-    document.getElementById('navCalendario').style.display = 'flex';
   } else {
     document.getElementById('navLavorazione').style.display = 'flex';
-    document.getElementById('navCalendario').style.display = 'flex';
   }
+  document.getElementById('navCalendario').style.display = 'flex';
 
-  // Lavorazione per fase - Load orders from API
-  let apiEndpoint = '';
-  let phaseLabel = '';
-  let machinesLabel = '';
-
-  if (phase === 'LASER') {
-    phaseLabel = 'Laser Cutting';
-    machinesLabel = (currentUser.machines || []).join(', ') || 'CNC 01, Laser CO2';
-    apiEndpoint = '/api/phase/LASER/orders';
-  } else if (phase === 'SALDATURA') {
-    phaseLabel = 'Saldatura';
-    machinesLabel = (currentUser.machines || []).join(', ') || 'Stazione Saldatura';
-    apiEndpoint = '/api/phase/SALDATURA/orders';
-  } else if (phase === 'PIEGA') {
-    phaseLabel = 'Piega';
-    machinesLabel = (currentUser.machines || []).join(', ') || 'Pressa Piega';
-    apiEndpoint = '/api/phase/PIEGA/orders';
-  } else if (phase === 'ALL') {
-    phaseLabel = 'Supervisore - Tutte le Fasi';
-    apiEndpoint = '/api/orders';
-  }
-
-  // Show phase info
-  let html = `
-    <p><strong>Fase:</strong> ${phaseLabel}</p>
-    <p><strong>Macchine assegnate:</strong> ${machinesLabel}</p>
-    <div id="orders-list" style="margin-top: 24px;">
-      <p style="color: #666;">Caricamento ordini...</p>
-    </div>
-  `;
-
-  document.getElementById('lavorazioneContent').innerHTML = html;
-
-  // Clean up existing timers before loading new orders
+  // Cleanup timers
   Object.keys(activePhaseTimers).forEach(orderId => {
     clearInterval(activePhaseTimers[orderId]);
   });
   activePhaseTimers = {};
 
-  // Load orders from API
+  if (phase === 'LASER') {
+    await loadLaserView();
+  } else if (phase === 'OFFICINA') {
+    await loadOfficinaView();
+  }
+}
+
+async function loadLaserView() {
+  document.getElementById('lavorazioneContent').innerHTML = `
+    <p><strong>Fase:</strong> Taglio Laser</p>
+    <div id="orders-list" style="margin-top: 24px;">
+      <p style="color: #666;">Caricamento ordini...</p>
+    </div>
+  `;
+
   try {
-    const resp = await fetch(apiEndpoint);
-    const data = await resp.json();
-    const orders = data.orders || data || [];
+    const resp = await fetch('/api/phase/LASER/orders');
+    const orders = await resp.json();
 
     if (!orders || orders.length === 0) {
-      document.getElementById('orders-list').innerHTML = '<p style="color: #666;">Nessun ordine in questa fase</p>';
+      document.getElementById('orders-list').innerHTML = '<p style="color: #666;">Nessun ordine da tagliare</p>';
       return;
     }
 
-    // Render orders
-    let ordersHtml = '<div style="display: grid; gap: 16px;">';
-
+    let html = '<div style="display: grid; gap: 16px;">';
     orders.forEach(order => {
-      const articles = order.articles_next_phase || order.articles || [];
-      const totalQty = articles.reduce((sum, a) => sum + (a.qty || 0), 0);
+      const scadenza = order.data_consegna ? new Date(order.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+      const isUrgent = order.data_consegna && new Date(order.data_consegna) <= new Date(Date.now() + 86400000);
 
-      // Check if phase is already started (has processing_step with timestamp_inizio)
-      const phase = currentUser.phase || 'LASER';
-      const processingSteps = order.processing_steps || [];
-      const phaseStep = processingSteps.find(s => s.fase === phase);
-      const isPhaseStarted = phaseStep && phaseStep.timestamp_inizio && !phaseStep.timestamp_fine;
-      const isPhaseCompleted = phaseStep && phaseStep.timestamp_fine;
+      html += `
+        <div style="border: 1px solid ${isUrgent ? '#ef4444' : '#ddd'}; border-radius: 8px; padding: 16px; background: white;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 16px;">${order.cliente || 'N/A'}</h3>
+            <span style="font-size: 12px; color: ${isUrgent ? '#ef4444' : '#666'}; font-weight: 600;">Scadenza: ${scadenza}</span>
+          </div>
+          ${order.numero_ordine ? `<p style="margin: 0 0 8px; color: #999; font-size: 13px;">Ordine: ${order.numero_ordine}</p>` : ''}
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button onclick="openPdfModal('${order.id}', '${(order.cliente || '').replace(/'/g, "\\'")}')" style="
+              background: #f5f5f5; color: #333; border: 1px solid #ddd; padding: 8px 16px;
+              border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">PDF</button>
+            <button onclick="completeLaser('${order.id}')" style="
+              background: var(--ls-green); color: white; border: none; padding: 8px 16px;
+              border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; flex: 1;">
+              Taglio Completato</button>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    document.getElementById('orders-list').innerHTML = html;
+  } catch (e) {
+    console.error('Error loading laser orders:', e);
+    document.getElementById('orders-list').innerHTML = '<p style="color: red;">Errore nel caricamento</p>';
+  }
+}
 
-      // Determine button text and action
-      let buttonText = 'Inizia Lavorazione';
-      let buttonColor = '#22c55e'; // green
-      let buttonAction = `startPhase('${order.id}')`;
-      let buttonDisabled = false;
+async function loadOfficinaView() {
+  document.getElementById('lavorazioneContent').innerHTML = `
+    <p><strong>Fase:</strong> Officina</p>
+    <div id="orders-list" style="margin-top: 24px;">
+      <p style="color: #666;">Caricamento ordini...</p>
+    </div>
+  `;
 
-      if (isPhaseCompleted) {
-        buttonText = 'Fase Completata';
-        buttonColor = '#9ca3af'; // gray
-        buttonDisabled = true;
-      } else if (isPhaseStarted) {
-        buttonText = 'Completa Fase';
-        buttonColor = '#3b82f6'; // blue
-        buttonAction = `completePhase('${order.id}')`;
-      }
+  try {
+    // Carica ordini assegnati a questo operatore (tutte le fasi non completate)
+    const resp = await fetch(`/api/orders?operatore=${currentUser.id}`);
+    const data = await resp.json();
+    const orders = (data.orders || []).filter(o => !['COMPLETATO'].includes(o.fase_corrente));
 
-      // Build timer display if phase is started
+    if (!orders || orders.length === 0) {
+      document.getElementById('orders-list').innerHTML = '<p style="color: #666;">Nessun ordine assegnato</p>';
+      return;
+    }
+
+    let html = '<div style="display: grid; gap: 16px;">';
+    orders.forEach(order => {
+      const scadenza = order.data_consegna ? new Date(order.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+      const fase = order.fase_corrente || 'N/A';
+
+      // Cerca se c'è un timer attivo (processing step senza fine)
+      const activeStep = (order.processing_steps || []).find(s => s.timestamp_inizio && !s.timestamp_fine);
+      const isWorking = !!activeStep;
+
       let timerHtml = '';
-      if (isPhaseStarted && phaseStep) {
-        const startTime = new Date(phaseStep.timestamp_inizio).getTime();
+      if (isWorking) {
+        const startTime = new Date(activeStep.timestamp_inizio).getTime();
         const elapsedMs = Date.now() - startTime;
         const elapsedSecs = Math.floor(elapsedMs / 1000);
-        const elapsedDisplay = formatElapsedTime(elapsedSecs);
-
         timerHtml = `
           <div id="timer-${order.id}" style="
             margin-bottom: 12px; padding: 12px; background: rgba(34, 197, 94, 0.1);
             border-left: 3px solid #22c55e; border-radius: 4px;
-            font-size: 14px; font-weight: 600; color: #22c55e;
-          ">
-            Tempo trascorso: <strong>${elapsedDisplay}</strong>
-          </div>
-        `;
-      }
+            font-size: 14px; font-weight: 600; color: #22c55e;">
+            ${activeStep.fase}: <strong>${formatElapsedTime(elapsedSecs)}</strong>
+          </div>`;
 
-      ordersHtml += `
-        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: white;">
-          <h3 style="margin: 0 0 8px 0; font-size: 16px;">${order.cliente}</h3>
-          <p style="margin: 0 0 12px 0; color: #666; font-size: 14px;">
-            ${articles.length} articoli • Quantità: ${totalQty}
-          </p>
-          ${timerHtml}
-          <div style="margin-bottom: 12px;">
-      `;
-
-      articles.slice(0, 3).forEach((article, idx) => {
-        ordersHtml += `
-          <div style="font-size: 13px; color: #555; padding: 4px 0;">
-            • ${article.name} (${article.code}): ${article.qty} pz
-          </div>
-        `;
-      });
-
-      if (articles.length > 3) {
-        ordersHtml += `<div style="font-size: 13px; color: #999; padding: 4px 0;">... e ${articles.length - 3} altri</div>`;
-      }
-
-      ordersHtml += `
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button onclick="startPhase('${order.id}')" style="
-              background: #22c55e; color: white; border: none; padding: 8px 16px;
-              border-radius: 4px; cursor: pointer;
-              font-size: 13px; font-weight: 500; flex: 1;
-            ">
-              Inizia
-            </button>
-            <button onclick="openPartialCompleteModal('${order.id}')" style="
-              background: ${buttonColor}; color: white; border: none; padding: 8px 16px;
-              border-radius: 4px; cursor: ${buttonDisabled ? 'not-allowed' : 'pointer'};
-              font-size: 13px; font-weight: 500; flex: 1;
-              opacity: ${buttonDisabled ? '0.6' : '1'};
-            " ${buttonDisabled ? 'disabled' : ''}>
-              ${isPhaseCompleted ? 'Completata' : 'Completa'}
-            </button>
-          </div>
-        </div>
-      `;
-
-      // Start timer update interval if phase is running
-      if (isPhaseStarted && phaseStep) {
+        // Timer interval
         activePhaseTimers[order.id] = setInterval(() => {
-          const timerEl = document.getElementById(`timer-${order.id}`);
-          if (timerEl) {
-            const startTime = new Date(phaseStep.timestamp_inizio).getTime();
-            const elapsedMs = Date.now() - startTime;
-            const elapsedSecs = Math.floor(elapsedMs / 1000);
-            timerEl.innerHTML = `Tempo trascorso: <strong>${formatElapsedTime(elapsedSecs)}</strong>`;
+          const el = document.getElementById('timer-' + order.id);
+          if (el) {
+            const ms = Date.now() - startTime;
+            el.innerHTML = `${activeStep.fase}: <strong>${formatElapsedTime(Math.floor(ms / 1000))}</strong>`;
           }
         }, 1000);
       }
+
+      // Stato badge
+      const faseColors = { LASER: '#3b82f6', PIEGA: '#f59e0b', SALDATURA: '#ef4444', PULIZIA: '#8b5cf6', PARZIALE: '#f97316' };
+      const faseColor = faseColors[fase] || '#666';
+
+      html += `
+        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: white;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 16px;">${order.cliente || 'N/A'}</h3>
+            <span style="background: ${faseColor}; color: white; padding: 4px 10px; border-radius: 16px; font-size: 11px; font-weight: 700;">${fase}</span>
+          </div>
+          <p style="margin: 0 0 4px; color: #999; font-size: 13px;">Scadenza: ${scadenza}</p>
+          ${timerHtml}
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+            <button onclick="openPdfModal('${order.id}', '${(order.cliente || '').replace(/'/g, "\\'")}')" style="
+              background: #f5f5f5; color: #333; border: 1px solid #ddd; padding: 8px 12px;
+              border-radius: 4px; cursor: pointer; font-size: 13px;">PDF</button>
+      `;
+
+      if (fase === 'LASER') {
+        html += `
+            <button onclick="sendToLaser('${order.id}')" style="
+              background: #3b82f6; color: white; border: none; padding: 8px 12px;
+              border-radius: 4px; cursor: pointer; font-size: 13px;" disabled>Al Laser</button>`;
+      } else if (!isWorking) {
+        // Non sta lavorando — mostra bottoni per iniziare
+        html += `
+            <button onclick="sendToLaser('${order.id}')" style="
+              background: #3b82f6; color: white; border: none; padding: 8px 12px;
+              border-radius: 4px; cursor: pointer; font-size: 13px;">Manda al Laser</button>
+            <button onclick="startOfficinaPhase('${order.id}', 'PIEGA')" style="
+              background: #f59e0b; color: white; border: none; padding: 8px 12px;
+              border-radius: 4px; cursor: pointer; font-size: 13px;">Inizia Piega</button>
+            <button onclick="startOfficinaPhase('${order.id}', 'SALDATURA')" style="
+              background: #ef4444; color: white; border: none; padding: 8px 12px;
+              border-radius: 4px; cursor: pointer; font-size: 13px;">Inizia Saldatura</button>
+            <button onclick="startOfficinaPhase('${order.id}', 'PULIZIA')" style="
+              background: #8b5cf6; color: white; border: none; padding: 8px 12px;
+              border-radius: 4px; cursor: pointer; font-size: 13px;">Inizia Pulizia</button>`;
+      } else {
+        // Sta lavorando — mostra bottone completa con scelta prossimo passo
+        html += `
+            <button onclick="openCompleteModal('${order.id}', '${activeStep.fase}')" style="
+              background: var(--ls-green); color: white; border: none; padding: 8px 16px;
+              border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; flex: 1;">
+              Completa ${activeStep.fase}</button>`;
+      }
+
+      html += `
+          </div>
+        </div>
+      `;
     });
-
-    ordersHtml += '</div>';
-    document.getElementById('orders-list').innerHTML = ordersHtml;
-
+    html += '</div>';
+    document.getElementById('orders-list').innerHTML = html;
   } catch (e) {
-    console.error('Error loading orders:', e);
-    document.getElementById('orders-list').innerHTML = '<p style="color: red;">Errore nel caricamento degli ordini</p>';
+    console.error('Error loading officina orders:', e);
+    document.getElementById('orders-list').innerHTML = '<p style="color: red;">Errore nel caricamento</p>';
   }
 }
 
-async function startPhase(orderId) {
+function openPdfModal(orderId, cliente) {
+  document.getElementById('pdfModalTitle').textContent = cliente || 'PDF Ordine';
+  document.getElementById('pdfModalMeta').textContent = 'Ordine #' + orderId.substring(0, 8);
+  document.getElementById('pdfModalFrame').src = '/api/orders/' + orderId + '/pdf';
+  document.getElementById('pdfViewerModal').classList.add('show');
+}
+
+function closePdfModal() {
+  document.getElementById('pdfViewerModal').classList.remove('show');
+  document.getElementById('pdfModalFrame').src = '';
+}
+
+// === LASER: Completa taglio ===
+async function completeLaser(orderId) {
+  if (!confirm('Confermi che il taglio laser è completato?')) return;
   try {
-    const phase = currentUser.phase || 'LASER';
-    const response = await fetch(`/api/orders/${orderId}/phase/${phase}/start`, {
+    const resp = await fetch(`/api/orders/${orderId}/complete-laser`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      alert('Taglio completato! Ordine inviato in officina.');
+      await updatePermissions();
+    } else {
+      alert('Errore: ' + (data.error || 'Sconosciuto'));
+    }
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+// === OFFICINA: Manda al laser ===
+async function sendToLaser(orderId) {
+  if (!confirm('Rimandare questo ordine al taglio laser?')) return;
+  try {
+    const resp = await fetch(`/api/orders/${orderId}/send-to-laser`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      alert('Ordine inviato al laser.');
+      await updatePermissions();
+    } else {
+      alert('Errore: ' + (data.error || 'Sconosciuto'));
+    }
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+// === OFFICINA: Inizia fase ===
+async function startOfficinaPhase(orderId, fase) {
+  try {
+    const resp = await fetch(`/api/orders/${orderId}/phase/${fase}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    if (resp.ok) {
+      await updatePermissions();
+    } else {
+      alert('Errore nell\'avvio della fase');
+    }
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+// === OFFICINA: Modale completamento con scelta prossimo passo ===
+let currentCompleteOrderId = null;
+let currentCompletePhase = null;
+
+function openCompleteModal(orderId, fase) {
+  currentCompleteOrderId = orderId;
+  currentCompletePhase = fase;
+  document.getElementById('modalTitle').textContent = `Completa ${fase}`;
+  document.getElementById('articlesCheckboxes').innerHTML = `
+    <p style="margin-bottom: 16px; color: #666;">Scegli il prossimo passo per questo ordine:</p>
+    <div style="display: grid; gap: 8px;">
+      <button onclick="completeWithNext('PIEGA')" style="padding: 12px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">PIEGA</button>
+      <button onclick="completeWithNext('SALDATURA')" style="padding: 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">SALDATURA</button>
+      <button onclick="completeWithNext('PULIZIA')" style="padding: 12px; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">PULIZIA</button>
+      <button onclick="completeWithNext('LASER')" style="padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">MANDA AL LASER</button>
+      <hr style="border: none; border-top: 1px solid #ddd; margin: 4px 0;">
+      <button onclick="completeWithNext('COMPLETATO')" style="padding: 12px; background: var(--ls-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 14px;">FINITO</button>
+      <button onclick="completePartial()" style="padding: 12px; background: #f97316; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">PARZIALE + NOTA</button>
+    </div>
+  `;
+  document.getElementById('partialCompleteModal').classList.add('show');
+  // Hide default modal buttons
+  document.querySelector('.modal-buttons').style.display = 'none';
+}
+
+async function completeWithNext(faseSuccessiva) {
+  if (!currentCompleteOrderId) return;
+  try {
+    const resp = await fetch(`/api/orders/${currentCompleteOrderId}/phase/${currentCompletePhase}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        fase_successiva: faseSuccessiva,
         operatore_id: currentUser.id
       })
     });
-
-    if (!response.ok) {
-      alert('Errore nell\'avvio della fase');
-      return;
+    const data = await resp.json();
+    if (data.success) {
+      closePartialModal();
+      const msg = faseSuccessiva === 'COMPLETATO' ? 'Ordine completato!' : `Ordine inviato a ${faseSuccessiva}`;
+      alert(msg);
+      await updatePermissions();
+    } else {
+      alert('Errore: ' + (data.error || 'Sconosciuto'));
     }
-
-    alert('Fase avviata con successo!');
-    await updatePermissions(); // Reload orders
   } catch (e) {
-    console.error('Error:', e);
-    alert('Errore nel completamento della richiesta');
+    alert('Errore: ' + e.message);
+  }
+}
+
+async function completePartial() {
+  const nota = prompt('Inserisci una nota per il completamento parziale:');
+  if (nota === null) return;
+  try {
+    const resp = await fetch(`/api/orders/${currentCompleteOrderId}/phase/${currentCompletePhase}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fase_successiva: 'PARZIALE',
+        completamento_parziale: true,
+        note: nota,
+        operatore_id: currentUser.id
+      })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      closePartialModal();
+      alert('Ordine segnato come parziale.');
+      await updatePermissions();
+    } else {
+      alert('Errore: ' + (data.error || 'Sconosciuto'));
+    }
+  } catch (e) {
+    alert('Errore: ' + e.message);
   }
 }
 
@@ -1824,127 +2043,11 @@ function formatElapsedTime(seconds) {
   }
 }
 
-// ── PARTIAL COMPLETION MODAL FUNCTIONS ──
-let currentOrderForCompletion = null;
-let currentOrderArticles = [];
-let currentPhaseForCompletion = null;
-
-async function openPartialCompleteModal(orderId) {
-  try {
-    const phase = currentUser.phase || 'LASER';
-    currentPhaseForCompletion = phase;
-
-    // Recupera dettagli ordine
-    const response = await fetch(`/api/orders/${orderId}`);
-    const order = await response.json();
-
-    if (order.error) {
-      alert('Errore caricamento dettagli ordine');
-      return;
-    }
-
-    currentOrderForCompletion = orderId;
-    currentOrderArticles = order.articles || [];
-
-    // Update modal title
-    document.getElementById('modalTitle').textContent = `Completa Fase ${phase}`;
-
-    // Genera checkbox per articoli
-    const checkboxesDiv = document.getElementById('articlesCheckboxes');
-    checkboxesDiv.innerHTML = currentOrderArticles.map((article, idx) => {
-      const isCompleted = article.completed_phases && article.completed_phases.includes(phase);
-      const disabled = isCompleted ? 'disabled' : '';
-      const checkedAttr = isCompleted ? 'checked' : '';
-      const completedClass = isCompleted ? ' is-completed' : '';
-
-      return `
-        <div class="modal-checkbox-item${completedClass}">
-          <input type="checkbox" id="article_${idx}" ${checkedAttr} ${disabled}>
-          <label for="article_${idx}">
-            <strong>${article.name}</strong>
-            <span class="qty-tag">(${article.qty} pz)</span>
-            ${isCompleted ? '<span class="completed-tag">Completato</span>' : ''}
-          </label>
-        </div>
-      `;
-    }).join('');
-
-    // Mostra modale
-    document.getElementById('partialCompleteModal').classList.add('show');
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Errore: ' + error.message);
-  }
-}
-
 function closePartialModal() {
   document.getElementById('partialCompleteModal').classList.remove('show');
-  currentOrderForCompletion = null;
-  currentOrderArticles = [];
-  currentPhaseForCompletion = null;
-}
-
-async function submitPartialComplete() {
-  if (!currentOrderForCompletion) return;
-
-  // Recupera checkbox selezionati
-  const selectedIndices = [];
-  currentOrderArticles.forEach((_, idx) => {
-    const checkbox = document.getElementById(`article_${idx}`);
-    if (checkbox && checkbox.checked && !checkbox.disabled) {
-      selectedIndices.push(idx);
-    }
-  });
-
-  if (selectedIndices.length === 0) {
-    alert('Seleziona almeno un articolo');
-    return;
-  }
-
-  try {
-    const phase = currentPhaseForCompletion || 'LASER';
-    const response = await fetch(`/api/orders/${currentOrderForCompletion}/phase/${phase}/complete-partial`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        article_indices: selectedIndices,
-        note: '',
-        operatore_id: currentUser?.id
-      })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      const msg = data.phase_complete
-        ? `Fase ${phase} completata!`
-        : `${selectedIndices.length} articolo/i completato/i`;
-      alert(msg);
-
-      closePartialModal();
-      await updatePermissions(); // Reload orders
-    } else {
-      alert('Errore: ' + (data.error || 'Sconosciuto'));
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Errore: ' + error.message);
-  }
-}
-
-function completeAllPartialModal() {
-  if (!currentOrderForCompletion) return;
-
-  // Seleziona tutti gli articoli non completati
-  currentOrderArticles.forEach((_, idx) => {
-    const checkbox = document.getElementById(`article_${idx}`);
-    if (checkbox && !checkbox.disabled) {
-      checkbox.checked = true;
-    }
-  });
-
-  // Invia il completamento
-  submitPartialComplete();
+  document.querySelector('.modal-buttons').style.display = 'flex';
+  currentCompleteOrderId = null;
+  currentCompletePhase = null;
 }
 
 // ── NOTIFICATION PANEL (WhatsApp-like) ──
@@ -2085,12 +2188,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load users
   await loadUsers();
 
-  // Check if user is already logged in
+  // Check if user is already logged in — redirect to proper page
   const saved = localStorage.getItem('currentUser');
   if (saved) {
     try {
       const userData = JSON.parse(saved);
       currentUser = userData;
+
+      // Redirect to the correct page based on role/phase
+      if (currentUser.role === 'Impiegata') {
+        window.location.href = '/impiegata.html';
+        return;
+      }
+      if (currentUser.phase === 'LASER' && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
+        window.location.href = '/laser-v2.html';
+        return;
+      }
+      if (['PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
+        window.location.href = '/officina.html';
+        return;
+      }
+      if (currentUser.role === 'Capo Officina' || (currentUser.is_capo && currentUser.role !== 'Amministratore')) {
+        window.location.href = '/approva-ordine.html';
+        return;
+      }
+      if (currentUser.role === 'Amministratore') {
+        window.location.href = '/admin.html';
+        return;
+      }
+
+      // Fallback: show built-in dashboard
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').classList.add('active');
       await updateDashboardUI();
@@ -2216,7 +2343,7 @@ function selectCalendarDay(dateStr) {
   ordersOnDay.forEach(order => {
     const status = order.status || 'RICEVUTO';
     const statusColor = status === 'SPEDITO' ? '#22c55e' : '#f59e0b';
-    const statusText = status === 'SPEDITO' ? '✓ Spedito' : '⏳ In Lavorazione';
+    const statusText = status === 'COMPLETATO' ? '✓ Completato' : status === 'PARZIALE' ? '⚠ Parziale' : '⏳ In Lavorazione';
     const cliente = order.cliente || 'Cliente N/A';
 
     html += `
@@ -2320,9 +2447,8 @@ function playNotificationSound() {
 
 async function checkNewOrders() {
   try {
-    if (!currentUser || !['Supervisore', 'Amministratore'].includes(currentUser.role)) {
-      console.log('[POLLING] Skipped: user role is', currentUser.role, 'expected Supervisore or Amministratore');
-      return; // Only supervisore and admin get notifications
+    if (!currentUser || !['Capo Officina', 'Amministratore', 'Impiegata'].includes(currentUser.role)) {
+      return;
     }
 
     console.log('[POLLING] checkNewOrders called, fetching RICEVUTO orders...');
@@ -2386,6 +2512,111 @@ function stopNotificationPolling() {
     clearInterval(notificationInterval);
     notificationInterval = null;
   }
+}
+
+// ========== ARCHIVIO REPORT ==========
+
+let archivePage = 1;
+
+async function loadArchiveReport(page = 1) {
+  archivePage = page;
+  const cliente = document.getElementById('archFilterCliente')?.value || '';
+  const dateFrom = document.getElementById('archFilterDateFrom')?.value || '';
+  const dateTo = document.getElementById('archFilterDateTo')?.value || '';
+
+  let url = `${API_URL}/api/archive/orders?page=${page}&limit=15`;
+  if (cliente) url += `&cliente=${encodeURIComponent(cliente)}`;
+  if (dateFrom) url += `&date_from=${dateFrom}`;
+  if (dateTo) url += `&date_to=${dateTo}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!data.success) return;
+
+    const orders = data.data?.orders || [];
+    const total = data.data?.total || 0;
+    const pages = data.data?.pages || 1;
+
+    renderArchiveTable(orders);
+    renderArchivePagination(page, pages, total);
+  } catch (err) {
+    console.error('Errore caricamento archivio:', err);
+  }
+}
+
+function renderArchiveTable(orders) {
+  const tbody = document.getElementById('archiveTableBody');
+
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--text-secondary);">Nessun ordine trovato</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = orders.map(o => {
+    const pt = o.phase_times || {};
+    const margineColor = o.margine_pct !== null ? (o.margine_pct >= 80 ? '#15803d' : o.margine_pct >= 50 ? '#92400e' : '#991b1b') : 'var(--text-secondary)';
+
+    return `
+      <tr style="border-bottom:1px solid var(--border);transition:background 0.2s;cursor:default;"
+          onmouseover="this.style.background='var(--bg-light)'" onmouseout="this.style.background='white'">
+        <td style="padding:10px 12px;font-weight:600;">${escapeHtml(o.numero_ordine || o.id?.substring(0,8))}</td>
+        <td style="padding:10px 12px;">${escapeHtml(o.cliente)}</td>
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;">${pt.PIEGA || '—'}</td>
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;">${pt.SALDATURA || '—'}</td>
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;">${pt.PULIZIA || '—'}</td>
+        <td style="padding:10px 12px;font-weight:600;font-family:monospace;font-size:12px;">${o.tempo_totale || '—'}</td>
+        <td style="padding:10px 12px;text-align:right;">${o.prezzo_quotato ? o.prezzo_quotato.toFixed(2) + ' €' : '—'}</td>
+        <td style="padding:10px 12px;text-align:right;">${o.costo_manodopera ? o.costo_manodopera.toFixed(2) + ' €' : '—'}</td>
+        <td style="padding:10px 12px;text-align:right;font-weight:600;color:${margineColor};">
+          ${o.margine !== null ? o.margine.toFixed(2) + ' € (' + o.margine_pct + '%)' : '—'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderArchivePagination(currentPage, totalPages, total) {
+  const container = document.getElementById('archivePagination');
+  if (totalPages <= 1) {
+    container.innerHTML = `<span style="font-size:12px;color:var(--text-secondary);">${total} ordini</span>`;
+    return;
+  }
+
+  let html = `<span style="font-size:12px;color:var(--text-secondary);margin-right:12px;">${total} ordini</span>`;
+
+  if (currentPage > 1) {
+    html += `<button onclick="loadArchiveReport(${currentPage - 1})" style="padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer;font-size:12px;">&laquo; Prec</button>`;
+  }
+
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === currentPage) {
+      html += `<button style="padding:6px 12px;border:1px solid var(--ls-green);border-radius:4px;background:var(--ls-green);color:white;font-size:12px;font-weight:600;">${p}</button>`;
+    } else if (Math.abs(p - currentPage) <= 2 || p === 1 || p === totalPages) {
+      html += `<button onclick="loadArchiveReport(${p})" style="padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer;font-size:12px;">${p}</button>`;
+    } else if (Math.abs(p - currentPage) === 3) {
+      html += `<span style="padding:0 4px;">...</span>`;
+    }
+  }
+
+  if (currentPage < totalPages) {
+    html += `<button onclick="loadArchiveReport(${currentPage + 1})" style="padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer;font-size:12px;">Succ &raquo;</button>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function exportArchiveCSV() {
+  const cliente = document.getElementById('archFilterCliente')?.value || '';
+  const dateFrom = document.getElementById('archFilterDateFrom')?.value || '';
+  const dateTo = document.getElementById('archFilterDateTo')?.value || '';
+
+  let url = `${API_URL}/api/archive/export/csv?`;
+  if (cliente) url += `cliente=${encodeURIComponent(cliente)}&`;
+  if (dateFrom) url += `date_from=${dateFrom}&`;
+  if (dateTo) url += `date_to=${dateTo}&`;
+
+  window.open(url, '_blank');
 }
 </script>
 

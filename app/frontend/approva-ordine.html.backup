@@ -398,7 +398,7 @@ button.cancel {
 <body>
 
 <div class="topbar">
-  <div class="logo-section">
+  <div class="logo-section" onclick="window.location.href='/login.html'" style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
     <div class="logo-icon">LS</div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
@@ -406,6 +406,9 @@ button.cancel {
     </div>
   </div>
   <div class="topbar-actions">
+    <button onclick="window.location.href='/login.html'" style="padding: 8px 16px; margin-right: 12px; background: var(--ls-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+      🏠 Home
+    </button>
     <div class="user-info" id="user-display">Admin</div>
     <button class="logout" onclick="logout()">Logout</button>
   </div>
@@ -459,7 +462,8 @@ async function loadPendingOrders() {
     const resp = await fetch(`${API_BASE}/api/orders`);
     if (!resp.ok) throw new Error('Failed to load orders');
 
-    const orders = await resp.json();
+    const data = await resp.json();
+    const orders = data.orders || data || [];
 
     // Filter: ordini con required_phases vuoto (in attesa di approvazione)
     pendingOrders = orders.filter(order => {

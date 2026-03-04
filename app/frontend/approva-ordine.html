@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LS FerroTrack — Approva Ordini</title>
+<title>LS FerroTrack — Dashboard Capo Officina</title>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three-dxf@1.5.28/lib/three-dxf.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
@@ -20,6 +18,7 @@ html, body { height: 100%; }
   --text-primary: #000000;
   --text-secondary: #666666;
   --border: #e5e5e5;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
   --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
 }
 
@@ -29,12 +28,9 @@ body {
   color: var(--text-primary);
 }
 
-/* TOPBAR */
 .topbar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   height: 72px;
   background: white;
   border-bottom: 1px solid var(--border);
@@ -50,11 +46,13 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
+.logo-section:hover { opacity: 0.8; }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
   border-radius: 8px;
   display: flex;
@@ -65,856 +63,2248 @@ body {
   font-size: 18px;
 }
 
-.logo-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+.logo-text { display: flex; flex-direction: column; gap: 2px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: -0.5px; }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--ls-green); }
 
-.logo-main {
-  font-family: 'Geist', sans-serif;
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
-}
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
 
-.logo-sub {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--ls-green);
-}
-
-.topbar-actions {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.user-info {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-button.logout {
-  padding: 8px 16px;
+.tab-btn {
   background: white;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  transition: all 0.2s ease;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
+.tab-btn:hover { border-color: var(--text-secondary); }
+.tab-btn.active { background: var(--ls-green); color: white; border-color: var(--ls-green); }
 
-button.logout:hover {
-  background: var(--bg-light);
+.home-btn {
+  background: var(--ls-green);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
+.home-btn:hover { opacity: 0.9; }
 
-/* MAIN */
-.main-wrapper {
+.logout-btn {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.logout-btn:hover { background: var(--bg-light); }
+
+/* === MAIN LAYOUT: 3 colonne === */
+.main {
   margin-top: 72px;
-  padding: 48px;
-  max-width: 1400px;
-  margin-left: auto;
-  margin-right: auto;
+  height: calc(100vh - 72px);
+  display: grid;
+  grid-template-columns: 300px 1fr 400px;
+}
+
+/* === VIEW GESTIONE CLIENTI (full width, nascosto di default) === */
+.main-clienti {
+  margin-top: 72px;
+  height: calc(100vh - 72px);
+  padding: 24px 48px;
+  overflow-y: auto;
+  display: none;
+}
+
+/* === KPI TAB === */
+.main-kpi {
+  margin-top: 72px;
+  height: calc(100vh - 72px);
+  padding: 32px 48px;
+  overflow-y: auto;
+  display: none;
+}
+.kpi-container { max-width: 1400px; margin: 0 auto; }
+.kpi-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 8px; }
+.kpi-card-summary {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kpi-card-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.kpi-card-value { font-size: 32px; font-weight: 800; font-family: 'Geist', sans-serif; letter-spacing: -1px; }
+.kpi-card-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+.kpi-operators { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.kpi-op-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.2s;
+}
+.kpi-op-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.kpi-op-header { display: flex; align-items: center; gap: 12px; }
+.kpi-op-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--ls-green);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.kpi-op-name { font-size: 15px; font-weight: 700; }
+.kpi-op-role { font-size: 11px; color: var(--text-secondary); }
+.kpi-op-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; }
+.kpi-op-dot { width: 8px; height: 8px; border-radius: 50%; }
+.kpi-op-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kpi-op-stat { display: flex; flex-direction: column; gap: 2px; }
+.kpi-op-stat-val { font-size: 16px; font-weight: 700; }
+.kpi-op-stat-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; }
+.kpi-op-bar-bg { height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
+.kpi-op-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+.kpi-phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.kpi-phase-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 4px solid #ccc;
+}
+.kpi-phase-header { display: flex; align-items: center; gap: 10px; }
+.kpi-phase-icon { font-size: 24px; }
+.kpi-phase-name { font-size: 16px; font-weight: 700; }
+.kpi-phase-stats { display: flex; flex-direction: column; gap: 10px; }
+.kpi-phase-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.kpi-phase-row-label { color: var(--text-secondary); }
+.kpi-phase-row-val { font-weight: 700; }
+
+@media (max-width: 900px) {
+  .kpi-summary { grid-template-columns: repeat(2, 1fr); }
+  .kpi-phases { grid-template-columns: repeat(2, 1fr); }
+  .main-kpi { padding: 16px 24px; }
 }
 
 h1 {
   font-family: 'Geist', sans-serif;
-  font-size: 32px;
+  font-size: 18px;
   font-weight: 900;
-  margin-bottom: 8px;
-  letter-spacing: -1px;
-}
-
-.subtitle {
-  color: var(--text-secondary);
-  margin-bottom: 32px;
-  font-size: 15px;
-}
-
-/* ORDERS LIST */
-.orders-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-
-.order-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: all 0.2s ease;
-}
-
-.order-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.order-card-header {
-  padding: 24px;
-  background: linear-gradient(135deg, rgba(26, 122, 72, 0.05), rgba(34, 160, 96, 0.05));
+  letter-spacing: -0.5px;
+  padding: 16px 16px 12px;
   border-bottom: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 32px;
-  align-items: center;
 }
 
-.order-info-item {
+/* === COLONNA 1: Lista ordini + filtri === */
+.col-orders {
+  border-right: 1px solid var(--border);
+  background: white;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  overflow: hidden;
 }
 
-.order-label {
+.filters {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 6px;
+}
+
+.filter-select {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  background: white;
+  cursor: pointer;
+}
+.filter-select:focus { outline: none; border-color: var(--ls-green); }
+
+.filter-search {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+.filter-search:focus { outline: none; border-color: var(--ls-green); }
+
+.orders-count {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.orders-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-item {
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.order-item:hover { border-color: var(--ls-green); background: rgba(26,122,72,0.02); }
+.order-item.selected { border-color: var(--ls-green); background: rgba(26,122,72,0.05); }
+
+.order-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.order-client { font-size: 13px; font-weight: 600; }
+
+.order-fase-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.badge-LASER { background: #dbeafe; color: #1e40af; }
+.badge-PIEGA { background: #fef3c7; color: #92400e; }
+.badge-SALDATURA { background: #fee2e2; color: #991b1b; }
+.badge-PULIZIA { background: #d1fae5; color: #065f46; }
+.badge-COMPLETATO { background: #dcfce7; color: #166534; }
+.badge-PARZIALE { background: #fef9c3; color: #854d0e; }
+
+.order-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+.order-operator { font-size: 11px; color: var(--ls-green); font-weight: 500; margin-top: 2px; }
+
+.order-urgent {
+  border-left: 3px solid #ef4444;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* === COLONNA 2: PDF Viewer === */
+.col-pdf {
+  background: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pdf-header {
+  padding: 14px 20px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pdf-viewer { flex: 1; background: #525659; }
+.pdf-viewer iframe { width: 100%; height: 100%; border: none; }
+
+.pdf-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* === COLONNA 3: Dettagli + Azioni Capo === */
+.col-details {
+  border-left: 1px solid var(--border);
+  background: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-light);
+}
+.detail-header h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.detail-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+
+.detail-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.detail-section { margin-bottom: 20px; }
+
+.section-title {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
-}
-
-.order-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.order-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: #fff3cd;
-  color: #856404;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.order-card-content {
-  padding: 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-}
-
-/* PDF PREVIEW */
-.pdf-section {
+  margin-bottom: 10px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 6px;
 }
 
-.pdf-section h4 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* === AZIONI CAPO === */
+.action-group {
+  margin-bottom: 12px;
+}
+.action-label {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: block;
   color: var(--text-secondary);
 }
-
-.pdf-preview {
-  width: 100%;
-  height: 400px;
+.action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.action-select {
+  flex: 1;
+  padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #f9f9f9;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  background: white;
+}
+.action-select:focus { outline: none; border-color: var(--ls-green); }
+
+.action-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.action-btn-green { background: var(--ls-green); color: white; }
+.action-btn-green:hover { opacity: 0.9; }
+.action-btn-orange { background: #f59e0b; color: white; }
+.action-btn-orange:hover { opacity: 0.9; }
+.action-btn-red { background: #ef4444; color: white; }
+.action-btn-red:hover { opacity: 0.9; }
+
+/* === STORICO FASI === */
+.storico-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.storico-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-light);
+  font-size: 12px;
+}
+
+.storico-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.storico-fase {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.storico-durata {
+  font-weight: 600;
+  color: var(--ls-green);
+  font-size: 11px;
+}
+
+.storico-detail {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.storico-parziale {
+  display: inline-block;
+  margin-top: 3px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* === CORREGGI TEMPI === */
+.time-correction {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-light);
+  margin-bottom: 6px;
+}
+
+.time-correction-header {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.time-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.time-input-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  width: 45px;
+  flex-shrink: 0;
+}
+
+.time-input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+.time-input:focus { outline: none; border-color: var(--ls-green); }
+
+/* === DXF FILES === */
+.dxf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dxf-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--bg-light);
+}
+.dxf-item:hover { border-color: var(--ls-green); }
+
+.dxf-icon {
+  width: 28px; height: 28px;
+  background: rgba(26,122,72,0.1);
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-}
-
-.pdf-preview iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-.pdf-preview-empty {
-  color: var(--text-secondary);
-  text-align: center;
   font-size: 13px;
+  flex-shrink: 0;
 }
 
-/* PHASES & DXF */
-.phases-section {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.dxf-name { font-weight: 600; flex: 1; word-break: break-all; font-size: 11px; }
+
+.dxf-download {
+  color: var(--ls-green);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.dxf-download:hover { text-decoration: underline; }
+
+.no-dxf {
+  padding: 10px;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #92400e;
 }
 
-.phases-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+/* === STATUS === */
+.status {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-top: 10px;
+  display: none;
 }
+.status.active { display: block; }
+.status.success { background: rgba(34,197,94,0.1); color: #15803d; }
+.status.error { background: rgba(239,68,68,0.1); color: #991b1b; }
 
-.phase-checkbox {
+.detail-empty {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: white;
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.phase-checkbox:hover {
-  border-color: var(--ls-green);
-  background: rgba(26, 122, 72, 0.02);
-}
-
-.phase-checkbox input {
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-  accent-color: var(--ls-green);
-}
-
-.phase-checkbox label {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--text-primary);
-  flex: 1;
-}
-
-.phase-checkbox.selected {
-  border-color: var(--ls-green);
-  background: rgba(26, 122, 72, 0.08);
-}
-
-/* DXF FILES */
-.dxf-section h4 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  justify-content: center;
   color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* === GESTIONE CLIENTI === */
+.clienti-container {
+  max-width: 900px;
+}
+
+.clienti-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.clienti-header h1 {
+  padding: 0;
+  border: none;
+  font-size: 22px;
+}
+
+.clienti-add-form {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.clienti-add-form h3 {
+  font-size: 14px;
+  font-weight: 700;
   margin-bottom: 12px;
 }
 
-.dxf-files-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.dxf-file-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f0f0f0;
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.dxf-file-icon {
-  color: var(--ls-green);
-  font-weight: bold;
-}
-
-/* ACTIONS */
-.order-card-actions {
-  padding: 24px;
-  border-top: 1px solid var(--border);
+.clienti-form-row {
   display: flex;
   gap: 12px;
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
-button.approve {
-  padding: 12px 32px;
-  background: var(--ls-green);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s ease;
+.clienti-form-group {
+  flex: 1;
 }
 
-button.approve:hover {
-  background: var(--ls-green-light);
-  box-shadow: 0 4px 12px rgba(26, 122, 72, 0.3);
-}
-
-button.approve:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-button.cancel {
-  padding: 12px 32px;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.clienti-form-group label {
+  font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
-  font-size: 14px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
 }
 
-/* EMPTY STATE */
-.empty-state {
-  padding: 48px;
-  text-align: center;
-  background: white;
-  border-radius: 16px;
+.clienti-form-group input,
+.clienti-form-group select {
+  width: 100%;
+  padding: 8px 10px;
   border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
 }
 
-.empty-icon {
-  font-size: 48px;
+.clienti-form-group input:focus,
+.clienti-form-group select:focus {
+  outline: none;
+  border-color: var(--ls-green);
+}
+
+.operator-section {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
   margin-bottom: 16px;
 }
 
-.empty-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 8px;
+.operator-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.empty-subtext {
-  font-size: 14px;
+.operator-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.operator-role {
+  font-size: 12px;
   color: var(--text-secondary);
+}
+
+.client-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.client-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(26,122,72,0.08);
+  border: 1px solid rgba(26,122,72,0.2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.client-chip-remove {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.client-chip-remove:hover { background: #ef4444; color: white; }
+
+.no-clients {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* === ALERTS BANNER === */
+.alerts-banner {
+  border-bottom: 1px solid var(--border);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.alerts-banner:empty { display: none; }
+
+.alert-item {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.alert-item:hover { filter: brightness(0.97); }
+
+.alert-item.alert-warning { background: #fef3c7; color: #92400e; }
+.alert-item.alert-danger { background: #fee2e2; color: #991b1b; }
+.alert-item.alert-urgent { background: #fecaca; color: #7f1d1d; }
+
+.alert-icon { font-size: 14px; flex-shrink: 0; }
+.alert-text { flex: 1; line-height: 1.3; }
+
+.alerts-count-badge {
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+@media (max-width: 1200px) {
+  .main { grid-template-columns: 260px 1fr 350px; }
+}
+
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .col-orders { max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+  .col-pdf { min-height: 300px; }
+  .col-details { border-left: none; border-top: 1px solid var(--border); }
+}
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+:root {
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --green: #1a7a48;
+  --green-light: #22a060;
+  --gray-text: #666666;
+  --gray-muted: #999999;
+  --border: #e5e5e5;
+  --blue: #1e40af;
+  --blue-bg: #dbeafe;
+  --red: #991b1b;
+  --red-bg: #fee2e2;
+  --orange: #92400e;
+  --orange-bg: #fef3c7;
+  --green-badge: #166534;
+  --green-badge-bg: #dcfce7;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--black);
+}
+
+/* === TOPBAR === */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: -0.5px; color: var(--black); }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--green); }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-home {
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-home:hover { opacity: 0.9; }
+
+.btn-logout {
+  background: var(--white);
+  color: var(--black);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-logout:hover { background: var(--bg); border-color: var(--gray-text); }
+
+/* === TAB BAR === */
+.tab-bar {
+  position: fixed;
+  top: 64px;
+  left: 0; right: 0;
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--white);
+  padding: 0 48px;
+  z-index: 999;
+}
+
+.tab-item {
+  padding: 16px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-text);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+  user-select: none;
+}
+.tab-item.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-item:hover:not(.active) { color: var(--black); background: rgba(26,122,72,0.03); }
+
+/* === TAB PANELS === */
+.tab-panel { display: none; margin-top: 120px; }
+.tab-panel.active { display: block; }
+
+/* === CARICA ORDINE TAB === */
+.carica-body {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+  min-height: calc(100vh - 120px);
+}
+
+.form-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px;
+  width: 700px;
+  max-width: 95vw;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.form-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--black);
+}
+
+.form-sub {
+  font-size: 14px;
+  color: var(--gray-text);
+  margin-top: -16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  border: 1px solid var(--border);
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: var(--black);
+  background: var(--white);
+  transition: border 0.2s;
+}
+.form-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; height: auto; font-size: 13px; line-height: 1.5; }
+
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg);
+  flex: 1;
+}
+.upload-area:hover { border-color: var(--green); background: rgba(26,122,72,0.02); }
+.upload-area.active { border-color: var(--green); background: rgba(26,122,72,0.05); }
+
+/* ===== MODERN UPLOAD BUTTONS ===== */
+.upload-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-button {
+  padding: 16px 24px;
+  border: 2px solid;
+  border-radius: 8px;
+  background: var(--white);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* PDF BUTTON */
+.upload-button-pdf {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.upload-button-pdf:hover {
+  background: var(--green);
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(26, 122, 72, 0.2);
+}
+
+.upload-button-pdf:active {
+  transform: scale(0.98);
+}
+
+.upload-button-pdf:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* DXF BUTTON */
+.upload-button-dxf {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.upload-button-dxf:hover {
+  background: #3b82f6;
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.upload-button-dxf:active {
+  transform: scale(0.98);
+}
+
+.upload-button-dxf:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* UPLOAD STATUS MESSAGE */
+.upload-status {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.upload-status.success {
+  display: flex;
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.upload-status.error {
+  display: flex;
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.upload-status::before {
+  content: '✓';
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.upload-status.error::before {
+  content: '⚠';
+}
+
+/* UPLOAD PROGRESS BAR */
+.upload-progress {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.upload-progress.active {
+  display: flex;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #e5e5e5;
+  border-radius: 3px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  width: 0%;
+  transition: width 0.2s ease;
+  border-radius: 3px;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--gray-muted);
+  text-align: center;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#pdf-input, #dxf-input { display: none; }
+
+.pdf-preview { border: 1px solid var(--border); border-radius: 8px; height: 200px; background: white; overflow: hidden; display: none; margin-top: 8px; }
+.pdf-preview.active { display: block; }
+.pdf-preview iframe { width: 100%; height: 100%; border: none; }
+
+.dxf-files-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto; }
+.dxf-item { background: var(--bg); padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.dxf-remove-btn { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+
+.dest-section { display: flex; flex-direction: column; gap: 8px; }
+.dest-label { font-size: 11px; font-weight: 600; color: var(--gray-text); }
+.dest-row { display: flex; gap: 12px; }
+
+.dest-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 56px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--white);
+}
+.dest-option input[type="radio"] { display: none; }
+.dest-option .dest-text { font-size: 14px; font-weight: 700; }
+.dest-option.selected-laser {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+}
+.dest-option.selected-laser .dest-text { color: var(--blue); }
+.dest-option.selected-officina {
+  border-color: var(--gray-text);
+  background: var(--bg);
+}
+
+.btn-submit {
+  width: 100%;
+  height: 48px;
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: 0.9; }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.message { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
+.message.active { display: block; }
+.message.success { background: rgba(34,197,94,0.1); color: #15803d; }
+.message.error { background: rgba(239,68,68,0.1); color: #991b1b; }
+
+/* === CALENDARIO TAB === */
+.cal-container { display: flex; height: calc(100vh - 120px); }
+
+.cal-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 32px;
+  gap: 16px;
+}
+
+.cal-right {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--white);
+  border-left: 1px solid var(--border);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cal-nav-btns { display: flex; gap: 8px; }
+
+.cal-nav-btn {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+.cal-nav-btn:hover { background: var(--bg); border-color: var(--green); }
+
+.cal-today-btn {
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+.cal-today-btn:hover { opacity: 0.9; }
+
+.cal-nav-title { font-size: 20px; font-weight: 700; }
+
+.cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.cal-header-row {
+  display: flex;
+  gap: 4px;
+}
+
+.cal-header {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.cal-week-row {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.cal-day {
+  flex: 1;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 70px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.cal-day:hover { border-color: var(--green); box-shadow: 0 2px 6px rgba(26,122,72,0.1); }
+.cal-day.today { border: 2px solid var(--green); background: rgba(26,122,72,0.06); }
+.cal-day.selected { border: 2px solid var(--green); background: rgba(26,122,72,0.08); }
+.cal-day.other-month { opacity: 0.35; }
+
+.cal-day-num { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.cal-day-count { font-size: 10px; font-weight: 700; color: var(--green); }
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: auto; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.cal-detail-title { font-size: 18px; font-weight: 700; }
+.cal-detail-sub { font-size: 13px; color: var(--gray-text); }
+
+.cal-order-card {
+  padding: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-order-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); transform: translateY(-1px); }
+
+.progress-bar-bg { height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+/* === ORDINI TAB === */
+.ordini-container { padding: 32px 48px; max-width: 1400px; margin: 0 auto; }
+.page-title { font-family: 'Geist', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 24px; }
+
+.search-wrap { position: relative; margin-bottom: 16px; }
+.search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--gray-text); }
+.search-box {
+  width: 100%;
+  padding: 14px 16px 14px 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--white);
+  transition: border 0.2s;
+}
+.search-box:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+
+.filter-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+.filter-label { font-size: 12px; font-weight: 700; color: var(--gray-text); margin-right: 4px; text-transform: uppercase; }
+
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+.chip.active { background: var(--green); color: white; border-color: var(--green); }
+.chip:hover:not(.active) { background: var(--bg); border-color: var(--green); }
+
+.ordini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ordini-table thead { background: #f1f5f9; }
+.ordini-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.ordini-table th:hover { color: var(--green); }
+.ordini-table td { padding: 12px 14px; border-top: 1px solid var(--border); }
+.ordini-table tbody tr { transition: background 0.15s; }
+.ordini-table tbody tr:hover { background: rgba(26,122,72,0.02); }
+
+.fase-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+
+.pdf-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.pdf-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* === PDF MODALE === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+  background: var(--white);
+  width: 80%;
+  height: 85%;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-text); }
+.modal-body { flex: 1; }
+.modal-body iframe { width: 100%; height: 100%; border: none; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1024px) {
+  .cal-container { flex-direction: column; height: auto; }
+  .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  .topbar, .tab-bar { padding: 0 24px; }
+  .ordini-container { padding: 24px; }
+  .form-row { flex-direction: column; }
+  .form-card { width: 95vw; }
 }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="logo-section" onclick="window.location.href='/login.html'" style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
-    <div class="logo-icon">LS</div>
+  <div class="logo-section" onclick="window.location.href='/login.html'">
+    <div class="logo-icon">&#10022;</div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
-      <div class="logo-sub">Schedulatore</div>
+      <div class="logo-sub">LS</div>
     </div>
   </div>
   <div class="topbar-actions">
-    <button onclick="window.location.href='/login.html'" style="padding: 8px 16px; margin-right: 12px; background: var(--ls-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-      🏠 Home
-    </button>
-    <div class="user-info" id="user-display">Admin</div>
-    <button class="logout" onclick="logout()">Logout</button>
+    <button class="tab-btn active" id="tab-ordini" onclick="switchTab('ordini')">Ordini</button>
+    <button class="tab-btn" id="tab-clienti" onclick="switchTab('clienti')">Gestione Clienti</button>
+    <button class="tab-btn" id="tab-kpi" onclick="switchTab('kpi')">KPI</button>
+    <button class="tab-btn" onclick="window.location.href='/archivio.html'">Archivio</button>
+    <button class="home-btn" onclick="window.location.href='/login.html'">Home</button>
+    <button class="logout-btn" onclick="logout()">Esci</button>
   </div>
 </div>
 
-<div class="main-wrapper">
-  <h1>Approva Ordini</h1>
-  <p class="subtitle">Seleziona le fasi di lavorazione per ogni ordine e approva</p>
-
-  <div class="orders-grid" id="orders-container">
-    <!-- Orders will be loaded here -->
+<!-- === TAB ORDINI: Layout 3 colonne === -->
+<div class="main" id="view-ordini">
+  <!-- COL 1: Lista ordini con filtri -->
+  <div class="col-orders">
+    <h1>Dashboard Capo <span id="alerts-badge"></span></h1>
+    <div class="alerts-banner" id="alerts-banner"></div>
+    <div class="filters">
+      <div class="filter-row">
+        <select class="filter-select" id="filter-fase" onchange="applyFilters()">
+          <option value="">Tutte le fasi</option>
+          <option value="LASER">LASER</option>
+          <option value="PIEGA">PIEGA</option>
+          <option value="SALDATURA">SALDATURA</option>
+          <option value="PULIZIA">PULIZIA</option>
+          <option value="COMPLETATO">COMPLETATO</option>
+          <option value="PARZIALE">PARZIALE</option>
+        </select>
+        <select class="filter-select" id="filter-operatore" onchange="applyFilters()">
+          <option value="">Tutti gli operatori</option>
+        </select>
+      </div>
+      <input type="text" class="filter-search" id="filter-cliente" placeholder="Cerca cliente..."
+             oninput="applyFilters()">
+    </div>
+    <div class="orders-count" id="orders-count">Caricamento...</div>
+    <div class="orders-list" id="orders-list">
+      <div class="empty-state">Caricamento...</div>
+    </div>
   </div>
 
-  <div id="empty-state" class="empty-state" style="display: none;">
-    <div class="empty-icon">✓</div>
-    <div class="empty-text">Nessun ordine in attesa</div>
-    <div class="empty-subtext">Tutti gli ordini sono stati approvati</div>
+  <!-- COL 2: PDF Viewer -->
+  <div class="col-pdf" id="col-pdf">
+    <div class="pdf-empty">Seleziona un ordine per visualizzare il PDF</div>
+  </div>
+
+  <!-- COL 3: Dettagli + Azioni Capo -->
+  <div class="col-details" id="col-details">
+    <div class="detail-empty">Seleziona un ordine</div>
+  </div>
+</div>
+
+<!-- === TAB GESTIONE CLIENTI === -->
+<div class="main-clienti" id="view-clienti">
+  <div class="clienti-container">
+    <div class="clienti-header">
+      <h1>Gestione Assegnazioni Operatore &mdash; Cliente</h1>
+    </div>
+
+    <div class="clienti-add-form">
+      <h3>Nuova Assegnazione</h3>
+      <div class="clienti-form-row">
+        <div class="clienti-form-group">
+          <label>Operatore</label>
+          <select id="assign-operator">
+            <option value="">Seleziona operatore...</option>
+          </select>
+        </div>
+        <div class="clienti-form-group">
+          <label>Nome Cliente</label>
+          <input type="text" id="assign-client" placeholder="Es: ABC S.r.l.">
+        </div>
+        <button class="action-btn action-btn-green" onclick="addAssignment()" style="margin-bottom:0;">Aggiungi</button>
+      </div>
+      <div id="assign-status" class="status" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="clienti-list"></div>
+  </div>
+</div>
+
+<!-- === TAB KPI === -->
+<div class="main-kpi" id="view-kpi">
+  <div class="kpi-container">
+    <h1 style="font-size: 24px; font-weight: 700; margin-bottom: 24px;">KPI Dashboard</h1>
+
+    <!-- Riepilogo Generale -->
+    <div class="kpi-summary" id="kpi-summary">
+      <div class="kpi-card-summary">
+        <div class="kpi-card-icon" style="background: rgba(59,130,246,0.1); color: #3b82f6;">&#128203;</div>
+        <div class="kpi-card-value" id="kpi-attivi">—</div>
+        <div class="kpi-card-label">Ordini Attivi</div>
+      </div>
+      <div class="kpi-card-summary">
+        <div class="kpi-card-icon" style="background: rgba(34,197,94,0.1); color: #22c55e;">&#10004;</div>
+        <div class="kpi-card-value" id="kpi-completati" style="color: #22c55e;">—</div>
+        <div class="kpi-card-label">Completati Oggi</div>
+      </div>
+      <div class="kpi-card-summary">
+        <div class="kpi-card-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;">&#9888;</div>
+        <div class="kpi-card-value" id="kpi-ritardo" style="color: #ef4444;">—</div>
+        <div class="kpi-card-label">In Ritardo</div>
+      </div>
+      <div class="kpi-card-summary">
+        <div class="kpi-card-icon" style="background: rgba(26,122,72,0.1); color: var(--ls-green);">&#9733;</div>
+        <div class="kpi-card-value" id="kpi-efficienza" style="color: var(--ls-green);">—</div>
+        <div class="kpi-card-label">Efficienza Puntualit&agrave;</div>
+      </div>
+    </div>
+
+    <!-- KPI Operatori -->
+    <h2 style="font-size: 18px; font-weight: 700; margin: 32px 0 16px;">KPI Operatori</h2>
+    <div class="kpi-operators" id="kpi-operators">
+      <div style="color: var(--text-secondary); padding: 24px; text-align: center;">Caricamento...</div>
+    </div>
+
+    <!-- KPI Fasi / Macchinari -->
+    <h2 style="font-size: 18px; font-weight: 700; margin: 32px 0 16px;">KPI Macchinari / Fasi</h2>
+    <div class="kpi-phases" id="kpi-phases">
+      <div style="color: var(--text-secondary); padding: 24px; text-align: center;">Caricamento...</div>
+    </div>
   </div>
 </div>
 
 <script>
-const API_BASE = '';
-let currentUser = null;
-let pendingOrders = [];
+const API_URL = '';
+let selectedOrderId = null;
+let allOrders = [];
+let filteredOrders = [];
+let allUsers = [];
+let operatorClients = [];
 
-// Session check
-function checkSession() {
-  const saved = localStorage.getItem('currentUser');
-  if (!saved) {
+// === SESSION CHECK ===
+window.addEventListener('load', () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id || (!user.is_capo && user.role !== 'Amministratore' && user.role !== 'Capo Officina')) {
     window.location.href = '/login.html';
-    return false;
   }
+  loadInitialData();
+});
 
-  currentUser = JSON.parse(saved);
-  const role = currentUser.role || '';
-
-  // Solo supervisore/admin possono approvare
-  if (role !== 'Supervisore' && role !== 'Admin') {
-    alert('Accesso negato. Solo il supervisore può approvare ordini.');
-    window.location.href = '/login.html';
-    return false;
-  }
-
-  document.getElementById('user-display').textContent = currentUser.name || 'Supervisore';
-  return true;
+async function loadInitialData() {
+  await Promise.all([loadUsers(), loadOrders(), loadOperatorClients(), loadAlerts()]);
+  populateOperatorFilters();
 }
 
-// Load pending orders
-async function loadPendingOrders() {
+// === LOAD USERS ===
+async function loadUsers() {
   try {
-    const resp = await fetch(`${API_BASE}/api/orders`);
-    if (!resp.ok) throw new Error('Failed to load orders');
-
-    const data = await resp.json();
-    const orders = data.orders || data || [];
-
-    // Filter: ordini con required_phases vuoto (in attesa di approvazione)
-    pendingOrders = orders.filter(order => {
-      const phases = order.required_phases;
-      return (!phases || phases.length === 0) && order.status === 'RICEVUTO';
-    });
-
-    console.log(`Loaded ${pendingOrders.length} pending orders`);
-
-    if (pendingOrders.length === 0) {
-      document.getElementById('orders-container').style.display = 'none';
-      document.getElementById('empty-state').style.display = 'block';
-    } else {
-      renderOrders();
-    }
-
-  } catch (e) {
-    console.error('Load orders error:', e);
-    alert('Errore nel caricamento ordini: ' + e.message);
+    const response = await fetch(`${API_URL}/api/users`);
+    const data = await response.json();
+    allUsers = data.users || [];
+  } catch (err) {
+    console.error('Errore caricamento utenti:', err);
   }
 }
 
-// Render orders
-function renderOrders() {
-  const container = document.getElementById('orders-container');
-  container.innerHTML = '';
+// === LOAD ORDERS ===
+async function loadOrders() {
+  try {
+    const response = await fetch(`${API_URL}/api/orders`);
+    const data = await response.json();
+    allOrders = (data.orders || []).filter(o =>
+      o.status !== 'ARCHIVIATO'
+    );
+    applyFilters();
+  } catch (err) {
+    console.error('Errore caricamento ordini:', err);
+  }
+}
 
-  pendingOrders.forEach(order => {
-    const orderId = order.id;
-    const clienteName = order.cliente || 'Cliente';
-    const orderNum = order.numero_ordine || 'N/A';
-    const deliveryDate = new Date(order.data_consegna).toLocaleDateString('it-IT');
-    const articles = order.articles || [];
+// === LOAD OPERATOR CLIENTS ===
+async function loadOperatorClients() {
+  try {
+    const response = await fetch(`${API_URL}/api/operator-clients`);
+    const data = await response.json();
+    operatorClients = data.assignments || [];
+  } catch (err) {
+    console.error('Errore caricamento assegnazioni:', err);
+  }
+}
 
-    const html = `
-      <div class="order-card">
-        <div class="order-card-header">
-          <div class="order-info-item">
-            <div class="order-label">Cliente</div>
-            <div class="order-value">${clienteName}</div>
-          </div>
-          <div class="order-info-item">
-            <div class="order-label">Numero Ordine</div>
-            <div class="order-value">${orderNum}</div>
-          </div>
-          <div class="order-info-item">
-            <div class="order-label">Data Consegna</div>
-            <div class="order-value">${deliveryDate}</div>
-          </div>
-          <div class="order-status">
-            ⏳ In Attesa
-          </div>
+// === POPULATE OPERATOR FILTER DROPDOWNS ===
+function populateOperatorFilters() {
+  const officinaUsers = allUsers.filter(u =>
+    u.phase === 'OFFICINA' || u.phase === 'LASER' || u.phase === 'ALL'
+  );
+
+  // Filtro operatore nella lista ordini
+  const filterOp = document.getElementById('filter-operatore');
+  filterOp.innerHTML = '<option value="">Tutti gli operatori</option>';
+  officinaUsers.forEach(u => {
+    filterOp.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)}</option>`;
+  });
+
+  // Dropdown operatore nella sezione assegnazioni
+  const assignOp = document.getElementById('assign-operator');
+  assignOp.innerHTML = '<option value="">Seleziona operatore...</option>';
+  allUsers.filter(u => u.phase === 'OFFICINA').forEach(u => {
+    assignOp.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)}</option>`;
+  });
+}
+
+// === APPLY FILTERS ===
+function applyFilters() {
+  const fase = document.getElementById('filter-fase').value;
+  const operatore = document.getElementById('filter-operatore').value;
+  const clienteSearch = document.getElementById('filter-cliente').value.toLowerCase().trim();
+
+  filteredOrders = allOrders.filter(o => {
+    if (fase && o.fase_corrente !== fase) return false;
+    if (operatore && o.operatore_assegnato !== operatore) return false;
+    if (clienteSearch && !o.cliente.toLowerCase().includes(clienteSearch)) return false;
+    return true;
+  });
+
+  document.getElementById('orders-count').textContent =
+    `${filteredOrders.length} ordini su ${allOrders.length} totali`;
+  renderOrdersList();
+}
+
+// === RENDER ORDERS LIST ===
+function renderOrdersList() {
+  const container = document.getElementById('orders-list');
+
+  if (filteredOrders.length === 0) {
+    container.innerHTML = '<div class="empty-state">Nessun ordine trovato</div>';
+    return;
+  }
+
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  container.innerHTML = filteredOrders.map(order => {
+    const consegna = new Date(order.data_consegna);
+    const isUrgent = consegna <= tomorrow && order.fase_corrente !== 'COMPLETATO';
+    const fase = order.fase_corrente || 'LASER';
+
+    return `
+    <div class="order-item ${selectedOrderId === order.id ? 'selected' : ''} ${isUrgent ? 'order-urgent' : ''}"
+         onclick="selectOrder('${order.id}')">
+      <div class="order-item-top">
+        <span class="order-client">${escapeHtml(order.cliente)}</span>
+        <span class="order-fase-badge badge-${fase}">${fase}</span>
+      </div>
+      <div class="order-meta">
+        ${order.numero_ordine ? '#' + escapeHtml(order.numero_ordine) : '#' + order.id.substring(0, 8)}
+        &bull; Consegna: ${consegna.toLocaleDateString('it-IT')}
+      </div>
+      ${order.operatore_nome ? `<div class="order-operator">${escapeHtml(order.operatore_nome)}</div>` : ''}
+    </div>
+    `;
+  }).join('');
+}
+
+// === SELECT ORDER ===
+async function selectOrder(orderId) {
+  selectedOrderId = orderId;
+  renderOrdersList();
+
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}`);
+    const order = await response.json();
+    renderPdfViewer(order);
+    renderDetailPanel(order);
+  } catch (err) {
+    console.error('Errore caricamento ordine:', err);
+  }
+}
+
+// === RENDER PDF VIEWER ===
+function renderPdfViewer(order) {
+  const col = document.getElementById('col-pdf');
+  col.innerHTML = `
+    <div class="pdf-header">PDF Ordine &mdash; ${escapeHtml(order.cliente)}</div>
+    <div class="pdf-viewer">
+      <iframe src="${API_URL}/api/orders/${order.id}/pdf"></iframe>
+    </div>
+  `;
+}
+
+// === RENDER DETAIL PANEL ===
+function renderDetailPanel(order) {
+  const panel = document.getElementById('col-details');
+  const dxfFiles = order.dxf_files || [];
+  const steps = order.processing_steps || [];
+  const fase = order.fase_corrente || 'LASER';
+
+  // Lista operatori officina per riassegnazione
+  const officinaUsers = allUsers.filter(u => u.phase === 'OFFICINA');
+
+  panel.innerHTML = `
+    <div class="detail-header">
+      <h2>${escapeHtml(order.cliente)}</h2>
+      <div class="detail-meta">
+        ${order.numero_ordine ? 'Ordine #' + escapeHtml(order.numero_ordine) : '#' + order.id.substring(0, 8)}<br>
+        Consegna: ${new Date(order.data_consegna).toLocaleDateString('it-IT')}<br>
+        Fase: <strong>${fase}</strong>
+        ${order.operatore_nome ? ' &bull; Operatore: <strong>' + escapeHtml(order.operatore_nome) + '</strong>' : ''}
+        ${order.prezzo_quotato ? '<br>Prezzo quotato: <strong>' + order.prezzo_quotato.toFixed(2) + ' &euro;</strong>' : ''}
+      </div>
+    </div>
+
+    <div class="detail-content">
+
+      <!-- AZIONI CAPO: Sposta Fase -->
+      <div class="detail-section">
+        <div class="section-title">Sposta Fase</div>
+        <div class="action-row">
+          <select class="action-select" id="move-fase">
+            <option value="LASER" ${fase === 'LASER' ? 'selected' : ''}>LASER</option>
+            <option value="PIEGA" ${fase === 'PIEGA' ? 'selected' : ''}>PIEGA</option>
+            <option value="SALDATURA" ${fase === 'SALDATURA' ? 'selected' : ''}>SALDATURA</option>
+            <option value="PULIZIA" ${fase === 'PULIZIA' ? 'selected' : ''}>PULIZIA</option>
+            <option value="COMPLETATO" ${fase === 'COMPLETATO' ? 'selected' : ''}>COMPLETATO</option>
+          </select>
+          <button class="action-btn action-btn-green" onclick="movePhase('${order.id}')">Sposta</button>
         </div>
+      </div>
 
-        <div class="order-card-content">
-          <!-- DXF FILES PREVIEW -->
-          <div class="pdf-section">
-            <h4>File Tecnici (DXF)</h4>
-            <div class="pdf-preview" id="dxf-preview-${orderId}">
-              <div class="pdf-preview-empty">Caricamento file...</div>
+      <!-- AZIONI CAPO: Riassegna Operatore -->
+      <div class="detail-section">
+        <div class="section-title">Riassegna Operatore</div>
+        <div class="action-row">
+          <select class="action-select" id="reassign-operator">
+            <option value="">Seleziona operatore...</option>
+            ${officinaUsers.map(u => `
+              <option value="${u.id}" ${order.operatore_assegnato === u.id ? 'selected' : ''}>
+                ${escapeHtml(u.name)}
+              </option>
+            `).join('')}
+          </select>
+          <button class="action-btn action-btn-orange" onclick="reassignOrder('${order.id}')">Riassegna</button>
+        </div>
+      </div>
+
+      <!-- FILE DXF -->
+      ${dxfFiles.length > 0 ? `
+      <div class="detail-section">
+        <div class="section-title">Disegni (DXF)</div>
+        <div class="dxf-list">
+          ${dxfFiles.map(f => `
+            <div class="dxf-item">
+              <div class="dxf-icon">&#128208;</div>
+              <span class="dxf-name">${escapeHtml(f.filename)}</span>
+              <a href="${API_URL}/api/orders/${order.id}/dxf/${encodeURIComponent(f.filename)}"
+                 class="dxf-download" target="_blank">Scarica</a>
             </div>
-          </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
 
-          <!-- PHASES -->
-          <div class="phases-section">
-            <div>
-              <h4 style="margin-bottom: 12px;">Fasi di Lavorazione Richieste</h4>
-              <div class="phases-grid">
-                <label class="phase-checkbox" onclick="togglePhase(this)">
-                  <input type="checkbox" class="phase-input" value="LASER" data-order-id="${orderId}">
-                  <label style="margin: 0;">LASER</label>
-                </label>
-                <label class="phase-checkbox" onclick="togglePhase(this)">
-                  <input type="checkbox" class="phase-input" value="PIEGA" data-order-id="${orderId}">
-                  <label style="margin: 0;">PIEGA</label>
-                </label>
-                <label class="phase-checkbox" onclick="togglePhase(this)">
-                  <input type="checkbox" class="phase-input" value="SALDATURA" data-order-id="${orderId}">
-                  <label style="margin: 0;">SALDATURA</label>
-                </label>
-                <label class="phase-checkbox" onclick="togglePhase(this)">
-                  <input type="checkbox" class="phase-input" value="PULIZIA" data-order-id="${orderId}">
-                  <label style="margin: 0;">PULIZIA</label>
-                </label>
+      <!-- STORICO FASI -->
+      <div class="detail-section">
+        <div class="section-title">Storico Fasi</div>
+        ${steps.length > 0 ? `
+        <div class="storico-list">
+          ${steps.map(s => `
+            <div class="storico-item">
+              <div class="storico-top">
+                <span class="storico-fase">${escapeHtml(s.fase)}</span>
+                ${s.durata ? `<span class="storico-durata">${escapeHtml(s.durata)}</span>` : ''}
               </div>
+              <div class="storico-detail">
+                ${s.operatore ? 'Operatore: ' + escapeHtml(s.operatore) : ''}
+                ${s.timestamp_inizio ? '<br>Inizio: ' + formatDateTime(s.timestamp_inizio) : ''}
+                ${s.timestamp_fine ? ' &mdash; Fine: ' + formatDateTime(s.timestamp_fine) : ''}
+                ${s.fase_successiva ? '<br>&rarr; ' + escapeHtml(s.fase_successiva) : ''}
+                ${s.note ? '<br>Nota: ' + escapeHtml(s.note) : ''}
+              </div>
+              ${s.completamento_parziale ? '<span class="storico-parziale">PARZIALE</span>' : ''}
             </div>
+          `).join('')}
+        </div>
+        ` : '<div class="empty-state" style="padding:12px;">Nessuna fase registrata</div>'}
+      </div>
+
+      <!-- CORREGGI TEMPI -->
+      ${steps.filter(s => s.timestamp_inizio).length > 0 ? `
+      <div class="detail-section">
+        <div class="section-title">Correggi Tempi</div>
+        ${steps.filter(s => s.timestamp_inizio).map(s => `
+          <div class="time-correction">
+            <div class="time-correction-header">${escapeHtml(s.fase)} ${s.operatore ? '(' + escapeHtml(s.operatore) + ')' : ''}</div>
+            <div class="time-input-row">
+              <span class="time-input-label">Inizio</span>
+              <input type="datetime-local" class="time-input" id="time-start-${s.id}"
+                     value="${s.timestamp_inizio ? toLocalInput(s.timestamp_inizio) : ''}">
+            </div>
+            <div class="time-input-row">
+              <span class="time-input-label">Fine</span>
+              <input type="datetime-local" class="time-input" id="time-end-${s.id}"
+                     value="${s.timestamp_fine ? toLocalInput(s.timestamp_fine) : ''}">
+            </div>
+            <button class="action-btn action-btn-orange" style="margin-top:6px;width:100%;"
+                    onclick="correctTime('${order.id}', '${s.id}')">Salva Correzione</button>
+          </div>
+        `).join('')}
+      </div>
+      ` : ''}
+
+      <!-- NOTE -->
+      ${order.note ? `
+      <div class="detail-section">
+        <div class="section-title">Note</div>
+        <div style="font-size:12px; color:var(--text-secondary); white-space:pre-wrap;">${escapeHtml(order.note)}</div>
+      </div>
+      ` : ''}
+
+      <div id="detail-status" class="status"></div>
+    </div>
+  `;
+}
+
+// === AZIONI CAPO ===
+
+async function movePhase(orderId) {
+  const nuovaFase = document.getElementById('move-fase').value;
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/move-phase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_phase: nuovaFase, capo_id: user.id })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showDetailStatus('Fase spostata a ' + nuovaFase, 'success');
+      await loadOrders();
+      selectOrder(orderId);
+    } else {
+      showDetailStatus('Errore: ' + result.error, 'error');
+    }
+  } catch (err) {
+    showDetailStatus('Errore: ' + err.message, 'error');
+  }
+}
+
+async function reassignOrder(orderId) {
+  const newOperator = document.getElementById('reassign-operator').value;
+  if (!newOperator) {
+    showDetailStatus('Seleziona un operatore', 'error');
+    return;
+  }
+
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/reassign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_operator_id: newOperator, capo_id: user.id })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showDetailStatus('Ordine riassegnato!', 'success');
+      await loadOrders();
+      selectOrder(orderId);
+    } else {
+      showDetailStatus('Errore: ' + result.error, 'error');
+    }
+  } catch (err) {
+    showDetailStatus('Errore: ' + err.message, 'error');
+  }
+}
+
+async function correctTime(orderId, stepId) {
+  const startInput = document.getElementById('time-start-' + stepId);
+  const endInput = document.getElementById('time-end-' + stepId);
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+  const body = { step_id: stepId, capo_id: user.id };
+  if (startInput.value) body.timestamp_inizio = new Date(startInput.value).toISOString();
+  if (endInput.value) body.timestamp_fine = new Date(endInput.value).toISOString();
+
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/correct-time`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const result = await response.json();
+    if (result.success) {
+      showDetailStatus('Tempi corretti!', 'success');
+      selectOrder(orderId);
+    } else {
+      showDetailStatus('Errore: ' + result.error, 'error');
+    }
+  } catch (err) {
+    showDetailStatus('Errore: ' + err.message, 'error');
+  }
+}
+
+// === TAB SWITCHING ===
+function switchTab(tab) {
+  document.getElementById('tab-ordini').classList.toggle('active', tab === 'ordini');
+  document.getElementById('tab-clienti').classList.toggle('active', tab === 'clienti');
+  document.getElementById('tab-kpi').classList.toggle('active', tab === 'kpi');
+  document.getElementById('view-ordini').style.display = tab === 'ordini' ? 'grid' : 'none';
+  document.getElementById('view-clienti').style.display = tab === 'clienti' ? 'block' : 'none';
+  document.getElementById('view-kpi').style.display = tab === 'kpi' ? 'block' : 'none';
+
+  if (tab === 'clienti') renderClientiView();
+  if (tab === 'kpi') loadKPI();
+}
+
+// === GESTIONE CLIENTI ===
+
+function renderClientiView() {
+  const container = document.getElementById('clienti-list');
+  const officinaUsers = allUsers.filter(u => u.phase === 'OFFICINA');
+
+  if (officinaUsers.length === 0) {
+    container.innerHTML = '<div class="empty-state">Nessun operatore officina trovato</div>';
+    return;
+  }
+
+  container.innerHTML = officinaUsers.map(user => {
+    const userClients = operatorClients.filter(a => a.operator_id === user.id);
+
+    return `
+      <div class="operator-section">
+        <div class="operator-section-header">
+          <div>
+            <span class="operator-name">${escapeHtml(user.name)}</span>
+            <span class="operator-role"> &mdash; ${escapeHtml(user.role)}</span>
           </div>
         </div>
-
-        <div class="order-card-actions">
-          <button class="cancel" onclick="goBack()">ANNULLA</button>
-          <button class="approve" onclick="approveOrder('${orderId}')">APPROVA ORDINE</button>
+        <div class="client-list">
+          ${userClients.length > 0 ? userClients.map(a => `
+            <div class="client-chip">
+              ${escapeHtml(a.client_name)}
+              <button class="client-chip-remove" onclick="removeAssignment('${a.id}')" title="Rimuovi">&times;</button>
+            </div>
+          `).join('') : '<span class="no-clients">Nessun cliente assegnato</span>'}
         </div>
       </div>
     `;
-
-    container.innerHTML += html;
-
-    // Load DXF files preview for this order
-    loadDXFFilesPreview(orderId);
-  });
+  }).join('');
 }
 
-// Load DXF files preview - tabbed interface for visual inspection
-async function loadDXFFilesPreview(orderId) {
+async function addAssignment() {
+  const operatorId = document.getElementById('assign-operator').value;
+  const clientName = document.getElementById('assign-client').value.trim();
+  const statusEl = document.getElementById('assign-status');
+
+  if (!operatorId || !clientName) {
+    statusEl.textContent = 'Seleziona operatore e inserisci nome cliente';
+    statusEl.className = 'status active error';
+    setTimeout(() => statusEl.classList.remove('active'), 3000);
+    return;
+  }
+
   try {
-    const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
-    if (!resp.ok) throw new Error('Failed to load order');
-
-    const order = await resp.json();
-    const dxfPreviewDiv = document.getElementById(`dxf-preview-${orderId}`);
-    const dxfFiles = order.dxf_files || [];
-
-    console.log(`[DXF Preview] Order ${orderId}: ${dxfFiles.length} files`, dxfFiles);
-
-    if (dxfFiles.length === 0) {
-      dxfPreviewDiv.innerHTML = '<div class="pdf-preview-empty">Nessun file tecnico caricato</div>';
-      return;
-    }
-
-    // Create tabbed interface for DXF files
-    let html = `<div style="display: flex; flex-direction: column; height: 100%; background: white;">`;
-
-    // Tab buttons
-    html += `<div style="display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: #fafafa; align-items: center;">`;
-    html += `<span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-right: auto;">DISEGNI TECNICI (${dxfFiles.length})</span>`;
-
-    dxfFiles.forEach((dxf, idx) => {
-      const fileName = typeof dxf === 'string' ? dxf : (dxf.filename || dxf.file_name || 'drawing.dxf');
-      const displayName = fileName.replace('draft_', '');
-      const isActive = idx === 0;
-      html += `
-        <button
-          onclick="switchDXFTab('${orderId}', ${idx})"
-          id="dxf-tab-${orderId}-${idx}"
-          style="
-            padding: 6px 10px;
-            border: 1px solid ${isActive ? 'var(--ls-green)' : '#ddd'};
-            background: ${isActive ? 'var(--ls-green)' : '#f5f5f5'};
-            color: ${isActive ? 'white' : '#333'};
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 500;
-            white-space: nowrap;
-            transition: all 0.2s;
-          "
-        >
-          📐 ${displayName}
-        </button>
-      `;
-    });
-    html += `</div>`;
-
-    // Preview container
-    html += `<div id="dxf-preview-container-${orderId}" style="flex: 1; background: white; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">`;
-    html += `<div style="color: #999; text-align: center;">Caricamento disegni tecnici...</div>`;
-    html += `</div>`;
-    html += `</div>`;
-
-    dxfPreviewDiv.innerHTML = html;
-
-    // Load first file
-    setTimeout(() => switchDXFTab(orderId, 0), 200);
-
-  } catch (e) {
-    console.error(`Error loading DXF files for order ${orderId}:`, e);
-    document.getElementById(`dxf-preview-${orderId}`).innerHTML =
-      '<div class="pdf-preview-empty">Errore caricamento disegni</div>';
-  }
-}
-
-// Parse DXF file and extract entities
-function parseDXF(dxfText) {
-  const entities = [];
-  const lines = dxfText.split('\n');
-  let i = 0;
-
-  // Find ENTITIES section
-  while (i < lines.length) {
-    if (lines[i].trim() === 'ENTITIES') {
-      i += 2; // Skip "2" and "ENTITIES"
-      break;
-    }
-    i++;
-  }
-
-  // Parse entities
-  while (i < lines.length) {
-    const line = lines[i].trim();
-    if (line === 'ENDSEC') break;
-
-    if (line === 'LINE') {
-      const entity = { type: 'LINE' };
-      i++;
-      while (i < lines.length && lines[i].trim() !== '0') {
-        const code = lines[i].trim();
-        const value = lines[i + 1].trim();
-        if (code === '10') entity.x1 = parseFloat(value);
-        if (code === '20') entity.y1 = parseFloat(value);
-        if (code === '11') entity.x2 = parseFloat(value);
-        if (code === '21') entity.y2 = parseFloat(value);
-        i += 2;
-      }
-      if (entity.x1 !== undefined && entity.y1 !== undefined) {
-        entities.push(entity);
-      }
-      continue;
-    }
-
-    if (line === 'CIRCLE') {
-      const entity = { type: 'CIRCLE' };
-      i++;
-      while (i < lines.length && lines[i].trim() !== '0') {
-        const code = lines[i].trim();
-        const value = lines[i + 1].trim();
-        if (code === '10') entity.cx = parseFloat(value);
-        if (code === '20') entity.cy = parseFloat(value);
-        if (code === '40') entity.r = parseFloat(value);
-        i += 2;
-      }
-      if (entity.cx !== undefined && entity.cy !== undefined && entity.r !== undefined) {
-        entities.push(entity);
-      }
-      continue;
-    }
-
-    if (line === 'POLYLINE') {
-      const entity = { type: 'POLYLINE', points: [] };
-      i++;
-      while (i < lines.length && lines[i].trim() !== '0') {
-        const code = lines[i].trim();
-        const value = lines[i + 1].trim();
-        i += 2;
-      }
-      // Read vertex points
-      while (i < lines.length && lines[i].trim() === 'VERTEX') {
-        i++;
-        const vertex = {};
-        while (i < lines.length && lines[i].trim() !== '0') {
-          const code = lines[i].trim();
-          const value = lines[i + 1].trim();
-          if (code === '10') vertex.x = parseFloat(value);
-          if (code === '20') vertex.y = parseFloat(value);
-          i += 2;
-        }
-        if (vertex.x !== undefined && vertex.y !== undefined) {
-          entity.points.push(vertex);
-        }
-      }
-      if (entity.points.length > 0) {
-        entities.push(entity);
-      }
-      continue;
-    }
-
-    i++;
-  }
-
-  return entities;
-}
-
-// Render DXF entities as SVG
-function renderDXFAsSVG(dxfText) {
-  const entities = parseDXF(dxfText);
-  if (entities.length === 0) return null;
-
-  // Find bounds
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  entities.forEach(e => {
-    if (e.type === 'LINE') {
-      minX = Math.min(minX, e.x1, e.x2);
-      maxX = Math.max(maxX, e.x1, e.x2);
-      minY = Math.min(minY, e.y1, e.y2);
-      maxY = Math.max(maxY, e.y1, e.y2);
-    } else if (e.type === 'CIRCLE') {
-      minX = Math.min(minX, e.cx - e.r);
-      maxX = Math.max(maxX, e.cx + e.r);
-      minY = Math.min(minY, e.cy - e.r);
-      maxY = Math.max(maxY, e.cy + e.r);
-    } else if (e.type === 'POLYLINE') {
-      e.points.forEach(p => {
-        minX = Math.min(minX, p.x);
-        maxX = Math.max(maxX, p.x);
-        minY = Math.min(minY, p.y);
-        maxY = Math.max(maxY, p.y);
-      });
-    }
-  });
-
-  const padding = 40;
-  const width = maxX - minX + padding * 2;
-  const height = maxY - minY + padding * 2;
-  const scale = Math.min(800 / width, 600 / height);
-
-  let svg = `<svg viewBox="0 0 800 600" style="width: 100%; height: 100%; background: white; border: 1px solid #ddd; border-radius: 4px;">`;
-  svg += `<g transform="translate(${padding}, ${padding}) scale(${scale}, ${-scale}) translate(${-minX}, ${-maxY})">`;
-
-  entities.forEach(e => {
-    if (e.type === 'LINE') {
-      svg += `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="#1a7a48" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    } else if (e.type === 'CIRCLE') {
-      svg += `<circle cx="${e.cx}" cy="${e.cy}" r="${e.r}" fill="none" stroke="#1a7a48" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    } else if (e.type === 'POLYLINE') {
-      const points = e.points.map(p => `${p.x},${p.y}`).join(' ');
-      svg += `<polyline points="${points}" fill="none" stroke="#1a7a48" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    }
-  });
-
-  svg += `</g></svg>`;
-  return svg;
-}
-
-// Switch DXF tab and render preview with geometry
-async function switchDXFTab(orderId, fileIndex) {
-  try {
-    const resp = await fetch(`${API_BASE}/api/orders/${orderId}`);
-    const order = await resp.json();
-    const dxfFiles = order.dxf_files || [];
-
-    if (fileIndex >= dxfFiles.length) return;
-
-    const dxfFile = dxfFiles[fileIndex];
-    const fileName = typeof dxfFile === 'string' ? dxfFile : (dxfFile.filename || dxfFile.file_name || 'drawing.dxf');
-    const displayName = fileName.replace('draft_', '');
-
-    // Update tab buttons
-    document.querySelectorAll(`[id^="dxf-tab-${orderId}-"]`).forEach((btn, idx) => {
-      if (idx === fileIndex) {
-        btn.style.background = 'var(--ls-green)';
-        btn.style.color = 'white';
-        btn.style.borderColor = 'var(--ls-green)';
-      } else {
-        btn.style.background = '#f5f5f5';
-        btn.style.color = '#333';
-        btn.style.borderColor = '#ddd';
-      }
-    });
-
-    const container = document.getElementById(`dxf-preview-container-${orderId}`);
-    const dxfUrl = `${API_BASE}/api/orders/${orderId}/dxf/${fileName}`;
-
-    // Show loading
-    container.innerHTML = '<div style="color: #999; padding: 20px;">Caricamento disegno...</div>';
-
-    // Fetch DXF file
-    const dxfResp = await fetch(dxfUrl);
-    const dxfText = await dxfResp.text();
-
-    // Render as SVG
-    const svgHtml = renderDXFAsSVG(dxfText);
-
-    if (svgHtml) {
-      container.innerHTML = `
-        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; background: #f9f9f9; position: relative;">
-          <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-            ${svgHtml}
-          </div>
-          <div style="position: absolute; bottom: 12px; right: 12px;">
-            <a href="${dxfUrl}" download="${displayName}" style="
-              display: inline-block;
-              padding: 6px 12px;
-              background: var(--ls-green);
-              color: white;
-              text-decoration: none;
-              border-radius: 4px;
-              font-weight: 600;
-              font-size: 11px;
-              cursor: pointer;
-            ">📥 Scarica</a>
-          </div>
-        </div>
-      `;
-    } else {
-      container.innerHTML = '<div style="color: #999; padding: 20px;">Errore nel parsing del disegno</div>';
-    }
-
-    console.log(`[DXF Tab] Switched to ${displayName}`);
-
-  } catch (e) {
-    console.error(`Error switching DXF tab:`, e);
-    document.getElementById(`dxf-preview-container-${orderId}`).innerHTML =
-      '<div style="color: #d32f2f; text-align: center; padding: 20px;">Errore caricamento disegno</div>';
-  }
-}
-
-// Toggle phase checkbox
-function togglePhase(element) {
-  element.classList.toggle('selected');
-}
-
-// Approve order
-async function approveOrder(orderId) {
-  try {
-    // Get selected phases
-    const checkboxes = document.querySelectorAll(`.phase-input[data-order-id="${orderId}"]:checked`);
-    const selectedPhases = Array.from(checkboxes).map(cb => cb.value);
-
-    if (selectedPhases.length === 0) {
-      alert('Seleziona almeno una fase di lavorazione');
-      return;
-    }
-
-    // Call approval endpoint
-    const resp = await fetch(`${API_BASE}/api/orders/${orderId}/approve`, {
+    const response = await fetch(`${API_URL}/api/operator-clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        required_phases: selectedPhases,
-        operatore_id: currentUser.id
-      })
+      body: JSON.stringify({ operator_id: operatorId, client_name: clientName })
     });
+    const result = await response.json();
+    if (result.success) {
+      statusEl.textContent = 'Assegnazione creata!';
+      statusEl.className = 'status active success';
+      document.getElementById('assign-client').value = '';
+      await loadOperatorClients();
+      renderClientiView();
+    } else {
+      statusEl.textContent = 'Errore: ' + result.error;
+      statusEl.className = 'status active error';
+    }
+  } catch (err) {
+    statusEl.textContent = 'Errore: ' + err.message;
+    statusEl.className = 'status active error';
+  }
+  setTimeout(() => statusEl.classList.remove('active'), 3000);
+}
 
-    if (!resp.ok) throw new Error('Approval failed');
+async function removeAssignment(assignmentId) {
+  if (!confirm('Rimuovere questa assegnazione?')) return;
 
-    const result = await resp.json();
-    alert(`[OK] Ordine ${result.numero_ordine} approvato!\nFasi: ${selectedPhases.join(', ')}`);
-
-    // Reload pending orders
-    loadPendingOrders();
-
-  } catch (e) {
-    console.error('Approve order error:', e);
-    alert('Errore nell\'approvazione: ' + e.message);
+  try {
+    const response = await fetch(`${API_URL}/api/operator-clients/${assignmentId}`, {
+      method: 'DELETE'
+    });
+    const result = await response.json();
+    if (result.success) {
+      await loadOperatorClients();
+      renderClientiView();
+    }
+  } catch (err) {
+    console.error('Errore rimozione assegnazione:', err);
   }
 }
 
-function goBack() {
-  window.location.href = '/login.html';
+// === DESELECT ===
+function deselectOrder() {
+  selectedOrderId = null;
+  renderOrdersList();
+  document.getElementById('col-pdf').innerHTML = '<div class="pdf-empty">Seleziona un ordine per visualizzare il PDF</div>';
+  document.getElementById('col-details').innerHTML = '<div class="detail-empty">Seleziona un ordine</div>';
+}
+
+// === UTILITY ===
+function showDetailStatus(text, type) {
+  const status = document.getElementById('detail-status');
+  if (status) {
+    status.textContent = text;
+    status.className = 'status active ' + type;
+    setTimeout(() => status.classList.remove('active'), 3000);
+  }
+}
+
+function formatDateTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('it-IT') + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function toLocalInput(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  const offset = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 async function logout() {
   try {
-    await fetch(`${API_BASE}/api/auth/logout`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: currentUser.id })
-    });
-  } catch (e) {
-    console.error('Logout error:', e);
-  }
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (user.id) {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+    }
+  } catch (_) {}
   localStorage.removeItem('currentUser');
   window.location.href = '/login.html';
 }
 
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-  if (checkSession()) {
-    loadPendingOrders();
+// === ALERTS ===
+async function loadAlerts() {
+  try {
+    const response = await fetch(`${API_URL}/api/alerts/check`);
+    const data = await response.json();
+    const alerts = data.alerts || [];
+    renderAlerts(alerts);
+  } catch (err) {
+    console.error('Errore caricamento alert:', err);
   }
-});
+}
+
+function renderAlerts(alerts) {
+  const banner = document.getElementById('alerts-banner');
+  const badge = document.getElementById('alerts-badge');
+
+  if (alerts.length === 0) {
+    banner.innerHTML = '';
+    badge.innerHTML = '';
+    return;
+  }
+
+  badge.innerHTML = `<span class="alerts-count-badge">${alerts.length}</span>`;
+
+  banner.innerHTML = alerts.map(a => {
+    const typeClass = a.type === 'urgent' ? 'alert-urgent' : a.type === 'danger' ? 'alert-danger' : 'alert-warning';
+    const icon = a.type === 'urgent' ? '&#9888;' : a.type === 'danger' ? '&#9679;' : '&#9201;';
+    return `
+      <div class="alert-item ${typeClass}" onclick="${a.order_id ? "selectOrder('" + a.order_id + "')" : ''}">
+        <span class="alert-icon">${icon}</span>
+        <span class="alert-text">${escapeHtml(a.message)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// Auto-refresh ogni 30 secondi
+setInterval(async () => {
+  if (document.getElementById('view-ordini').style.display !== 'none') {
+    await Promise.all([loadOrders(), loadAlerts()]);
+    if (selectedOrderId) {
+      const orderStillExists = filteredOrders.find(o => o.id === selectedOrderId);
+      if (!orderStillExists) deselectOrder();
+    }
+  }
+  if (document.getElementById('view-kpi').style.display !== 'none') {
+    loadKPI();
+  }
+}, 30000);
+
+// === KPI ===
+const faseConfig = {
+  LASER:     { color: '#3b82f6', icon: '&#9889;',   label: 'Laser' },
+  PIEGA:     { color: '#f59e0b', icon: '&#128208;',  label: 'Piega' },
+  SALDATURA: { color: '#ef4444', icon: '&#128293;',  label: 'Saldatura' },
+  PULIZIA:   { color: '#8b5cf6', icon: '&#10024;',   label: 'Pulizia' }
+};
+
+async function loadKPI() {
+  try {
+    const resp = await fetch(`${API_URL}/api/kpi/dashboard`);
+    const data = await resp.json();
+    if (!data.success) return;
+    renderKPISummary(data.riepilogo);
+    renderKPIOperators(data.operatori);
+    renderKPIPhases(data.fasi);
+  } catch (err) {
+    console.error('Errore KPI:', err);
+  }
+}
+
+function renderKPISummary(r) {
+  document.getElementById('kpi-attivi').textContent = r.ordini_attivi;
+  document.getElementById('kpi-completati').textContent = r.completati_oggi;
+  document.getElementById('kpi-ritardo').textContent = r.in_ritardo;
+  document.getElementById('kpi-efficienza').textContent = r.efficienza_puntualita + '%';
+}
+
+function formatMinutes(min) {
+  if (min == null) return '—';
+  if (min < 60) return min + 'min';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? h + 'h ' + m + 'min' : h + 'h';
+}
+
+function renderKPIOperators(ops) {
+  const container = document.getElementById('kpi-operators');
+  if (!ops || ops.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-secondary); padding: 24px;">Nessun operatore trovato</div>';
+    return;
+  }
+  container.innerHTML = ops.map(op => {
+    const onlineColor = op.is_online ? '#22c55e' : '#d1d5db';
+    const onlineText = op.is_online ? 'Online' : 'Offline';
+    const effColor = op.efficienza >= 80 ? '#22c55e' : op.efficienza >= 50 ? '#f59e0b' : '#ef4444';
+    const faseAttiva = op.fase_attiva
+      ? `<span style="background: ${(faseConfig[op.fase_attiva] || {}).color || '#666'}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;">${op.fase_attiva}</span>`
+      : '<span style="color: var(--text-secondary); font-size: 11px;">Libero</span>';
+
+    return `<div class="kpi-op-card">
+      <div class="kpi-op-header">
+        <div class="kpi-op-avatar">${escapeHtml(op.initials || '?')}</div>
+        <div>
+          <div class="kpi-op-name">${escapeHtml(op.name)}</div>
+          <div class="kpi-op-role">${escapeHtml(op.role)}</div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="kpi-op-status">
+          <div class="kpi-op-dot" style="background: ${onlineColor};"></div>
+          ${onlineText}
+        </div>
+        ${faseAttiva}
+      </div>
+      <div class="kpi-op-stats">
+        <div class="kpi-op-stat">
+          <div class="kpi-op-stat-val">${op.ordini_completati}</div>
+          <div class="kpi-op-stat-label">Ordini totali</div>
+        </div>
+        <div class="kpi-op-stat">
+          <div class="kpi-op-stat-val">${op.ordini_oggi}</div>
+          <div class="kpi-op-stat-label">Oggi</div>
+        </div>
+        <div class="kpi-op-stat">
+          <div class="kpi-op-stat-val">${formatMinutes(op.tempo_medio_minuti)}</div>
+          <div class="kpi-op-stat-label">Tempo medio</div>
+        </div>
+        <div class="kpi-op-stat">
+          <div class="kpi-op-stat-val">${op.clienti_assegnati}</div>
+          <div class="kpi-op-stat-label">Clienti</div>
+        </div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+          <span style="color: var(--text-secondary);">Efficienza</span>
+          <span style="font-weight: 700; color: ${effColor};">${op.efficienza}%</span>
+        </div>
+        <div class="kpi-op-bar-bg">
+          <div class="kpi-op-bar-fill" style="width: ${op.efficienza}%; background: ${effColor};"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderKPIPhases(fasi) {
+  const container = document.getElementById('kpi-phases');
+  if (!fasi || fasi.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-secondary); padding: 24px;">Nessuna fase trovata</div>';
+    return;
+  }
+  container.innerHTML = fasi.map(f => {
+    const cfg = faseConfig[f.fase] || { color: '#666', icon: '&#9881;', label: f.fase };
+    return `<div class="kpi-phase-card" style="border-top-color: ${cfg.color};">
+      <div class="kpi-phase-header">
+        <span class="kpi-phase-icon">${cfg.icon}</span>
+        <span class="kpi-phase-name" style="color: ${cfg.color};">${cfg.label}</span>
+      </div>
+      <div class="kpi-phase-stats">
+        <div class="kpi-phase-row">
+          <span class="kpi-phase-row-label">In coda</span>
+          <span class="kpi-phase-row-val">${f.in_coda}</span>
+        </div>
+        <div class="kpi-phase-row">
+          <span class="kpi-phase-row-label">In corso</span>
+          <span class="kpi-phase-row-val" style="color: ${cfg.color};">${f.in_corso}</span>
+        </div>
+        <div class="kpi-phase-row">
+          <span class="kpi-phase-row-label">Completati</span>
+          <span class="kpi-phase-row-val">${f.completati_totale}</span>
+        </div>
+        <div class="kpi-phase-row">
+          <span class="kpi-phase-row-label">Oggi</span>
+          <span class="kpi-phase-row-val" style="color: #22c55e;">${f.completati_oggi}</span>
+        </div>
+        <div class="kpi-phase-row">
+          <span class="kpi-phase-row-label">Tempo medio</span>
+          <span class="kpi-phase-row-val">${formatMinutes(f.tempo_medio_minuti)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 </script>
 
 </body>

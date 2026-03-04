@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, DateTime, Integer, Text, JSON, ForeignKey, Boolean
+from sqlalchemy import create_engine, Column, String, DateTime, Integer, Float, Text, JSON, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import enum
@@ -11,37 +11,27 @@ DATABASE_URL = f'sqlite:///{DATABASE_PATH.replace(chr(92), "/")}'
 
 Base = declarative_base()
 
-class OrderStatus(str, enum.Enum):
-    RICEVUTO = "RICEVUTO"
-    LASER_COMPLETATO = "LASER_COMPLETATO"
-    PIEGA_COMPLETATA = "PIEGA_COMPLETATA"
-    SALDATURA_COMPLETATA = "SALDATURA_COMPLETATA"
-    PULIZIA_COMPLETATA = "PULIZIA_COMPLETATA"
-    SPEDITO = "SPEDITO"
-
-class ProcessingPhase(str, enum.Enum):
+class FaseCorrente(str, enum.Enum):
     LASER = "LASER"
     PIEGA = "PIEGA"
     SALDATURA = "SALDATURA"
     PULIZIA = "PULIZIA"
-    SPEDIZIONE = "SPEDIZIONE"
+    COMPLETATO = "COMPLETATO"
+    PARZIALE = "PARZIALE"
 
 class Order(Base):
     """Modello Ordine con articoli tracciati per fase"""
     __tablename__ = 'orders'
     id = Column(String, primary_key=True)
     cliente = Column(String, nullable=False)
+    numero_ordine = Column(String, nullable=True)  # NUOVO: numero ordine estratto/inserito dal PDF
     data_ricezione = Column(DateTime, default=datetime.utcnow, nullable=False)
     data_consegna = Column(DateTime, nullable=False)
-    status = Column(String, default=OrderStatus.RICEVUTO.value)
-    required_phases = Column(JSON, default=lambda: ['LASER', 'PIEGA', 'SALDATURA'])
-    preventivo_minuti = Column(Integer, default=0)
-    total_quantity = Column(Integer, default=0)
-    
-    # ✅ NUOVO: Articoli con fasi richieste
-    # Formato: [{"name": "Staffa A", "code": "SA-001", "qty": 50, "required_phases": ["LASER", "PIEGA", "SALDATURA"]}, ...]
-    articles = Column(JSON, default=list)
-    
+    status = Column(String, default="RICEVUTO")
+    fase_corrente = Column(String, default="LASER")  # LASER, PIEGA, SALDATURA, PULIZIA, COMPLETATO, PARZIALE
+    operatore_assegnato = Column(String, ForeignKey('users.id'), nullable=True)  # Auto-assegnato da operator_clients
+    prezzo_quotato = Column(Float, nullable=True)  # Prezzo quotato per calcolo margine
+
     note = Column(Text)
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
     processing_steps = relationship('ProcessingStep', back_populates='order', cascade='all, delete-orphan')
@@ -58,18 +48,17 @@ class OrderFile(Base):
     order = relationship('Order', back_populates='files')
 
 class ProcessingStep(Base):
-    """Fase di lavorazione di un ordine con tracking per articolo"""
+    """Fase di lavorazione di un ordine — traccia tempo per fase"""
     __tablename__ = 'processing_steps'
     id = Column(String, primary_key=True)
     order_id = Column(String, ForeignKey('orders.id'), nullable=False)
-    fase = Column(String, nullable=False)  # LASER, PIEGA, SALDATURA, ecc
-    timestamp_inizio = Column(DateTime, nullable=True)
+    fase = Column(String, nullable=False)  # LASER, PIEGA, SALDATURA, PULIZIA
+    timestamp_inizio = Column(DateTime, nullable=True)  # NULL per LASER (no time tracking)
     timestamp_fine = Column(DateTime, nullable=True)
-    timestamp_ultimo_partial = Column(DateTime, nullable=True)  # HOTFIX v1.2.1: Registra quando il lavoro viene momentaneamente sospeso (partial completion)
     operatore = Column(String, nullable=True)
     note = Column(Text, nullable=True)
-    # ✅ NUOVO: Traccia articoli completati per questa fase (lista di indici)
-    completed_articles = Column(JSON, default=list)  # Es: [0, 1, 3] = articoli con indice 0, 1, 3 completati
+    fase_successiva = Column(String, nullable=True)  # Dove l'operatore ha mandato l'ordine dopo
+    completamento_parziale = Column(Boolean, default=False)  # True = ordine non del tutto finito
     order = relationship('Order', back_populates='processing_steps')
 
 class OrderNotification(Base):
@@ -92,9 +81,18 @@ class User(Base):
     phase = Column(String)  # 'LASER', 'PIEGA', 'SALDATURA', 'ALL'
     permissions = Column(JSON, default=list)  # ['overview', 'lavorazione', 'supervisione', 'archive']
     machines = Column(JSON, default=list)  # ['CNC 01', 'Laser CO₂']
+    is_capo = Column(Boolean, default=False)  # True = capo officina, controllo totale
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class OperatorClient(Base):
+    """Assegnazioni fisse operatore-cliente"""
+    __tablename__ = 'operator_clients'
+    id = Column(String, primary_key=True)
+    operator_id = Column(String, ForeignKey('users.id'), nullable=False)
+    client_name = Column(String, nullable=False)  # Nome cliente (match esatto)
+    operator = relationship('User')
 
 class AuditLog(Base):
     """Log di audit per tracciare azioni degli utenti"""
@@ -145,38 +143,66 @@ def seed_users():
                 'machines': ['CNC 01', 'Laser CO₂']
             },
             {
-                'id': 'andrea-saldatura',
+                'id': 'andrea-officina',
                 'name': 'Andrea Bianchi',
-                'role': 'Operaio Saldatura',
+                'role': 'Operaio Officina',
                 'initials': 'AB',
-                'phase': 'SALDATURA',
+                'phase': 'OFFICINA',
                 'permissions': ['overview', 'lavorazione'],
-                'machines': ['Saldatrice MIG-1', 'Saldatrice TIG']
+                'machines': []
             },
             {
-                'id': 'sara-piega',
+                'id': 'sara-officina',
                 'name': 'Sara Neri',
-                'role': 'Operaio Piega',
+                'role': 'Operaio Officina',
                 'initials': 'SN',
-                'phase': 'PIEGA',
+                'phase': 'OFFICINA',
                 'permissions': ['overview', 'lavorazione'],
-                'machines': ['Piegatrice CLP-80', 'Piegatrice Idraulica']
+                'machines': []
+            },
+            {
+                'id': 'mario-officina',
+                'name': 'Mario Russo',
+                'role': 'Operaio Officina',
+                'initials': 'MRu',
+                'phase': 'OFFICINA',
+                'permissions': ['overview', 'lavorazione'],
+                'machines': []
+            },
+            {
+                'id': 'paolo-officina',
+                'name': 'Paolo Colombo',
+                'role': 'Operaio Officina',
+                'initials': 'PC',
+                'phase': 'OFFICINA',
+                'permissions': ['overview', 'lavorazione'],
+                'machines': []
+            },
+            {
+                'id': 'luca-officina',
+                'name': 'Luca Ferrari',
+                'role': 'Operaio Officina',
+                'initials': 'LF',
+                'phase': 'OFFICINA',
+                'permissions': ['overview', 'lavorazione'],
+                'machines': []
             },
             {
                 'id': 'giulia-impiegata',
                 'name': 'Giulia Gallo',
                 'role': 'Impiegata',
                 'initials': 'GG',
-                'phase': 'ALL',
+                'phase': None,
                 'permissions': ['overview', 'supervisione'],
-                'machines': ['Tutte']
+                'machines': []
             },
             {
-                'id': 'marco-admin',
+                'id': 'marco-capo',
                 'name': 'Marco Rossi',
-                'role': 'Supervisore',
+                'role': 'Capo Officina',
                 'initials': 'MR',
                 'phase': 'ALL',
+                'is_capo': True,
                 'permissions': ['overview', 'supervisione', 'lavorazione', 'archive'],
                 'machines': ['Tutte']
             },
@@ -186,6 +212,7 @@ def seed_users():
                 'role': 'Amministratore',
                 'initials': 'AD',
                 'phase': 'ALL',
+                'is_capo': True,
                 'permissions': ['overview', 'supervisione', 'lavorazione', 'archive'],
                 'machines': ['Tutte']
             }

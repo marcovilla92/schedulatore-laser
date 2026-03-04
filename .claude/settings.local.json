@@ -16,7 +16,9 @@
       "Skill(gsd:plan-phase)",
       "Skill(gsd:plan-phase:*)",
       "Bash(python:*)",
-      "Bash(powershell -Command \"Stop-Process -Name python -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\")"
+      "Bash(powershell -Command \"Stop-Process -Name python -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\")",
+      "Bash(claude logout --all)",
+      "Bash(claude logout)"
     ]
   }
 }

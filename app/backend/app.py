@@ -9,19 +9,7 @@ from pathlib import Path
 
 # Importa moduli locali
 from .models import initialize_database, Order, OrderFile, get_session
-from .database import OrderManager, UserManager, AuditManager, ArchiveManager, NotificationManager
-from .pdf_parser import extract_pdf_content
-
-# Estrattore universale (Docling + Gemini 2.0 Flash) — importato con guard
-# perche universal_extractor.py importa google.genai a livello modulo.
-# Se google-genai non e installato, Flask si avvia comunque usando i parser classici.
-try:
-    from .universal_extractor import extract_universal
-    from .universal_extractor import ExtractionError as UniversalExtractionError
-    _UNIVERSAL_EXTRACTOR_AVAILABLE = True
-except ImportError as _ue_import_err:
-    _UNIVERSAL_EXTRACTOR_AVAILABLE = False
-    print(f"[INFO] Estrattore universale non disponibile (ImportError): {_ue_import_err}")
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager, NotificationManager, OperatorClientManager, AlertManager, KPIManager
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
@@ -39,17 +27,95 @@ os.makedirs(PDFS_FOLDER, exist_ok=True)
 # Inizializza database
 initialize_database()
 
+# ============ UTILITÀ ESTRAZIONE PDF MINIMALE ============
+
+def extract_minimal_from_pdf(filepath: str) -> dict:
+    """
+    Estrae SOLO cliente e data consegna da un PDF usando regex semplici.
+    Questo sostituisce i 7 parser precedenti (2000+ righe di codice).
+
+    Returns:
+        {
+            "cliente": str | None,
+            "data_consegna": str (formato YYYY-MM-DD) | None,
+            "pdf_filename": str,
+            "estrattore": "minimal"
+        }
+    """
+    import PyPDF2
+    import re
+
+    try:
+        text = ""
+        try:
+            with open(filepath, 'rb') as f:
+                reader = PyPDF2.PdfReader(f)
+                for page in reader.pages:
+                    text += (page.extract_text() or "") + "\n"
+        except Exception as _pdf_err:
+            print(f"[WARN] Errore PyPDF2: {_pdf_err}, tentando fallback...")
+            text = ""
+
+        # Estrae CLIENTE con pattern flessibile
+        cliente = None
+        patterns_cliente = [
+            r'(?:cliente|spett\.?le|destinatario)[:\s]+([A-Z][^\n]{3,80})',
+            r'^([A-Z][A-Z\s\.\,&-]{3,80}?)(?:\n|s\.r\.l|spa|srl)',
+        ]
+        for pattern in patterns_cliente:
+            match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+            if match:
+                cliente = match.group(1).strip()
+                break
+
+        # Estrae DATA CONSEGNA
+        data_consegna = None
+        patterns_data = [
+            r'(?:consegna|delivery|scadenza|data\s+consegna)[^\d]*(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})',
+            r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})',
+        ]
+
+        for pattern in patterns_data:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                try:
+                    if len(match.groups()) >= 3:
+                        day, month, year = match.groups()
+                        year = int(year)
+                        if year < 100:
+                            year += 2000
+                        from datetime import datetime
+                        dt = datetime(year, int(month), int(day))
+                        data_consegna = dt.strftime("%Y-%m-%d")
+                        break
+                except (ValueError, IndexError):
+                    continue
+
+        pdf_filename = os.path.basename(filepath)
+
+        return {
+            "cliente": cliente,
+            "data_consegna": data_consegna,
+            "pdf_filename": pdf_filename,
+            "estrattore": "minimal"
+        }
+
+    except Exception as e:
+        print(f"[ERROR] extract_minimal_from_pdf: {e}")
+        return {
+            "cliente": None,
+            "data_consegna": None,
+            "pdf_filename": os.path.basename(filepath),
+            "estrattore": "minimal",
+            "error": str(e)
+        }
+
 # ============ FRONTEND ROUTES ============
 
 @app.route('/')
 def index():
     """Serve login page"""
     return send_from_directory(FRONTEND_FOLDER, 'login.html')
-
-@app.route('/ordini-estratti')
-def ordini_dashboard():
-    """Serve dashboard ordini estratti dai PDF"""
-    return send_from_directory(FRONTEND_FOLDER, 'ordini_estratti.html')
 
 @app.route('/<path:filename>')
 def serve_frontend(filename):
@@ -80,7 +146,8 @@ def login():
             'role': user['role'],
             'phase': user['phase'],
             'permissions': user['permissions'],
-            'machines': user['machines']
+            'machines': user['machines'],
+            'is_capo': user.get('is_capo', False)
         }), 200
 
     except Exception as e:
@@ -170,26 +237,22 @@ def delete_user(user_id):
 
 @app.route('/api/orders', methods=['POST'])
 def create_order():
-    """Crea un nuovo ordine con articoli"""
+    """Crea un nuovo ordine con routing dinamico"""
     try:
         data = request.get_json()
 
         order = OrderManager.create_order(
             cliente=data.get('cliente'),
             data_consegna=data.get('data_consegna'),
-            articles=data.get('articles', []),
-            required_phases=data.get('required_phases', ['LASER', 'PIEGA', 'SALDATURA']),
-            preventivo_minuti=data.get('preventivo_minuti', 0),
+            destinazione=data.get('destinazione', 'LASER'),
+            numero_ordine=data.get('numero_ordine'),
+            prezzo_quotato=data.get('prezzo_quotato'),
             note=data.get('note', '')
         )
 
-        # Registra i file (PDF e DXF) nel DB basato su nomi inviati dal frontend
-        import os
-
-        # Register file records with proper session management
+        # Registra i file (PDF e DXF) nel DB
         session = get_session()
         try:
-            # PDF file
             pdf_filename = data.get('pdf_filename')
             if pdf_filename:
                 pdfs_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'pdfs')
@@ -204,7 +267,6 @@ def create_order():
                     )
                     session.add(file_record)
 
-            # DXF files
             dxf_filenames = data.get('dxf_filenames', [])
             drawings_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'drawings')
             for dxf_filename in dxf_filenames:
@@ -223,14 +285,22 @@ def create_order():
         finally:
             session.close()
 
+        # Notifica capo officina + impiegata
+        NotificationManager.create_notification(
+            user_id='marco-capo',
+            order_id=order.id,
+            title='Nuovo ordine',
+            message=f'Ordine {order.cliente} inviato a {data.get("destinazione", "LASER")}',
+            notification_type='order'
+        )
+
         return jsonify({
             'success': True,
             'order_id': order.id,
             'cliente': order.cliente,
             'data_consegna': order.data_consegna.isoformat(),
-            'articles': order.articles,
-            'required_phases': order.required_phases,
-            'total_quantity': order.total_quantity
+            'fase_corrente': order.fase_corrente,
+            'operatore_assegnato': order.operatore_assegnato
         }), 201
 
     except Exception as e:
@@ -250,74 +320,38 @@ def get_order(order_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/orders/<order_id>/approve', methods=['POST'])
-def approve_order(order_id):
-    """Supervisore approva ordine e seleziona fasi"""
-    from .models import get_session, ProcessingStep
-    import uuid
-
+@app.route('/api/orders/<order_id>/pdf', methods=['GET'])
+def get_order_pdf(order_id):
+    """Serve il PDF dell'ordine inline (per iframe viewer)"""
     try:
-        data = request.get_json()
-        required_phases = data.get('required_phases', [])
-        operatore_id = data.get('operatore_id', 'unknown')
-
-        if not required_phases or len(required_phases) == 0:
-            return jsonify({'error': 'Seleziona almeno una fase'}), 400
-
         session = get_session()
         try:
-            # Aggiorna ordine con fasi selezionate
             order = session.query(Order).filter(Order.id == order_id).first()
             if not order:
                 return jsonify({'error': 'Ordine non trovato'}), 404
 
-            # Assegna fasi come JSON all'ordine
-            order.required_phases = required_phases
+            # Cerca il file PDF tra i file allegati
+            pdf_file = session.query(OrderFile).filter(
+                OrderFile.order_id == order_id,
+                OrderFile.file_type == 'PDF'
+            ).first()
 
-            # IMPORTANTE: Assegna fasi anche ai singoli articoli
-            # Altrimenti get_order_details non saprà quale fase assegnare a ogni articolo
-            from sqlalchemy.orm.attributes import flag_modified
-            for article in order.articles:
-                if 'required_phases' not in article or not article['required_phases']:
-                    article['required_phases'] = required_phases
-            flag_modified(order, 'articles')  # Notifica SQLAlchemy del cambiamento
+            if not pdf_file or not os.path.exists(pdf_file.filepath):
+                return jsonify({'error': 'PDF non trovato'}), 404
 
-            session.commit()
-
-            # Crea processing_steps per ogni fase selezionata
-            for phase in required_phases:
-                step = ProcessingStep(
-                    id=str(uuid.uuid4()),
-                    order_id=order_id,
-                    fase=phase
-                )
-                session.add(step)
-
-            session.commit()
-
-            # Audit log
-            AuditManager.log(
-                user_id=operatore_id,
-                action='APPROVE_ORDER',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f'Ordine approvato con fasi: {", ".join(required_phases)}'
+            # Serve il PDF inline per iframe
+            return send_file(
+                pdf_file.filepath,
+                mimetype='application/pdf',
+                as_attachment=False,
+                download_name=pdf_file.filename
             )
-
-            return jsonify({
-                'success': True,
-                'order_id': order_id,
-                'cliente': order.cliente,
-                'required_phases': required_phases
-            }), 200
 
         finally:
             session.close()
 
     except Exception as e:
-        print(f"[ERROR] Approve order error: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[ERROR] get_order_pdf: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/orders/<order_id>/dxf/<filename>', methods=['GET'])
@@ -347,85 +381,20 @@ def get_dxf_file(order_id, filename):
 
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
-    """Recupera lista ordini"""
+    """Recupera lista ordini con filtri per il nuovo workflow"""
     try:
         cliente = request.args.get('cliente')
         status = request.args.get('status')
-        orders_data = OrderManager.get_all_orders_dict(cliente=cliente, status=status)
+        fase_corrente = request.args.get('fase_corrente')
+        operatore = request.args.get('operatore')
+        orders_data = OrderManager.get_all_orders_dict(
+            cliente=cliente, status=status,
+            fase_corrente=fase_corrente, operatore=operatore
+        )
         return jsonify({'orders': orders_data}), 200
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/articles', methods=['PUT'])
-def update_order_articles(order_id):
-    """Aggiorna articoli di un ordine"""
-    try:
-        data = request.get_json()
-        articles = data.get('articles', [])
-        
-        success = OrderManager.update_order_articles(order_id, articles)
-        if success:
-            return jsonify({'success': True}), 200
-        return jsonify({'success': False, 'error': 'Ordine non trovato'}), 404
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/orders/confirm-phases', methods=['POST'])
-def confirm_phases():
-    """Crea ordine confermando fasi selezionate"""
-    try:
-        data = request.get_json() or {}
-
-        cliente = data.get('cliente')
-        data_consegna = data.get('data_consegna')
-        articles = data.get('articles', [])
-        selected_phases = data.get('selected_phases', [])
-        operatore_id = data.get('operatore_id')
-
-        if not cliente or not data_consegna or not articles or not selected_phases:
-            return jsonify({
-                'success': False,
-                'error': 'Parametri obbligatori: cliente, data_consegna, articles, selected_phases'
-            }), 400
-
-        # Crea ordine con fasi selezionate
-        order = OrderManager.create_order(
-            cliente=cliente,
-            data_consegna=data_consegna,
-            articles=articles,
-            required_phases=selected_phases,
-            preventivo_minuti=0,
-            note=''
-        )
-
-        # Registra azione nel audit log
-        if operatore_id:
-            operatore = UserManager.get_user(operatore_id)
-            operatore_name = operatore.get('name') if operatore else operatore_id
-            AuditManager.log(
-                user_id=operatore_id,
-                user_name=operatore_name,
-                action='CREA_ORDINE',
-                entity_type='order',
-                entity_id=order.id,
-                detail=f"Fasi: {', '.join(selected_phases)}",
-                ip_address=request.remote_addr
-            )
-
-        return jsonify({
-            'success': True,
-            'order_id': order.id,
-            'cliente': order.cliente,
-            'data_consegna': order.data_consegna.isoformat(),
-            'articles': order.articles,
-            'required_phases': selected_phases,
-            'total_quantity': order.total_quantity
-        }), 201
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
 
 # ============ API FASI ============
 
@@ -467,91 +436,63 @@ def start_phase(order_id, phase):
 
 @app.route('/api/orders/<order_id>/phase/<phase>/complete', methods=['POST'])
 def complete_phase(order_id, phase):
-    """Completa una fase e ritorna prossimi articoli"""
+    """Completa una fase con routing dinamico"""
     try:
         data = request.get_json() or {}
         note = data.get('note', '')
+        fase_successiva = data.get('fase_successiva')  # PIEGA, SALDATURA, PULIZIA, LASER, COMPLETATO
+        completamento_parziale = data.get('completamento_parziale', False)
         operatore_id = data.get('operatore_id')
 
-        # Se operatore_id è fornito, recupera il nome dal database per aggiornare processing_step
         operatore_name = ''
         if operatore_id:
             user = UserManager.get_user(operatore_id)
             operatore_name = user.get('name', operatore_id) if user else operatore_id
 
-        result = OrderManager.complete_phase(order_id, phase, note, operatore_name)
+        result = OrderManager.complete_phase(
+            order_id, phase,
+            fase_successiva=fase_successiva,
+            completamento_parziale=completamento_parziale,
+            note=note,
+            operatore=operatore_name
+        )
+
         if result.get('success'):
-            # Registra azione nel audit log
             if operatore_id:
-                operatore_user = UserManager.get_user(operatore_id)
-                operatore_name = operatore_user.get('name') if operatore_user else operatore_id
                 AuditManager.log(
                     user_id=operatore_id,
                     user_name=operatore_name,
                     action='COMPLETE_PHASE',
                     entity_type='phase',
                     entity_id=order_id,
-                    detail=f"Phase: {phase}",
+                    detail=f"Phase: {phase} -> {fase_successiva}",
                     ip_address=request.remote_addr
                 )
 
-            # Recupera dettagli aggiornati
+            # Notifica se ordine completato o parziale
+            if result.get('all_completed') or completamento_parziale:
+                status_text = "completato" if result.get('all_completed') else "parziale"
+                details = OrderManager.get_order_details(order_id)
+                NotificationManager.create_notification(
+                    user_id='giulia-impiegata',
+                    order_id=order_id,
+                    title=f'Ordine {status_text}',
+                    message=f'Ordine {details.get("cliente", "")} - {status_text}',
+                    notification_type='completion'
+                )
+                NotificationManager.create_notification(
+                    user_id='marco-capo',
+                    order_id=order_id,
+                    title=f'Ordine {status_text}',
+                    message=f'Ordine {details.get("cliente", "")} - {status_text}',
+                    notification_type='completion'
+                )
+
             details = OrderManager.get_order_details(order_id)
             return jsonify({
                 'success': True,
                 'phase': phase,
-                'order_details': details
-            }), 200
-
-        return jsonify(result), 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/phase/<phase>/complete-partial', methods=['POST'])
-def complete_phase_partial(order_id, phase):
-    """Completa una fase solo per articoli specifici (completamento parziale)"""
-    try:
-        data = request.get_json() or {}
-        article_indices = data.get('article_indices', [])  # Es: [0, 1, 3]
-        note = data.get('note', '')
-        operatore_id = data.get('operatore_id')
-
-        if not article_indices:
-            return jsonify({'success': False, 'error': 'Nessun articolo selezionato'}), 400
-
-        if not all(isinstance(i, int) and i >= 0 for i in article_indices):
-            return jsonify({'success': False, 'error': 'Indici articoli non validi'}), 400
-
-        # Se operatore_id è fornito, recupera il nome dal database
-        operatore_name = ''
-        if operatore_id:
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
-
-        result = OrderManager.complete_phase_partial(order_id, phase, article_indices, note, operatore_name)
-        if result.get('success'):
-            # Registra azione nel audit log
-            if operatore_id:
-                operatore_user = UserManager.get_user(operatore_id)
-                operatore_name = operatore_user.get('name') if operatore_user else operatore_id
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=operatore_name,
-                    action='COMPLETE_PHASE',
-                    entity_type='phase',
-                    entity_id=order_id,
-                    detail=f"Phase: {phase}, Articles: {article_indices}",
-                    ip_address=request.remote_addr
-                )
-
-            # Recupera dettagli aggiornati
-            details = OrderManager.get_order_details(order_id)
-            return jsonify({
-                'success': True,
-                'phase': phase,
-                'articles_completed': result.get('articles_completed'),
-                'phase_complete': result.get('phase_complete'),
+                'fase_successiva': fase_successiva,
                 'order_details': details
             }), 200
 
@@ -562,33 +503,214 @@ def complete_phase_partial(order_id, phase):
 
 @app.route('/api/phase/<phase>/orders', methods=['GET'])
 def get_orders_by_phase(phase):
-    """Recupera ordini per una fase specificata"""
+    """Recupera ordini per fase corrente"""
     try:
-        orders = OrderManager.get_orders_by_phase(phase)
-        
+        operatore_id = request.args.get('operatore')
+        orders = OrderManager.get_orders_by_phase(phase, operatore_id)
+
         result = []
         for order in orders:
-            # Per ogni ordine, calcola quali articoli hanno questa fase come prossima
             details = OrderManager.get_order_details(order.id)
-            articles_for_this_phase = [
-                a for a in details['articles'] 
-                if a['next_phase'] == phase
-            ]
-            
-            if articles_for_this_phase:
-                result.append({
-                    'id': order.id,
-                    'cliente': order.cliente,
-                    'total_quantity': order.total_quantity,
-                    'articles_next_phase': articles_for_this_phase,
-                    'data_consegna': order.data_consegna.isoformat(),
-                    'processing_steps': details.get('processing_steps', [])
-                })
-        
+            result.append(details)
+
         return jsonify(result), 200
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ============ API NUOVE: WORKFLOW DINAMICO ============
+
+@app.route('/api/orders/<order_id>/complete-laser', methods=['POST'])
+def complete_laser(order_id):
+    """Operatore laser: segna taglio completato"""
+    try:
+        data = request.get_json() or {}
+        operatore_id = data.get('operatore_id')
+
+        operatore_name = ''
+        if operatore_id:
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+
+        result = OrderManager.complete_laser(order_id, operatore_name)
+        if result.get('success'):
+            if operatore_id:
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=operatore_name,
+                    action='COMPLETE_LASER',
+                    entity_type='phase',
+                    entity_id=order_id,
+                    detail='Taglio laser completato'
+                )
+            return jsonify(result), 200
+        return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/send-to-laser', methods=['POST'])
+def send_to_laser(order_id):
+    """Operatore officina rimanda ordine al laser"""
+    try:
+        data = request.get_json() or {}
+        operatore_id = data.get('operatore_id')
+
+        result = OrderManager.send_to_laser(order_id, operatore_id or '')
+        if result.get('success'):
+            if operatore_id:
+                user = UserManager.get_user(operatore_id)
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=user.get('name') if user else operatore_id,
+                    action='SEND_TO_LASER',
+                    entity_type='order',
+                    entity_id=order_id
+                )
+            return jsonify(result), 200
+        return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/reassign', methods=['POST'])
+def reassign_order(order_id):
+    """Capo officina: riassegna ordine a un altro operatore"""
+    try:
+        data = request.get_json() or {}
+        new_operator_id = data.get('new_operator_id')
+
+        if not new_operator_id:
+            return jsonify({'success': False, 'error': 'new_operator_id obbligatorio'}), 400
+
+        result = OrderManager.reassign_order(order_id, new_operator_id)
+        if result.get('success'):
+            AuditManager.log(
+                user_id=data.get('capo_id', 'admin'),
+                action='REASSIGN_ORDER',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f'Riassegnato a {new_operator_id}'
+            )
+        return jsonify(result), 200 if result.get('success') else 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/correct-time', methods=['PUT'])
+def correct_time(order_id):
+    """Capo officina: corregge timestamp di una fase"""
+    try:
+        data = request.get_json() or {}
+        step_id = data.get('step_id')
+        new_start = data.get('timestamp_inizio')
+        new_end = data.get('timestamp_fine')
+
+        if not step_id:
+            return jsonify({'success': False, 'error': 'step_id obbligatorio'}), 400
+
+        result = OrderManager.correct_time(step_id, new_start, new_end)
+        if result.get('success'):
+            AuditManager.log(
+                user_id=data.get('capo_id', 'admin'),
+                action='CORRECT_TIME',
+                entity_type='phase',
+                entity_id=order_id,
+                detail=f'Step {step_id}: start={new_start}, end={new_end}'
+            )
+        return jsonify(result), 200 if result.get('success') else 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/move-phase', methods=['POST'])
+def move_phase(order_id):
+    """Capo officina: sposta ordine a qualsiasi fase"""
+    try:
+        data = request.get_json() or {}
+        new_phase = data.get('new_phase')
+
+        if not new_phase:
+            return jsonify({'success': False, 'error': 'new_phase obbligatorio'}), 400
+
+        result = OrderManager.move_phase(order_id, new_phase)
+        if result.get('success'):
+            AuditManager.log(
+                user_id=data.get('capo_id', 'admin'),
+                action='MOVE_PHASE',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f'Spostato a {new_phase}'
+            )
+        return jsonify(result), 200 if result.get('success') else 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ API OPERATOR-CLIENTS ============
+
+@app.route('/api/operator-clients', methods=['GET'])
+def get_operator_clients():
+    """Lista assegnazioni operatore-cliente"""
+    try:
+        operator_id = request.args.get('operator_id')
+        if operator_id:
+            assignments = OperatorClientManager.get_by_operator(operator_id)
+        else:
+            assignments = OperatorClientManager.get_all()
+        return jsonify({'success': True, 'assignments': assignments}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/operator-clients', methods=['POST'])
+def create_operator_client():
+    """Crea nuova assegnazione operatore-cliente"""
+    try:
+        data = request.get_json() or {}
+        operator_id = data.get('operator_id')
+        client_name = data.get('client_name')
+
+        if not operator_id or not client_name:
+            return jsonify({'success': False, 'error': 'operator_id e client_name obbligatori'}), 400
+
+        result = OperatorClientManager.create(operator_id, client_name)
+        return jsonify({'success': True, 'assignment': result}), 201
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/operator-clients/<assignment_id>', methods=['DELETE'])
+def delete_operator_client(assignment_id):
+    """Rimuovi assegnazione operatore-cliente"""
+    try:
+        success = OperatorClientManager.delete(assignment_id)
+        if success:
+            return jsonify({'success': True}), 200
+        return jsonify({'success': False, 'error': 'Assegnazione non trovata'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+# ============ API ALERTS ============
+
+@app.route('/api/alerts/check', methods=['GET'])
+def check_alerts():
+    """Controlla alert automatici (timer lunghi, ordini fermi, scadenze)"""
+    try:
+        alerts = AlertManager.check_alerts()
+        return jsonify({'success': True, 'alerts': alerts, 'count': len(alerts)}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ API KPI DASHBOARD ============
+
+@app.route('/api/kpi/dashboard', methods=['GET'])
+def get_kpi_dashboard():
+    """KPI operatori e fasi per dashboard Capo Officina"""
+    try:
+        result = KPIManager.get_dashboard_kpi()
+        return jsonify(result), 200 if result.get('success') else 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ============ API ADMIN ============
 
@@ -598,7 +720,7 @@ def get_admin_kpi():
     try:
         # Ordini attivi (non SPEDITO)
         all_orders = OrderManager.get_all_orders_dict()
-        active_orders = [o for o in all_orders if o.get('status') != 'SPEDITO']
+        active_orders = [o for o in all_orders if o.get('status') not in ('COMPLETATO', 'PARZIALE')]
         ordini_attivi = len(active_orders)
 
         # KPI operai
@@ -614,7 +736,7 @@ def get_admin_kpi():
         ])
 
         # Calcola efficienza: ordini completati on-time vs totali
-        completed_orders = [o for o in all_orders if o.get('status') == 'SPEDITO']
+        completed_orders = [o for o in all_orders if o.get('status') in ('COMPLETATO', 'PARZIALE')]
         if completed_orders:
             on_time = sum(1 for o in completed_orders if o.get('data_consegna') and dt.fromisoformat(o['data_consegna']).date() >= today)
             efficienza = int((on_time / len(completed_orders)) * 100)
@@ -753,74 +875,31 @@ def export_archive_csv():
 
 @app.route('/api/extract-pdf-data', methods=['POST'])
 def extract_pdf_data():
-    """Estrae dati dal PDF caricato"""
-    print("\n" + "="*70)
-    print("[RECEIVE] /api/extract-pdf-data")
-    print("="*70)
-
+    """Estrae SOLO cliente e data consegna dal PDF caricato (parsing minimale)"""
     try:
-        print("[CHECK] Verifica file caricato...")
         if 'file' not in request.files:
-            print("[ERROR] Nessun file caricato")
             return jsonify({'error': 'Nessun file caricato'}), 400
 
         file = request.files['file']
-        print(f"   [OK] File ricevuto: {file.filename}")
 
-        if file.filename == '':
-            print("[ERROR] File non selezionato")
-            return jsonify({'error': 'File non selezionato'}), 400
-
-        if not file.filename.lower().endswith('.pdf'):
-            print(f"[ERROR] File non è PDF: {file.filename}")
+        if file.filename == '' or not file.filename.lower().endswith('.pdf'):
             return jsonify({'error': 'Solo file PDF sono supportati'}), 400
 
-        print(f"   [OK] File è un PDF valido")
-
-        # Salva temporaneamente e processa
-        filepath = os.path.join(PDFS_FOLDER, file.filename)
-        print(f"   [SAVE] {filepath}")
+        # Salva il file
+        pdf_filename = f"{uuid.uuid4()}_{file.filename}"
+        filepath = os.path.join(PDFS_FOLDER, pdf_filename)
         file.save(filepath)
-        print(f"   [OK] File salvato")
-        
-        # Estrae contenuto
-        print(f"   -> Inizio estrazione PDF...")
-        sys.stdout.flush()
 
-        if _UNIVERSAL_EXTRACTOR_AVAILABLE:
-            try:
-                print(f"   -> Estrattore universale (Docling + Gemini)...")
-                sys.stdout.flush()
-                pdf_data = extract_universal(filepath)
-                print(f"   OK Universale: {len(pdf_data.get('articoli', []))} articoli, estrattore={pdf_data.get('estrattore')}")
-                sys.stdout.flush()
-            except UniversalExtractionError as _ue_exc:
-                print(f"   [FALLBACK] Universale non disponibile: {_ue_exc}")
-                print(f"   -> Parser classici in uso...")
-                sys.stdout.flush()
-                pdf_data = extract_pdf_content(filepath)
-                pdf_data["estrattore"] = "legacy"
-        else:
-            pdf_data = extract_pdf_content(filepath)
-            pdf_data["estrattore"] = "legacy"
+        # Estrai SOLO cliente + data consegna (parsing minimale)
+        pdf_data = extract_minimal_from_pdf(filepath)
 
-        print(f"\n   Estrazione completata!")
-        print(f"   [CLIENT] {pdf_data.get('cliente', 'N/A')}")
-        print(f"   [ITEMS] {len(pdf_data.get('articoli', []))} articoli")
-        print("="*70 + "\n")
-        sys.stdout.flush()
-        
         return jsonify({
             'success': True,
             'data': pdf_data
         }), 200
-        
+
     except Exception as e:
-        print(f"\n[ERROR] {str(e)}")
-        import traceback
-        traceback.print_exc()
-        print("="*70 + "\n")
-        sys.stdout.flush()
+        print(f"[ERROR] extract_pdf_data: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/upload-drawing', methods=['POST'])
@@ -851,88 +930,6 @@ def upload_drawing():
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'online', 'timestamp': datetime.utcnow().isoformat()}), 200
-
-# ============ PDF PROCESSING ============
-
-@app.route('/api/process-pdfs', methods=['POST'])
-def process_pdfs():
-    """Processa tutti i PDFs dalla cartella ORDINI ed estrae dati"""
-    try:
-        ordini_folder = request.json.get('folder_path', '')
-        if not ordini_folder:
-            return jsonify({'error': 'Parametro folder_path obbligatorio'}), 400
-        
-        if not os.path.exists(ordini_folder):
-            return jsonify({'error': f'Cartella non trovata: {ordini_folder}'}), 400
-        
-        # Raccogli tutti i PDF
-        pdf_files = [f for f in os.listdir(ordini_folder) if f.lower().endswith('.pdf')]
-        
-        results = []
-        errors = []
-        
-        for pdf_file in pdf_files:
-            try:
-                pdf_path = os.path.join(ordini_folder, pdf_file)
-                
-                # Estrai dati dal PDF
-                pdf_data = extract_pdf_content(pdf_path)
-                
-                # Crea ordine nel database se i dati essenziali ci sono
-                if pdf_data.get('numero_ordine') and pdf_data.get('articoli'):
-                    order = OrderManager.create_order(
-                        cliente=pdf_data.get('cliente', 'Sconosciuto'),
-                        data_consegna=(pdf_data.get('data_consegna') or datetime.now().isoformat()),
-                        articles=pdf_data.get('articoli', []),
-                        note=f"Estratto da: {pdf_file}"
-                    )
-                    
-                    results.append({
-                        'pdf_file': pdf_file,
-                        'order_id': order.id,
-                        'cliente': order.cliente,
-                        'numero_ordine': pdf_data.get('numero_ordine'),
-                        'articoli_count': len(pdf_data.get('articoli', [])),
-                        'status': 'success'
-                    })
-                else:
-                    errors.append({
-                        'pdf_file': pdf_file,
-                        'error': 'Dati insufficienti per creare ordine'
-                    })
-                    
-            except Exception as e:
-                errors.append({
-                    'pdf_file': pdf_file,
-                    'error': str(e)[:100]
-                })
-        
-        return jsonify({
-            'success': True,
-            'processed': len(results),
-            'errors': len(errors),
-            'results': results,
-            'error_details': errors
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-
-@app.route('/api/extracted-orders', methods=['GET'])
-def get_extracted_orders():
-    """Recupera ordini estratti dai PDFs"""
-    try:
-        orders = OrderManager.get_all_orders_dict()
-        
-        return jsonify({
-            'success': True,
-            'count': len(orders),
-            'orders': orders
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
 
 # ============ NOTIFICATION SYSTEM (WhatsApp-like) ============
 
