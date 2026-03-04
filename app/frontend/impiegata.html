@@ -279,13 +279,11 @@ textarea.form-input { resize: vertical; min-height: 70px; padding: 10px 12px; he
   background: var(--white);
 }
 .dest-option input[type="radio"] { display: none; }
-.dest-option .dest-icon { font-size: 20px; }
 .dest-option .dest-text { font-size: 14px; font-weight: 700; }
 .dest-option.selected-laser {
   border-color: var(--blue);
   background: var(--blue-bg);
 }
-.dest-option.selected-laser .dest-icon,
 .dest-option.selected-laser .dest-text { color: var(--blue); }
 .dest-option.selected-officina {
   border-color: var(--gray-text);
@@ -596,13 +594,13 @@ textarea.form-input { resize: vertical; min-height: 70px; padding: 10px 12px; he
       <div class="form-title">Carica Nuovo Ordine</div>
       <div class="form-sub">Carica il PDF dell'ordine e seleziona la destinazione iniziale.</div>
 
-      <!-- 1️⃣ FILE PDF - PRINCIPALE -->
+      <!-- FILE PDF - PRINCIPALE -->
       <div class="form-group">
-        <label class="form-label">📄 File PDF Ordine (obbligatorio)</label>
+        <label class="form-label">File PDF Ordine</label>
         <div class="upload-area upload-primary" id="pdf-upload-area" onclick="document.getElementById('pdf-input').click()">
-          <span class="upload-icon">📤</span>
-          <span class="upload-text">Trascina il PDF qui o clicca</span>
-          <span class="upload-subtext">Formati supportati: PDF</span>
+          <span class="upload-icon">⬆</span>
+          <span class="upload-text">Carica PDF dell'ordine</span>
+          <span class="upload-subtext">Oppure trascina il file qui</span>
         </div>
         <input type="file" id="pdf-input" accept=".pdf">
         <div class="pdf-preview" id="pdf-preview">
@@ -610,19 +608,19 @@ textarea.form-input { resize: vertical; min-height: 70px; padding: 10px 12px; he
         </div>
       </div>
 
-      <!-- 2️⃣ FILE DXF/DWG - IMPORTANTE -->
+      <!-- FILE DXF/DWG - IMPORTANTE -->
       <div class="form-group">
-        <label class="form-label">🎨 Disegni Tecnici (DXF/DWG)</label>
+        <label class="form-label">Disegni Tecnici</label>
         <div class="upload-area upload-secondary" onclick="document.getElementById('dxf-input').click()">
-          <span class="upload-icon">📋</span>
-          <span class="upload-text">Trascina i file qui o clicca</span>
-          <span class="upload-subtext">Supporta file multipli (DXF, DWG)</span>
+          <span class="upload-icon">⬆</span>
+          <span class="upload-text">Carica disegni (DXF/DWG)</span>
+          <span class="upload-subtext">Oppure trascina i file qui - supporta file multipli</span>
         </div>
         <input type="file" id="dxf-input" accept=".dxf,.dwg" multiple>
         <div class="dxf-files-list" id="dxf-list"></div>
       </div>
 
-      <!-- 3️⃣ DATI ORDINE -->
+      <!-- DATI ORDINE -->
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Cliente</label>
@@ -642,10 +640,10 @@ textarea.form-input { resize: vertical; min-height: 70px; padding: 10px 12px; he
         </div>
       </div>
 
-      <!-- 4️⃣ NOTE AGGIUNTIVE -->
+      <!-- NOTE -->
       <div class="form-group">
-        <label class="form-label">Note Aggiuntive</label>
-        <textarea id="mod-note" class="form-input" placeholder="Aggiungi note se necessario..."></textarea>
+        <label class="form-label">Note</label>
+        <textarea id="mod-note" class="form-input" placeholder="Note aggiuntive..."></textarea>
       </div>
 
       <div class="dest-section">
@@ -653,12 +651,10 @@ textarea.form-input { resize: vertical; min-height: 70px; padding: 10px 12px; he
         <div class="dest-row">
           <label class="dest-option selected-laser" id="dest-laser-label" onclick="selectDest('laser')">
             <input type="radio" name="destinazione" value="LASER" id="dest-laser" checked>
-            <span class="dest-icon">&#9889;</span>
             <span class="dest-text">LASER</span>
           </label>
           <label class="dest-option" id="dest-officina-label" onclick="selectDest('officina')">
             <input type="radio" name="destinazione" value="OFFICINA" id="dest-officina">
-            <span class="dest-icon">&#128295;</span>
             <span class="dest-text">OFFICINA</span>
           </label>
         </div>
