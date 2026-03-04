@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Dettaglio Ordine</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+:root {
+  --ls-green: #1a7a48;
+  --ls-green-light: #22a060;
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --gray-text: #666666;
+  --border: #e5e5e5;
+  --orange: #f97316;
+  --blue: #3b82f6;
+  --purple: #8b5cf6;
+  --green-light: #22c55e;
+  --green-badge-bg: #dcfce7;
+  --orange-bg: #fef3c7;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--white);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* TOPBAR */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; z-index: 1000;
+}
+
+.logo-section {
+  display: flex; align-items: center; gap: 12px;
+  text-decoration: none; color: inherit; cursor: pointer; transition: opacity 0.2s;
+}
+.logo-section:hover { opacity: 0.8; }
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 900; font-size: 16px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 15px; font-weight: 900; letter-spacing: -0.5px; }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--ls-green); }
+
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+.btn-home {
+  background: var(--ls-green); color: white; border: none;
+  padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.btn-home:hover { opacity: 0.9; }
+
+.btn-logout {
+  background: var(--white); border: 1px solid var(--border);
+  padding: 8px 16px; border-radius: 6px; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-logout:hover { background: var(--bg); }
+
+/* MAIN AREA */
+.main-area {
+  margin-top: 64px;
+  display: flex;
+  height: calc(100vh - 64px);
+}
+
+/* LEFT COLUMN */
+.left-col {
+  flex: 1;
+  background: #f8fafc;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.back-link {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; color: var(--black);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--ls-green); }
+
+.pdf-viewer {
+  flex: 1;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+}
+
+.pdf-info {
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.pdf-info-sub {
+  font-size: 12px;
+  color: var(--gray-text);
+}
+
+.pdf-iframe {
+  flex: 1;
+  border: none;
+  width: 100%;
+}
+
+.dxf-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+.dxf-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--white);
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--black);
+  transition: border-color 0.2s;
+}
+.dxf-btn:hover { border-color: var(--ls-green); }
+
+/* RIGHT COLUMN */
+.right-col {
+  width: 440px;
+  background: var(--white);
+  border-left: 1px solid var(--border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+/* ORDER HEADER */
+.order-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.order-meta {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+
+.meta-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.meta-badge.art { background: #f1f5f9; color: var(--gray-text); }
+.meta-badge.date { background: var(--orange-bg); color: #92400e; }
+.meta-badge.status-ok { background: var(--green-badge-bg); color: #166534; }
+
+/* SECTIONS */
+.section { display: flex; flex-direction: column; gap: 8px; }
+.section-label { font-size: 12px; font-weight: 600; color: var(--gray-text); }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.status-badge.active { background: var(--green-badge-bg); color: #166534; }
+.status-badge.waiting { background: #f1f5f9; color: var(--gray-text); }
+.status-badge.done { background: var(--green-badge-bg); color: #166534; }
+
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ACTION SECTION */
+.action-title { font-size: 16px; font-weight: bold; }
+.action-subtitle { font-size: 13px; color: var(--gray-text); }
+
+.action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.phase-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid;
+  transition: opacity 0.2s;
+  width: 100%;
+  text-align: left;
+}
+.phase-btn:hover { opacity: 0.85; }
+
+.phase-btn.laser { background: #fff7ed; border-color: var(--orange); color: var(--orange); }
+.phase-btn.piega { background: #eff6ff; border-color: var(--blue); color: var(--blue); }
+.phase-btn.saldatura { background: #faf5ff; border-color: var(--purple); color: var(--purple); }
+.phase-btn.pulizia { background: #f0fdf4; border-color: var(--green-light); color: #166534; }
+.phase-btn.finito {
+  background: var(--ls-green); border-color: var(--ls-green); color: white;
+  justify-content: center;
+}
+
+.phase-btn-label { flex: 1; }
+.phase-btn-arrow { font-size: 16px; }
+
+/* NOTE */
+.note-input {
+  width: 100%;
+  height: 60px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.note-input:focus { outline: none; border-color: var(--ls-green); }
+
+/* STORICO */
+.storico-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  font-size: 12px;
+}
+
+.storico-icon { color: var(--ls-green); font-size: 14px; }
+
+/* MESSAGE */
+.message {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  padding: 12px 24px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; z-index: 3000;
+  transition: transform 0.3s; pointer-events: none;
+}
+.message.active { transform: translateX(-50%) translateY(0); }
+.message.success { background: var(--green-badge-bg); color: #166534; }
+.message.error { background: #fee2e2; color: #991b1b; }
+
+@media (max-width: 900px) {
+  .main-area { flex-direction: column; height: auto; }
+  .right-col { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  .left-col { min-height: 50vh; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="logo-section" href="/login.html">
+    <div class="logo-icon">&#10022;</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS</div>
+    </div>
+  </a>
+  <div class="topbar-actions">
+    <button class="btn-home" onclick="window.location.href='/login.html'">Home</button>
+    <button class="btn-logout" onclick="logout()">Esci</button>
+  </div>
+</div>
+
+<div class="main-area">
+  <!-- LEFT: PDF + DXF -->
+  <div class="left-col">
+    <a class="back-link" id="back-link" href="/officina.html">&larr; Torna alla lista</a>
+
+    <div class="pdf-viewer">
+      <div class="pdf-info">
+        <span id="pdf-label">PDF Ordine</span>
+      </div>
+      <div class="pdf-info pdf-info-sub" id="pdf-sub"></div>
+      <iframe class="pdf-iframe" id="pdf-iframe"></iframe>
+    </div>
+
+    <div class="dxf-row" id="dxf-row"></div>
+  </div>
+
+  <!-- RIGHT: DETAILS -->
+  <div class="right-col" id="right-col">
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray-text);">Caricamento...</div>
+  </div>
+</div>
+
+<div class="message" id="status-message"></div>
+
+<script>
+const API_URL = 'http://localhost:5000';
+let currentUser = null;
+let order = null;
+
+// === SESSION & INIT ===
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('currentUser');
+  if (!saved) { window.location.href = '/login.html'; return; }
+  currentUser = JSON.parse(saved);
+  if (!currentUser.id) { window.location.href = '/login.html'; return; }
+
+  // Set back link based on user phase
+  const backLink = document.getElementById('back-link');
+  if (currentUser.phase === 'LASER') {
+    backLink.href = '/laser-v2.html';
+  } else {
+    backLink.href = '/officina.html';
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('id');
+  if (!orderId) {
+    document.getElementById('right-col').innerHTML = '<div style="padding:40px;color:var(--gray-text);text-align:center;">Nessun ordine specificato</div>';
+    return;
+  }
+
+  loadOrder(orderId);
+});
+
+// === LOAD ORDER ===
+async function loadOrder(orderId) {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}`);
+    order = await resp.json();
+    renderLeft();
+    renderRight();
+  } catch (err) {
+    console.error('Errore caricamento ordine:', err);
+    document.getElementById('right-col').innerHTML = '<div style="padding:40px;color:var(--gray-text);text-align:center;">Errore caricamento ordine</div>';
+  }
+}
+
+// === RENDER LEFT ===
+function renderLeft() {
+  const consegna = order.data_consegna ? new Date(order.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+  document.getElementById('pdf-label').textContent = `PDF Ordine - ${escapeHtml(order.numero_ordine || order.id?.substring(0, 8))}`;
+  document.getElementById('pdf-sub').textContent = `${escapeHtml(order.cliente)} \u2014 Scadenza: ${consegna}`;
+  document.getElementById('pdf-iframe').src = `${API_URL}/api/orders/${order.id}/pdf`;
+
+  // DXF files
+  const dxfFiles = order.dxf_files || [];
+  const dxfRow = document.getElementById('dxf-row');
+  if (dxfFiles.length > 0) {
+    dxfRow.innerHTML = dxfFiles.map(f =>
+      `<a class="dxf-btn" href="${API_URL}/api/orders/${order.id}/dxf/${encodeURIComponent(f.filename)}" target="_blank">&#128196; ${escapeHtml(f.filename)}</a>`
+    ).join('');
+  }
+}
+
+// === RENDER RIGHT ===
+function renderRight() {
+  const panel = document.getElementById('right-col');
+  const consegna = order.data_consegna ? new Date(order.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+  const articles = order.articles || [];
+  const steps = order.processing_steps || [];
+
+  // Current status
+  const phase = order.fase_corrente;
+  const activeStep = steps.find(s => s.timestamp_inizio && !s.timestamp_fine);
+  let statusText = 'Ricevuto';
+  let statusClass = 'waiting';
+  if (activeStep) { statusText = `In lavorazione: ${activeStep.fase}`; statusClass = 'active'; }
+  else if (order.status === 'COMPLETATO') { statusText = 'Completato'; statusClass = 'done'; }
+  else if (phase && phase !== 'COMPLETATO') { statusText = `In attesa fase: ${phase}`; statusClass = 'waiting'; }
+
+  let html = `
+    <!-- Order Header -->
+    <div class="section" style="gap:6px;">
+      <div class="order-title">${escapeHtml(order.numero_ordine || order.id?.substring(0, 8))} &mdash; ${escapeHtml(order.cliente)}</div>
+      <div class="order-meta">
+        <span class="meta-badge art">${articles.length} articoli</span>
+        <span class="meta-badge date">Consegna: ${consegna}</span>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="section">
+      <div class="section-label">Stato attuale</div>
+      <div><span class="status-badge ${statusClass}">${statusText}</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Actions -->
+    <div class="section" style="gap:12px;">
+      <div class="action-title">Cosa vuoi fare?</div>
+      <div class="action-subtitle">Scegli la prossima azione per questo ordine</div>
+      <div class="action-btns">
+        ${!activeStep && order.status !== 'COMPLETATO' ? `
+          <button class="phase-btn laser" onclick="moveToPhase('LASER')">
+            <span>&#9889;</span>
+            <span class="phase-btn-label">Manda al Laser</span>
+            <span class="phase-btn-arrow">&rarr;</span>
+          </button>
+          <button class="phase-btn piega" onclick="moveToPhase('PIEGA')">
+            <span>&#9881;</span>
+            <span class="phase-btn-label">Manda alla Piega</span>
+            <span class="phase-btn-arrow">&rarr;</span>
+          </button>
+          <button class="phase-btn saldatura" onclick="moveToPhase('SALDATURA')">
+            <span>&#128293;</span>
+            <span class="phase-btn-label">Manda alla Saldatura</span>
+            <span class="phase-btn-arrow">&rarr;</span>
+          </button>
+          <button class="phase-btn pulizia" onclick="moveToPhase('PULIZIA')">
+            <span>&#10024;</span>
+            <span class="phase-btn-label">Manda alla Pulizia</span>
+            <span class="phase-btn-arrow">&rarr;</span>
+          </button>
+          <button class="phase-btn finito" onclick="markComplete()">
+            <span>&#10004;</span>
+            <span>Segna come Finito</span>
+          </button>
+        ` : activeStep ? `
+          <button class="phase-btn finito" onclick="completeCurrentPhase()">
+            <span>&#10004;</span>
+            <span>Completa fase ${activeStep.fase}</span>
+          </button>
+        ` : `
+          <div style="padding:16px;background:var(--green-badge-bg);border-radius:8px;text-align:center;color:#166534;font-weight:600;">Ordine completato</div>
+        `}
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Notes -->
+    <div class="section">
+      <div class="section-label">Note (opzionale)</div>
+      <textarea class="note-input" id="note-input" placeholder="Aggiungi note per questo ordine...">${escapeHtml(order.note || '')}</textarea>
+    </div>
+
+    <!-- History -->
+    <div class="section">
+      <div class="section-label">Storico fasi</div>
+      ${steps.length > 0 ? steps.map(s => {
+        const done = s.timestamp_fine;
+        const dateStr = done
+          ? new Date(s.timestamp_fine).toLocaleDateString('it-IT') + ' ore ' + new Date(s.timestamp_fine).toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})
+          : s.timestamp_inizio
+            ? 'iniziato ' + new Date(s.timestamp_inizio).toLocaleDateString('it-IT')
+            : '';
+        const icon = done ? '&#10004;' : '&#9679;';
+        return `<div class="storico-item">
+          <span class="storico-icon">${icon}</span>
+          <span>${s.fase} &mdash; ${done ? 'completato' : 'in corso'} ${dateStr}${s.operatore ? ' (' + escapeHtml(s.operatore) + ')' : ''}</span>
+        </div>`;
+      }).join('') : '<div style="font-size:12px;color:var(--gray-text);">Nessuna fase registrata</div>'}
+    </div>
+  `;
+
+  panel.innerHTML = html;
+}
+
+// === ACTIONS ===
+async function moveToPhase(newPhase) {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${order.id}/move-phase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_phase: newPhase, capo_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage(`Ordine spostato a ${newPhase}`, 'success');
+      await loadOrder(order.id);
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile spostare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function completeCurrentPhase() {
+  const step = (order.processing_steps || []).find(s => s.timestamp_inizio && !s.timestamp_fine);
+  if (!step) return;
+
+  const note = document.getElementById('note-input')?.value || '';
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${order.id}/phase/${step.fase}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id, note })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Fase completata!', 'success');
+      await loadOrder(order.id);
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile completare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function markComplete() {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${order.id}/phase/COMPLETATO/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Ordine completato!', 'success');
+      await loadOrder(order.id);
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile completare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+// === UTILS ===
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showMessage(text, type) {
+  const msg = document.getElementById('status-message');
+  msg.textContent = text;
+  msg.className = 'message active ' + type;
+  setTimeout(() => msg.classList.remove('active'), 4000);
+}
+
+async function logout() {
+  try {
+    if (currentUser?.id) {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser.id })
+      });
+    }
+  } catch (_) {}
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+</script>
+
+</body>
+</html>

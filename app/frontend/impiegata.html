@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Impiegata</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+:root {
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --green: #1a7a48;
+  --green-light: #22a060;
+  --gray-text: #666666;
+  --gray-muted: #999999;
+  --border: #e5e5e5;
+  --blue: #1e40af;
+  --blue-bg: #dbeafe;
+  --red: #991b1b;
+  --red-bg: #fee2e2;
+  --orange: #92400e;
+  --orange-bg: #fef3c7;
+  --green-badge: #166534;
+  --green-badge-bg: #dcfce7;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--black);
+}
+
+/* === TOPBAR === */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: -0.5px; color: var(--black); }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--green); }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-home {
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-home:hover { opacity: 0.9; }
+
+.btn-logout {
+  background: var(--white);
+  color: var(--black);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-logout:hover { background: var(--bg); border-color: var(--gray-text); }
+
+/* === TAB BAR === */
+.tab-bar {
+  position: fixed;
+  top: 64px;
+  left: 0; right: 0;
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--white);
+  padding: 0 48px;
+  z-index: 999;
+}
+
+.tab-item {
+  padding: 16px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-text);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+  user-select: none;
+}
+.tab-item.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-item:hover:not(.active) { color: var(--black); background: rgba(26,122,72,0.03); }
+
+/* === TAB PANELS === */
+.tab-panel { display: none; margin-top: 120px; }
+.tab-panel.active { display: block; }
+
+/* === CARICA ORDINE TAB === */
+.carica-body {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+  min-height: calc(100vh - 120px);
+}
+
+.form-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  width: 640px;
+  max-width: 95vw;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--black);
+}
+
+.form-sub {
+  font-size: 14px;
+  color: var(--gray-text);
+  margin-top: -16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-text);
+}
+
+.form-input {
+  border: 1px solid var(--border);
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: var(--black);
+  background: var(--white);
+  transition: border 0.2s;
+}
+.form-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+textarea.form-input { resize: vertical; min-height: 70px; padding: 10px 12px; height: auto; }
+
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg);
+  flex: 1;
+}
+.upload-area:hover { border-color: var(--green); background: rgba(26,122,72,0.02); }
+.upload-area.active { border-color: var(--green); background: rgba(26,122,72,0.05); }
+.upload-icon { font-size: 36px; color: var(--gray-text); }
+.upload-text { font-size: 14px; font-weight: 500; color: var(--gray-text); }
+
+#pdf-input, #dxf-input { display: none; }
+
+.pdf-preview { border: 1px solid var(--border); border-radius: 8px; height: 200px; background: white; overflow: hidden; display: none; margin-top: 8px; }
+.pdf-preview.active { display: block; }
+.pdf-preview iframe { width: 100%; height: 100%; border: none; }
+
+.dxf-files-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto; }
+.dxf-item { background: var(--bg); padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.dxf-remove-btn { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+
+.dest-section { display: flex; flex-direction: column; gap: 8px; }
+.dest-label { font-size: 11px; font-weight: 600; color: var(--gray-text); }
+.dest-row { display: flex; gap: 12px; }
+
+.dest-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 56px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--white);
+}
+.dest-option input[type="radio"] { display: none; }
+.dest-option .dest-icon { font-size: 20px; }
+.dest-option .dest-text { font-size: 14px; font-weight: 700; }
+.dest-option.selected-laser {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+}
+.dest-option.selected-laser .dest-icon,
+.dest-option.selected-laser .dest-text { color: var(--blue); }
+.dest-option.selected-officina {
+  border-color: var(--gray-text);
+  background: var(--bg);
+}
+
+.btn-submit {
+  width: 100%;
+  height: 48px;
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: 0.9; }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.message { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
+.message.active { display: block; }
+.message.success { background: rgba(34,197,94,0.1); color: #15803d; }
+.message.error { background: rgba(239,68,68,0.1); color: #991b1b; }
+
+/* === CALENDARIO TAB === */
+.cal-container { display: flex; height: calc(100vh - 120px); }
+
+.cal-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 32px;
+  gap: 16px;
+}
+
+.cal-right {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--white);
+  border-left: 1px solid var(--border);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cal-nav-btns { display: flex; gap: 8px; }
+
+.cal-nav-btn {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+.cal-nav-btn:hover { background: var(--bg); border-color: var(--green); }
+
+.cal-today-btn {
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+.cal-today-btn:hover { opacity: 0.9; }
+
+.cal-nav-title { font-size: 20px; font-weight: 700; }
+
+.cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.cal-header-row {
+  display: flex;
+  gap: 4px;
+}
+
+.cal-header {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.cal-week-row {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.cal-day {
+  flex: 1;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 70px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.cal-day:hover { border-color: var(--green); box-shadow: 0 2px 6px rgba(26,122,72,0.1); }
+.cal-day.today { border: 2px solid var(--green); background: rgba(26,122,72,0.06); }
+.cal-day.selected { border: 2px solid var(--green); background: rgba(26,122,72,0.08); }
+.cal-day.other-month { opacity: 0.35; }
+
+.cal-day-num { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.cal-day-count { font-size: 10px; font-weight: 700; color: var(--green); }
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: auto; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.cal-detail-title { font-size: 18px; font-weight: 700; }
+.cal-detail-sub { font-size: 13px; color: var(--gray-text); }
+
+.cal-order-card {
+  padding: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-order-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); transform: translateY(-1px); }
+
+.progress-bar-bg { height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+/* === ORDINI TAB === */
+.ordini-container { padding: 32px 48px; max-width: 1400px; margin: 0 auto; }
+.page-title { font-family: 'Geist', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 24px; }
+
+.search-wrap { position: relative; margin-bottom: 16px; }
+.search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--gray-text); }
+.search-box {
+  width: 100%;
+  padding: 14px 16px 14px 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--white);
+  transition: border 0.2s;
+}
+.search-box:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+
+.filter-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+.filter-label { font-size: 12px; font-weight: 700; color: var(--gray-text); margin-right: 4px; text-transform: uppercase; }
+
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+.chip.active { background: var(--green); color: white; border-color: var(--green); }
+.chip:hover:not(.active) { background: var(--bg); border-color: var(--green); }
+
+.ordini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ordini-table thead { background: #f1f5f9; }
+.ordini-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.ordini-table th:hover { color: var(--green); }
+.ordini-table td { padding: 12px 14px; border-top: 1px solid var(--border); }
+.ordini-table tbody tr { transition: background 0.15s; }
+.ordini-table tbody tr:hover { background: rgba(26,122,72,0.02); }
+
+.fase-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+
+.pdf-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.pdf-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* === PDF MODALE === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+  background: var(--white);
+  width: 80%;
+  height: 85%;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-text); }
+.modal-body { flex: 1; }
+.modal-body iframe { width: 100%; height: 100%; border: none; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1024px) {
+  .cal-container { flex-direction: column; height: auto; }
+  .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  .topbar, .tab-bar { padding: 0 24px; }
+  .ordini-container { padding: 24px; }
+  .form-row { flex-direction: column; }
+  .form-card { width: 95vw; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="logo-section" href="/impiegata.html">
+    <div class="logo-icon">&#10022;</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS</div>
+    </div>
+  </a>
+  <div class="topbar-actions">
+    <button class="btn-home" onclick="window.location.href='/impiegata.html'">Home</button>
+    <button class="btn-logout" onclick="logout()">Esci</button>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-item active" data-tab="carica" onclick="switchTab('carica')">Carica Ordine</div>
+  <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
+  <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
+</div>
+
+<!-- ===================== TAB 1: CARICA ORDINE ===================== -->
+<div class="tab-panel active" id="panel-carica">
+  <div class="carica-body">
+    <div class="form-card">
+      <div class="form-title">Carica Nuovo Ordine</div>
+      <div class="form-sub">Carica il PDF dell'ordine e seleziona la destinazione iniziale.</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <input type="text" id="mod-cliente" class="form-input" placeholder="ABC S.r.l.">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data Consegna</label>
+          <input type="date" id="mod-data" class="form-input">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prezzo Quotato (&euro;)</label>
+          <input type="number" id="mod-prezzo" class="form-input" placeholder="500.00" step="0.01" min="0">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">File PDF</label>
+          <div class="upload-area" id="pdf-upload-area" onclick="document.getElementById('pdf-input').click()">
+            <span class="upload-icon">&#8593;</span>
+            <span class="upload-text">Trascina PDF qui</span>
+          </div>
+          <input type="file" id="pdf-input" accept=".pdf">
+        </div>
+      </div>
+
+      <div class="pdf-preview" id="pdf-preview">
+        <iframe id="pdf-iframe"></iframe>
+      </div>
+
+      <div class="form-row" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Numero Ordine</label>
+          <input type="text" id="mod-numero" class="form-input" placeholder="Es: 2024-001">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Disegni (DXF/DWG)</label>
+        <div class="upload-area" onclick="document.getElementById('dxf-input').click()">
+          <span class="upload-icon">&#128208;</span>
+          <span class="upload-text">Trascina i DXF qui o clicca (multipli)</span>
+        </div>
+        <input type="file" id="dxf-input" accept=".dxf,.dwg" multiple>
+        <div class="dxf-files-list" id="dxf-list"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <textarea id="mod-note" class="form-input" placeholder="Note aggiuntive..."></textarea>
+      </div>
+
+      <div class="dest-section">
+        <div class="dest-label">Destinazione Iniziale</div>
+        <div class="dest-row">
+          <label class="dest-option selected-laser" id="dest-laser-label" onclick="selectDest('laser')">
+            <input type="radio" name="destinazione" value="LASER" id="dest-laser" checked>
+            <span class="dest-icon">&#9889;</span>
+            <span class="dest-text">LASER</span>
+          </label>
+          <label class="dest-option" id="dest-officina-label" onclick="selectDest('officina')">
+            <input type="radio" name="destinazione" value="OFFICINA" id="dest-officina">
+            <span class="dest-icon">&#128295;</span>
+            <span class="dest-text">OFFICINA</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="status-message" class="message"></div>
+      <button class="btn-submit" onclick="submitOrder()">Carica Ordine</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB 2: CALENDARIO ===================== -->
+<div class="tab-panel" id="panel-calendario">
+  <div class="cal-container">
+    <div class="cal-left">
+      <div class="cal-nav">
+        <div class="cal-nav-btns">
+          <button class="cal-nav-btn" onclick="calPrevMonth()">&larr; Prec</button>
+          <button class="cal-today-btn" onclick="calGoToday()">Oggi</button>
+          <button class="cal-nav-btn" onclick="calNextMonth()">Succ &rarr;</button>
+        </div>
+        <div class="cal-nav-title" id="cal-month-title">Marzo 2026</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <div class="cal-right" id="cal-detail">
+      <div style="color: var(--gray-text); font-size: 14px;">Seleziona un giorno per vedere gli ordini in consegna</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB 3: ORDINI ===================== -->
+<div class="tab-panel" id="panel-ordini">
+  <div class="ordini-container">
+    <h2 class="page-title">Lista Ordini</h2>
+    <div class="search-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input type="text" class="search-box" id="search-input" placeholder="Cerca per cliente o numero ordine..." oninput="filterOrders()">
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Stato:</span>
+      <button class="chip active" data-filter="status" data-value="" onclick="setFilter(this,'status')">Tutti</button>
+      <button class="chip" data-filter="status" data-value="RICEVUTO" onclick="setFilter(this,'status')">Ricevuto</button>
+      <button class="chip" data-filter="status" data-value="IN_LAVORAZIONE" onclick="setFilter(this,'status')">In Lavorazione</button>
+      <button class="chip" data-filter="status" data-value="COMPLETATO" onclick="setFilter(this,'status')">Completato</button>
+      <button class="chip" data-filter="status" data-value="PARZIALE" onclick="setFilter(this,'status')">Parziale</button>
+    </div>
+    <div class="filter-row" style="margin-bottom: 20px;">
+      <span class="filter-label">Fase:</span>
+      <button class="chip active" data-filter="fase" data-value="" onclick="setFilter(this,'fase')">Tutte</button>
+      <button class="chip" data-filter="fase" data-value="LASER" onclick="setFilter(this,'fase')">Laser</button>
+      <button class="chip" data-filter="fase" data-value="PIEGA" onclick="setFilter(this,'fase')">Piega</button>
+      <button class="chip" data-filter="fase" data-value="SALDATURA" onclick="setFilter(this,'fase')">Saldatura</button>
+      <button class="chip" data-filter="fase" data-value="PULIZIA" onclick="setFilter(this,'fase')">Pulizia</button>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid var(--border);">
+      <table class="ordini-table">
+        <thead>
+          <tr>
+            <th onclick="sortOrders('numero_ordine')">Ordine &#8597;</th>
+            <th onclick="sortOrders('cliente')">Cliente &#8597;</th>
+            <th onclick="sortOrders('data_consegna')">Consegna &#8597;</th>
+            <th>Fase</th>
+            <th>Stato</th>
+            <th onclick="sortOrders('progress')">Avanzamento &#8597;</th>
+            <th>PDF</th>
+          </tr>
+        </thead>
+        <tbody id="ordini-tbody"></tbody>
+      </table>
+    </div>
+    <div id="ordini-count" style="margin-top: 12px; font-size: 13px; color: var(--gray-text);"></div>
+  </div>
+</div>
+
+<!-- PDF MODALE -->
+<div class="modal-overlay" id="pdf-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modal-title">PDF Ordine</h3>
+      <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="modal-pdf-iframe"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===========================
+// GLOBALS
+// ===========================
+const API_URL = 'http://localhost:5000';
+let currentUser = null;
+let pdfData = {};
+let uploadedDXFFiles = [];
+let allOrders = [];
+let calDate = new Date();
+let calSelectedDate = null;
+let currentStatusFilter = '';
+let currentFaseFilter = '';
+let currentSort = { field: 'data_consegna', dir: 'asc' };
+
+// ===========================
+// COLORS
+// ===========================
+const faseColors = {
+  LASER: '#3b82f6', PIEGA: '#f59e0b', SALDATURA: '#ef4444',
+  PULIZIA: '#8b5cf6', COMPLETATO: '#22c55e', PARZIALE: '#f97316'
+};
+
+function getStatusColor(order) {
+  if (order.status === 'COMPLETATO') return '#22c55e';
+  if (order.status === 'PARZIALE') return '#f97316';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const consegna = new Date(order.data_consegna); consegna.setHours(0,0,0,0);
+  if (consegna < today) return '#ef4444';
+  const twoDays = new Date(today); twoDays.setDate(twoDays.getDate() + 2);
+  if (consegna <= twoDays) return '#eab308';
+  return '#3b82f6';
+}
+
+function calculateProgress(order) {
+  if (order.status === 'COMPLETATO') return 100;
+  if (order.status === 'PARZIALE') return 85;
+  const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
+  const base = map[order.fase_corrente] || 0;
+  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  return hasActive ? Math.min(base + 10, 95) : base;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===========================
+// SESSION
+// ===========================
+window.addEventListener('load', () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id) { window.location.href = '/login.html'; return; }
+  currentUser = user;
+  updateDestStyle();
+  loadCalendar();
+  loadOrdersList();
+});
+
+// ===========================
+// TAB SWITCHING
+// ===========================
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab-item[data-tab="${tabId}"]`).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tabId}`).classList.add('active');
+  if (tabId === 'calendario') loadCalendar();
+  if (tabId === 'ordini') loadOrdersList();
+}
+
+// ===========================
+// TAB 1: CARICA ORDINE
+// ===========================
+document.getElementById('pdf-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const resp = await fetch(`${API_URL}/api/extract-pdf-data`, { method: 'POST', body: formData });
+    const result = await resp.json();
+    if (result.success) {
+      pdfData = result.data;
+      document.getElementById('mod-cliente').value = pdfData.cliente || '';
+      document.getElementById('mod-data').value = pdfData.data_consegna || '';
+      const blob = new Blob([file], { type: 'application/pdf' });
+      document.getElementById('pdf-iframe').src = URL.createObjectURL(blob);
+      document.getElementById('pdf-preview').classList.add('active');
+      document.getElementById('pdf-upload-area').classList.add('active');
+      showMessage('PDF caricato con successo', 'success');
+    } else {
+      showMessage('Errore: ' + result.error, 'error');
+    }
+  } catch (err) { showMessage('Errore caricamento PDF: ' + err.message, 'error'); }
+});
+
+document.getElementById('dxf-input').addEventListener('change', async (e) => {
+  for (const file of e.target.files) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('order_id', 'draft');
+    try {
+      const resp = await fetch(`${API_URL}/api/upload-drawing`, { method: 'POST', body: formData });
+      const result = await resp.json();
+      if (result.success) { uploadedDXFFiles.push(result.filename); renderDXFList(); }
+    } catch (err) { showMessage('Errore upload DXF: ' + err.message, 'error'); }
+  }
+});
+
+function renderDXFList() {
+  document.getElementById('dxf-list').innerHTML = uploadedDXFFiles.map((f, i) =>
+    `<div class="dxf-item"><span>${escapeHtml(f)}</span><button class="dxf-remove-btn" onclick="removeDXF(${i})">Rimuovi</button></div>`
+  ).join('');
+}
+
+function removeDXF(idx) { uploadedDXFFiles.splice(idx, 1); renderDXFList(); }
+
+function selectDest(type) {
+  if (type === 'laser') {
+    document.getElementById('dest-laser').checked = true;
+  } else {
+    document.getElementById('dest-officina').checked = true;
+  }
+  updateDestStyle();
+}
+
+function updateDestStyle() {
+  const laserChecked = document.getElementById('dest-laser').checked;
+  const ll = document.getElementById('dest-laser-label');
+  const ol = document.getElementById('dest-officina-label');
+  ll.className = 'dest-option' + (laserChecked ? ' selected-laser' : '');
+  ol.className = 'dest-option' + (!laserChecked ? ' selected-officina' : '');
+}
+
+async function submitOrder() {
+  const cliente = document.getElementById('mod-cliente').value.trim();
+  const numero = document.getElementById('mod-numero').value.trim();
+  const data = document.getElementById('mod-data').value.trim();
+  const note = document.getElementById('mod-note').value.trim();
+  const prezzo = document.getElementById('mod-prezzo').value;
+  const dest = document.querySelector('input[name="destinazione"]:checked').value;
+  if (!cliente || !data) { showMessage('Inserisci cliente e data consegna', 'error'); return; }
+  if (!pdfData.pdf_filename) { showMessage('Carica un PDF prima di confermare', 'error'); return; }
+  try {
+    const resp = await fetch(`${API_URL}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente, numero_ordine: numero, data_consegna: data, note, destinazione: dest,
+        prezzo_quotato: prezzo ? parseFloat(prezzo) : null,
+        pdf_filename: pdfData.pdf_filename, dxf_filenames: uploadedDXFFiles,
+        operatore_id: currentUser.id
+      })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Ordine caricato con successo!', 'success');
+      resetCaricaForm();
+      loadCalendar();
+      loadOrdersList();
+      setTimeout(() => switchTab('ordini'), 1200);
+    } else {
+      showMessage('Errore: ' + result.error, 'error');
+    }
+  } catch (err) { showMessage('Errore invio ordine: ' + err.message, 'error'); }
+}
+
+function resetCaricaForm() {
+  pdfData = {};
+  uploadedDXFFiles = [];
+  document.getElementById('mod-cliente').value = '';
+  document.getElementById('mod-numero').value = '';
+  document.getElementById('mod-data').value = '';
+  document.getElementById('mod-prezzo').value = '';
+  document.getElementById('mod-note').value = '';
+  document.getElementById('dest-laser').checked = true;
+  updateDestStyle();
+  document.getElementById('pdf-preview').classList.remove('active');
+  document.getElementById('pdf-upload-area').classList.remove('active');
+  document.getElementById('pdf-iframe').src = '';
+  document.getElementById('dxf-list').innerHTML = '';
+}
+
+// Drag & Drop PDF
+['pdf-upload-area'].forEach(id => {
+  const area = document.getElementById(id);
+  ['dragenter','dragover','dragleave','drop'].forEach(evt => area.addEventListener(evt, e => e.preventDefault()));
+  area.addEventListener('drop', e => {
+    if (e.dataTransfer.files[0]) {
+      document.getElementById('pdf-input').files = e.dataTransfer.files;
+      document.getElementById('pdf-input').dispatchEvent(new Event('change'));
+    }
+  });
+});
+
+// ===========================
+// TAB 2: CALENDARIO
+// ===========================
+async function loadCalendar() {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders`);
+    const data = await resp.json();
+    allOrders = data.orders || [];
+  } catch (err) { allOrders = []; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const year = calDate.getFullYear();
+  const month = calDate.getMonth();
+  document.getElementById('cal-month-title').textContent = `${monthNames[month]} ${year}`;
+
+  const grid = document.getElementById('cal-grid');
+  const dayHeaders = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+  let html = '<div class="cal-header-row">';
+  html += dayHeaders.map(d => `<div class="cal-header">${d}</div>`).join('');
+  html += '</div>';
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startOffset = (firstDay.getDay() + 6) % 7;
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // Build weeks
+  let allDays = [];
+
+  // Previous month days
+  const prevMonthLast = new Date(year, month, 0).getDate();
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const d = prevMonthLast - i;
+    const dateStr = formatDate(year, month - 1, d);
+    allDays.push({ day: d, dateStr, isOther: true });
+  }
+
+  // Current month days
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = formatDate(year, month, d);
+    allDays.push({ day: d, dateStr, isOther: false });
+  }
+
+  // Next month fill
+  const remaining = (7 - (allDays.length % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    const dateStr = formatDate(year, month + 1, d);
+    allDays.push({ day: d, dateStr, isOther: true });
+  }
+
+  // Render weeks
+  for (let w = 0; w < allDays.length; w += 7) {
+    html += '<div class="cal-week-row">';
+    for (let i = w; i < w + 7 && i < allDays.length; i++) {
+      html += renderDayCell(allDays[i].day, allDays[i].dateStr, todayStr, allDays[i].isOther);
+    }
+    html += '</div>';
+  }
+
+  grid.innerHTML = html;
+
+  if (!calSelectedDate) {
+    calSelectedDate = todayStr;
+    showDayDetail(calSelectedDate);
+  }
+}
+
+function formatDate(year, month, day) {
+  const dt = new Date(year, month, day);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function renderDayCell(day, dateStr, todayStr, isOtherMonth) {
+  const ordersOnDay = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === dateStr);
+  const isToday = dateStr === todayStr;
+  const isSelected = dateStr === calSelectedDate;
+
+  let classes = 'cal-day';
+  if (isToday) classes += ' today';
+  if (isSelected) classes += ' selected';
+  if (isOtherMonth) classes += ' other-month';
+
+  let dots = '';
+  if (ordersOnDay.length > 0) {
+    const colors = ordersOnDay.slice(0, 5).map(o => getStatusColor(o));
+    dots = `<div class="cal-dots">${colors.map(c => `<div class="cal-dot" style="background:${c}"></div>`).join('')}</div>`;
+  }
+
+  return `<div class="${classes}" onclick="selectCalDay('${dateStr}')">
+    <div class="cal-day-num">${day}</div>
+    ${ordersOnDay.length > 0 ? `<div class="cal-day-count">${ordersOnDay.length} ordine${ordersOnDay.length > 1 ? 'i' : ''}</div>` : ''}
+    ${dots}
+  </div>`;
+}
+
+function selectCalDay(dateStr) {
+  calSelectedDate = dateStr;
+  renderCalendar();
+  showDayDetail(dateStr);
+}
+
+function showDayDetail(dateStr) {
+  const panel = document.getElementById('cal-detail');
+  const ordersOnDay = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === dateStr);
+  const dt = new Date(dateStr + 'T00:00:00');
+  const formatted = dt.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  let html = `<div class="cal-detail-title">${formatted}</div>
+    <div class="cal-detail-sub">${ordersOnDay.length} ordine${ordersOnDay.length !== 1 ? 'i' : ''} in consegna</div>`;
+
+  if (ordersOnDay.length === 0) {
+    html += '<div style="color: var(--gray-text); font-size: 13px; padding: 20px 0;">Nessun ordine in consegna per questo giorno</div>';
+  } else {
+    ordersOnDay.forEach(order => {
+      const progress = calculateProgress(order);
+      const statusColor = getStatusColor(order);
+      const faseColor = faseColors[order.fase_corrente] || '#666';
+      html += `<div class="cal-order-card" style="border-left-color: ${statusColor};" onclick="openPdfModal('${order.id}','${escapeHtml(order.cliente)}')">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-weight: 700; font-size: 14px;">${escapeHtml(order.cliente) || 'N/A'}</div>
+            ${order.numero_ordine ? `<div style="font-size: 11px; color: var(--gray-text);">#${escapeHtml(order.numero_ordine)}</div>` : ''}
+          </div>
+          <span class="fase-badge" style="background: ${faseColor};">${order.fase_corrente}</span>
+        </div>
+        ${order.operatore_assegnato ? `<div style="font-size: 11px; color: var(--gray-text);">Operatore: ${escapeHtml(order.operatore_assegnato)}</div>` : ''}
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+            <span style="color: var(--gray-text);">Avanzamento</span>
+            <span style="font-weight: 700; color: ${statusColor};">${progress}%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" style="width: ${progress}%; background: ${statusColor};"></div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  panel.innerHTML = html;
+}
+
+function calPrevMonth() { calDate.setMonth(calDate.getMonth() - 1); calSelectedDate = null; loadCalendar(); }
+function calNextMonth() { calDate.setMonth(calDate.getMonth() + 1); calSelectedDate = null; loadCalendar(); }
+function calGoToday() { const n = new Date(); calDate = n; calSelectedDate = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; loadCalendar(); }
+
+// ===========================
+// TAB 3: ORDINI
+// ===========================
+async function loadOrdersList() {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders`);
+    const data = await resp.json();
+    allOrders = data.orders || [];
+  } catch (err) { allOrders = []; }
+  renderOrdersTable();
+}
+
+function setFilter(el, type) {
+  document.querySelectorAll(`.chip[data-filter="${type}"]`).forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  if (type === 'status') currentStatusFilter = el.dataset.value;
+  if (type === 'fase') currentFaseFilter = el.dataset.value;
+  renderOrdersTable();
+}
+
+function filterOrders() { renderOrdersTable(); }
+
+function sortOrders(field) {
+  if (currentSort.field === field) {
+    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort.field = field;
+    currentSort.dir = 'asc';
+  }
+  renderOrdersTable();
+}
+
+function renderOrdersTable() {
+  const search = (document.getElementById('search-input').value || '').toLowerCase().trim();
+  let filtered = [...allOrders];
+
+  if (search) {
+    filtered = filtered.filter(o =>
+      (o.cliente || '').toLowerCase().includes(search) ||
+      (o.numero_ordine || '').toLowerCase().includes(search) ||
+      (o.id || '').toLowerCase().includes(search)
+    );
+  }
+  if (currentStatusFilter) filtered = filtered.filter(o => o.status === currentStatusFilter);
+  if (currentFaseFilter) filtered = filtered.filter(o => o.fase_corrente === currentFaseFilter);
+
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (currentSort.field === 'progress') {
+      va = calculateProgress(a); vb = calculateProgress(b);
+    } else {
+      va = a[currentSort.field] || ''; vb = b[currentSort.field] || '';
+    }
+    const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+    return currentSort.dir === 'asc' ? cmp : -cmp;
+  });
+
+  const tbody = document.getElementById('ordini-tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding: 32px; text-align: center; color: var(--gray-text);">Nessun ordine trovato</td></tr>';
+  } else {
+    tbody.innerHTML = filtered.map(o => {
+      const progress = calculateProgress(o);
+      const statusColor = getStatusColor(o);
+      const faseColor = faseColors[o.fase_corrente] || '#666';
+      const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+      return `<tr>
+        <td style="font-weight: 600;">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}</td>
+        <td>${escapeHtml(o.cliente) || 'N/A'}</td>
+        <td>${consegna}</td>
+        <td><span class="fase-badge" style="background: ${faseColor};">${o.fase_corrente || '\u2014'}</span></td>
+        <td><span style="font-size: 12px; font-weight: 600; color: ${statusColor};">${o.status}</span></td>
+        <td style="min-width: 130px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="progress-bar-bg" style="flex: 1;">
+              <div class="progress-bar-fill" style="width: ${progress}%; background: ${statusColor};"></div>
+            </div>
+            <span style="font-size: 12px; font-weight: 700; min-width: 32px;">${progress}%</span>
+          </div>
+        </td>
+        <td><button class="pdf-btn" onclick="openPdfModal('${o.id}','${escapeHtml(o.cliente)}')">PDF</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('ordini-count').textContent = `${filtered.length} ordine${filtered.length !== 1 ? 'i' : ''} trovati su ${allOrders.length} totali`;
+}
+
+// ===========================
+// PDF MODALE
+// ===========================
+function openPdfModal(orderId, cliente) {
+  document.getElementById('modal-title').textContent = `PDF \u2014 ${cliente || orderId}`;
+  document.getElementById('modal-pdf-iframe').src = `${API_URL}/api/orders/${orderId}/pdf`;
+  document.getElementById('pdf-modal').classList.add('active');
+}
+
+function closePdfModal() {
+  document.getElementById('pdf-modal').classList.remove('active');
+  document.getElementById('modal-pdf-iframe').src = '';
+}
+
+document.getElementById('pdf-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePdfModal();
+});
+
+// ===========================
+// UTILITIES
+// ===========================
+function showMessage(text, type) {
+  const msg = document.getElementById('status-message');
+  msg.textContent = text;
+  msg.className = 'message active ' + type;
+  setTimeout(() => msg.classList.remove('active'), 4000);
+}
+
+async function logout() {
+  if (currentUser) {
+    await fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id })
+    }).catch(() => {});
+  }
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+</script>
+
+</body>
+</html>

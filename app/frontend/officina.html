@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Officina</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+:root {
+  --ls-green: #1a7a48;
+  --ls-green-light: #22a060;
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --gray-text: #666666;
+  --gray-muted: #999999;
+  --border: #e5e5e5;
+  --orange: #92400e;
+  --orange-bg: #fef3c7;
+  --blue: #1e40af;
+  --blue-bg: #dbeafe;
+  --green-badge-bg: #dcfce7;
+  --red: #ef4444;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* TOPBAR */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.logo-section:hover { opacity: 0.8; }
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 15px; font-weight: 900; letter-spacing: -0.5px; }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--ls-green); }
+
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+.btn-home {
+  background: var(--ls-green);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-home:hover { opacity: 0.9; }
+
+.btn-logout {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-logout:hover { background: var(--bg); }
+
+/* BODY */
+.body-content {
+  margin-top: 64px;
+  padding: 32px;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* HEADER */
+.page-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: var(--orange-bg);
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.page-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-top: 4px;
+}
+
+.page-sub {
+  font-size: 13px;
+  color: var(--gray-text);
+  margin-top: 2px;
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+/* CARD ROW */
+.card-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* ORDER CARD */
+.order-card {
+  flex: 1;
+  min-width: 340px;
+  max-width: 600px;
+  background: var(--white);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s;
+}
+
+.order-card.active {
+  border: 2px solid var(--ls-green);
+  box-shadow: 0 4px 16px rgba(26,122,72,0.12);
+}
+
+.order-card.waiting {
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* CARD TOP */
+.card-top {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-client {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.card-status {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.card-status.lavorazione { background: var(--green-badge-bg); color: #166534; }
+.card-status.in-attesa { background: var(--blue-bg); color: var(--blue); }
+.card-status.ricevuto { background: var(--orange-bg); color: var(--orange); }
+
+.card-meta {
+  font-size: 12px;
+  color: var(--gray-text);
+}
+
+.card-fase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-fase-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-text);
+}
+
+.fase-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.fase-badge.piega { background: var(--orange-bg); color: var(--orange); }
+.fase-badge.saldatura { background: #fee2e2; color: #991b1b; }
+.fase-badge.pulizia { background: #f3e8ff; color: #6b21a8; }
+
+/* TIMER */
+.timer-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(26,122,72,0.05);
+}
+
+.timer-icon {
+  font-size: 24px;
+  color: var(--ls-green);
+}
+
+.timer-value {
+  font-family: 'Geist', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  color: var(--ls-green);
+}
+
+/* WAITING NOTE */
+.waiting-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--gray-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* CARD ACTIONS */
+.card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.action-btn:hover { opacity: 0.9; }
+
+.action-btn.green {
+  background: var(--ls-green);
+  color: var(--white);
+}
+
+.action-btn.outline {
+  background: var(--white);
+  color: var(--gray-text);
+  border: 1px solid var(--border);
+}
+
+.action-btn.outline-blue {
+  background: var(--white);
+  color: var(--blue);
+  border: 1px solid var(--border);
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--gray-text);
+  font-size: 15px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+/* PDF MODAL */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+
+.modal-content {
+  background: var(--white);
+  width: 80%;
+  height: 85%;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--gray-text);
+  transition: color 0.2s;
+}
+.modal-close:hover { color: var(--black); }
+
+.modal-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.modal-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* MESSAGE */
+.message {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 3000;
+  transition: transform 0.3s;
+  pointer-events: none;
+}
+.message.active { transform: translateX(-50%) translateY(0); }
+.message.success { background: var(--green-badge-bg); color: #166534; }
+.message.error { background: #fee2e2; color: #991b1b; }
+
+/* RESPONSIVE */
+@media (max-width: 800px) {
+  .body-content { padding: 20px; }
+  .topbar { padding: 0 20px; }
+  .card-row { flex-direction: column; }
+  .order-card { max-width: 100%; min-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="logo-section" href="/login.html">
+    <div class="logo-icon">&#10022;</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS</div>
+    </div>
+  </a>
+  <div class="topbar-actions">
+    <button class="btn-home" onclick="window.location.href='/login.html'">Home</button>
+    <button class="btn-logout" onclick="logout()">Esci</button>
+  </div>
+</div>
+
+<div class="body-content">
+  <div class="page-header">
+    <span class="page-badge">OFFICINA</span>
+    <div class="page-title">I Miei Ordini</div>
+    <div class="page-sub" id="page-sub">Caricamento...</div>
+  </div>
+
+  <div class="card-row" id="card-row">
+    <div class="empty-state">
+      <div class="empty-icon">&#128230;</div>
+      Caricamento ordini...
+    </div>
+  </div>
+</div>
+
+<!-- PDF Modal -->
+<div class="modal-overlay" id="pdf-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modal-title">PDF Ordine</h3>
+      <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="modal-pdf-iframe"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="message" id="status-message"></div>
+
+<script>
+const API_URL = 'http://localhost:5000';
+let currentUser = null;
+let allOrders = [];
+let activeTimers = {};
+
+// === SESSION ===
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('currentUser');
+  if (!saved) { window.location.href = '/login.html'; return; }
+  currentUser = JSON.parse(saved);
+  if (!currentUser.id) { window.location.href = '/login.html'; return; }
+
+  loadOrders();
+  setInterval(loadOrders, 5000);
+});
+
+// === LOAD ORDERS ===
+async function loadOrders() {
+  try {
+    const phase = currentUser.phase || 'PIEGA';
+    const resp = await fetch(`${API_URL}/api/phase/${phase}/orders?operatore=${currentUser.id}`);
+    allOrders = await resp.json();
+    renderCards();
+  } catch (err) {
+    console.error('Errore caricamento ordini:', err);
+  }
+}
+
+// === RENDER CARDS ===
+function renderCards() {
+  const container = document.getElementById('card-row');
+  const phase = currentUser.phase || 'PIEGA';
+
+  document.getElementById('page-sub').textContent =
+    `${currentUser.name || 'Operatore'} \u2014 ${allOrders.length} ordine${allOrders.length !== 1 ? 'i' : ''} assegnati`;
+
+  if (allOrders.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">&#9996;</div>
+      Nessun ordine assegnato al momento
+    </div>`;
+    return;
+  }
+
+  // Sort: active first (has timestamp_inizio but no timestamp_fine), then waiting
+  const sorted = [...allOrders].sort((a, b) => {
+    const stepA = (a.processing_steps || []).find(s => s.fase === phase);
+    const stepB = (b.processing_steps || []).find(s => s.fase === phase);
+    const activeA = stepA?.timestamp_inizio && !stepA?.timestamp_fine ? 1 : 0;
+    const activeB = stepB?.timestamp_inizio && !stepB?.timestamp_fine ? 1 : 0;
+    return activeB - activeA;
+  });
+
+  container.innerHTML = sorted.map(order => {
+    const step = (order.processing_steps || []).find(s => s.fase === phase);
+    const isActive = step?.timestamp_inizio && !step?.timestamp_fine;
+    const isCompleted = step?.timestamp_fine;
+    const consegna = order.data_consegna
+      ? new Date(order.data_consegna).toLocaleDateString('it-IT')
+      : 'N/A';
+
+    if (isActive) {
+      return renderActiveCard(order, step, phase, consegna);
+    } else if (isCompleted) {
+      return renderCompletedCard(order, consegna);
+    } else {
+      return renderWaitingCard(order, phase, consegna);
+    }
+  }).join('');
+
+  // Start timers for active orders
+  Object.values(activeTimers).forEach(t => clearInterval(t));
+  activeTimers = {};
+  sorted.forEach(order => {
+    const step = (order.processing_steps || []).find(s => s.fase === phase);
+    if (step?.timestamp_inizio && !step?.timestamp_fine) {
+      startTimer(order.id, step.timestamp_inizio);
+    }
+  });
+}
+
+function renderActiveCard(order, step, phase, consegna) {
+  const faseBadgeClass = phase.toLowerCase();
+  return `<div class="order-card active">
+    <div class="card-top">
+      <div class="card-header">
+        <span class="card-client">${escapeHtml(order.cliente)}</span>
+        <span class="card-status lavorazione">IN LAVORAZIONE</span>
+      </div>
+      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna} &middot; Tagliato</div>
+      <div class="card-fase">
+        <span class="card-fase-label">Fase:</span>
+        <span class="fase-badge ${faseBadgeClass}">${phase}</span>
+      </div>
+      <div class="timer-section">
+        <span class="timer-icon">&#9202;</span>
+        <span class="timer-value" id="timer-${order.id}">00:00:00</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="action-btn green" onclick="completePhase('${order.id}')">&#10004; Completa</button>
+    </div>
+  </div>`;
+}
+
+function renderWaitingCard(order, phase, consegna) {
+  const laserStep = (order.processing_steps || []).find(s => s.fase === 'LASER');
+  const laserDone = laserStep?.timestamp_fine;
+  const statusClass = laserDone ? 'in-attesa' : 'ricevuto';
+  const statusText = laserDone ? 'IN ATTESA' : 'DA TAGLIARE';
+  const noteText = laserDone ? 'In attesa di lavorazione' : 'In attesa taglio laser';
+
+  return `<div class="order-card waiting">
+    <div class="card-top">
+      <div class="card-header">
+        <span class="card-client">${escapeHtml(order.cliente)}</span>
+        <span class="card-status ${statusClass}">${statusText}</span>
+      </div>
+      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
+      <div class="waiting-note">
+        <span>&#9202;</span>
+        <span>${noteText}</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      ${laserDone ? `<button class="action-btn green" onclick="startAndWork('${order.id}')">&#9654; Inizia Lavorazione</button>` : `<button class="action-btn outline-blue" onclick="sendToLaser('${order.id}')">&#9889; Manda al Laser</button>`}
+      <button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>
+    </div>
+  </div>`;
+}
+
+function renderCompletedCard(order, consegna) {
+  return `<div class="order-card waiting" style="opacity: 0.6;">
+    <div class="card-top">
+      <div class="card-header">
+        <span class="card-client">${escapeHtml(order.cliente)}</span>
+        <span class="card-status lavorazione">COMPLETATO</span>
+      </div>
+      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
+      <div class="waiting-note" style="background: var(--green-badge-bg); color: #166534;">
+        <span>&#10004;</span>
+        <span>Fase completata</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>
+    </div>
+  </div>`;
+}
+
+// === ACTIONS ===
+async function startAndWork(orderId) {
+  const phase = currentUser.phase || 'PIEGA';
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore: currentUser.name, operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Lavorazione iniziata', 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function completePhase(orderId) {
+  const phase = currentUser.phase || 'PIEGA';
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Fase completata!', 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile completare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function sendToLaser(orderId) {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/send-to-laser`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Ordine mandato al laser', 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile inviare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+// === TIMER ===
+function startTimer(orderId, timestamp_inizio) {
+  const update = () => {
+    const now = new Date();
+    const start = new Date(timestamp_inizio);
+    const elapsed = Math.floor((now - start) / 1000);
+    const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    const el = document.getElementById(`timer-${orderId}`);
+    if (el) el.textContent = `${h}:${m}:${s}`;
+  };
+  update();
+  activeTimers[orderId] = setInterval(update, 1000);
+}
+
+// === PDF MODAL ===
+function openPdfModal(orderId, cliente) {
+  document.getElementById('modal-title').textContent = `PDF \u2014 ${cliente || orderId}`;
+  document.getElementById('modal-pdf-iframe').src = `${API_URL}/api/orders/${orderId}/pdf`;
+  document.getElementById('pdf-modal').classList.add('active');
+}
+
+function closePdfModal() {
+  document.getElementById('pdf-modal').classList.remove('active');
+  document.getElementById('modal-pdf-iframe').src = '';
+}
+
+document.getElementById('pdf-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePdfModal();
+});
+
+// === UTILS ===
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showMessage(text, type) {
+  const msg = document.getElementById('status-message');
+  msg.textContent = text;
+  msg.className = 'message active ' + type;
+  setTimeout(() => msg.classList.remove('active'), 4000);
+}
+
+// === LOGOUT ===
+async function logout() {
+  try {
+    if (currentUser?.id) {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser.id })
+      });
+    }
+  } catch (_) {}
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+</script>
+
+</body>
+</html>

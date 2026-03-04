@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Archivio Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+:root {
+  --ls-green: #1a7a48;
+  --ls-green-light: #22a060;
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --gray-text: #666666;
+  --border: #e5e5e5;
+  --orange: #92400e;
+  --orange-bg: #fef3c7;
+  --green-badge-bg: #dcfce7;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--white);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* TOPBAR */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+}
+
+.logo-section {
+  display: flex; align-items: center; gap: 12px;
+  text-decoration: none; color: inherit; cursor: pointer; transition: opacity 0.2s;
+}
+.logo-section:hover { opacity: 0.8; }
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 900; font-size: 16px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 15px; font-weight: 900; letter-spacing: -0.5px; }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--ls-green); }
+
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+.btn-home {
+  background: var(--ls-green); color: white; border: none;
+  padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.btn-home:hover { opacity: 0.9; }
+
+.btn-logout {
+  background: var(--white); border: 1px solid var(--border);
+  padding: 8px 16px; border-radius: 6px; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-logout:hover { background: var(--bg); }
+
+/* CONTENT */
+.content {
+  margin-top: 64px;
+  padding: 32px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-section { display: flex; flex-direction: column; gap: 4px; }
+
+.page-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--gray-text);
+}
+
+.export-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--ls-green); color: white;
+  border: none; padding: 10px 20px; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.2s;
+}
+.export-btn:hover { opacity: 0.9; }
+
+/* FILTERS */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.filter-input {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  background: var(--white);
+  transition: border-color 0.2s;
+}
+.filter-input:focus { outline: none; border-color: var(--ls-green); }
+.filter-input.cliente { width: 180px; }
+.filter-input.date { width: 140px; }
+
+.filter-btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: none;
+  background: var(--ls-green);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.filter-btn:hover { opacity: 0.9; }
+
+/* TABLE */
+.table-container {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.report-table thead {
+  background: #f1f5f9;
+}
+
+.report-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--gray-text);
+  white-space: nowrap;
+}
+
+.report-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.report-table tbody tr:hover {
+  background: rgba(26,122,72,0.03);
+}
+
+.order-id {
+  font-weight: 600;
+}
+
+.margin-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  min-width: 70px;
+}
+
+.margin-badge.good { background: #dcfce7; color: #166534; }
+.margin-badge.warning { background: #fef3c7; color: #92400e; }
+.margin-badge.bad { background: #fee2e2; color: #991b1b; }
+
+.empty-row td {
+  text-align: center;
+  padding: 48px;
+  color: var(--gray-text);
+}
+
+/* FOOTER */
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary { display: flex; gap: 24px; }
+.summary-item { font-size: 13px; font-weight: 600; }
+
+.pagination { display: flex; gap: 8px; align-items: center; }
+
+.page-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.page-btn:hover { border-color: var(--ls-green); }
+.page-btn:disabled { opacity: 0.4; cursor: default; }
+
+.page-num {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--white);
+  transition: all 0.2s;
+}
+.page-num.active {
+  background: var(--ls-green);
+  color: white;
+  border-color: var(--ls-green);
+}
+.page-num:hover:not(.active) { border-color: var(--ls-green); }
+
+@media (max-width: 1024px) {
+  .content { padding: 20px 24px; }
+  .topbar { padding: 0 24px; }
+  .header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .filters { flex-wrap: wrap; }
+  .table-container { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="logo-section" href="/login.html">
+    <div class="logo-icon">&#10022;</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS</div>
+    </div>
+  </a>
+  <div class="topbar-actions">
+    <button class="btn-home" onclick="window.location.href='/login.html'">Home</button>
+    <button class="btn-logout" onclick="logout()">Esci</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="header">
+    <div class="title-section">
+      <div class="page-title">Archivio Report</div>
+      <div class="page-subtitle">Analisi tempi e redditivit&agrave; ordini completati</div>
+    </div>
+    <button class="export-btn" onclick="exportCSV()">&#11123; Esporta CSV</button>
+  </div>
+
+  <div class="filters">
+    <span class="filter-label">Cliente:</span>
+    <input type="text" class="filter-input cliente" id="filter-cliente" placeholder="Cerca cliente...">
+    <span class="filter-label">Dal:</span>
+    <input type="date" class="filter-input date" id="filter-dal">
+    <span class="filter-label">Al:</span>
+    <input type="date" class="filter-input date" id="filter-al">
+    <button class="filter-btn" onclick="applyFilters()">Filtra</button>
+  </div>
+
+  <div class="table-container">
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Ordine</th>
+          <th>Cliente</th>
+          <th>Art.</th>
+          <th>PIEGA</th>
+          <th>SALDATURA</th>
+          <th>PULIZIA</th>
+          <th>Totale</th>
+          <th>Quotato</th>
+          <th>Costo</th>
+          <th>Margine</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr class="empty-row"><td colspan="10">Caricamento...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-footer">
+    <div class="summary">
+      <span class="summary-item" id="total-label">Totale: 0 ordini</span>
+      <span class="summary-item" id="avg-margin">Margine medio: —</span>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'http://localhost:5000';
+let currentUser = null;
+let currentPage = 1;
+const PAGE_LIMIT = 20;
+let totalPages = 1;
+const COST_PER_HOUR = 25; // Costo orario per calcolo margine
+
+// === SESSION ===
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('currentUser');
+  if (!saved) { window.location.href = '/login.html'; return; }
+  currentUser = JSON.parse(saved);
+  if (!currentUser.id) { window.location.href = '/login.html'; return; }
+
+  // Default date range: inizio anno → oggi
+  const today = new Date();
+  const yearStart = `${today.getFullYear()}-01-01`;
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  document.getElementById('filter-dal').value = yearStart;
+  document.getElementById('filter-al').value = todayStr;
+
+  loadArchive();
+});
+
+// === LOAD ===
+async function loadArchive() {
+  const cliente = document.getElementById('filter-cliente').value.trim();
+  const dal = document.getElementById('filter-dal').value;
+  const al = document.getElementById('filter-al').value;
+
+  let url = `${API_URL}/api/archive/orders?page=${currentPage}&limit=${PAGE_LIMIT}`;
+  if (cliente) url += `&cliente=${encodeURIComponent(cliente)}`;
+  if (dal) url += `&date_from=${dal}`;
+  if (al) url += `&date_to=${al}`;
+
+  try {
+    const resp = await fetch(url);
+    const result = await resp.json();
+    if (result.success) {
+      renderTable(result.data.orders || []);
+      totalPages = result.data.pages || 1;
+      document.getElementById('total-label').textContent = `Totale: ${result.data.total || 0} ordini`;
+      renderPagination();
+      calculateAvgMargin(result.data.orders || []);
+    }
+  } catch (err) {
+    console.error('Errore caricamento archivio:', err);
+  }
+}
+
+// === RENDER TABLE ===
+function renderTable(orders) {
+  const tbody = document.getElementById('table-body');
+
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Nessun ordine trovato</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = orders.map(o => {
+    const phases = o.phase_times || {};
+    const piega = phases.PIEGA || '\u2014';
+    const saldatura = phases.SALDATURA || '\u2014';
+    const pulizia = phases.PULIZIA || '\u2014';
+    const totale = o.total_time || '\u2014';
+    const quotato = o.prezzo_quotato != null ? `${Number(o.prezzo_quotato).toLocaleString('it-IT')} \u20AC` : '\u2014';
+
+    // Calcola costo e margine
+    const totalHours = o.total_hours || 0;
+    const costo = Math.round(totalHours * COST_PER_HOUR);
+    const costoStr = `${costo.toLocaleString('it-IT')} \u20AC`;
+
+    let marginStr = '\u2014';
+    let marginClass = 'good';
+    if (o.prezzo_quotato && o.prezzo_quotato > 0) {
+      const margin = ((o.prezzo_quotato - costo) / o.prezzo_quotato * 100);
+      marginStr = margin.toFixed(1) + '%';
+      if (margin < 50) marginClass = 'warning';
+      if (margin < 20) marginClass = 'bad';
+    }
+
+    const numArticles = o.articles_count || o.num_articles || '\u2014';
+
+    return `<tr>
+      <td class="order-id">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}</td>
+      <td>${escapeHtml(o.cliente)}</td>
+      <td>${numArticles}</td>
+      <td>${piega}</td>
+      <td>${saldatura}</td>
+      <td>${pulizia}</td>
+      <td style="font-weight:600;">${totale}</td>
+      <td>${quotato}</td>
+      <td>${costoStr}</td>
+      <td><span class="margin-badge ${marginClass}">${marginStr}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// === AVERAGE MARGIN ===
+function calculateAvgMargin(orders) {
+  const withPrice = orders.filter(o => o.prezzo_quotato && o.prezzo_quotato > 0 && o.total_hours);
+  if (withPrice.length === 0) {
+    document.getElementById('avg-margin').textContent = 'Margine medio: \u2014';
+    return;
+  }
+  const totalMargin = withPrice.reduce((sum, o) => {
+    const costo = (o.total_hours || 0) * COST_PER_HOUR;
+    return sum + ((o.prezzo_quotato - costo) / o.prezzo_quotato * 100);
+  }, 0);
+  const avg = (totalMargin / withPrice.length).toFixed(1);
+  document.getElementById('avg-margin').textContent = `Margine medio: ${avg}%`;
+}
+
+// === PAGINATION ===
+function renderPagination() {
+  const container = document.getElementById('pagination');
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>&lt; Prec</button>`;
+
+  for (let p = 1; p <= totalPages && p <= 5; p++) {
+    html += `<button class="page-num ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>Succ &gt;</button>`;
+  container.innerHTML = html;
+}
+
+function goPage(page) {
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  loadArchive();
+}
+
+// === FILTERS ===
+function applyFilters() {
+  currentPage = 1;
+  loadArchive();
+}
+
+// === EXPORT CSV ===
+function exportCSV() {
+  const cliente = document.getElementById('filter-cliente').value.trim();
+  const dal = document.getElementById('filter-dal').value;
+  const al = document.getElementById('filter-al').value;
+
+  let url = `${API_URL}/api/archive/export/csv?`;
+  if (cliente) url += `cliente=${encodeURIComponent(cliente)}&`;
+  if (dal) url += `date_from=${dal}&`;
+  if (al) url += `date_to=${al}&`;
+
+  window.open(url, '_blank');
+}
+
+// === UTILS ===
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// === LOGOUT ===
+async function logout() {
+  try {
+    if (currentUser?.id) {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser.id })
+      });
+    }
+  } catch (_) {}
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+</script>
+
+</body>
+</html>

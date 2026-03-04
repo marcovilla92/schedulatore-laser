@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Stazione LASER</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+:root {
+  --ls-green: #1a7a48;
+  --ls-green-light: #22a060;
+  --bg-light: #fafafa;
+  --text-primary: #000000;
+  --text-secondary: #666666;
+  --border: #e5e5e5;
+  --red: #ef4444;
+  --yellow: #eab308;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-light);
+  color: var(--text-primary);
+}
+
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 72px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.logo-section:hover { opacity: 0.8; }
+
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 2px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: -0.5px; }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--ls-green); }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.home-btn {
+  background: var(--ls-green);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.home-btn:hover { opacity: 0.9; }
+
+.logout-btn {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover { background: var(--bg-light); }
+
+.main {
+  margin-top: 72px;
+  padding: 48px;
+  display: grid;
+  grid-template-columns: 320px 1fr 520px;
+  gap: 32px;
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+  height: calc(100vh - 72px);
+}
+
+/* LEFT: CALENDAR */
+.calendar {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.calendar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-light);
+  position: sticky;
+  top: 0;
+}
+
+.calendar-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.date-group {
+  padding: 0;
+}
+
+.date-group-header {
+  padding: 16px 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 60px;
+  background: var(--bg-light);
+}
+
+.date-group-header.urgent-red { color: #991b1b; background: rgba(239, 68, 68, 0.05); }
+.date-group-header.urgent-yellow { color: #92400e; background: rgba(234, 179, 8, 0.05); }
+.date-group-header.urgent-green { color: #15803d; background: rgba(34, 197, 94, 0.05); }
+
+.order-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.order-item:hover {
+  background: var(--bg-light);
+}
+
+.order-item.selected {
+  background: rgba(26, 122, 72, 0.1);
+  border-left: 4px solid var(--ls-green);
+}
+
+.order-client {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.order-date-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.badge-red { background: rgba(239, 68, 68, 0.2); color: #991b1b; }
+.badge-yellow { background: rgba(234, 179, 8, 0.2); color: #92400e; }
+.badge-green { background: rgba(34, 197, 94, 0.2); color: #15803d; }
+
+/* MIDDLE: PDF VIEWER */
+.pdf-viewer {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pdf-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pdf-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pdf-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.pdf-close:hover { opacity: 1; }
+
+.pdf-frame {
+  flex: 1;
+  border: none;
+}
+
+.pdf-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* RIGHT: DETAILS & ACTIONS */
+.details {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.details-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-light);
+}
+
+.details-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.details-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.details-content {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.info-text {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.timer {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ls-green);
+  background: rgba(26, 122, 72, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.details-footer {
+  padding: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn {
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--ls-green);
+  color: white;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-secondary {
+  background: var(--bg-light);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { border-color: var(--text-secondary); }
+
+.status {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  display: none;
+}
+
+.status.active { display: block; }
+.status.success { background: rgba(34, 197, 94, 0.1); color: #15803d; }
+.status.error { background: rgba(239, 68, 68, 0.1); color: #991b1b; }
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+@media (max-width: 1600px) {
+  .main { grid-template-columns: 280px 1fr 450px; }
+}
+
+@media (max-width: 1200px) {
+  .main { grid-template-columns: 1fr; }
+  .pdf-viewer, .details { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-section" onclick="window.location.href='/login.html'">
+    <div class="logo-icon">✦</div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="home-btn" onclick="window.location.href='/login.html'">🏠 Home</button>
+    <button class="logout-btn" onclick="logout()">Esci</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- CALENDAR -->
+  <div class="calendar" id="calendar">
+    <div class="calendar-header">
+      <div class="calendar-title">📅 Ordini per Data</div>
+    </div>
+    <div class="calendar-list" id="calendar-list"></div>
+  </div>
+
+  <!-- PDF VIEWER -->
+  <div class="pdf-viewer">
+    <div class="pdf-header">
+      <div class="pdf-title" id="pdf-title">PDF Ordine</div>
+      <button class="pdf-close" onclick="deselectOrder()">✕</button>
+    </div>
+    <iframe id="pdf-frame" class="pdf-frame"></iframe>
+    <div class="pdf-empty" id="pdf-empty">Seleziona un ordine dal calendario</div>
+  </div>
+
+  <!-- DETAILS -->
+  <div class="details">
+    <div class="details-header">
+      <div class="details-title" id="details-title">Dettagli Ordine</div>
+      <div class="details-meta" id="details-meta"></div>
+    </div>
+    <div class="details-content" id="details-content">
+      <div class="empty-state">Seleziona un ordine dal calendario</div>
+    </div>
+    <div class="details-footer" id="details-footer"></div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'http://localhost:5000';
+const PHASE = 'LASER';  // Change to PIEGA, SALDATURA for different stations
+let allOrders = [];
+let selectedOrderId = null;
+let activeTimer = null;
+
+// === SESSION CHECK ===
+window.addEventListener('load', () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id) {
+    window.location.href = '/login.html';
+  }
+  loadOrders();
+  setInterval(loadOrders, 5000);  // Refresh every 5s
+});
+
+// === LOAD ORDERS ===
+async function loadOrders() {
+  try {
+    const response = await fetch(`${API_URL}/api/phase/${PHASE}/orders`);
+    allOrders = await response.json();
+    renderCalendar();
+    if (selectedOrderId) {
+      const order = allOrders.find(o => o.id === selectedOrderId);
+      if (order) renderDetails(order);
+    }
+  } catch (err) {
+    console.error('Errore caricamento ordini:', err);
+  }
+}
+
+// === GROUP ORDERS BY DATE ===
+function groupOrdersByDate() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const groups = {
+    'SCADUTO': [],
+    'OGGI': [],
+    'DOMANI': [],
+    'QUESTA SETTIMANA': [],
+  };
+  const byDate = {};
+
+  allOrders.forEach(order => {
+    const delivery = new Date(order.data_consegna);
+    delivery.setHours(0, 0, 0, 0);
+    const daysLeft = Math.floor((delivery - today) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft < 0) {
+      groups['SCADUTO'].push({...order, daysLeft});
+    } else if (daysLeft === 0) {
+      groups['OGGI'].push({...order, daysLeft});
+    } else if (daysLeft === 1) {
+      groups['DOMANI'].push({...order, daysLeft});
+    } else if (daysLeft <= 6) {
+      groups['QUESTA SETTIMANA'].push({...order, daysLeft});
+    } else {
+      const key = delivery.toLocaleDateString('it-IT');
+      if (!byDate[key]) byDate[key] = [];
+      byDate[key].push({...order, daysLeft});
+    }
+  });
+
+  return { groups, byDate };
+}
+
+// === RENDER CALENDAR ===
+function renderCalendar() {
+  const { groups, byDate } = groupOrdersByDate();
+  const container = document.getElementById('calendar-list');
+  let html = '';
+
+  // Render grouped dates
+  Object.entries(groups).forEach(([label, orders]) => {
+    if (orders.length === 0) return;
+
+    const urgency = label === 'SCADUTO' ? 'urgent-red' : label === 'OGGI' ? 'urgent-red' : label === 'DOMANI' ? 'urgent-yellow' : 'urgent-green';
+    const badgeClass = label === 'SCADUTO' ? 'badge-red' : label === 'OGGI' ? 'badge-red' : label === 'DOMANI' ? 'badge-yellow' : 'badge-green';
+
+    html += `<div class="date-group">
+      <div class="date-group-header ${urgency}">${label} (${orders.length})</div>
+      ${orders.map(order => `
+        <div class="order-item ${selectedOrderId === order.id ? 'selected' : ''}"
+             onclick="selectOrder('${order.id}')">
+          <div class="order-client">${order.cliente}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">
+            ${new Date(order.data_consegna).toLocaleDateString('it-IT')}
+            <span class="order-date-badge ${badgeClass}">
+              ${order.daysLeft < 0 ? '🔴 ' + (-order.daysLeft) + 'd' : order.daysLeft + 'd'}
+            </span>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  });
+
+  // Render future dates
+  Object.entries(byDate).forEach(([date, orders]) => {
+    html += `<div class="date-group">
+      <div class="date-group-header urgent-green">${date} (${orders.length})</div>
+      ${orders.map(order => `
+        <div class="order-item ${selectedOrderId === order.id ? 'selected' : ''}"
+             onclick="selectOrder('${order.id}')">
+          <div class="order-client">${order.cliente}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${date}</div>
+        </div>
+      `).join('')}
+    </div>`;
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">Nessun ordine</div>';
+}
+
+// === SELECT ORDER ===
+function selectOrder(orderId) {
+  selectedOrderId = orderId;
+  renderCalendar();
+
+  const order = allOrders.find(o => o.id === orderId);
+  if (order) {
+    renderDetails(order);
+    // Load PDF
+    document.getElementById('pdf-frame').src = `${API_URL}/api/orders/${orderId}/pdf`;
+    document.getElementById('pdf-empty').style.display = 'none';
+  }
+}
+
+// === DESELECT ORDER ===
+function deselectOrder() {
+  selectedOrderId = null;
+  renderCalendar();
+  document.getElementById('pdf-frame').src = '';
+  document.getElementById('pdf-empty').style.display = 'flex';
+  document.getElementById('details-content').innerHTML = '<div class="empty-state">Seleziona un ordine</div>';
+  document.getElementById('details-footer').innerHTML = '';
+  if (activeTimer) clearInterval(activeTimer);
+}
+
+// === RENDER DETAILS ===
+function renderDetails(order) {
+  document.getElementById('details-title').textContent = order.cliente;
+  document.getElementById('details-meta').textContent =
+    `#${order.id.substring(0, 8)} \u2022 ${new Date(order.data_consegna).toLocaleDateString('it-IT')}`;
+
+  const processingStep = order.processing_steps?.find(s => s.fase === PHASE);
+  const articles = order.articles_next_phase || [];
+
+  let html = `
+    <div class="detail-section">
+      <div class="section-label">Stato</div>
+      <div class="info-text">${processingStep?.timestamp_inizio ? '\uD83D\uDFE2 In Lavorazione' : '\u26AA Non Iniziato'}</div>
+    </div>
+  `;
+
+  if (processingStep?.timestamp_inizio && !processingStep?.timestamp_fine) {
+    html += `<div class="detail-section">
+      <div class="section-label">Tempo Trascorso</div>
+      <div class="timer" id="phase-timer">0m 0s</div>
+    </div>`;
+  }
+
+  // Articoli con quantita
+  if (articles.length > 0) {
+    html += `<div class="detail-section">
+      <div class="section-label">Articoli da lavorare (${articles.length})</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${articles.map(a => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg-light);border-radius:6px;font-size:12px;">
+            <span style="font-weight:600;">${escapeHtml(a.name || 'N/A')} ${a.code ? '<span style="color:var(--text-secondary)">(' + escapeHtml(a.code) + ')</span>' : ''}</span>
+            <span style="font-weight:700;color:var(--ls-green);">${a.qty || 0} pz</span>
+          </div>
+        `).join('')}
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(26,122,72,0.08);border-radius:6px;font-size:12px;font-weight:700;">
+          <span>Totale pezzi</span>
+          <span style="color:var(--ls-green);">${articles.reduce((sum, a) => sum + (a.qty || 0), 0)} pz</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // DXF files
+  const dxfFiles = articles.filter(a => a.dxf_file).map(a => a.dxf_file);
+  if (dxfFiles.length > 0) {
+    html += `<div class="detail-section">
+      <div class="section-label">Disegni tecnici</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${dxfFiles.map(f => `
+          <a href="${API_URL}/api/orders/${order.id}/dxf/${encodeURIComponent(f.filename)}"
+             target="_blank"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-light);border-radius:6px;font-size:12px;text-decoration:none;color:var(--text-primary);border:1px solid var(--border);transition:border-color 0.2s;"
+             onmouseover="this.style.borderColor='var(--ls-green)'" onmouseout="this.style.borderColor='var(--border)'">
+            <span style="font-size:16px;">\uD83D\uDCC0</span>
+            <span style="font-weight:600;flex:1;">${escapeHtml(f.filename)}</span>
+            <span style="color:var(--ls-green);font-weight:600;">Scarica</span>
+          </a>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('details-content').innerHTML = html;
+
+  // Start timer if phase running
+  if (processingStep?.timestamp_inizio && !processingStep?.timestamp_fine) {
+    if (activeTimer) clearInterval(activeTimer);
+    startTimer(processingStep.timestamp_inizio);
+  }
+
+  // Render buttons
+  let footerHtml = '';
+  if (!processingStep?.timestamp_inizio) {
+    footerHtml = `<button class="btn btn-primary" onclick="startPhase('${order.id}')">🟢 Inizia Lavorazione</button>`;
+  } else if (!processingStep?.timestamp_fine) {
+    footerHtml = `<button class="btn btn-primary" onclick="completePhase('${order.id}')">✅ Segna Completato</button>`;
+  } else {
+    footerHtml = `<div class="status success active">✅ Fase Completata</div>`;
+  }
+
+  document.getElementById('details-footer').innerHTML = footerHtml;
+}
+
+// === START PHASE ===
+async function startPhase(orderId) {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  const user_name = user.name;
+
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/phase/${PHASE}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore: user_name, operatore_id: user.id })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      await loadOrders();
+    }
+  } catch (err) {
+    console.error('Errore start fase:', err);
+  }
+}
+
+// === COMPLETE PHASE ===
+async function completePhase(orderId) {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/phase/${PHASE}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: user.id })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      await loadOrders();
+    }
+  } catch (err) {
+    console.error('Errore complete fase:', err);
+  }
+}
+
+// === TIMER ===
+function startTimer(timestamp_inizio) {
+  if (activeTimer) clearInterval(activeTimer);
+
+  const updateTimer = () => {
+    const now = new Date();
+    const start = new Date(timestamp_inizio);
+    const elapsed = Math.floor((now - start) / 1000);
+
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    const seconds = elapsed % 60;
+
+    let display = '';
+    if (hours > 0) display = `${hours}h ${minutes}m ${seconds}s`;
+    else display = `${minutes}m ${seconds}s`;
+
+    const timerEl = document.getElementById('phase-timer');
+    if (timerEl) timerEl.textContent = display;
+  };
+
+  updateTimer();
+  activeTimer = setInterval(updateTimer, 1000);
+}
+
+// === UTILITY ===
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// === LOGOUT ===
+async function logout() {
+  try {
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (user.id) {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+    }
+  } catch (_) {}
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+</script>
+
+</body>
+</html>
