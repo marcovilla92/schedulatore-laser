@@ -1266,7 +1266,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 // ===========================
 // GLOBALS
 // ===========================
-const API_URL = 'http://localhost:5000';
+const API_URL = '';
 let currentUser = null;
 let pdfData = {};
 let allOrders = [];
@@ -1319,6 +1319,14 @@ window.addEventListener('load', () => {
   updateDestStyle();
   loadCalendar();
   loadOrdersList();
+
+  // Polling: aggiorna dati ogni 5 secondi (come officina/laser)
+  setInterval(() => {
+    const activeTab = document.querySelector('.tab-item.active');
+    const tabId = activeTab ? activeTab.dataset.tab : '';
+    if (tabId === 'calendario') loadCalendar();
+    else if (tabId === 'ordini') loadOrdersList();
+  }, 5000);
 });
 
 // ===========================
