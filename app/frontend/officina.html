@@ -130,17 +130,56 @@ body {
 }
 
 .page-sub {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--gray-text);
-  margin-top: 2px;
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 .page-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-top: 8px;
 }
+
+/* STORICO COMPLETATI */
+.storico-section {
+  margin-top: 32px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.storico-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 0;
+  user-select: none;
+}
+.storico-header:hover { opacity: 0.75; }
+.storico-toggle-icon {
+  font-size: 12px;
+  color: var(--gray-text);
+  transition: transform 0.2s;
+}
+.storico-toggle-icon.open { transform: rotate(90deg); }
+.storico-toggle-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-text);
+}
+.storico-count {
+  background: var(--bg);
+  color: var(--gray-text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.storico-cards { margin-top: 12px; }
 
 /* CARD ROW */
 .card-row {
@@ -271,44 +310,92 @@ body {
 /* CARD ACTIONS */
 .card-actions {
   display: flex;
-  gap: 8px;
-  padding: 12px 20px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 20px;
   border-top: 1px solid var(--border);
 }
 
 .action-btn {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: calc(33.33% - 4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 40px;
-  border-radius: 6px;
+  gap: 5px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.action-btn:hover { opacity: 0.9; }
-
+/* Primario: verde pieno (Completa Fase, Riprendi, Lavora) */
 .action-btn.green {
   background: var(--ls-green);
   color: var(--white);
 }
+.action-btn.green:hover { background: var(--ls-green-light); }
 
+/* Azione fase: contorno verde (Avvia Piega, Avvia Saldatura, etc.) */
+.action-btn.green-outline {
+  background: var(--white);
+  color: var(--ls-green);
+  border: 1px solid var(--ls-green);
+}
+.action-btn.green-outline:hover { background: var(--ls-green); color: var(--white); }
+
+/* Secondario: contorno grigio (Vedi PDF, Delega, Modifica, etc.) */
 .action-btn.outline {
   background: var(--white);
-  color: var(--gray-text);
-  border: 1px solid var(--border);
+  color: var(--black);
+  border: 1px solid #d1d5db;
 }
+.action-btn.outline:hover { background: var(--bg); border-color: #9ca3af; }
 
-.action-btn.outline-blue {
-  background: var(--white);
-  color: var(--blue);
-  border: 1px solid var(--border);
-}
+/* PAUSED CARD */
+.order-card.paused { border: 2px solid var(--orange); box-shadow: 0 4px 16px rgba(146,64,14,0.12); }
+.paused-info { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px; border-radius:8px; background:rgba(146,64,14,0.05); }
+.paused-label { font-size:12px; font-weight:700; color:var(--orange); text-transform:uppercase; letter-spacing:0.5px; }
+.paused-time { font-family:'Geist',sans-serif; font-size:22px; font-weight:900; letter-spacing:-0.5px; color:var(--orange); }
+.paused-sessions { font-size:11px; color:var(--gray-text); }
+.card-status.pausa { background:var(--orange-bg); color:var(--orange); }
+.action-btn.orange { background:#d97706; color:var(--white); }
+.action-btn.red-outline { background:transparent; color:var(--red); border:1px solid var(--red); }
+.action-btn.red-outline:hover { background:var(--red); color:white; }
+.action-btn.red { background:var(--red); color:white; border:none; }
+.action-btn.red:hover { background:#7f1d1d; }
+.phase-row.in-pausa .phase-dot { background:var(--orange); }
+.phase-row.non-necessaria .phase-dot { background:#d1d5db; border-color:#d1d5db; }
+.phase-row.non-necessaria span { color:#9ca3af !important; }
+
+/* SUPPORT / CHIEDI AIUTO */
+.action-btn.blue-outline { background:transparent; color:var(--blue); border:1px solid var(--blue); }
+.action-btn.blue-outline:hover { background:var(--blue); color:white; }
+.support-badge { display:inline-flex; align-items:center; gap:4px; background:#dbeafe; color:#1e40af; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; margin-top:4px; }
+#support-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+#support-modal.active { display:flex; }
+.support-modal-content { background:var(--white); border-radius:16px; width:420px; max-width:90vw; padding:32px; }
+.support-request-card { background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px; margin-bottom:8px; }
+.support-request-card .sr-header { font-weight:700; font-size:14px; margin-bottom:4px; }
+.support-request-card .sr-detail { font-size:12px; color:var(--gray-text); }
+.support-request-card .sr-actions { display:flex; gap:8px; margin-top:12px; }
+
+/* COMPLETE ORDER MODAL */
+.co-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+.co-modal { background:white; border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+.co-modal h3 { margin:0 0 4px; font-size:16px; font-weight:700; }
+.co-modal .co-subtitle { font-size:13px; color:var(--gray-text); margin-bottom:16px; }
+.co-phase-list { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.co-phase-done { font-size:13px; font-weight:600; color:var(--green); padding:6px 8px; background:var(--green-badge-bg); border-radius:6px; }
+.co-phase-skip { font-size:13px; color:#9ca3af; text-decoration:line-through; padding:6px 8px; background:#f9fafb; border-radius:6px; }
+.co-note { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical; min-height:50px; margin-bottom:12px; font-family:inherit; }
+.co-actions { display:flex; gap:8px; }
 
 /* EMPTY STATE */
 .empty-state {
@@ -398,12 +485,163 @@ body {
 .message.success { background: var(--green-badge-bg); color: #166534; }
 .message.error { background: #fee2e2; color: #991b1b; }
 
+/* === CALENDARIO === */
+.cal-container { display: flex; height: calc(100vh - 140px); }
+.cal-left { flex: 1; display: flex; flex-direction: column; padding: 24px 32px; gap: 16px; }
+.cal-right { width: 380px; display: flex; flex-direction: column; gap: 16px; padding: 24px; overflow-y: auto; background: var(--white); border-left: 1px solid var(--border); }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; }
+.cal-nav-btns { display: flex; gap: 8px; }
+.cal-nav-btn { background: var(--white); border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+.cal-nav-btn:hover { background: var(--bg); border-color: var(--green); }
+.cal-today-btn { background: var(--green); color: var(--white); border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; }
+.cal-today-btn:hover { opacity: 0.9; }
+.cal-nav-title { font-size: 20px; font-weight: 700; }
+.cal-grid { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.cal-header-row { display: flex; gap: 4px; }
+.cal-header { flex: 1; text-align: center; font-size: 11px; font-weight: 700; color: var(--gray-text); padding: 6px 0; text-transform: uppercase; }
+.cal-week-row { display: flex; gap: 4px; flex: 1; }
+.cal-day { flex: 1; background: var(--white); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; min-height: 70px; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; }
+.cal-day:hover { border-color: var(--green); box-shadow: 0 2px 6px rgba(26,122,72,0.1); }
+.cal-day.today { border: 2px solid var(--green); background: rgba(26,122,72,0.06); }
+.cal-day.selected { border: 2px solid var(--green); background: rgba(26,122,72,0.08); }
+.cal-day.other-month { opacity: 0.35; }
+.cal-day-num { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.cal-day-count { font-size: 10px; font-weight: 700; color: var(--green); }
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: auto; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+.cal-detail-title { font-size: 18px; font-weight: 700; }
+.cal-detail-sub { font-size: 13px; color: var(--gray-text); }
+.cal-order-card { padding: 14px; background: var(--white); border: 1px solid var(--border); border-left: 4px solid #3b82f6; border-radius: 8px; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; gap: 8px; }
+.cal-order-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); transform: translateY(-1px); }
+
+/* NOTIFICHE */
+.notif-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.notif-bell-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+.notif-bell-btn:hover { background: var(--bg); border-color: var(--gray-text); }
+.notif-bell-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  animation: notifPulse 2s ease-in-out infinite;
+}
+@keyframes notifPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.notif-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 380px;
+  max-height: 480px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  z-index: 2000;
+  flex-direction: column;
+  overflow: hidden;
+}
+.notif-panel.active { display: flex; }
+.notif-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.notif-panel-header h3 { font-size: 15px; font-weight: 700; }
+.notif-panel-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-text); }
+.notif-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.notif-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  cursor: default;
+  position: relative;
+}
+.notif-item:hover { background: var(--bg); }
+.notif-item.unread { background: rgba(26,122,72,0.04); }
+.notif-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.notif-dot.informativa { background: #3b82f6; }
+.notif-dot.attiva { background: #22c55e; }
+.notif-dot.delega { background: #f59e0b; }
+.notif-dot.urgente { background: #ef4444; }
+.notif-content { flex: 1; min-width: 0; }
+.notif-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.notif-message { font-size: 12px; color: var(--gray-text); line-height: 1.4; word-wrap: break-word; }
+.notif-time { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
+.notif-delete {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: none;
+  border: none;
+  color: var(--gray-muted);
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.notif-item:hover .notif-delete { opacity: 1; }
+.notif-delete:hover { color: #ef4444; }
+.notif-panel-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.notif-clear-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.notif-clear-btn:hover { text-decoration: underline; }
+.notif-empty { text-align: center; padding: 32px 16px; color: var(--gray-muted); font-size: 13px; }
+
 /* RESPONSIVE */
 @media (max-width: 800px) {
   .body-content { padding: 20px; }
   .topbar { padding: 0 20px; }
+  .cal-container { flex-direction: column; height: auto; }
+  .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
   .card-row { flex-direction: column; }
   .order-card { max-width: 100%; min-width: 100%; }
+  .notif-panel { width: 320px; right: -60px; }
 }
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -505,6 +743,13 @@ body {
 }
 .btn-logout:hover { background: var(--bg); border-color: var(--gray-text); }
 
+/* === CAPO NAV MENU === */
+.capo-nav { display:flex; align-items:center; gap:4px; margin-left:32px; }
+.capo-nav-item { padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; text-decoration:none; color:var(--gray-text); border:1px solid transparent; }
+.capo-nav-item:hover { color:var(--black); background:var(--bg); }
+.capo-nav-item.active { background:var(--green); color:white; border-color:var(--green); }
+
 /* === TAB BAR === */
 .tab-bar {
   position: fixed;
@@ -531,6 +776,44 @@ body {
 }
 .tab-item.active { color: var(--green); border-bottom-color: var(--green); }
 .tab-item:hover:not(.active) { color: var(--black); background: rgba(26,122,72,0.03); }
+
+/* === BADGE NOTIFICHE === */
+.notif-badge { background:var(--red); color:#fff; border-radius:50%; padding:2px 7px; font-size:10px; font-weight:700; margin-left:6px; display:inline-block; }
+.notif-badge:empty { display:none; }
+
+/* === DELEGHE === */
+.deleg-section-title { font-family:'Geist',sans-serif; font-size:16px; font-weight:800; margin:24px 0 12px; color:var(--black); }
+.deleg-card { background:var(--white); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:12px; }
+.deleg-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.deleg-client { font-size:15px; font-weight:700; }
+.deleg-status { font-size:11px; font-weight:700; padding:3px 10px; border-radius:10px; display:inline-block; }
+.deleg-status.pending { background:#fef3c7; color:#92400e; }
+.deleg-status.accepted { background:#dbeafe; color:#1e40af; }
+.deleg-status.in_progress { background:#dcfce7; color:#166534; }
+.deleg-status.completed { background:#d1fae5; color:#065f46; }
+.deleg-status.rejected { background:#fee2e2; color:#991b1b; }
+.deleg-card.paused { border: 2px solid var(--orange); }
+.deleg-meta { font-size:12px; color:var(--gray-text); margin-bottom:4px; }
+.deleg-actions { display:flex; gap:8px; margin-top:12px; }
+
+/* === DELEGATION MODAL === */
+#delegation-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+#delegation-modal.active { display:flex; }
+.deleg-modal-content { background:var(--white); border-radius:16px; width:420px; max-width:90vw; padding:32px; }
+.deleg-modal-title { font-family:'Geist',sans-serif; font-size:18px; font-weight:800; margin-bottom:20px; }
+.deleg-form-group { margin-bottom:16px; }
+.deleg-form-group label { display:block; font-size:12px; font-weight:600; color:var(--gray-text); margin-bottom:6px; }
+.deleg-form-group select, .deleg-form-group textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif; }
+.deleg-form-group textarea { resize:vertical; min-height:60px; }
+
+/* === DELEGATION COMPLETE MODAL === */
+#deleg-complete-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+#deleg-complete-modal.active { display:flex; }
+.deleg-time-summary { display:flex; gap:12px; margin:16px 0; }
+.deleg-time-item { flex:1; background:var(--bg); border-radius:10px; padding:12px; text-align:center; }
+.deleg-time-label { font-size:11px; color:var(--gray-text); font-weight:600; margin-bottom:4px; }
+.deleg-time-value { font-size:18px; font-weight:800; color:var(--black); font-family:'Geist',sans-serif; }
+.deleg-time-meta { font-size:12px; color:var(--gray-text); margin-bottom:8px; }
 
 /* === TAB PANELS === */
 .tab-panel { display: none; margin-top: 120px; }
@@ -1079,6 +1362,240 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .form-row { flex-direction: column; }
   .form-card { width: 95vw; }
 }
+
+/* === TAB BAR === */
+.tab-bar {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 48px;
+  gap: 32px;
+  z-index: 999;
+}
+
+.tab-item {
+  padding: 16px 0;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-item:hover {
+  color: var(--black);
+}
+
+.tab-item.active {
+  color: var(--green);
+  border-bottom-color: var(--green);
+}
+
+/* === TAB PANELS === */
+.tab-panel {
+  display: none;
+  padding: 0;
+  margin-top: 120px;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.body-content {
+  margin-top: 0 !important;
+  padding: 32px 48px;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* === CARD PHASES === */
+.card-phases {
+  border-top: 1px solid var(--border);
+  padding: 10px 20px 14px;
+}
+
+.phases-toggle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.phases-toggle:hover {
+  color: var(--black);
+}
+
+.phases-timeline {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.phases-timeline.visible {
+  display: flex;
+}
+
+.phase-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.phase-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.phase-row.completata .phase-dot {
+  background: #166534;
+}
+
+.phase-row.in-corso .phase-dot {
+  background: var(--blue);
+}
+
+.phase-row.in-corso .phase-name {
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.phase-row.completata .phase-name {
+  color: var(--gray-muted);
+  text-decoration: line-through;
+}
+
+/* === EDIT MODAL === */
+#edit-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2500;
+  align-items: center;
+  justify-content: center;
+}
+
+#edit-modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header > div {
+  font-family: 'Geist', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.pdf-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--gray-text);
+  transition: color 0.2s;
+}
+
+.pdf-close:hover {
+  color: var(--black);
+}
+
+/* === FORM ELEMENTS === */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--black);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+/* === CLIENTI CARDS === */
+.clienti-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.form-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-card:hover {
+  border-color: var(--green);
+  box-shadow: 0 4px 12px rgba(26, 122, 72, 0.1);
+}
+
+.clienti-empty {
+  display: none;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--gray-text);
+  font-size: 14px;
+}
+
+.clienti-sub {
+  color: var(--gray-text);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
 </style>
 </head>
 <body>
@@ -1092,22 +1609,168 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     </div>
   </a>
   <div class="topbar-actions">
-    <button class="btn-home" onclick="window.location.href='/login.html'">Home</button>
+    <div class="notif-bell">
+      <button class="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifiche">&#128276;</button>
+      <div class="notif-bell-badge" id="notif-badge">0</div>
+      <div class="notif-panel" id="notif-panel">
+        <div class="notif-panel-header">
+          <h3>Notifiche</h3>
+          <button class="notif-panel-close" onclick="toggleNotifPanel()">&times;</button>
+        </div>
+        <div class="notif-panel-body" id="notif-panel-body">
+          <div class="notif-empty">Nessuna notifica</div>
+        </div>
+        <div class="notif-panel-footer" id="notif-panel-footer" style="display:none;">
+          <button class="notif-clear-btn" onclick="clearAllNotifs()">Cancella tutto</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn-home" onclick="goHome()">Home</button>
     <button class="btn-logout" onclick="logout()">Esci</button>
   </div>
 </div>
 
-<div class="body-content">
-  <div class="page-header">
-    <span class="page-badge">OFFICINA</span>
-    <div class="page-title">I Miei Ordini</div>
-    <div class="page-sub" id="page-sub">Caricamento...</div>
-  </div>
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-item active" onclick="switchOperTab('ordini')" id="tab-ordini">I Miei Ordini</div>
+  <div class="tab-item" onclick="switchOperTab('clienti')" id="tab-clienti">Clienti Assegnati</div>
+  <div class="tab-item" onclick="switchOperTab('deleghe')" id="tab-deleghe">Deleghe <span class="notif-badge" id="deleghe-badge"></span></div>
+</div>
 
-  <div class="card-row" id="card-row">
-    <div class="empty-state">
-      <div class="empty-icon">&#128230;</div>
-      Caricamento ordini...
+<!-- TAB: ORDINI -->
+<div class="tab-panel active" id="panel-ordini" style="padding:0; margin-top:0;">
+  <div class="body-content">
+    <div class="page-header">
+      <span class="page-badge">OFFICINA</span>
+      <div class="page-title">I Miei Ordini</div>
+      <div class="page-sub" id="page-sub">Caricamento...</div>
+    </div>
+
+    <div class="card-row" id="card-row">
+      <div class="empty-state">
+        <div class="empty-icon">&#128230;</div>
+        Caricamento ordini...
+      </div>
+    </div>
+
+    <!-- STORICO ORDINI COMPLETATI -->
+    <div id="storico-section" class="storico-section" style="display:none;">
+      <div class="storico-header" onclick="toggleStorico()">
+        <span class="storico-toggle-icon" id="storico-icon">&#9654;</span>
+        <span class="storico-toggle-title">Storico Ordini Completati</span>
+        <span class="storico-count" id="storico-count">0</span>
+      </div>
+      <div class="card-row storico-cards" id="storico-cards" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CLIENTI -->
+<div class="tab-panel" id="panel-clienti">
+  <div class="body-content">
+    <div class="page-header" style="margin-bottom: 24px;">
+      <div class="page-title" style="font-family: 'Geist'; font-size: 22px; font-weight: 900;">Clienti Assegnati</div>
+      <div class="page-sub" id="clienti-sub">Caricamento...</div>
+    </div>
+
+    <div id="clienti-list" class="clienti-list">
+      <!-- Generated by loadAssignedClients() -->
+    </div>
+
+    <div id="clienti-empty" class="clienti-empty">
+      Nessun cliente assegnato a questo operatore.
+    </div>
+  </div>
+</div>
+
+<!-- TAB: DELEGHE -->
+<div class="tab-panel" id="panel-deleghe">
+  <div class="body-content">
+    <div class="page-header" style="margin-bottom:24px;">
+      <div class="page-title" style="font-family:'Geist'; font-size:22px; font-weight:900;">Deleghe</div>
+      <div class="page-sub" id="deleghe-sub">Gestisci le deleghe di fase</div>
+    </div>
+    <div class="deleg-section-title">Fasi Delegate a Me</div>
+    <div id="deleghe-ricevute"></div>
+    <div class="deleg-section-title">Le Mie Deleghe</div>
+    <div id="deleghe-inviate"></div>
+    <div class="deleg-section-title" style="margin-top:16px;">Richieste di Supporto</div>
+    <div id="support-ricevute"></div>
+  </div>
+</div>
+
+<!-- TAB: CALENDARIO (solo capi) -->
+<div class="tab-panel" id="panel-calendario">
+  <div class="cal-container">
+    <div class="cal-left">
+      <div class="cal-nav">
+        <div class="cal-nav-btns">
+          <button class="cal-nav-btn" onclick="calPrevMonth()">&larr; Prec</button>
+          <button class="cal-today-btn" onclick="calGoToday()">Oggi</button>
+          <button class="cal-nav-btn" onclick="calNextMonth()">Succ &rarr;</button>
+        </div>
+        <div class="cal-nav-title" id="cal-month-title">Marzo 2026</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <div class="cal-right" id="cal-detail">
+      <div style="color: var(--gray-text); font-size: 14px;">Seleziona un giorno per vedere gli ordini in consegna</div>
+    </div>
+  </div>
+</div>
+
+<!-- DELEGATION MODAL -->
+<div id="delegation-modal">
+  <div class="deleg-modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <div class="deleg-modal-title">Delega Fase</div>
+      <button style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--gray-text);" onclick="closeDelegationModal()">&times;</button>
+    </div>
+    <div id="deleg-modal-info" style="font-size:13px; color:var(--gray-text); margin-bottom:16px;"></div>
+    <div class="deleg-form-group">
+      <label>Delega a</label>
+      <select id="deleg-operatore-select"><option value="">Seleziona operatore...</option></select>
+    </div>
+    <div class="deleg-form-group">
+      <label>Note (opzionale)</label>
+      <textarea id="deleg-note" placeholder="Istruzioni per il collega..."></textarea>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="action-btn outline" onclick="closeDelegationModal()">Annulla</button>
+      <button class="action-btn green" onclick="submitDelegation()">Conferma Delega</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELEGATION COMPLETE MODAL -->
+<div id="deleg-complete-modal">
+  <div class="deleg-modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div class="deleg-modal-title" style="margin-bottom:0;">Completa Fase Delegata</div>
+      <button style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--gray-text);" onclick="closeDelegCompleteModal()">&times;</button>
+    </div>
+    <div id="deleg-complete-info" class="deleg-time-meta"></div>
+    <div class="deleg-time-summary">
+      <div class="deleg-time-item">
+        <div class="deleg-time-label">Inizio</div>
+        <div class="deleg-time-value" id="deleg-complete-start">--:--</div>
+      </div>
+      <div class="deleg-time-item">
+        <div class="deleg-time-label">Fine</div>
+        <div class="deleg-time-value" id="deleg-complete-end">--:--</div>
+      </div>
+      <div class="deleg-time-item">
+        <div class="deleg-time-label">Durata</div>
+        <div class="deleg-time-value" id="deleg-complete-duration" style="color:var(--green);">--:--</div>
+      </div>
+    </div>
+    <div class="deleg-form-group">
+      <label>Note sulla lavorazione (opzionale)</label>
+      <textarea id="deleg-complete-note" placeholder="Descrivi il lavoro svolto..."></textarea>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="action-btn outline" onclick="closeDelegCompleteModal()">Annulla</button>
+      <button class="action-btn green" onclick="confirmDelegComplete()">Conferma Completamento</button>
     </div>
   </div>
 </div>
@@ -1121,6 +1784,35 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     </div>
     <div class="modal-body">
       <iframe id="modal-pdf-iframe"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="edit-modal">
+  <div class="modal-content" style="width:480px; height:auto; padding:32px; border-radius:12px;">
+    <div class="modal-header">
+      <div style="font-family:'Geist'; font-size:18px; font-weight:700;">Modifica Ordine</div>
+      <button class="pdf-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:20px; margin-top:24px;">
+      <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <input class="form-input" type="text" id="edit-cliente" placeholder="Nome cliente">
+      </div>
+      <div class="form-group">
+        <label class="form-label">N° Ordine</label>
+        <input class="form-input" type="text" id="edit-numero" placeholder="Es. 2024-001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Consegna</label>
+        <input class="form-input" type="date" id="edit-data">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <textarea class="form-input" id="edit-note" rows="3" style="height:auto; padding:10px 12px;"></textarea>
+      </div>
+      <button class="action-btn green" onclick="saveOrderEdit()" style="width:100%; height:48px; font-size:14px;">Salva Modifiche</button>
     </div>
   </div>
 </div>
@@ -1140,6 +1832,28 @@ window.addEventListener('load', () => {
   currentUser = JSON.parse(saved);
   if (!currentUser.id) { window.location.href = '/login.html'; return; }
 
+  // === CAPO NAV MENU + TAB CALENDARIO ===
+  if (currentUser.is_capo || currentUser.role === 'Capo Officina') {
+    const topbar = document.querySelector('.topbar');
+    const logoSection = topbar.querySelector('.logo-section');
+    const nav = document.createElement('div');
+    nav.className = 'capo-nav';
+    nav.innerHTML = `
+      <a class="capo-nav-item active" href="/officina.html">I miei ordini</a>
+      <a class="capo-nav-item" href="/approva-ordine.html">Gestione officina</a>
+    `;
+    logoSection.insertAdjacentElement('afterend', nav);
+
+    // Aggiungi tab Calendario
+    const tabBar = document.querySelector('.tab-bar');
+    const calTab = document.createElement('div');
+    calTab.className = 'tab-item';
+    calTab.id = 'tab-calendario';
+    calTab.textContent = 'Calendario Ordini';
+    calTab.onclick = () => switchOperTab('calendario');
+    tabBar.appendChild(calTab);
+  }
+
   loadOrders();
   setInterval(loadOrders, 5000);
 });
@@ -1147,9 +1861,18 @@ window.addEventListener('load', () => {
 // === LOAD ORDERS ===
 async function loadOrders() {
   try {
+    let url;
     const phase = currentUser.phase || 'PIEGA';
-    const resp = await fetch(`${API_URL}/api/phase/${phase}/orders?operatore=${currentUser.id}`);
-    allOrders = await resp.json();
+    if (phase === 'OFFICINA' || phase === 'ALL') {
+      // Operai OFFICINA o Capo (ALL): carica tutti gli ordini assegnati
+      url = `${API_URL}/api/orders?operatore=${currentUser.id}`;
+    } else {
+      // Operai con fase specifica (PIEGA, SALDATURA, PULIZIA)
+      url = `${API_URL}/api/phase/${phase}/orders?operatore=${currentUser.id}`;
+    }
+    const resp = await fetch(url);
+    const data = await resp.json();
+    allOrders = data.orders || data;
     renderCards();
   } catch (err) {
     console.error('Errore caricamento ordini:', err);
@@ -1159,65 +1882,138 @@ async function loadOrders() {
 // === RENDER CARDS ===
 function renderCards() {
   const container = document.getElementById('card-row');
-  const phase = currentUser.phase || 'PIEGA';
+  const storicoSection = document.getElementById('storico-section');
+  const storicoCards = document.getElementById('storico-cards');
+  const storicoCount = document.getElementById('storico-count');
+  const userPhase = currentUser.phase || 'PIEGA';
+  const isOfficina = (userPhase === 'OFFICINA' || userPhase === 'ALL');
+  const isCapo = currentUser.is_capo || currentUser.role === 'Capo Officina';
+
+  // Separa ordini attivi da completati (solo per operatori, non capi)
+  const activeOrders = isCapo ? allOrders : allOrders.filter(o => o.status !== 'COMPLETATO');
+  const completedOrders = isCapo ? [] : allOrders.filter(o => o.status === 'COMPLETATO');
 
   document.getElementById('page-sub').textContent =
-    `${currentUser.name || 'Operatore'} \u2014 ${allOrders.length} ordine${allOrders.length !== 1 ? 'i' : ''} assegnati`;
+    `${currentUser.name || 'Operatore'} \u2014 ${activeOrders.length === 1 ? '1 ordine attivo' : activeOrders.length + ' ordini attivi'}`;
 
-  if (allOrders.length === 0) {
-    container.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">&#9996;</div>
-      Nessun ordine assegnato al momento
-    </div>`;
-    return;
+  // Per OFFICINA: la fase rilevante è fase_corrente dell'ordine
+  // Per fase specifica: usa la fase dell'utente
+  function getOrderPhase(order) {
+    return isOfficina ? (order.fase_corrente || 'PIEGA') : userPhase;
   }
 
-  // Sort: active first (has timestamp_inizio but no timestamp_fine), then waiting
-  const sorted = [...allOrders].sort((a, b) => {
-    const stepA = (a.processing_steps || []).find(s => s.fase === phase);
-    const stepB = (b.processing_steps || []).find(s => s.fase === phase);
-    const activeA = stepA?.timestamp_inizio && !stepA?.timestamp_fine ? 1 : 0;
-    const activeB = stepB?.timestamp_inizio && !stepB?.timestamp_fine ? 1 : 0;
-    return activeB - activeA;
+  function getMyStepInfo(step) {
+    // Restituisce stato e tempo per-operatore (supporto parallelo)
+    const myInfo = step.operatori_info?.[currentUser.id];
+    if (myInfo) {
+      return {
+        isActive: myInfo.sessione_attiva,
+        isPaused: myInfo.in_pausa,
+        sessionStart: myInfo.sessione_attiva_inizio,
+        cumulativeSeconds: myInfo.tempo_cumulativo_secondi || 0,
+        sessionCount: myInfo.sessioni_count || 0
+      };
+    }
+    // Fallback: usa dati globali dello step (operatore singolo)
+    return {
+      isActive: step.sessione_attiva,
+      isPaused: step.in_pausa,
+      sessionStart: step.sessione_attiva_inizio,
+      cumulativeSeconds: step.tempo_cumulativo_secondi || 0,
+      sessionCount: step.sessioni_count || 0
+    };
+  }
+
+  // Pulisci timer precedenti
+  Object.keys(activeTimers).forEach(k => {
+    if (!k.startsWith('deleg-')) { clearInterval(activeTimers[k]); delete activeTimers[k]; }
   });
 
-  container.innerHTML = sorted.map(order => {
-    const step = (order.processing_steps || []).find(s => s.fase === phase);
-    const isActive = step?.timestamp_inizio && !step?.timestamp_fine;
-    const isCompleted = step?.timestamp_fine;
-    const consegna = order.data_consegna
-      ? new Date(order.data_consegna).toLocaleDateString('it-IT')
-      : 'N/A';
+  if (activeOrders.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">&#9996;</div>
+      Nessun ordine attivo al momento
+    </div>`;
+  } else {
+    // Sort: active first, then paused, then waiting
+    const sorted = [...activeOrders].sort((a, b) => {
+      const phaseA = getOrderPhase(a);
+      const phaseB = getOrderPhase(b);
+      const stepA = (a.processing_steps || []).filter(s => s.fase === phaseA).pop();
+      const stepB = (b.processing_steps || []).filter(s => s.fase === phaseB).pop();
+      const infoA = stepA ? getMyStepInfo(stepA) : {};
+      const infoB = stepB ? getMyStepInfo(stepB) : {};
+      const scoreA = infoA.isActive ? 2 : infoA.isPaused ? 1 : 0;
+      const scoreB = infoB.isActive ? 2 : infoB.isPaused ? 1 : 0;
+      return scoreB - scoreA;
+    });
 
-    if (isActive) {
-      return renderActiveCard(order, step, phase, consegna);
-    } else if (isCompleted) {
+    container.innerHTML = sorted.map(order => {
+      const phase = getOrderPhase(order);
+      const step = (order.processing_steps || []).filter(s => s.fase === phase).pop();
+      const myInfo = step ? getMyStepInfo(step) : {};
+      const isActive = myInfo.isActive;
+      const isPaused = myInfo.isPaused;
+      const isCompleted = order.status === 'COMPLETATO';
+      const consegna = order.data_consegna
+        ? new Date(order.data_consegna).toLocaleDateString('it-IT')
+        : 'N/A';
+
+      if (isActive) {
+        return renderActiveCard(order, step, phase, consegna);
+      } else if (isPaused) {
+        return renderPausedCard(order, step, phase, consegna);
+      } else if (isCompleted) {
+        return renderCompletedCard(order, consegna);
+      } else {
+        return renderWaitingCard(order, phase, consegna);
+      }
+    }).join('');
+
+    // Start timers for active orders (with cumulative offset per-operatore)
+    sorted.forEach(order => {
+      const phase = getOrderPhase(order);
+      const step = (order.processing_steps || []).filter(s => s.fase === phase).pop();
+      if (step) {
+        const myInfo = getMyStepInfo(step);
+        if (myInfo.isActive && myInfo.sessionStart) {
+          startTimer(order.id, myInfo.sessionStart, myInfo.cumulativeSeconds);
+        }
+      }
+    });
+  }
+
+  // Storico ordini completati (solo operatori, non capi)
+  if (completedOrders.length > 0) {
+    storicoSection.style.display = '';
+    storicoCount.textContent = completedOrders.length;
+    storicoCards.innerHTML = completedOrders.map(order => {
+      const consegna = order.data_consegna
+        ? new Date(order.data_consegna).toLocaleDateString('it-IT')
+        : 'N/A';
       return renderCompletedCard(order, consegna);
-    } else {
-      return renderWaitingCard(order, phase, consegna);
-    }
-  }).join('');
-
-  // Start timers for active orders
-  Object.values(activeTimers).forEach(t => clearInterval(t));
-  activeTimers = {};
-  sorted.forEach(order => {
-    const step = (order.processing_steps || []).find(s => s.fase === phase);
-    if (step?.timestamp_inizio && !step?.timestamp_fine) {
-      startTimer(order.id, step.timestamp_inizio);
-    }
-  });
+    }).join('');
+  } else {
+    storicoSection.style.display = 'none';
+  }
 }
 
 function renderActiveCard(order, step, phase, consegna) {
   const faseBadgeClass = phase.toLowerCase();
-  return `<div class="order-card active">
+  const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supporters = (order.support_requests || []).filter(sr => sr.operatore_principale === currentUser.id && sr.stato === 'accepted');
+  const supportInfo = (order.support_requests || []).find(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
+    (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
+  return `<div class="order-card active" data-cliente="${escapeHtml(order.cliente)}">
     <div class="card-top">
       <div class="card-header">
         <span class="card-client">${escapeHtml(order.cliente)}</span>
         <span class="card-status lavorazione">IN LAVORAZIONE</span>
       </div>
       <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna} &middot; Tagliato</div>
+      ${supportBadgeHtml}
       <div class="card-fase">
         <span class="card-fase-label">Fase:</span>
         <span class="fase-badge ${faseBadgeClass}">${phase}</span>
@@ -1228,39 +2024,70 @@ function renderActiveCard(order, step, phase, consegna) {
       </div>
     </div>
     <div class="card-actions">
-      <button class="action-btn green" onclick="completePhase('${order.id}')">&#10004; Completa</button>
+      <button class="action-btn green" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
+      <button class="action-btn outline" onclick="savePartial('${order.id}')">&#9208; Pausa</button>
+      ${!isSupport ? `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>` : ''}
+      ${!isSupport ? `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>` : ''}
+      ${canModify ? `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>` : ''}
+    </div>
+    <div class="card-phases">
+      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
+      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
     </div>
   </div>`;
 }
 
 function renderWaitingCard(order, phase, consegna) {
-  const laserStep = (order.processing_steps || []).find(s => s.fase === 'LASER');
+  const laserStep = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
   const laserDone = laserStep?.timestamp_fine;
   const statusClass = laserDone ? 'in-attesa' : 'ricevuto';
   const statusText = laserDone ? 'IN ATTESA' : 'DA TAGLIARE';
   const noteText = laserDone ? 'In attesa di lavorazione' : 'In attesa taglio laser';
+  const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supporters = (order.support_requests || []).filter(sr => sr.operatore_principale === currentUser.id && sr.stato === 'accepted');
+  const supportInfo = (order.support_requests || []).find(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
+    (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
+  const hasCompletedPhases = (order.processing_steps || []).some(s => s.timestamp_fine);
 
-  return `<div class="order-card waiting">
+  return `<div class="order-card waiting" data-cliente="${escapeHtml(order.cliente)}">
     <div class="card-top">
       <div class="card-header">
         <span class="card-client">${escapeHtml(order.cliente)}</span>
         <span class="card-status ${statusClass}">${statusText}</span>
       </div>
       <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
+      ${supportBadgeHtml}
       <div class="waiting-note">
         <span>&#9202;</span>
         <span>${noteText}</span>
       </div>
     </div>
     <div class="card-actions">
-      ${laserDone ? `<button class="action-btn green" onclick="startAndWork('${order.id}')">&#9654; Inizia Lavorazione</button>` : `<button class="action-btn outline-blue" onclick="sendToLaser('${order.id}')">&#9889; Manda al Laser</button>`}
+      ${buildPhaseActions(order)}
       <button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>
+      ${!isSupport ? `<button class="action-btn outline" onclick="openDelegationModal('${order.id}','${phase}')">&#128101; Delega</button>` : ''}
+      ${!isSupport ? `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>` : ''}
+      ${!isSupport && hasCompletedPhases ? `<button class="action-btn outline" style="color:var(--red);" onclick="openCompleteOrderModal('${order.id}')">&#9632; Chiudi Ordine</button>` : ''}
+      ${canModify ? `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>` : ''}
+    </div>
+    <div class="card-phases">
+      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
+      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
     </div>
   </div>`;
 }
 
 function renderCompletedCard(order, consegna) {
-  return `<div class="order-card waiting" style="opacity: 0.6;">
+  // Calcola tempo totale lavorazione
+  let tempoTotale = 0;
+  (order.processing_steps || []).forEach(s => {
+    if (s.tempo_cumulativo_secondi) tempoTotale += s.tempo_cumulativo_secondi;
+  });
+  const tempoStr = tempoTotale > 0 ? formatDuration(tempoTotale) : '';
+
+  return `<div class="order-card waiting" style="opacity: 0.7;" data-cliente="${escapeHtml(order.cliente)}">
     <div class="card-top">
       <div class="card-header">
         <span class="card-client">${escapeHtml(order.cliente)}</span>
@@ -1269,18 +2096,113 @@ function renderCompletedCard(order, consegna) {
       <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
       <div class="waiting-note" style="background: var(--green-badge-bg); color: #166534;">
         <span>&#10004;</span>
-        <span>Fase completata</span>
+        <span>Ordine completato${tempoStr ? ' &mdash; Tempo totale: ' + tempoStr : ''}</span>
       </div>
     </div>
     <div class="card-actions">
       <button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>
     </div>
+    <div class="card-phases">
+      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
+      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
+    </div>
+  </div>`;
+}
+
+function renderPausedCard(order, step, phase, consegna) {
+  const faseBadgeClass = phase.toLowerCase();
+  const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
+  const myInfo = step.operatori_info?.[currentUser.id];
+  const cumulSec = myInfo ? myInfo.tempo_cumulativo_secondi : (step.tempo_cumulativo_secondi || 0);
+  const h = String(Math.floor(cumulSec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((cumulSec % 3600) / 60)).padStart(2, '0');
+  const s = String(cumulSec % 60).padStart(2, '0');
+  const sessCount = myInfo ? myInfo.sessioni_count : (step.sessioni_count || 0);
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supporters = (order.support_requests || []).filter(sr => sr.operatore_principale === currentUser.id && sr.stato === 'accepted');
+  const supportInfo = (order.support_requests || []).find(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
+    (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
+
+  return `<div class="order-card paused" data-cliente="${escapeHtml(order.cliente)}">
+    <div class="card-top">
+      <div class="card-header">
+        <span class="card-client">${escapeHtml(order.cliente)}</span>
+        <span class="card-status pausa">IN PAUSA</span>
+      </div>
+      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
+      ${supportBadgeHtml}
+      <div class="card-fase">
+        <span class="card-fase-label">Fase:</span>
+        <span class="fase-badge ${faseBadgeClass}">${phase}</span>
+      </div>
+      <div class="paused-info">
+        <span class="paused-label">&#9208; In Pausa</span>
+        <span class="paused-time">${h}:${m}:${s}</span>
+        <span class="paused-sessions">${sessCount} ${sessCount === 1 ? 'sessione' : 'sessioni'} completate</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="action-btn green" onclick="resumePhase('${order.id}','${phase}')">&#9654; Riprendi</button>
+      <button class="action-btn outline" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
+      ${!isSupport ? `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>` : ''}
+      ${!isSupport ? `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>` : ''}
+      ${canModify ? `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>` : ''}
+    </div>
+    <div class="card-phases">
+      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
+      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
+    </div>
   </div>`;
 }
 
 // === ACTIONS ===
+function getPhaseForOrder(orderId) {
+  if (currentUser.phase === 'OFFICINA' || currentUser.phase === 'ALL') {
+    const order = allOrders.find(o => o.id === orderId);
+    return order ? (order.fase_corrente || 'PIEGA') : 'PIEGA';
+  }
+  return currentUser.phase || 'PIEGA';
+}
+
+function buildPhaseActions(order) {
+  const steps = order.processing_steps || [];
+  const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  const labels = { LASER: '⚡ Manda al Laser', PIEGA: '▶ Avvia Piega', SALDATURA: '▶ Avvia Saldatura', PULIZIA: '▶ Avvia Pulizia' };
+
+  return allPhases.map(p => {
+    const step = steps.filter(s => s.fase === p).pop();
+    const done = step?.timestamp_fine;
+    const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
+    if (done || inProgress) return '';
+    if (p === 'LASER') {
+      return `<button class="action-btn green-outline" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`;
+    }
+    return `<button class="action-btn green-outline" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`;
+  }).filter(Boolean).join('');
+}
+
+async function startPhaseDirectly(orderId, phase) {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore: currentUser.name, operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage(`Fase ${phase} iniziata`, 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
 async function startAndWork(orderId) {
-  const phase = currentUser.phase || 'PIEGA';
+  const phase = getPhaseForOrder(orderId);
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
       method: 'POST',
@@ -1300,7 +2222,7 @@ async function startAndWork(orderId) {
 }
 
 async function completePhase(orderId) {
-  const phase = currentUser.phase || 'PIEGA';
+  const phase = getPhaseForOrder(orderId);
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/complete`, {
       method: 'POST',
@@ -1317,6 +2239,224 @@ async function completePhase(orderId) {
   } catch (err) {
     showMessage('Errore di connessione', 'error');
   }
+}
+
+// === COMPLETE ORDER (chiusura anticipata) ===
+let completeOrderTarget = null;
+
+function openCompleteOrderModal(orderId) {
+  const order = allOrders.find(o => o.id === orderId);
+  if (!order) return;
+  // Blocca se operatore di supporto
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  if (isSupport && !currentUser.is_capo) {
+    showMessage("Solo l'operatore principale può chiudere l'ordine", 'error');
+    return;
+  }
+  completeOrderTarget = orderId;
+
+  const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  const steps = order.processing_steps || [];
+  const executedPhases = new Set(steps.filter(s => s.timestamp_fine).map(s => s.fase));
+  const activeStep = steps.find(s => !s.timestamp_fine);
+  if (activeStep) executedPhases.add(activeStep.fase);
+
+  let html = '';
+  allPhases.forEach(p => {
+    const step = steps.filter(s => s.fase === p).pop();
+    if (executedPhases.has(p)) {
+      const dur = step?.tempo_cumulativo_secondi || 0;
+      const durStr = dur > 0 ? formatDuration(dur) : (step?.timestamp_inizio ? 'in corso' : '');
+      html += `<div class="co-phase-done">&#10004; ${p} &mdash; ${escapeHtml(step?.operatore || '')} ${durStr}</div>`;
+    } else {
+      html += `<div class="co-phase-skip">&mdash; ${p} &mdash; Non necessaria</div>`;
+    }
+  });
+
+  document.getElementById('co-order-info').textContent =
+    `${order.cliente} — #${order.numero_ordine || order.id.substring(0,8)}`;
+  document.getElementById('co-phase-summary').innerHTML = html;
+  document.getElementById('co-note').value = '';
+  document.getElementById('co-overlay').style.display = 'flex';
+}
+
+function closeCompleteOrderModal() {
+  document.getElementById('co-overlay').style.display = 'none';
+  completeOrderTarget = null;
+}
+
+async function confirmCompleteOrder() {
+  if (!completeOrderTarget) return;
+  const note = document.getElementById('co-note').value.trim();
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${completeOrderTarget}/complete-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id, note })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      closeCompleteOrderModal();
+      showMessage('Ordine completato!', 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+// === SUPPORTO / CHIEDI AIUTO ===
+let supportModalOrderId = null;
+
+async function openSupportModal(orderId) {
+  supportModalOrderId = orderId;
+  const order = allOrders.find(o => o.id === orderId);
+  document.getElementById('support-modal-info').innerHTML =
+    order ? `<strong>${escapeHtml(order.cliente)}</strong> &mdash; #${escapeHtml(order.numero_ordine || order.id.substring(0,8))}` : '';
+
+  const existingSupport = (order?.support_requests || [])
+    .filter(sr => sr.stato === 'accepted' || sr.stato === 'pending')
+    .map(sr => sr.operatore_supporto);
+
+  try {
+    const resp = await fetch(`${API_URL}/api/users`);
+    const data = await resp.json();
+    const select = document.getElementById('support-operatore-select');
+    select.innerHTML = '<option value="">Seleziona operatore...</option>';
+    (data.users || [])
+      .filter(u => u.id !== currentUser.id && u.is_active !== false && !existingSupport.includes(u.id) && u.id !== 'elena-impiegata')
+      .forEach(u => {
+        select.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)} (${u.role})</option>`;
+      });
+  } catch (e) { console.error('Errore caricamento operatori:', e); }
+
+  document.getElementById('support-note').value = '';
+  document.getElementById('support-modal').classList.add('active');
+}
+
+function closeSupportModal() {
+  document.getElementById('support-modal').classList.remove('active');
+  supportModalOrderId = null;
+}
+
+async function submitSupportRequest() {
+  const opSupporto = document.getElementById('support-operatore-select').value;
+  if (!opSupporto) { showMessage('Seleziona un operatore', 'error'); return; }
+  try {
+    const resp = await fetch(`${API_URL}/api/support-requests`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        order_id: supportModalOrderId,
+        operatore_principale: currentUser.id,
+        operatore_supporto: opSupporto,
+        note: document.getElementById('support-note').value.trim()
+      })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      closeSupportModal();
+      showMessage('Richiesta di aiuto inviata!', 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (err) { showMessage('Errore di connessione', 'error'); }
+}
+
+async function acceptSupport(requestId) {
+  try {
+    const resp = await fetch(`${API_URL}/api/support-requests/${requestId}/accept`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Supporto accettato!', 'success');
+      await loadOrders();
+      await loadDelegations();
+    } else { showMessage('Errore: ' + (result.error || ''), 'error'); }
+  } catch (err) { showMessage('Errore di connessione', 'error'); }
+}
+
+async function rejectSupport(requestId) {
+  try {
+    const resp = await fetch(`${API_URL}/api/support-requests/${requestId}/reject`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Richiesta rifiutata', 'success');
+      await loadDelegations();
+    } else { showMessage('Errore: ' + (result.error || ''), 'error'); }
+  } catch (err) { showMessage('Errore di connessione', 'error'); }
+}
+
+function renderSupportRequests(requests) {
+  const container = document.getElementById('support-ricevute');
+  if (!container) return;
+  if (!requests.length) { container.innerHTML = ''; return; }
+  container.innerHTML = requests.map(sr => `
+    <div class="support-request-card">
+      <div class="sr-header">${escapeHtml(sr.nome_principale)} chiede aiuto</div>
+      <div class="sr-detail">${escapeHtml(sr.cliente)} &mdash; #${escapeHtml(sr.numero_ordine)}</div>
+      ${sr.note ? `<div class="sr-detail" style="margin-top:4px; font-style:italic;">"${escapeHtml(sr.note)}"</div>` : ''}
+      <div class="sr-actions">
+        <button class="action-btn green" onclick="acceptSupport('${sr.id}')">&#10004; Accetto</button>
+        <button class="action-btn outline" onclick="rejectSupport('${sr.id}')">&#10008; Rifiuta</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function savePartial(orderId) {
+  const phase = getPhaseForOrder(orderId);
+  if (!confirm('Salvare parziale? La fase resterà aperta e potrai riprendere dopo.')) return;
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/save-partial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
+      showMessage(`Parziale salvato — ${result.sessioni_count} sessioni, tempo: ${result.tempo_cumulativo}`, 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile salvare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function resumePhase(orderId, phase) {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore: currentUser.name, operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Fase ripresa', 'success');
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile riprendere'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function completePartial(orderId) {
+  return savePartial(orderId);
 }
 
 async function sendToLaser(orderId) {
@@ -1338,15 +2478,183 @@ async function sendToLaser(orderId) {
   }
 }
 
+// === CALENDARIO (solo capi) ===
+let calDate = new Date();
+let calSelectedDate = null;
+let calOrders = [];
+
+const calFaseColors = {
+  LASER: '#3b82f6', PIEGA: '#f59e0b', SALDATURA: '#ef4444',
+  PULIZIA: '#8b5cf6', COMPLETATO: '#22c55e', PARZIALE: '#f97316'
+};
+
+function getCalStatusColor(order) {
+  if (order.status === 'COMPLETATO') return '#22c55e';
+  if (order.status === 'PARZIALE') return '#f97316';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const consegna = new Date(order.data_consegna); consegna.setHours(0,0,0,0);
+  if (consegna < today) return '#ef4444';
+  const twoDays = new Date(today); twoDays.setDate(twoDays.getDate() + 2);
+  if (consegna <= twoDays) return '#eab308';
+  return '#3b82f6';
+}
+
+function calCalcProgress(order) {
+  if (order.status === 'COMPLETATO') return 100;
+  if (order.status === 'PARZIALE') return 85;
+  const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
+  const base = map[order.fase_corrente] || 0;
+  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  return hasActive ? Math.min(base + 10, 95) : base;
+}
+
+async function loadCalendarData() {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders`);
+    const data = await resp.json();
+    calOrders = data.orders || [];
+  } catch (err) { calOrders = []; }
+  renderCal();
+}
+
+function renderCal() {
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const year = calDate.getFullYear();
+  const month = calDate.getMonth();
+  document.getElementById('cal-month-title').textContent = `${monthNames[month]} ${year}`;
+
+  const grid = document.getElementById('cal-grid');
+  const dayHeaders = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+  let html = '<div class="cal-header-row">';
+  html += dayHeaders.map(d => `<div class="cal-header">${d}</div>`).join('');
+  html += '</div>';
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startOffset = (firstDay.getDay() + 6) % 7;
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  let allDays = [];
+
+  const prevMonthLast = new Date(year, month, 0).getDate();
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const d = prevMonthLast - i;
+    const dateStr = calFormatDate(year, month - 1, d);
+    allDays.push({ day: d, dateStr, isOther: true });
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = calFormatDate(year, month, d);
+    allDays.push({ day: d, dateStr, isOther: false });
+  }
+  const remaining = (7 - (allDays.length % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    const dateStr = calFormatDate(year, month + 1, d);
+    allDays.push({ day: d, dateStr, isOther: true });
+  }
+
+  for (let w = 0; w < allDays.length; w += 7) {
+    html += '<div class="cal-week-row">';
+    for (let i = w; i < w + 7 && i < allDays.length; i++) {
+      html += renderCalDayCell(allDays[i].day, allDays[i].dateStr, todayStr, allDays[i].isOther);
+    }
+    html += '</div>';
+  }
+
+  grid.innerHTML = html;
+  if (!calSelectedDate) {
+    calSelectedDate = todayStr;
+    showCalDayDetail(calSelectedDate);
+  }
+}
+
+function calFormatDate(year, month, day) {
+  const dt = new Date(year, month, day);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function renderCalDayCell(day, dateStr, todayStr, isOtherMonth) {
+  const ordersOnDay = calOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === dateStr);
+  let classes = 'cal-day';
+  if (dateStr === todayStr) classes += ' today';
+  if (dateStr === calSelectedDate) classes += ' selected';
+  if (isOtherMonth) classes += ' other-month';
+
+  let dots = '';
+  if (ordersOnDay.length > 0) {
+    dots = `<div class="cal-dots">${ordersOnDay.slice(0, 5).map(o => `<div class="cal-dot" style="background:${getCalStatusColor(o)}"></div>`).join('')}</div>`;
+  }
+
+  return `<div class="${classes}" onclick="selectCalDay('${dateStr}')">
+    <div class="cal-day-num">${day}</div>
+    ${ordersOnDay.length > 0 ? `<div class="cal-day-count">${ordersOnDay.length} ordine${ordersOnDay.length > 1 ? 'i' : ''}</div>` : ''}
+    ${dots}
+  </div>`;
+}
+
+function selectCalDay(dateStr) {
+  calSelectedDate = dateStr;
+  renderCal();
+  showCalDayDetail(dateStr);
+}
+
+function showCalDayDetail(dateStr) {
+  const panel = document.getElementById('cal-detail');
+  const ordersOnDay = calOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === dateStr);
+  const dt = new Date(dateStr + 'T00:00:00');
+  const formatted = dt.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  let html = `<div class="cal-detail-title">${formatted}</div>
+    <div class="cal-detail-sub">${ordersOnDay.length} ordine${ordersOnDay.length !== 1 ? 'i' : ''} in consegna</div>`;
+
+  if (ordersOnDay.length === 0) {
+    html += '<div style="color: var(--gray-text); font-size: 13px; padding: 20px 0;">Nessun ordine in consegna per questo giorno</div>';
+  } else {
+    ordersOnDay.forEach(order => {
+      const progress = calCalcProgress(order);
+      const statusColor = getCalStatusColor(order);
+      const faseColor = calFaseColors[order.fase_corrente] || '#666';
+      html += `<div class="cal-order-card" style="border-left-color: ${statusColor};" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-weight: 700; font-size: 14px;">${escapeHtml(order.cliente) || 'N/A'}</div>
+            ${order.numero_ordine ? `<div style="font-size: 11px; color: var(--gray-text);">#${escapeHtml(order.numero_ordine)}</div>` : ''}
+          </div>
+          <span style="display:inline-block; padding:3px 10px; border-radius:10px; font-size:10px; font-weight:700; color:white; background:${faseColor};">${order.fase_corrente || '—'}</span>
+        </div>
+        ${order.operatore_assegnato ? `<div style="font-size: 11px; color: var(--gray-text);">Operatore: ${escapeHtml(order.operatore_assegnato)}</div>` : ''}
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+            <span style="color: var(--gray-text);">Avanzamento</span>
+            <span style="font-weight: 700; color: ${statusColor};">${progress}%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" style="width: ${progress}%; background: ${statusColor};"></div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+  panel.innerHTML = html;
+}
+
+function calPrevMonth() { calDate.setMonth(calDate.getMonth() - 1); calSelectedDate = null; renderCal(); }
+function calNextMonth() { calDate.setMonth(calDate.getMonth() + 1); calSelectedDate = null; renderCal(); }
+function calGoToday() { const n = new Date(); calDate = n; calSelectedDate = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; loadCalendarData(); }
+
 // === TIMER ===
-function startTimer(orderId, timestamp_inizio) {
+function startTimer(orderId, timestamp_inizio, cumulativeSeconds = 0) {
+  const ts = timestamp_inizio.endsWith('Z') ? timestamp_inizio : timestamp_inizio + 'Z';
   const update = () => {
     const now = new Date();
-    const start = new Date(timestamp_inizio);
-    const elapsed = Math.floor((now - start) / 1000);
-    const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-    const s = String(elapsed % 60).padStart(2, '0');
+    const start = new Date(ts);
+    const sessionElapsed = Math.floor((now - start) / 1000);
+    const total = sessionElapsed + cumulativeSeconds;
+    const h = String(Math.floor(total / 3600)).padStart(2, '0');
+    const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+    const s = String(total % 60).padStart(2, '0');
     const el = document.getElementById(`timer-${orderId}`);
     if (el) el.textContent = `${h}:${m}:${s}`;
   };
@@ -1370,6 +2678,176 @@ document.getElementById('pdf-modal').addEventListener('click', function(e) {
   if (e.target === this) closePdfModal();
 });
 
+// === TABS ===
+let operCurrentTab = 'ordini';
+
+function switchOperTab(tab) {
+  operCurrentTab = tab;
+  document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'clienti') loadAssignedClients();
+  if (tab === 'deleghe') loadDelegations();
+  if (tab === 'calendario') loadCalendarData();
+}
+
+// === CLIENTI ASSEGNATI ===
+async function loadAssignedClients() {
+  try {
+    const resp = await fetch(`${API_URL}/api/operator-clients?operator_id=${currentUser.id}`);
+    const data = await resp.json();
+    renderClientCards(data.assignments || []);
+  } catch (e) {
+    console.error('Errore caricamento clienti:', e);
+  }
+}
+
+function renderClientCards(clients) {
+  const list = document.getElementById('clienti-list');
+  const empty = document.getElementById('clienti-empty');
+  const sub = document.getElementById('clienti-sub');
+
+  sub.textContent = clients.length === 1 ? '1 cliente assegnato' : `${clients.length} clienti assegnati`;
+
+  if (clients.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = clients.map(c => {
+    const ordersForClient = allOrders.filter(o => o.cliente === c.client_name);
+    const activeOrders = ordersForClient.filter(o => o.status !== 'COMPLETATO');
+    return `<div class="form-card" style="padding: 20px 24px; gap: 12px; cursor:pointer;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:15px; font-weight:700; color:var(--black);">${escapeHtml(c.client_name)}</div>
+        <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:10px; background:var(--blue-bg); color:var(--blue);">${activeOrders.length} attivi</span>
+      </div>
+      <div style="font-size:12px; color:var(--gray-text);">${ordersForClient.length} ordini totali</div>
+      <button class="action-btn green" style="width:200px; height:56px; font-size:16px; font-weight:700; border-radius:12px; margin-top:8px; flex:none;" onclick="filterOrdersByClient('${escapeHtml(c.client_name)}')">Vedi Ordini →</button>
+    </div>`;
+  }).join('');
+}
+
+function filterOrdersByClient(clientName) {
+  switchOperTab('ordini');
+  document.querySelectorAll('.order-card').forEach(card => {
+    const name = card.dataset.cliente || '';
+    const wrapper = card.closest('div');
+    if (wrapper) wrapper.style.display = name === clientName ? '' : 'none';
+  });
+  document.getElementById('page-sub').textContent = `Filtro: ${clientName} — click su "I Miei Ordini" per rimuovere filtro`;
+}
+
+// === FASE TIMELINE ===
+function buildPhaseTimeline(order) {
+  const phases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  const steps = order.processing_steps || [];
+  return phases.map(p => {
+    const step = steps.filter(s => s.fase === p).pop();
+    let status = 'attesa';
+    let label = 'In attesa';
+    let dateStr = '—';
+    if (order.status === 'COMPLETATO' && !step) {
+      status = 'non-necessaria';
+      label = 'Non necessaria';
+      dateStr = '';
+    } else if (step) {
+      if (step.timestamp_fine) {
+        status = 'completata';
+        label = 'Completata';
+        dateStr = new Date(step.timestamp_fine).toLocaleDateString('it-IT');
+      } else if (step.in_pausa) {
+        status = 'in-pausa';
+        label = `In pausa (${step.sessioni_count || 0} sess.)`;
+        dateStr = '';
+      } else if (step.sessione_attiva || step.timestamp_inizio) {
+        status = 'in-corso';
+        label = 'In corso';
+        dateStr = new Date(step.sessione_attiva_inizio || step.timestamp_inizio).toLocaleDateString('it-IT');
+      }
+    }
+    const colors = {
+      LASER: 'var(--blue)', PIEGA: 'var(--orange)',
+      SALDATURA: 'var(--red)', PULIZIA: '#6b21a8'
+    };
+    return `<div class="phase-row ${status}">
+      <div class="phase-dot"></div>
+      <span style="font-size:11px; font-weight:700; color:${colors[p]}; min-width:70px;">${p}</span>
+      <span style="font-size:11px; color:var(--gray-text);">${label}</span>
+      <span style="font-size:11px; color:var(--gray-muted); margin-left:auto;">${dateStr}</span>
+    </div>`;
+  }).join('');
+}
+
+function togglePhases(element) {
+  const timeline = element.nextElementSibling;
+  if (timeline) {
+    timeline.classList.toggle('visible');
+    element.textContent = timeline.classList.contains('visible') ? 'Fasi ▾' : 'Fasi ▸';
+  }
+}
+
+function toggleStorico() {
+  const cards = document.getElementById('storico-cards');
+  const icon = document.getElementById('storico-icon');
+  const visible = cards.style.display !== 'none';
+  cards.style.display = visible ? 'none' : '';
+  icon.classList.toggle('open', !visible);
+}
+
+// === MODAL MODIFICA ===
+let editingOrderId = null;
+
+function openEditModal(orderId) {
+  const order = allOrders.find(o => o.id === orderId);
+  if (!order) return;
+  editingOrderId = orderId;
+  document.getElementById('edit-cliente').value = order.cliente || '';
+  document.getElementById('edit-numero').value = order.numero_ordine || '';
+  document.getElementById('edit-data').value = order.data_consegna ? order.data_consegna.split('T')[0] : '';
+  document.getElementById('edit-note').value = order.note || '';
+  document.getElementById('edit-modal').classList.add('active');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('active');
+  editingOrderId = null;
+}
+
+async function saveOrderEdit() {
+  if (!editingOrderId) return;
+  const payload = {
+    cliente: document.getElementById('edit-cliente').value.trim(),
+    numero_ordine: document.getElementById('edit-numero').value.trim(),
+    data_consegna: document.getElementById('edit-data').value,
+    note: document.getElementById('edit-note').value.trim()
+  };
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${editingOrderId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const result = await resp.json();
+    if (result.success) {
+      closeEditModal();
+      await loadOrders();
+      showMessage('Ordine aggiornato con successo', 'success');
+    } else {
+      showMessage('Errore: ' + result.error, 'error');
+    }
+  } catch (e) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+
 // === UTILS ===
 function escapeHtml(str) {
   if (!str) return '';
@@ -1383,7 +2861,394 @@ function showMessage(text, type) {
   setTimeout(() => msg.classList.remove('active'), 4000);
 }
 
+// === DELEGHE ===
+let delegModalOrderId = '';
+let delegModalFase = '';
+let delegheRicevuteData = [];
+let delegCompleteId = '';
+
+async function loadDelegations() {
+  try {
+    // Deleghe ricevute (a me)
+    const respRic = await fetch(`${API_URL}/api/delegations?op_delegato=${currentUser.id}`);
+    const dataRic = await respRic.json();
+    delegheRicevuteData = dataRic.delegations || [];
+    renderDelegheRicevute(delegheRicevuteData);
+
+    // Deleghe inviate (da me)
+    const respInv = await fetch(`${API_URL}/api/delegations?op_principale=${currentUser.id}`);
+    const dataInv = await respInv.json();
+    renderDelegheInviate(dataInv.delegations || []);
+
+    updateDelegheBadge(dataRic.delegations || []);
+
+    // Richieste di supporto ricevute (pending)
+    const srResp = await fetch(`${API_URL}/api/support-requests?op_supporto=${currentUser.id}&stato=pending`);
+    const srData = await srResp.json();
+    renderSupportRequests(srData.data || []);
+  } catch (e) {
+    console.error('Errore caricamento deleghe:', e);
+  }
+}
+
+function renderDelegheRicevute(deleghe) {
+  const container = document.getElementById('deleghe-ricevute');
+  // Pulisci timer deleghe precedenti
+  Object.keys(activeTimers).forEach(k => {
+    if (k.startsWith('deleg-')) {
+      clearInterval(activeTimers[k]);
+      delete activeTimers[k];
+    }
+  });
+
+  if (!deleghe.length) {
+    container.innerHTML = '<div style="font-size:13px; color:var(--gray-muted); padding:12px 0;">Nessuna delega ricevuta</div>';
+    return;
+  }
+  container.innerHTML = deleghe.map(d => {
+    const scadenza = d.scadenza ? new Date(d.scadenza).toLocaleDateString('it-IT') : '—';
+    let actions = '';
+    let timerHtml = '';
+
+    if (d.stato === 'pending') {
+      actions = `<div class="deleg-actions">
+        <button class="action-btn green" onclick="acceptDelegation('${d.id}')">Accetta</button>
+        <button class="action-btn outline" onclick="rejectDelegation('${d.id}')" style="color:var(--red);border-color:var(--red);">Rifiuta</button>
+      </div>`;
+    } else if (d.stato === 'accepted') {
+      actions = `<div class="deleg-actions">
+        <button class="action-btn green" onclick="startDelegatedPhase('${d.id}')">&#9654; Inizia Fase</button>
+      </div>`;
+    } else if (d.stato === 'in_progress' && d.sessione_attiva) {
+      // Sessione attiva — timer live + bottoni Completa/Parziale
+      timerHtml = `<div class="deleg-meta" style="color:var(--green);font-weight:700;font-size:16px;">
+        &#9201; <span id="timer-deleg-${d.id}">00:00:00</span>
+      </div>`;
+      actions = `<div class="deleg-actions">
+        <button class="action-btn green" onclick="completeDelegatedPhase('${d.id}')">&#10004; Completa</button>
+        <button class="action-btn orange" onclick="savePartialDelegated('${d.id}')">&#9208; Parziale</button>
+      </div>`;
+    } else if (d.stato === 'in_progress' && d.in_pausa) {
+      // In pausa — mostra tempo cumulativo + bottoni Riprendi/Completa
+      const cumul = formatDuration(d.tempo_cumulativo_secondi || 0);
+      timerHtml = `<div class="deleg-meta" style="color:var(--orange);font-weight:600;">
+        &#9208; IN PAUSA &mdash; ${cumul} (${d.sessioni_count} sess.)
+      </div>`;
+      actions = `<div class="deleg-actions">
+        <button class="action-btn green" onclick="resumeDelegatedPhase('${d.id}')">&#9654; Riprendi</button>
+        <button class="action-btn outline" onclick="completeDelegatedPhase('${d.id}')">&#10004; Completa</button>
+      </div>`;
+    } else if (d.stato === 'in_progress') {
+      // in_progress ma senza dati sessione (fallback)
+      actions = `<div class="deleg-actions">
+        <button class="action-btn green" onclick="completeDelegatedPhase('${d.id}')">&#10004; Completa</button>
+        <button class="action-btn orange" onclick="savePartialDelegated('${d.id}')">&#9208; Parziale</button>
+      </div>`;
+    }
+
+    return `<div class="deleg-card${d.stato === 'in_progress' && d.in_pausa ? ' paused' : ''}">
+      <div class="deleg-card-header">
+        <span class="deleg-client">${escapeHtml(d.cliente)}</span>
+        <span class="deleg-status ${d.stato}">${d.in_pausa ? 'IN PAUSA' : d.stato.toUpperCase()}</span>
+      </div>
+      <div class="deleg-meta">Fase: <strong>${d.fase}</strong> &middot; Scadenza: ${scadenza}</div>
+      <div class="deleg-meta">Da: ${escapeHtml(d.nome_principale)}${d.forzata ? ' (forzata dal capo)' : ''}</div>
+      ${d.note ? `<div class="deleg-meta" style="font-style:italic;">${escapeHtml(d.note)}</div>` : ''}
+      ${timerHtml}
+      ${d.stato === 'completed' && d.durata_effettiva ? `<div class="deleg-meta" style="color:var(--green);font-weight:600;">&#9201; Durata: ${formatDuration(d.durata_effettiva)}</div>` : ''}
+      ${actions}
+    </div>`;
+  }).join('');
+
+  // Avvia timer per deleghe con sessione attiva
+  deleghe.forEach(d => {
+    if (d.stato === 'in_progress' && d.sessione_attiva && d.sessione_attiva_inizio) {
+      startTimer('deleg-' + d.id, d.sessione_attiva_inizio, d.tempo_cumulativo_secondi || 0);
+    }
+  });
+}
+
+function renderDelegheInviate(deleghe) {
+  const container = document.getElementById('deleghe-inviate');
+  if (!deleghe.length) {
+    container.innerHTML = '<div style="font-size:13px; color:var(--gray-muted); padding:12px 0;">Nessuna delega inviata</div>';
+    return;
+  }
+  container.innerHTML = deleghe.map(d => {
+    const scadenza = d.scadenza ? new Date(d.scadenza).toLocaleDateString('it-IT') : '—';
+    return `<div class="deleg-card" style="opacity:0.85;">
+      <div class="deleg-card-header">
+        <span class="deleg-client">${escapeHtml(d.cliente)}</span>
+        <span class="deleg-status ${d.stato}">${d.stato.toUpperCase()}</span>
+      </div>
+      <div class="deleg-meta">Fase: <strong>${d.fase}</strong> &middot; Scadenza: ${scadenza}</div>
+      <div class="deleg-meta">Delegata a: <strong>${escapeHtml(d.nome_delegato)}</strong></div>
+      ${d.note ? `<div class="deleg-meta" style="font-style:italic;">${escapeHtml(d.note)}</div>` : ''}
+      ${d.stato === 'in_progress' && d.in_pausa ? `<div class="deleg-meta" style="color:var(--orange);font-weight:600;">&#9208; In pausa &mdash; ${formatDuration(d.tempo_cumulativo_secondi || 0)} (${d.sessioni_count || 0} sess.)</div>` : ''}
+      ${d.stato === 'in_progress' && d.sessione_attiva ? `<div class="deleg-meta" style="color:var(--green);font-weight:600;">&#9201; In corso da ${formatDateTime(d.tempo_inizio_delegato)}</div>` : ''}
+      ${d.stato === 'completed' && d.durata_effettiva ? `<div class="deleg-meta" style="color:var(--green);font-weight:600;">&#9201; Durata: ${formatDuration(d.durata_effettiva)}</div>` : ''}
+      ${d.note_delegato ? `<div class="deleg-meta" style="font-style:italic;">Nota delegato: ${escapeHtml(d.note_delegato)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function updateDelegheBadge(delegheRicevute) {
+  const pending = (delegheRicevute || []).filter(d => d.stato === 'pending').length;
+  const badge = document.getElementById('deleghe-badge');
+  badge.textContent = pending > 0 ? pending : '';
+}
+
+async function openDelegationModal(orderId, fase) {
+  delegModalOrderId = orderId;
+  delegModalFase = fase;
+
+  // Info ordine
+  const order = allOrders.find(o => o.id === orderId);
+  const info = document.getElementById('deleg-modal-info');
+  info.innerHTML = order ? `<strong>${escapeHtml(order.cliente)}</strong> — Fase: <strong>${fase}</strong>` : `Ordine: ${orderId} — Fase: ${fase}`;
+
+  // Carica operatori disponibili
+  try {
+    const resp = await fetch(`${API_URL}/api/users`);
+    const data = await resp.json();
+    const select = document.getElementById('deleg-operatore-select');
+    select.innerHTML = '<option value="">Seleziona operatore...</option>';
+    (data.users || []).filter(u => u.id !== currentUser.id && u.is_active !== false).forEach(u => {
+      select.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)} (${u.role})</option>`;
+    });
+  } catch (e) {
+    console.error('Errore caricamento operatori:', e);
+  }
+
+  document.getElementById('deleg-note').value = '';
+  document.getElementById('delegation-modal').classList.add('active');
+}
+
+function closeDelegationModal() {
+  document.getElementById('delegation-modal').classList.remove('active');
+}
+
+async function submitDelegation() {
+  const opDelegato = document.getElementById('deleg-operatore-select').value;
+  if (!opDelegato) { showMessage('Seleziona un operatore', 'error'); return; }
+
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: delegModalOrderId,
+        fase: delegModalFase,
+        operatore_principale: currentUser.id,
+        operatore_delegato: opDelegato,
+        delegata_da: currentUser.id,
+        note: document.getElementById('deleg-note').value
+      })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Delega creata con successo', 'success');
+      closeDelegationModal();
+      loadDelegations();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile creare delega'), 'error');
+    }
+  } catch (e) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function acceptDelegation(id) {
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations/${id}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Delega accettata', 'success');
+      loadDelegations();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
+
+async function rejectDelegation(id) {
+  if (!confirm('Sei sicuro di voler rifiutare questa delega?')) return;
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Delega rifiutata', 'success');
+      loadDelegations();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
+
+async function startDelegatedPhase(id) {
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations/${id}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Fase avviata', 'success');
+      loadDelegations();
+      loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
+
+function completeDelegatedPhase(id) {
+  delegCompleteId = id;
+  const d = delegheRicevuteData.find(x => x.id === id);
+  const now = new Date();
+  const info = document.getElementById('deleg-complete-info');
+  info.textContent = d ? `${d.fase} — ${d.cliente}` : '';
+
+  const startTs = d && d.tempo_inizio_delegato ? d.tempo_inizio_delegato : null;
+  const startTime = startTs ? new Date(startTs) : null;
+  document.getElementById('deleg-complete-start').textContent = startTime ? startTime.toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'}) : '--:--';
+  document.getElementById('deleg-complete-end').textContent = now.toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
+
+  // Durata: usa tempo cumulativo sessioni + sessione corrente
+  let totalSec = d ? (d.tempo_cumulativo_secondi || 0) : 0;
+  if (d && d.sessione_attiva && d.sessione_attiva_inizio) {
+    const sessStart = new Date(d.sessione_attiva_inizio);
+    totalSec += Math.floor((now - sessStart) / 1000);
+  }
+  document.getElementById('deleg-complete-duration').textContent = totalSec > 0 ? formatDuration(totalSec) : '--:--';
+
+  document.getElementById('deleg-complete-note').value = '';
+  document.getElementById('deleg-complete-modal').classList.add('active');
+}
+
+function closeDelegCompleteModal() {
+  document.getElementById('deleg-complete-modal').classList.remove('active');
+  delegCompleteId = '';
+}
+
+async function confirmDelegComplete() {
+  if (!delegCompleteId) return;
+  // Ferma timer delega
+  if (activeTimers['deleg-' + delegCompleteId]) {
+    clearInterval(activeTimers['deleg-' + delegCompleteId]);
+    delete activeTimers['deleg-' + delegCompleteId];
+  }
+  const note = document.getElementById('deleg-complete-note').value;
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations/${delegCompleteId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id, note: note })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Fase completata', 'success');
+      closeDelegCompleteModal();
+      loadDelegations();
+      loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
+
+async function savePartialDelegated(delegationId) {
+  if (!confirm('Salvare parziale? La fase resterà aperta.')) return;
+  try {
+    // Ferma timer delega
+    if (activeTimers['deleg-' + delegationId]) {
+      clearInterval(activeTimers['deleg-' + delegationId]);
+      delete activeTimers['deleg-' + delegationId];
+    }
+    const resp = await fetch(`${API_URL}/api/delegations/${delegationId}/save-partial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage(`Parziale salvato — ${result.sessioni_count} sessioni`, 'success');
+      loadDelegations();
+      loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
+
+async function resumeDelegatedPhase(delegationId) {
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations/${delegationId}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Fase ripresa', 'success');
+      loadDelegations();
+      loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
+
+function formatDuration(seconds) {
+  if (!seconds && seconds !== 0) return '--:--';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function formatDateTime(isoStr) {
+  if (!isoStr) return '--:--';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('it-IT') + ' ' + d.toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
+}
+
+// Aggiorna badge deleghe periodicamente
+setInterval(async () => {
+  try {
+    const resp = await fetch(`${API_URL}/api/delegations?op_delegato=${currentUser.id}&stato=pending`);
+    const data = await resp.json();
+    updateDelegheBadge(data.delegations || []);
+  } catch (_) {}
+}, 30000);
+
+// Carica deleghe all'avvio
+setTimeout(() => {
+  if (currentUser) {
+    fetch(`${API_URL}/api/delegations?op_delegato=${currentUser.id}&stato=pending`)
+      .then(r => r.json())
+      .then(d => updateDelegheBadge(d.delegations || []))
+      .catch(() => {});
+  }
+}, 2000);
+
 // === LOGOUT ===
+function goHome() {
+  const u = currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!u.id) { window.location.href = '/login.html'; return; }
+  if (u.role === 'Impiegata') { window.location.href = '/impiegata.html'; return; }
+  if (u.phase === 'LASER') { window.location.href = '/laser-v2.html'; return; }
+  window.location.href = '/officina.html';
+}
+
 async function logout() {
   try {
     if (currentUser?.id) {
@@ -1397,7 +3262,161 @@ async function logout() {
   localStorage.removeItem('currentUser');
   window.location.href = '/login.html';
 }
+
+// ===========================
+// NOTIFICHE
+// ===========================
+let notifPanelOpen = false;
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  notifPanelOpen = !notifPanelOpen;
+  panel.classList.toggle('active', notifPanelOpen);
+  if (notifPanelOpen) loadNotifs();
+}
+
+// Chiudi panel cliccando fuori
+document.addEventListener('click', (e) => {
+  if (notifPanelOpen && !e.target.closest('.notif-bell')) {
+    notifPanelOpen = false;
+    document.getElementById('notif-panel').classList.remove('active');
+  }
+});
+
+async function loadNotifs() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`${API_URL}/api/notifications?user_id=${currentUser.id}&limit=50`);
+    const data = await res.json();
+    if (!data.success) return;
+    const notifs = data.data.notifications || [];
+    const unread = data.data.unread_count || 0;
+    updateNotifBadge(unread);
+    renderNotifs(notifs);
+  } catch (e) { console.error('loadNotifs:', e); }
+}
+
+function updateNotifBadge(count) {
+  const badge = document.getElementById('notif-badge');
+  if (count > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = count > 99 ? '99+' : count;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderNotifs(notifs) {
+  const body = document.getElementById('notif-panel-body');
+  const footer = document.getElementById('notif-panel-footer');
+
+  if (!notifs.length) {
+    body.innerHTML = '<div class="notif-empty">Nessuna notifica</div>';
+    footer.style.display = 'none';
+    return;
+  }
+
+  footer.style.display = 'block';
+  body.innerHTML = notifs.map(n => {
+    const cat = n.notification_category || 'informativa';
+    const unreadClass = n.is_read ? '' : ' unread';
+    const time = formatNotifTime(n.timestamp);
+    return `<div class="notif-item${unreadClass}" onclick="markNotifRead('${n.id}', this)">
+      <div class="notif-dot ${cat}"></div>
+      <div class="notif-content">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-message">${n.message}</div>
+        <div class="notif-time">${time}</div>
+      </div>
+      <button class="notif-delete" onclick="event.stopPropagation();deleteNotif('${n.id}')" title="Elimina">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+function formatNotifTime(isoStr) {
+  const d = new Date(isoStr);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return 'adesso';
+  if (diff < 3600) return `${Math.floor(diff/60)}m fa`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h fa`;
+  if (diff < 604800) return `${Math.floor(diff/86400)}g fa`;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+}
+
+async function markNotifRead(id, el) {
+  if (el) el.classList.remove('unread');
+  try {
+    await fetch(`${API_URL}/api/notifications/${id}/read`, { method: 'PUT' });
+    pollNotifCount();
+  } catch (_) {}
+}
+
+async function deleteNotif(id) {
+  try {
+    await fetch(`${API_URL}/api/notifications/${id}`, { method: 'DELETE' });
+    loadNotifs();
+  } catch (_) {}
+}
+
+async function clearAllNotifs() {
+  if (!currentUser) return;
+  try {
+    await fetch(`${API_URL}/api/notifications/clear-all?user_id=${currentUser.id}`, { method: 'DELETE' });
+    loadNotifs();
+  } catch (_) {}
+}
+
+async function pollNotifCount() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`${API_URL}/api/notifications?user_id=${currentUser.id}&limit=1`);
+    const data = await res.json();
+    if (data.success) updateNotifBadge(data.data.unread_count || 0);
+  } catch (_) {}
+}
+
+// Poll badge ogni 30 secondi
+setInterval(pollNotifCount, 30000);
+setTimeout(pollNotifCount, 2000);
 </script>
+
+<!-- COMPLETE ORDER MODAL -->
+<div class="co-overlay" id="co-overlay" style="display:none;" onclick="closeCompleteOrderModal()">
+  <div class="co-modal" onclick="event.stopPropagation()">
+    <h3>Chiudi Ordine Definitivamente</h3>
+    <p class="co-subtitle" id="co-order-info"></p>
+    <div class="co-phase-list" id="co-phase-summary"></div>
+    <textarea class="co-note" id="co-note" placeholder="Note (opzionale)"></textarea>
+    <div class="co-actions">
+      <button class="action-btn red" onclick="confirmCompleteOrder()">Conferma Chiusura</button>
+      <button class="action-btn outline" onclick="closeCompleteOrderModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORT MODAL -->
+<div id="support-modal">
+    <div class="support-modal-content" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="font-family:'Geist',sans-serif; font-size:18px; font-weight:800;">Chiedi Aiuto</div>
+            <button style="background:none; border:none; font-size:20px; cursor:pointer;" onclick="closeSupportModal()">&times;</button>
+        </div>
+        <div id="support-modal-info" style="font-size:13px; color:var(--gray-text); margin-bottom:16px;"></div>
+        <div class="deleg-form-group">
+            <label>Invita collega</label>
+            <select id="support-operatore-select"><option value="">Seleziona operatore...</option></select>
+        </div>
+        <div class="deleg-form-group">
+            <label>Messaggio (opzionale)</label>
+            <textarea id="support-note" placeholder="Descrivi di che aiuto hai bisogno..."></textarea>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button class="action-btn outline" onclick="closeSupportModal()">Annulla</button>
+            <button class="action-btn green" onclick="submitSupportRequest()">Invia Richiesta</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

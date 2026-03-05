@@ -1,9 +1,11 @@
 """CRUD operations for Order management"""
 from datetime import datetime, timedelta
+from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
 from .models import (
-    Order, OrderFile, ProcessingStep, OrderNotification,
-    FaseCorrente, get_session, User, AuditLog, Notification, OperatorClient
+    Order, OrderFile, ProcessingStep, OrderNotification, PhaseSession,
+    FaseCorrente, get_session, User, AuditLog, Notification, OperatorClient,
+    PhaseDelegation, SupportRequest
 )
 import uuid
 import json
@@ -71,13 +73,13 @@ class OrderManager:
 
     @staticmethod
     def create_order(cliente: str, data_consegna: str, destinazione: str = "LASER",
-                     numero_ordine: str = None, prezzo_quotato: float = None,
-                     note: str = "") -> Order:
+                     numero_ordine: str = "", note: str = "") -> Order:
         """
         Crea un nuovo ordine con routing dinamico.
 
         destinazione: "LASER" o "OFFICINA" — dove l'impiegata manda l'ordine.
         Se OFFICINA, auto-assegna operatore da operator_clients.
+        numero_ordine: obbligatorio — riferimento univoco inserito dall'impiegata.
         """
         session = get_session()
 
@@ -85,9 +87,9 @@ class OrderManager:
             # Auto-assegna operatore se destinazione è OFFICINA
             operatore_assegnato = None
             if destinazione == "OFFICINA":
-                # Cerca operatore assegnato a questo cliente
+                # Cerca operatore assegnato a questo cliente (case-insensitive)
                 assignment = session.query(OperatorClient).filter(
-                    OperatorClient.client_name == cliente
+                    func.lower(OperatorClient.client_name) == func.lower(cliente)
                 ).first()
                 if assignment:
                     operatore_assegnato = assignment.operator_id
@@ -102,7 +104,6 @@ class OrderManager:
                 data_consegna=datetime.fromisoformat(data_consegna),
                 fase_corrente=fase_corrente,
                 operatore_assegnato=operatore_assegnato,
-                prezzo_quotato=prezzo_quotato,
                 note=note
             )
 
@@ -160,8 +161,21 @@ class OrderManager:
                 query = query.filter(Order.operatore_assegnato == operatore)
 
             orders = query.order_by(Order.data_consegna.asc()).all()
-            result = []
 
+            # Pre-carica tutte le sessioni per gli ordini trovati
+            order_ids = [o.id for o in orders]
+            all_sessions = session.query(PhaseSession).filter(
+                PhaseSession.order_id.in_(order_ids)
+            ).all() if order_ids else []
+            step_sessions = {}
+            for ps in all_sessions:
+                step_sessions.setdefault(ps.step_id, []).append(ps)
+
+            # Mapping nome→ID utente per operatori_info
+            all_users = session.query(User).all()
+            name_to_id = {u.name: u.id for u in all_users}
+
+            result = []
             for order in orders:
                 pdf_file = None
                 dxf_files = []
@@ -172,12 +186,75 @@ class OrderManager:
                         elif f.file_type == 'DXF':
                             dxf_files.append({'filename': f.filename, 'filepath': f.filepath})
 
-                # Recupera nome operatore assegnato
                 operatore_nome = None
                 if order.operatore_assegnato:
                     user = session.query(User).filter(User.id == order.operatore_assegnato).first()
                     if user:
                         operatore_nome = user.name
+
+                steps_data = []
+                for ps in (order.processing_steps or []):
+                    ss = step_sessions.get(ps.id, [])
+                    closed = [x for x in ss if x.timestamp_fine]
+                    cumul = sum(int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) for x in closed)
+                    active_list = [x for x in ss if x.timestamp_fine is None]
+                    active = active_list[0] if active_list else None
+
+                    # Info per-operatore: tempo e stato indipendenti (chiave = user ID)
+                    op_groups = {}
+                    for x in ss:
+                        op = x.operatore or 'unknown'
+                        op_groups.setdefault(op, []).append(x)
+                    operatori_info = {}
+                    for op_name, op_ss in op_groups.items():
+                        op_closed = [x for x in op_ss if x.timestamp_fine]
+                        op_active = [x for x in op_ss if x.timestamp_fine is None]
+                        op_cumul = sum(int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) for x in op_closed)
+                        op_key = name_to_id.get(op_name, op_name)  # Usa ID utente come chiave
+                        operatori_info[op_key] = {
+                            'sessione_attiva': len(op_active) > 0,
+                            'sessione_attiva_inizio': op_active[0].timestamp_inizio.isoformat() if op_active else None,
+                            'in_pausa': len(op_active) == 0 and len(op_closed) > 0,
+                            'tempo_cumulativo_secondi': op_cumul,
+                            'sessioni_count': len(op_ss)
+                        }
+
+                    steps_data.append({
+                        'id': ps.id,
+                        'fase': ps.fase,
+                        'timestamp_inizio': ps.timestamp_inizio.isoformat() if ps.timestamp_inizio else None,
+                        'timestamp_fine': ps.timestamp_fine.isoformat() if ps.timestamp_fine else None,
+                        'operatore': ps.operatore,
+                        'fase_successiva': ps.fase_successiva,
+                        'completamento_parziale': ps.completamento_parziale,
+                        'note': ps.note,
+                        'sessione_attiva': len(active_list) > 0,
+                        'sessione_attiva_inizio': active.timestamp_inizio.isoformat() if active else None,
+                        'sessioni_count': len(ss),
+                        'tempo_cumulativo_secondi': cumul,
+                        'in_pausa': (ps.timestamp_fine is None and len(ss) > 0 and len(active_list) == 0),
+                        'sessioni_attive': [{'operatore': a.operatore, 'inizio': a.timestamp_inizio.isoformat()} for a in active_list],
+                        'operatori_info': operatori_info,
+                    })
+
+                # Support requests attivi per quest'ordine
+                active_support = session.query(SupportRequest).filter(
+                    SupportRequest.order_id == order.id,
+                    SupportRequest.stato.in_(['pending', 'accepted'])
+                ).all()
+                support_data = []
+                for sr in active_support:
+                    sr_principale = session.query(User).filter(User.id == sr.operatore_principale).first()
+                    sr_supporto = session.query(User).filter(User.id == sr.operatore_supporto).first()
+                    support_data.append({
+                        'id': sr.id,
+                        'operatore_principale': sr.operatore_principale,
+                        'nome_principale': sr_principale.name if sr_principale else '',
+                        'operatore_supporto': sr.operatore_supporto,
+                        'nome_supporto': sr_supporto.name if sr_supporto else '',
+                        'stato': sr.stato,
+                        'forzata': sr.forzata
+                    })
 
                 result.append({
                     'id': order.id,
@@ -193,19 +270,8 @@ class OrderManager:
                     'pdf_file': pdf_file,
                     'dxf_files': dxf_files,
                     'note': order.note,
-                    'processing_steps': [
-                        {
-                            'id': ps.id,
-                            'fase': ps.fase,
-                            'timestamp_inizio': ps.timestamp_inizio.isoformat() if ps.timestamp_inizio else None,
-                            'timestamp_fine': ps.timestamp_fine.isoformat() if ps.timestamp_fine else None,
-                            'operatore': ps.operatore,
-                            'fase_successiva': ps.fase_successiva,
-                            'completamento_parziale': ps.completamento_parziale,
-                            'note': ps.note
-                        }
-                        for ps in order.processing_steps
-                    ] if order.processing_steps else []
+                    'processing_steps': steps_data,
+                    'support_requests': support_data
                 })
 
             return result
@@ -223,26 +289,113 @@ class OrderManager:
             return query.order_by(Order.data_consegna.asc()).all()
         finally:
             session.close()
-    
+
     @staticmethod
-    def start_phase(order_id: str, phase: str, operatore: str = "") -> bool:
-        """Inizia una fase di lavorazione — crea ProcessingStep con timer"""
+    def update_delivery_date(order_id: str, new_date: datetime) -> dict:
+        """Aggiorna la data di consegna di un ordine (riprogrammazione calendario)"""
         session = get_session()
         try:
-            # Crea nuovo ProcessingStep per questa fase
-            step = ProcessingStep(
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {'success': False, 'error': 'Ordine non trovato'}
+            old_date = order.data_consegna
+            order.data_consegna = new_date
+            session.commit()
+            return {
+                'success': True,
+                'order_id': order_id,
+                'data_consegna': order.data_consegna.isoformat(),
+                'old_date': old_date.isoformat() if old_date else None
+            }
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    @staticmethod
+    def update_order(order_id: str, updates: dict) -> dict:
+        """Aggiorna i dati modificabili di un ordine: cliente, note, data_consegna, numero_ordine."""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {'success': False, 'error': 'Ordine non trovato'}
+
+            allowed = ['cliente', 'note', 'data_consegna', 'numero_ordine']
+            for field in allowed:
+                if field in updates and updates[field] is not None:
+                    if field == 'data_consegna':
+                        try:
+                            val = datetime.strptime(str(updates[field])[:10], '%Y-%m-%d')
+                            setattr(order, field, val)
+                        except ValueError:
+                            pass
+                    else:
+                        setattr(order, field, updates[field])
+
+            session.commit()
+            return {'success': True, 'order_id': order_id}
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    @staticmethod
+    def start_phase(order_id: str, phase: str, operatore: str = "") -> bool:
+        """Inizia una fase di lavorazione — crea/riprende ProcessingStep + crea PhaseSession"""
+        session = get_session()
+        try:
+            now = datetime.utcnow()
+
+            # Cerca ProcessingStep aperto per questa fase (potrebbe essere in pausa)
+            existing_step = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id,
+                ProcessingStep.fase == phase,
+                ProcessingStep.timestamp_fine.is_(None)
+            ).order_by(ProcessingStep.timestamp_inizio.desc()).first()
+
+            if existing_step:
+                # Controlla se QUESTO operatore ha già una sessione attiva
+                my_active = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == existing_step.id,
+                    PhaseSession.operatore == operatore,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).first()
+                if my_active:
+                    return True  # Sessione già attiva per questo operatore
+                # Se un altro operatore ha una sessione attiva, permetti sessione parallela
+                step = existing_step
+            else:
+                # Crea nuovo ProcessingStep
+                step = ProcessingStep(
+                    id=str(uuid.uuid4()),
+                    order_id=order_id,
+                    fase=phase,
+                    timestamp_inizio=now,
+                    operatore=operatore
+                )
+                session.add(step)
+                session.flush()
+
+            # Crea nuova PhaseSession
+            new_sess = PhaseSession(
                 id=str(uuid.uuid4()),
+                step_id=step.id,
                 order_id=order_id,
                 fase=phase,
-                timestamp_inizio=datetime.utcnow(),
-                operatore=operatore
+                operatore=operatore,
+                timestamp_inizio=now
             )
-            session.add(step)
+            session.add(new_sess)
 
             # Aggiorna fase_corrente dell'ordine
             order = session.query(Order).filter(Order.id == order_id).first()
             if order:
                 order.fase_corrente = phase
+                if order.status == "PARZIALE":
+                    order.status = "IN_LAVORAZIONE"
 
             session.commit()
             return True
@@ -258,9 +411,7 @@ class OrderManager:
                        operatore: str = "") -> dict:
         """
         Completa una fase con routing dinamico.
-
-        fase_successiva: "PIEGA", "SALDATURA", "PULIZIA", "LASER", "COMPLETATO"
-        completamento_parziale: True = ordine non del tutto finito (PARZIALE)
+        Se completamento_parziale=True → salva parziale (chiude sessione, non lo step).
         """
         session = get_session()
         try:
@@ -274,11 +425,67 @@ class OrderManager:
             if not processing_step:
                 return {"success": False, "error": "Fase non trovata o già completata"}
 
+            now = datetime.utcnow()
+
+            # Trova la sessione attiva di QUESTO operatore (per supporto parallelo)
+            active_sess = None
+            if operatore:
+                active_sess = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.operatore == operatore,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).first()
+            if not active_sess:
+                # Fallback: qualsiasi sessione attiva
+                active_sess = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).first()
+
+            # --- BACKWARD COMPAT: completamento_parziale → save_partial ---
+            if completamento_parziale:
+                if active_sess:
+                    active_sess.timestamp_fine = now
+                    active_sess.tipo_chiusura = 'parziale'
+                    if note:
+                        active_sess.note = note
+                # NON chiudere il ProcessingStep, NON cambiare fase_corrente
+                session.commit()
+                all_sess = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.timestamp_fine.isnot(None)
+                ).all()
+                tempo_sec = sum(
+                    int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                    for s in all_sess
+                )
+                return {
+                    "success": True,
+                    "order_id": order_id,
+                    "phase": phase,
+                    "completamento_parziale": True,
+                    "sessioni_count": len(all_sess),
+                    "tempo_cumulativo_secondi": tempo_sec,
+                    "paused": True
+                }
+
+            # --- COMPLETAMENTO DEFINITIVO ---
+            # Chiudi TUTTE le sessioni attive (anche di altri operatori in supporto)
+            all_active_sessions = session.query(PhaseSession).filter(
+                PhaseSession.step_id == processing_step.id,
+                PhaseSession.timestamp_fine.is_(None)
+            ).all()
+            for sess in all_active_sessions:
+                sess.timestamp_fine = now
+                sess.tipo_chiusura = 'totale'
+                if note and sess == active_sess:
+                    sess.note = note
+
             # Completa lo step
-            processing_step.timestamp_fine = datetime.utcnow()
+            processing_step.timestamp_fine = now
             processing_step.note = note
             processing_step.fase_successiva = fase_successiva
-            processing_step.completamento_parziale = completamento_parziale
+            processing_step.completamento_parziale = False
             if operatore and not processing_step.operatore:
                 processing_step.operatore = operatore
 
@@ -287,13 +494,20 @@ class OrderManager:
             if not order:
                 return {"success": False, "error": "Ordine non trovato"}
 
-            if completamento_parziale:
-                order.fase_corrente = "PARZIALE"
-                order.status = "PARZIALE"
-            elif fase_successiva == "COMPLETATO":
+            # Auto-routing
+            if not fase_successiva:
+                phase_flow = {
+                    'LASER': 'PIEGA',
+                    'PIEGA': 'SALDATURA',
+                    'SALDATURA': 'PULIZIA',
+                    'PULIZIA': 'COMPLETATO'
+                }
+                fase_successiva = phase_flow.get(phase, 'COMPLETATO')
+                processing_step.fase_successiva = fase_successiva
+
+            if fase_successiva == "COMPLETATO":
                 order.fase_corrente = "COMPLETATO"
                 order.status = "COMPLETATO"
-                # Calcola tempi totali e crea notifica
                 total_time = OrderManager._calculate_order_total_time(order_id, session)
                 notification = OrderNotification(
                     id=str(uuid.uuid4()),
@@ -313,7 +527,7 @@ class OrderManager:
                 "order_id": order_id,
                 "phase": phase,
                 "fase_successiva": fase_successiva,
-                "completamento_parziale": completamento_parziale,
+                "completamento_parziale": False,
                 "all_completed": fase_successiva == "COMPLETATO"
             }
 
@@ -322,7 +536,161 @@ class OrderManager:
             return {"success": False, "error": str(e)}
         finally:
             session.close()
+
+    @staticmethod
+    def save_partial(order_id: str, phase: str, note: str = "", operatore: str = "") -> dict:
+        """Salva parziale: chiude sessione corrente, NON chiude il ProcessingStep."""
+        session = get_session()
+        try:
+            processing_step = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id,
+                ProcessingStep.fase == phase,
+                ProcessingStep.timestamp_fine.is_(None)
+            ).order_by(ProcessingStep.timestamp_inizio.desc()).first()
+
+            if not processing_step:
+                return {"success": False, "error": "Nessuna fase attiva trovata"}
+
+            # Cerca sessione attiva di QUESTO operatore (supporto parallelo)
+            active_sess = None
+            if operatore:
+                active_sess = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.operatore == operatore,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).first()
+            if not active_sess:
+                # Fallback: qualsiasi sessione attiva
+                active_sess = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).first()
+
+            if not active_sess:
+                return {"success": False, "error": "Nessuna sessione attiva trovata"}
+
+            now = datetime.utcnow()
+            active_sess.timestamp_fine = now
+            active_sess.tipo_chiusura = 'parziale'
+            if note:
+                active_sess.note = note
+            if operatore and not active_sess.operatore:
+                active_sess.operatore = operatore
+
+            # Calcola tempo cumulativo
+            all_sess = session.query(PhaseSession).filter(
+                PhaseSession.step_id == processing_step.id,
+                PhaseSession.timestamp_fine.isnot(None)
+            ).all()
+            tempo_sec = sum(
+                int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                for s in all_sess
+            )
+
+            session.commit()
+            return {
+                "success": True,
+                "order_id": order_id,
+                "phase": phase,
+                "sessioni_count": len(all_sess),
+                "tempo_cumulativo_secondi": tempo_sec,
+                "tempo_cumulativo": OrderManager._format_duration(timedelta(seconds=tempo_sec))
+            }
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
     
+    @staticmethod
+    def complete_order(order_id: str, current_phase: str, note: str = "", operatore: str = "") -> dict:
+        """
+        Completa un ordine anticipatamente dalla fase corrente.
+        Chiude step/sessione attivi, marca ordine COMPLETATO,
+        le fasi senza ProcessingStep sono 'non necessarie' per assenza.
+        """
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+
+            if order.status == "COMPLETATO":
+                return {"success": False, "error": "Ordine già completato"}
+
+            now = datetime.utcnow()
+
+            # Chiudi eventuali step aperti (potrebbe essere la fase corrente)
+            open_steps = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id,
+                ProcessingStep.timestamp_fine.is_(None)
+            ).all()
+
+            for step in open_steps:
+                # Chiudi TUTTE le sessioni attive (anche parallele da supporto)
+                active_sessions = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == step.id,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).all()
+                for active_sess in active_sessions:
+                    active_sess.timestamp_fine = now
+                    active_sess.tipo_chiusura = 'totale'
+
+                step.timestamp_fine = now
+                step.fase_successiva = 'COMPLETATO'
+                step.completamento_parziale = False
+                if operatore and not step.operatore:
+                    step.operatore = operatore
+                if note:
+                    step.note = note
+
+            # Marca ordine come completato
+            order.fase_corrente = "COMPLETATO"
+            order.status = "COMPLETATO"
+
+            # Crea OrderNotification con tempo totale
+            total_time = OrderManager._calculate_order_total_time(order_id, session)
+            notification = OrderNotification(
+                id=str(uuid.uuid4()),
+                order_id=order_id,
+                tempi_totali=total_time
+            )
+            session.add(notification)
+
+            # Riepilogo fasi
+            all_phases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA']
+            all_steps = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == order_id,
+                ProcessingStep.timestamp_fine.isnot(None)
+            ).all()
+
+            executed_set = set(s.fase for s in all_steps)
+            fasi_eseguite = []
+            for s in all_steps:
+                dur = int((s.timestamp_fine - s.timestamp_inizio).total_seconds()) if s.timestamp_inizio and s.timestamp_fine else 0
+                fasi_eseguite.append({
+                    'fase': s.fase,
+                    'operatore': s.operatore or '',
+                    'durata_secondi': dur
+                })
+
+            fasi_non_necessarie = [p for p in all_phases if p not in executed_set]
+
+            session.commit()
+            return {
+                "success": True,
+                "all_completed": True,
+                "order_id": order_id,
+                "fasi_eseguite": fasi_eseguite,
+                "fasi_non_necessarie": fasi_non_necessarie
+            }
+
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
     @staticmethod
     def complete_laser(order_id: str, operatore: str = "") -> dict:
         """Operatore laser: segna taglio completato (no timer, solo completamento)"""
@@ -456,6 +824,18 @@ class OrderManager:
                 ProcessingStep.order_id == order_id
             ).order_by(ProcessingStep.timestamp_inizio.asc()).all()
 
+            # Carica tutte le sessioni per questo ordine
+            all_sessions = session.query(PhaseSession).filter(
+                PhaseSession.order_id == order_id
+            ).order_by(PhaseSession.timestamp_inizio.asc()).all()
+            step_sessions = {}
+            for ps in all_sessions:
+                step_sessions.setdefault(ps.step_id, []).append(ps)
+
+            # Mapping nome→ID utente per operatori_info
+            all_users_detail = session.query(User).all()
+            name_to_id = {u.name: u.id for u in all_users_detail}
+
             pdf_file = None
             dxf_files = []
             if order.files:
@@ -472,6 +852,87 @@ class OrderManager:
                 if user:
                     operatore_nome = user.name
 
+            def _step_session_data(s):
+                ss = step_sessions.get(s.id, [])
+                closed = [x for x in ss if x.timestamp_fine]
+                cumul = sum(int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) for x in closed)
+                active_list = [x for x in ss if x.timestamp_fine is None]
+                active = active_list[0] if active_list else None
+
+                # Info per-operatore: tempo e stato indipendenti (chiave = user ID)
+                op_groups = {}
+                for x in ss:
+                    op = x.operatore or 'unknown'
+                    op_groups.setdefault(op, []).append(x)
+                operatori_info = {}
+                for op_name, op_ss in op_groups.items():
+                    op_closed = [x for x in op_ss if x.timestamp_fine]
+                    op_active = [x for x in op_ss if x.timestamp_fine is None]
+                    op_cumul = sum(int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) for x in op_closed)
+                    op_key = name_to_id.get(op_name, op_name)
+                    operatori_info[op_key] = {
+                        'sessione_attiva': len(op_active) > 0,
+                        'sessione_attiva_inizio': (op_active[0].timestamp_inizio.isoformat() + 'Z') if op_active else None,
+                        'in_pausa': len(op_active) == 0 and len(op_closed) > 0,
+                        'tempo_cumulativo_secondi': op_cumul,
+                        'sessioni_count': len(op_ss)
+                    }
+
+                return {
+                    "id": s.id,
+                    "fase": s.fase,
+                    "timestamp_inizio": s.timestamp_inizio.isoformat() + 'Z' if s.timestamp_inizio else None,
+                    "timestamp_fine": s.timestamp_fine.isoformat() + 'Z' if s.timestamp_fine else None,
+                    "operatore": s.operatore,
+                    "note": s.note,
+                    "fase_successiva": s.fase_successiva,
+                    "completamento_parziale": s.completamento_parziale,
+                    "durata": OrderManager._format_duration(
+                        s.timestamp_fine - s.timestamp_inizio
+                    ) if s.timestamp_inizio and s.timestamp_fine else None,
+                    "sessione_attiva": len(active_list) > 0,
+                    "sessione_attiva_inizio": active.timestamp_inizio.isoformat() + 'Z' if active else None,
+                    "sessioni_count": len(ss),
+                    "tempo_cumulativo_secondi": cumul,
+                    "in_pausa": (s.timestamp_fine is None and len(ss) > 0 and len(active_list) == 0),
+                    "sessioni_attive": [{'operatore': a.operatore, 'inizio': a.timestamp_inizio.isoformat() + 'Z'} for a in active_list],
+                    "operatori_info": operatori_info,
+                    "sessioni": [
+                        {
+                            "id": x.id,
+                            "timestamp_inizio": x.timestamp_inizio.isoformat() + 'Z',
+                            "timestamp_fine": x.timestamp_fine.isoformat() + 'Z' if x.timestamp_fine else None,
+                            "tipo_chiusura": x.tipo_chiusura,
+                            "operatore": x.operatore,
+                            "note": x.note,
+                            "durata": OrderManager._format_duration(
+                                x.timestamp_fine - x.timestamp_inizio
+                            ) if x.timestamp_fine else None,
+                            "durata_secondi": int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) if x.timestamp_fine else None
+                        }
+                        for x in ss
+                    ]
+                }
+
+            # Support requests attivi
+            active_support = session.query(SupportRequest).filter(
+                SupportRequest.order_id == order.id,
+                SupportRequest.stato.in_(['pending', 'accepted'])
+            ).all()
+            support_data = []
+            for sr in active_support:
+                sr_principale = session.query(User).filter(User.id == sr.operatore_principale).first()
+                sr_supporto = session.query(User).filter(User.id == sr.operatore_supporto).first()
+                support_data.append({
+                    'id': sr.id,
+                    'operatore_principale': sr.operatore_principale,
+                    'nome_principale': sr_principale.name if sr_principale else '',
+                    'operatore_supporto': sr.operatore_supporto,
+                    'nome_supporto': sr_supporto.name if sr_supporto else '',
+                    'stato': sr.stato,
+                    'forzata': sr.forzata
+                })
+
             return {
                 "id": order.id,
                 "cliente": order.cliente,
@@ -486,22 +947,8 @@ class OrderManager:
                 "pdf_file": pdf_file,
                 "dxf_files": dxf_files,
                 "note": order.note,
-                "processing_steps": [
-                    {
-                        "id": s.id,
-                        "fase": s.fase,
-                        "timestamp_inizio": s.timestamp_inizio.isoformat() + 'Z' if s.timestamp_inizio else None,
-                        "timestamp_fine": s.timestamp_fine.isoformat() + 'Z' if s.timestamp_fine else None,
-                        "operatore": s.operatore,
-                        "note": s.note,
-                        "fase_successiva": s.fase_successiva,
-                        "completamento_parziale": s.completamento_parziale,
-                        "durata": OrderManager._format_duration(
-                            s.timestamp_fine - s.timestamp_inizio
-                        ) if s.timestamp_inizio and s.timestamp_fine else None
-                    }
-                    for s in processing_steps
-                ]
+                "processing_steps": [_step_session_data(s) for s in processing_steps],
+                "support_requests": support_data
             }
         finally:
             session.close()
@@ -842,46 +1289,42 @@ class ArchiveManager:
             return {}
 
     @staticmethod
+    def _apply_archive_filters(query, filters, session):
+        """Applica filtri comuni alle query archivio"""
+        if not filters:
+            return query
+        if filters.get('cliente'):
+            query = query.filter(Order.cliente.ilike(f"%{filters['cliente']}%"))
+        if filters.get('date_from'):
+            date_from = datetime.fromisoformat(filters['date_from'])
+            query = query.filter(Order.data_consegna >= date_from)
+        if filters.get('date_to'):
+            date_to = datetime.fromisoformat(filters['date_to'])
+            date_to = date_to.replace(hour=23, minute=59, second=59)
+            query = query.filter(Order.data_consegna <= date_to)
+        if filters.get('operatore'):
+            op_name = filters['operatore']
+            order_ids = [s.order_id for s in session.query(ProcessingStep.order_id).filter(
+                ProcessingStep.operatore.ilike(f"%{op_name}%")
+            ).distinct()]
+            query = query.filter(Order.id.in_(order_ids))
+        return query
+
+    @staticmethod
     def get_completed_orders(filters: dict = None, page: int = 1, limit: int = 10,
                             sort_by: str = 'data_consegna', sort_dir: str = 'desc') -> dict:
         """
-        Recupera ordini completati (status = SPEDITO) con paginazione e filtri
-
-        filters: {
-            'cliente': 'nome cliente',
-            'date_from': '2026-01-01',
-            'date_to': '2026-12-31'
-        }
-
-        Ritorna: {
-            'orders': [...],
-            'total': <count>,
-            'page': <page>,
-            'pages': <total_pages>
-        }
+        Recupera ordini completati con paginazione e filtri
         """
         session = get_session()
         try:
             from sqlalchemy import func
 
-            # Query base: ordini completati o parziali
             query = session.query(Order).filter(
                 Order.status.in_(["COMPLETATO", "PARZIALE"])
             )
 
-            # Applica filtri
-            if filters:
-                if 'cliente' in filters and filters['cliente']:
-                    query = query.filter(Order.cliente.ilike(f"%{filters['cliente']}%"))
-
-                if 'date_from' in filters and filters['date_from']:
-                    date_from = datetime.fromisoformat(filters['date_from'])
-                    query = query.filter(Order.data_consegna >= date_from)
-
-                if 'date_to' in filters and filters['date_to']:
-                    date_to = datetime.fromisoformat(filters['date_to'])
-                    date_to = date_to.replace(hour=23, minute=59, second=59)
-                    query = query.filter(Order.data_consegna <= date_to)
+            query = ArchiveManager._apply_archive_filters(query, filters, session)
 
             total = query.count()
 
@@ -1006,41 +1449,47 @@ class ArchiveManager:
                         'data_fine': step.timestamp_fine.isoformat() if step.timestamp_fine else None,
                         'tempo': phase_times.get(step.fase, 'N/A'),
                         'fase_successiva': step.fase_successiva,
-                        'completamento_parziale': step.completamento_parziale
+                        'completamento_parziale': step.completamento_parziale,
+                        'sessioni': [
+                            {
+                                'timestamp_inizio': s.timestamp_inizio.isoformat() if s.timestamp_inizio else None,
+                                'timestamp_fine': s.timestamp_fine.isoformat() if s.timestamp_fine else None,
+                                'tipo_chiusura': s.tipo_chiusura,
+                                'operatore': s.operatore,
+                                'durata_secondi': int((s.timestamp_fine - s.timestamp_inizio).total_seconds()) if s.timestamp_fine and s.timestamp_inizio else None
+                            }
+                            for s in session.query(PhaseSession).filter(
+                                PhaseSession.step_id == step.id
+                            ).order_by(PhaseSession.timestamp_inizio).all()
+                        ]
                     }
                     for step in steps
                 ],
-                'status': order.status
+                'status': order.status,
+                'support_requests': [{
+                    'id': sr.id,
+                    'operatore_principale': sr.operatore_principale,
+                    'nome_principale': (session.query(User).filter(User.id == sr.operatore_principale).first() or User(name='')).name,
+                    'operatore_supporto': sr.operatore_supporto,
+                    'nome_supporto': (session.query(User).filter(User.id == sr.operatore_supporto).first() or User(name='')).name,
+                    'stato': sr.stato
+                } for sr in session.query(SupportRequest).filter(
+                    SupportRequest.order_id == order.id,
+                    SupportRequest.stato.in_(['pending', 'accepted'])
+                ).all()]
             }
         finally:
             session.close()
 
     @staticmethod
     def export_csv_data(filters: dict = None) -> list[dict]:
-        """
-        Esporta dati di archivio in formato CSV (lista di dict serializzabili)
-
-        Ritorna lista di dict pronta per conversione a CSV
-        """
+        """Esporta dati di archivio in formato CSV (una riga per ordine)"""
         session = get_session()
         try:
-            from sqlalchemy import func
-
             query = session.query(Order).filter(
                 Order.status.in_(["COMPLETATO", "PARZIALE"])
             )
-
-            if filters:
-                if 'cliente' in filters and filters['cliente']:
-                    query = query.filter(Order.cliente.ilike(f"%{filters['cliente']}%"))
-                if 'date_from' in filters and filters['date_from']:
-                    date_from = datetime.fromisoformat(filters['date_from'])
-                    query = query.filter(Order.data_consegna >= date_from)
-                if 'date_to' in filters and filters['date_to']:
-                    date_to = datetime.fromisoformat(filters['date_to'])
-                    date_to = date_to.replace(hour=23, minute=59, second=59)
-                    query = query.filter(Order.data_consegna <= date_to)
-
+            query = ArchiveManager._apply_archive_filters(query, filters, session)
             orders = query.order_by(Order.data_consegna.desc()).all()
 
             csv_data = []
@@ -1083,12 +1532,156 @@ class ArchiveManager:
         finally:
             session.close()
 
+    @staticmethod
+    def export_excel_data(filters: dict = None) -> list[dict]:
+        """
+        Esporta dati di archivio con UNA RIGA PER FASE per ordine.
+        Include info sessioni, deleghe, tempi effettivi.
+        """
+        session = get_session()
+        try:
+            query = session.query(Order).filter(
+                Order.status.in_(["COMPLETATO", "PARZIALE"])
+            )
+            query = ArchiveManager._apply_archive_filters(query, filters, session)
+            orders = query.order_by(Order.data_consegna.desc()).all()
+
+            rows = []
+            for order in orders:
+                notification = session.query(OrderNotification).filter(
+                    OrderNotification.order_id == order.id
+                ).first()
+
+                last_step = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order.id,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).order_by(ProcessingStep.timestamp_fine.desc()).first()
+                completion_date = last_step.timestamp_fine if last_step else None
+
+                steps = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order.id
+                ).order_by(ProcessingStep.timestamp_inizio).all()
+
+                # Se nessuna fase, aggiungi una riga base
+                if not steps:
+                    rows.append({
+                        'Cliente': order.cliente,
+                        'Numero Ordine': order.numero_ordine or order.id[:8],
+                        'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
+                        'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
+                        'Tempo Totale Ordine': notification.tempi_totali if notification else '',
+                        'Fase': '',
+                        'Operatore Fase': '',
+                        'Inizio Fase': '',
+                        'Fine Fase': '',
+                        'Tempo Effettivo Lavorato': '',
+                        'Numero Sessioni': '',
+                        'Operatore Delegato': '',
+                        'Tempo Delega': '',
+                    })
+                    continue
+
+                for step in steps:
+                    # Tempo effettivo: somma sessioni se disponibili
+                    sessions_list = session.query(PhaseSession).filter(
+                        PhaseSession.step_id == step.id
+                    ).order_by(PhaseSession.timestamp_inizio).all()
+
+                    if sessions_list:
+                        total_sec = sum(
+                            int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                            for s in sessions_list if s.timestamp_fine
+                        )
+                        tempo_eff = ArchiveManager._format_seconds(total_sec)
+                        num_sessioni = len(sessions_list)
+                    elif step.timestamp_inizio and step.timestamp_fine:
+                        dur = step.timestamp_fine - step.timestamp_inizio
+                        tempo_eff = OrderManager._format_duration(dur)
+                        num_sessioni = 1
+                    else:
+                        tempo_eff = ''
+                        num_sessioni = 0
+
+                    # Cerca delega completata per questa fase
+                    delega = session.query(PhaseDelegation).filter(
+                        PhaseDelegation.order_id == order.id,
+                        PhaseDelegation.fase == step.fase,
+                        PhaseDelegation.stato == 'completed'
+                    ).first()
+
+                    op_delegato = ''
+                    tempo_delega = ''
+                    if delega:
+                        delegato_user = session.query(User).filter(User.id == delega.operatore_delegato).first()
+                        op_delegato = delegato_user.name if delegato_user else delega.operatore_delegato
+                        if delega.durata_effettiva:
+                            tempo_delega = ArchiveManager._format_seconds(delega.durata_effettiva)
+
+                    rows.append({
+                        'Cliente': order.cliente,
+                        'Numero Ordine': order.numero_ordine or order.id[:8],
+                        'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
+                        'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
+                        'Tempo Totale Ordine': notification.tempi_totali if notification else '',
+                        'Fase': step.fase,
+                        'Operatore Fase': step.operatore or '',
+                        'Inizio Fase': step.timestamp_inizio.strftime('%d/%m/%Y %H:%M') if step.timestamp_inizio else '',
+                        'Fine Fase': step.timestamp_fine.strftime('%d/%m/%Y %H:%M') if step.timestamp_fine else '',
+                        'Tempo Effettivo Lavorato': tempo_eff,
+                        'Numero Sessioni': str(num_sessioni) if num_sessioni else '',
+                        'Operatore Delegato': op_delegato,
+                        'Tempo Delega': tempo_delega,
+                    })
+
+            return rows
+        finally:
+            session.close()
+
+    @staticmethod
+    def _format_seconds(total_sec: int) -> str:
+        """Formatta secondi in 'Xh YYmin'"""
+        if total_sec <= 0:
+            return '0min'
+        hours = total_sec // 3600
+        minutes = (total_sec % 3600) // 60
+        if hours > 0:
+            return f"{hours}h {minutes:02d}min"
+        return f"{minutes}min"
+
+    @staticmethod
+    def get_archive_operators() -> list[str]:
+        """Ritorna lista nomi operatori che hanno lavorato su ordini completati"""
+        session = get_session()
+        try:
+            operators = session.query(ProcessingStep.operatore).join(
+                Order, Order.id == ProcessingStep.order_id
+            ).filter(
+                Order.status.in_(["COMPLETATO", "PARZIALE"]),
+                ProcessingStep.operatore.isnot(None)
+            ).distinct().all()
+            return sorted([op[0] for op in operators if op[0]])
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_archive_clients() -> list[str]:
+        """Ritorna lista clienti con ordini completati"""
+        session = get_session()
+        try:
+            clients = session.query(Order.cliente).filter(
+                Order.status.in_(["COMPLETATO", "PARZIALE"])
+            ).distinct().all()
+            return sorted([c[0] for c in clients if c[0]])
+        finally:
+            session.close()
+
 
 class NotificationManager:
     """Gestore notifiche UI tipo WhatsApp per supervisore/admin"""
 
     @staticmethod
-    def create_notification(user_id: str, order_id: str, title: str, message: str, notification_type: str = 'order') -> dict:
+    def create_notification(user_id: str, order_id: str, title: str, message: str,
+                           notification_type: str = 'order', notification_category: str = 'informativa') -> dict:
         """Crea una notifica e la salva nel DB"""
         session = get_session()
         try:
@@ -1099,6 +1692,7 @@ class NotificationManager:
                 title=title,
                 message=message,
                 notification_type=notification_type,
+                notification_category=notification_category,
                 is_read=False,
                 is_deleted=False
             )
@@ -1112,6 +1706,7 @@ class NotificationManager:
                 'title': title,
                 'message': message,
                 'notification_type': notification_type,
+                'notification_category': notification_category,
                 'is_read': notification.is_read,
                 'is_deleted': notification.is_deleted
             }
@@ -1147,6 +1742,7 @@ class NotificationManager:
                     'title': n.title,
                     'message': n.message,
                     'notification_type': n.notification_type,
+                    'notification_category': getattr(n, 'notification_category', 'informativa') or 'informativa',
                     'is_read': n.is_read,
                     'is_deleted': n.is_deleted
                 })
@@ -1461,7 +2057,7 @@ class KPIManager:
             # === KPI OPERATORI ===
             operatori_kpi = []
             operators = session.query(User).filter(
-                User.role.in_(['Operaio Officina', 'Operaio Laser']),
+                User.role.in_(['Operaio Officina', 'Operaio Laser', 'Capo Officina']),
                 User.is_active == True
             ).all()
 
@@ -1569,3 +2165,650 @@ class KPIManager:
             return {'success': False, 'error': str(e)}
         finally:
             session.close()
+
+
+class DelegationManager:
+    """Gestore deleghe di fase tra operatori"""
+
+    @staticmethod
+    def create_delegation(order_id: str, fase: str, op_principale: str,
+                          op_delegato: str, delegata_da: str,
+                          forzata: bool = False, note: str = "") -> dict:
+        """Crea una delega di fase. Se forzata (dal capo), stato = accepted."""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+
+            # Verifica che non esista già una delega attiva per questa fase/ordine
+            existing = session.query(PhaseDelegation).filter(
+                PhaseDelegation.order_id == order_id,
+                PhaseDelegation.fase == fase,
+                PhaseDelegation.stato.notin_(['rejected', 'completed'])
+            ).first()
+            if existing:
+                return {"success": False, "error": "Esiste già una delega attiva per questa fase"}
+
+            delegation = PhaseDelegation(
+                id=str(uuid.uuid4()),
+                order_id=order_id,
+                fase=fase,
+                operatore_principale=op_principale,
+                operatore_delegato=op_delegato,
+                stato='accepted' if forzata else 'pending',
+                delegata_da=delegata_da,
+                forzata=forzata,
+                scadenza=order.data_consegna,
+                note=note
+            )
+            session.add(delegation)
+            session.commit()
+
+            # Notifica operatore delegato
+            op_princ = session.query(User).filter(User.id == op_principale).first()
+            princ_name = op_princ.name if op_princ else op_principale
+            NotificationManager.create_notification(
+                user_id=op_delegato,
+                order_id=order_id,
+                title='Nuova delega fase' if not forzata else 'Delega fase (forzata)',
+                message=f'{princ_name} ti ha delegato {fase} per {order.cliente}',
+                notification_type='delegation'
+            )
+
+            return {"success": True, "delegation_id": delegation.id}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def accept_delegation(delegation_id: str, operatore_id: str) -> dict:
+        """Accetta una delega pending."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+            if d.operatore_delegato != operatore_id:
+                return {"success": False, "error": "Non sei il delegato"}
+            if d.stato != 'pending':
+                return {"success": False, "error": f"Stato attuale: {d.stato}"}
+
+            d.stato = 'accepted'
+            session.commit()
+
+            # Notifica operatore principale
+            NotificationManager.create_notification(
+                user_id=d.operatore_principale,
+                order_id=d.order_id,
+                title='Delega accettata',
+                message=f'La delega {d.fase} è stata accettata',
+                notification_type='delegation'
+            )
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def reject_delegation(delegation_id: str, operatore_id: str) -> dict:
+        """Rifiuta una delega pending."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+            if d.operatore_delegato != operatore_id:
+                return {"success": False, "error": "Non sei il delegato"}
+            if d.stato != 'pending':
+                return {"success": False, "error": f"Stato attuale: {d.stato}"}
+
+            d.stato = 'rejected'
+            session.commit()
+
+            # Notifica operatore principale + capi
+            op_deleg = session.query(User).filter(User.id == operatore_id).first()
+            deleg_name = op_deleg.name if op_deleg else operatore_id
+            for uid in [d.operatore_principale, 'paolo-responsabile', 'stefano-responsabile']:
+                NotificationManager.create_notification(
+                    user_id=uid,
+                    order_id=d.order_id,
+                    title='Delega rifiutata',
+                    message=f'{deleg_name} ha rifiutato la delega {d.fase}',
+                    notification_type='delegation'
+                )
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def start_delegated_phase(delegation_id: str, operatore_id: str) -> dict:
+        """Inizia la fase delegata (accepted → in_progress). Chiama OrderManager.start_phase."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+            if d.operatore_delegato != operatore_id:
+                return {"success": False, "error": "Non sei il delegato"}
+            if d.stato != 'accepted':
+                return {"success": False, "error": f"Stato attuale: {d.stato}"}
+
+            d.stato = 'in_progress'
+            d.tempo_inizio_delegato = datetime.utcnow()
+            session.commit()
+
+            # Avvia la fase tramite OrderManager
+            op = session.query(User).filter(User.id == operatore_id).first()
+            op_name = op.name if op else operatore_id
+            OrderManager.start_phase(d.order_id, d.fase, op_name)
+            return {"success": True, "tempo_inizio": d.tempo_inizio_delegato.isoformat() + 'Z'}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def complete_delegated_phase(delegation_id: str, operatore_id: str, note: str = "") -> dict:
+        """Completa la fase delegata. Chiama OrderManager.complete_phase."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+            if d.operatore_delegato != operatore_id:
+                return {"success": False, "error": "Non sei il delegato"}
+            if d.stato != 'in_progress':
+                return {"success": False, "error": f"Stato attuale: {d.stato}"}
+
+            d.stato = 'completed'
+            d.tempo_fine_delegato = datetime.utcnow()
+            if note:
+                d.note_delegato = note
+            session.commit()
+
+            # Completa la fase tramite OrderManager
+            result = OrderManager.complete_phase(d.order_id, d.fase, operatore_id)
+
+            # Calcola durata_effettiva da sessioni cumulative (non wall-clock)
+            try:
+                sess2 = get_session()
+                order = sess2.query(Order).filter(Order.id == d.order_id).first()
+                if order:
+                    step = sess2.query(ProcessingStep).filter(
+                        ProcessingStep.order_id == d.order_id,
+                        ProcessingStep.fase == d.fase
+                    ).order_by(ProcessingStep.timestamp_inizio.desc()).first()
+                    if step:
+                        sessions_list = sess2.query(PhaseSession).filter(
+                            PhaseSession.step_id == step.id
+                        ).all()
+                        cumul = sum(
+                            int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                            for s in sessions_list if s.timestamp_fine
+                        )
+                        d2 = sess2.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+                        if d2:
+                            d2.durata_effettiva = cumul
+                            sess2.commit()
+                sess2.close()
+            except Exception:
+                pass
+
+            # Notifica operatore principale
+            NotificationManager.create_notification(
+                user_id=d.operatore_principale,
+                order_id=d.order_id,
+                title='Fase delegata completata',
+                message=f'{d.fase} completata dal delegato',
+                notification_type='delegation'
+            )
+            return result
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def save_partial_delegated_phase(delegation_id: str, operatore_id: str, note: str = "") -> dict:
+        """Salva parziale su fase delegata. Chiude sessione ma non lo step."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+            if d.operatore_delegato != operatore_id:
+                return {"success": False, "error": "Non sei il delegato"}
+            if d.stato != 'in_progress':
+                return {"success": False, "error": f"Stato attuale: {d.stato}"}
+
+            result = OrderManager.save_partial(d.order_id, d.fase, note=note, operatore=operatore_id)
+            return result
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def resume_delegated_phase(delegation_id: str, operatore_id: str) -> dict:
+        """Riprende una fase delegata in pausa. Crea nuova PhaseSession."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+            if d.operatore_delegato != operatore_id:
+                return {"success": False, "error": "Non sei il delegato"}
+            if d.stato != 'in_progress':
+                return {"success": False, "error": f"Stato attuale: {d.stato}"}
+
+            # start_phase gestisce il resume: trova step aperto, crea nuova sessione
+            op = session.query(User).filter(User.id == operatore_id).first()
+            op_name = op.name if op else operatore_id
+            OrderManager.start_phase(d.order_id, d.fase, op_name)
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def revoke_delegation(delegation_id: str, revocata_da: str) -> dict:
+        """Revoca una delega (solo capo o op_principale)."""
+        session = get_session()
+        try:
+            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
+            if not d:
+                return {"success": False, "error": "Delega non trovata"}
+
+            # Solo capo o operatore principale può revocare
+            user = session.query(User).filter(User.id == revocata_da).first()
+            if not user:
+                return {"success": False, "error": "Utente non trovato"}
+            if not user.is_capo and revocata_da != d.operatore_principale:
+                return {"success": False, "error": "Non autorizzato a revocare"}
+
+            if d.stato in ['completed', 'rejected']:
+                return {"success": False, "error": f"Impossibile revocare: stato {d.stato}"}
+
+            d.stato = 'rejected'
+            session.commit()
+
+            # Notifica delegato
+            NotificationManager.create_notification(
+                user_id=d.operatore_delegato,
+                order_id=d.order_id,
+                title='Delega revocata',
+                message=f'La delega {d.fase} è stata revocata da {user.name}',
+                notification_type='delegation'
+            )
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def _serialize_delegation(d, session):
+        """Serializza una delega con info sessioni."""
+        order = session.query(Order).filter(Order.id == d.order_id).first()
+        op_princ = session.query(User).filter(User.id == d.operatore_principale).first()
+        op_deleg = session.query(User).filter(User.id == d.operatore_delegato).first()
+
+        # Info sessioni per deleghe in_progress
+        sessione_attiva = False
+        sessione_attiva_inizio = None
+        tempo_cumulativo_secondi = 0
+        sessioni_count = 0
+        in_pausa = False
+
+        if d.stato == 'in_progress':
+            step = session.query(ProcessingStep).filter(
+                ProcessingStep.order_id == d.order_id,
+                ProcessingStep.fase == d.fase,
+                ProcessingStep.timestamp_fine.is_(None)
+            ).first()
+            if step:
+                phase_sessions = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == step.id
+                ).order_by(PhaseSession.timestamp_inizio).all()
+                sessioni_count = len(phase_sessions)
+                closed = [s for s in phase_sessions if s.timestamp_fine]
+                tempo_cumulativo_secondi = sum(
+                    int((s.timestamp_fine - s.timestamp_inizio).total_seconds()) for s in closed
+                )
+                active_list = [s for s in phase_sessions if s.timestamp_fine is None]
+                active = active_list[0] if active_list else None
+                sessione_attiva = len(active_list) > 0
+                sessione_attiva_inizio = active.timestamp_inizio.isoformat() + 'Z' if active else None
+                in_pausa = (not sessione_attiva and sessioni_count > 0)
+
+        return {
+            'id': d.id,
+            'order_id': d.order_id,
+            'cliente': order.cliente if order else 'N/A',
+            'numero_ordine': order.numero_ordine if order else None,
+            'fase': d.fase,
+            'operatore_principale': d.operatore_principale,
+            'nome_principale': op_princ.name if op_princ else 'N/A',
+            'operatore_delegato': d.operatore_delegato,
+            'nome_delegato': op_deleg.name if op_deleg else 'N/A',
+            'stato': d.stato,
+            'forzata': d.forzata,
+            'data_delega': d.data_delega.isoformat() + 'Z' if d.data_delega else None,
+            'scadenza': d.scadenza.isoformat() if d.scadenza else None,
+            'note': d.note,
+            'tempo_inizio_delegato': d.tempo_inizio_delegato.isoformat() + 'Z' if d.tempo_inizio_delegato else None,
+            'tempo_fine_delegato': d.tempo_fine_delegato.isoformat() + 'Z' if d.tempo_fine_delegato else None,
+            'durata_effettiva': d.durata_effettiva,
+            'note_delegato': d.note_delegato,
+            'sessione_attiva': sessione_attiva,
+            'sessione_attiva_inizio': sessione_attiva_inizio,
+            'tempo_cumulativo_secondi': tempo_cumulativo_secondi,
+            'sessioni_count': sessioni_count,
+            'in_pausa': in_pausa
+        }
+
+    @staticmethod
+    def get_delegations(order_id: str = None, op_principale: str = None,
+                        op_delegato: str = None, stato: str = None) -> list:
+        """Query flessibile deleghe con filtri opzionali."""
+        session = get_session()
+        try:
+            query = session.query(PhaseDelegation)
+
+            if order_id:
+                query = query.filter(PhaseDelegation.order_id == order_id)
+            if op_principale:
+                query = query.filter(PhaseDelegation.operatore_principale == op_principale)
+            if op_delegato:
+                query = query.filter(PhaseDelegation.operatore_delegato == op_delegato)
+            if stato:
+                query = query.filter(PhaseDelegation.stato == stato)
+
+            delegations = query.order_by(PhaseDelegation.data_delega.desc()).all()
+            return [DelegationManager._serialize_delegation(d, session) for d in delegations]
+        except Exception as e:
+            print(f"[ERROR] get_delegations: {e}")
+            return []
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_all_active_delegations() -> list:
+        """Per dashboard capo: tutte le deleghe non completate/rifiutate."""
+        session = get_session()
+        try:
+            delegations = session.query(PhaseDelegation).filter(
+                PhaseDelegation.stato.notin_(['completed', 'rejected'])
+            ).order_by(PhaseDelegation.data_delega.desc()).all()
+            return [DelegationManager._serialize_delegation(d, session) for d in delegations]
+        except Exception as e:
+            print(f"[ERROR] get_all_active_delegations: {e}")
+            return []
+        finally:
+            session.close()
+
+
+class SupportManager:
+    """Gestione richieste di supporto — collaborazione su ordini interi"""
+
+    @staticmethod
+    def create_support_request(order_id: str, op_principale: str, op_supporto: str,
+                               forzata: bool = False, note: str = "") -> dict:
+        """Crea una richiesta di supporto per un ordine"""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {'success': False, 'error': 'Ordine non trovato'}
+            if order.status == 'COMPLETATO':
+                return {'success': False, 'error': 'Ordine già completato'}
+
+            # Verifica duplicati attivi
+            existing = session.query(SupportRequest).filter(
+                SupportRequest.order_id == order_id,
+                SupportRequest.operatore_supporto == op_supporto,
+                SupportRequest.stato.in_(['pending', 'accepted'])
+            ).first()
+            if existing:
+                return {'success': False, 'error': 'Richiesta di supporto già attiva per questo operatore'}
+
+            req_id = str(uuid.uuid4())
+            sr = SupportRequest(
+                id=req_id,
+                order_id=order_id,
+                operatore_principale=op_principale,
+                operatore_supporto=op_supporto,
+                stato='accepted' if forzata else 'pending',
+                forzata=forzata,
+                data_richiesta=datetime.utcnow(),
+                data_risposta=datetime.utcnow() if forzata else None,
+                note=note
+            )
+            session.add(sr)
+
+            # Nomi per notifiche
+            principale = session.query(User).filter(User.id == op_principale).first()
+            supporto = session.query(User).filter(User.id == op_supporto).first()
+            nome_p = principale.name if principale else op_principale
+            nome_s = supporto.name if supporto else op_supporto
+            cliente = order.cliente
+            numero = order.numero_ordine or order.id[:8]
+
+            if forzata:
+                # Notifica al supporto: assegnato dal responsabile
+                NotificationManager.create_notification(
+                    user_id=op_supporto, order_id=order_id,
+                    title='Supporto assegnato',
+                    message=f'Sei stato assegnato in supporto a {nome_p} per ordine {cliente} #{numero} (assegnato dal responsabile)',
+                    notification_type='order', notification_category='attiva'
+                )
+            else:
+                # Notifica al supporto: richiesta di aiuto
+                NotificationManager.create_notification(
+                    user_id=op_supporto, order_id=order_id,
+                    title='Richiesta di aiuto',
+                    message=f'{nome_p} ti chiede aiuto per ordine {cliente} #{numero}',
+                    notification_type='order', notification_category='attiva'
+                )
+
+            session.commit()
+            return {'success': True, 'support_request_id': req_id}
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] create_support_request: {e}")
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def accept_support_request(request_id: str, operatore_id: str) -> dict:
+        """Accetta una richiesta di supporto"""
+        session = get_session()
+        try:
+            sr = session.query(SupportRequest).filter(SupportRequest.id == request_id).first()
+            if not sr:
+                return {'success': False, 'error': 'Richiesta non trovata'}
+            if sr.operatore_supporto != operatore_id:
+                return {'success': False, 'error': 'Non autorizzato'}
+            if sr.stato != 'pending':
+                return {'success': False, 'error': f'Richiesta non in stato pending (stato: {sr.stato})'}
+
+            sr.stato = 'accepted'
+            sr.data_risposta = datetime.utcnow()
+
+            # Notifica al principale
+            supporto = session.query(User).filter(User.id == sr.operatore_supporto).first()
+            order = session.query(Order).filter(Order.id == sr.order_id).first()
+            nome_s = supporto.name if supporto else sr.operatore_supporto
+            cliente = order.cliente if order else ''
+            numero = (order.numero_ordine or order.id[:8]) if order else ''
+
+            NotificationManager.create_notification(
+                user_id=sr.operatore_principale, order_id=sr.order_id,
+                title='Supporto accettato',
+                message=f'{nome_s} ha accettato di aiutarti per ordine {cliente} #{numero}',
+                notification_type='order', notification_category='attiva'
+            )
+
+            session.commit()
+            return {'success': True}
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] accept_support_request: {e}")
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def reject_support_request(request_id: str, operatore_id: str) -> dict:
+        """Rifiuta una richiesta di supporto"""
+        session = get_session()
+        try:
+            sr = session.query(SupportRequest).filter(SupportRequest.id == request_id).first()
+            if not sr:
+                return {'success': False, 'error': 'Richiesta non trovata'}
+            if sr.operatore_supporto != operatore_id:
+                return {'success': False, 'error': 'Non autorizzato'}
+            if sr.stato != 'pending':
+                return {'success': False, 'error': f'Richiesta non in stato pending (stato: {sr.stato})'}
+
+            sr.stato = 'rejected'
+            sr.data_risposta = datetime.utcnow()
+
+            # Notifica al principale
+            supporto = session.query(User).filter(User.id == sr.operatore_supporto).first()
+            order = session.query(Order).filter(Order.id == sr.order_id).first()
+            nome_s = supporto.name if supporto else sr.operatore_supporto
+            cliente = order.cliente if order else ''
+            numero = (order.numero_ordine or order.id[:8]) if order else ''
+
+            NotificationManager.create_notification(
+                user_id=sr.operatore_principale, order_id=sr.order_id,
+                title='Supporto rifiutato',
+                message=f'{nome_s} ha rifiutato il supporto per ordine {cliente} #{numero}',
+                notification_type='order', notification_category='attiva'
+            )
+
+            session.commit()
+            return {'success': True}
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] reject_support_request: {e}")
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def revoke_support_request(request_id: str) -> dict:
+        """Revoca una richiesta di supporto (capo o operatore principale)"""
+        session = get_session()
+        try:
+            sr = session.query(SupportRequest).filter(SupportRequest.id == request_id).first()
+            if not sr:
+                return {'success': False, 'error': 'Richiesta non trovata'}
+            if sr.stato not in ['pending', 'accepted']:
+                return {'success': False, 'error': 'Richiesta non revocabile'}
+
+            sr.stato = 'revoked'
+            sr.data_risposta = datetime.utcnow()
+
+            # Notifica al supporto
+            principale = session.query(User).filter(User.id == sr.operatore_principale).first()
+            order = session.query(Order).filter(Order.id == sr.order_id).first()
+            nome_p = principale.name if principale else sr.operatore_principale
+            cliente = order.cliente if order else ''
+
+            NotificationManager.create_notification(
+                user_id=sr.operatore_supporto, order_id=sr.order_id,
+                title='Supporto revocato',
+                message=f'Il supporto per ordine {cliente} di {nome_p} è stato revocato',
+                notification_type='order', notification_category='informativa'
+            )
+
+            session.commit()
+            return {'success': True}
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] revoke_support_request: {e}")
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_support_requests(order_id: str = None, op_principale: str = None,
+                             op_supporto: str = None, stato: str = None,
+                             active_only: bool = False) -> list:
+        """Recupera richieste di supporto con filtri"""
+        session = get_session()
+        try:
+            query = session.query(SupportRequest)
+            if order_id:
+                query = query.filter(SupportRequest.order_id == order_id)
+            if op_principale:
+                query = query.filter(SupportRequest.operatore_principale == op_principale)
+            if op_supporto:
+                query = query.filter(SupportRequest.operatore_supporto == op_supporto)
+            if stato:
+                query = query.filter(SupportRequest.stato == stato)
+            if active_only:
+                query = query.filter(SupportRequest.stato.in_(['pending', 'accepted']))
+
+            requests = query.order_by(SupportRequest.data_richiesta.desc()).all()
+            return [SupportManager._serialize_support_request(sr, session) for sr in requests]
+        except Exception as e:
+            print(f"[ERROR] get_support_requests: {e}")
+            return []
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_supported_order_ids(operatore_id: str) -> list:
+        """Restituisce gli order_id per cui l'operatore è in supporto attivo"""
+        session = get_session()
+        try:
+            requests = session.query(SupportRequest.order_id).filter(
+                SupportRequest.operatore_supporto == operatore_id,
+                SupportRequest.stato == 'accepted'
+            ).all()
+            return [r[0] for r in requests]
+        except Exception as e:
+            print(f"[ERROR] get_supported_order_ids: {e}")
+            return []
+        finally:
+            session.close()
+
+    @staticmethod
+    def _serialize_support_request(sr, session) -> dict:
+        """Serializza una richiesta di supporto"""
+        order = session.query(Order).filter(Order.id == sr.order_id).first()
+        principale = session.query(User).filter(User.id == sr.operatore_principale).first()
+        supporto = session.query(User).filter(User.id == sr.operatore_supporto).first()
+        return {
+            'id': sr.id,
+            'order_id': sr.order_id,
+            'cliente': order.cliente if order else '',
+            'numero_ordine': (order.numero_ordine or order.id[:8]) if order else '',
+            'operatore_principale': sr.operatore_principale,
+            'nome_principale': principale.name if principale else '',
+            'operatore_supporto': sr.operatore_supporto,
+            'nome_supporto': supporto.name if supporto else '',
+            'stato': sr.stato,
+            'forzata': sr.forzata,
+            'data_richiesta': sr.data_richiesta.isoformat() + 'Z' if sr.data_richiesta else None,
+            'data_risposta': sr.data_risposta.isoformat() + 'Z' if sr.data_risposta else None,
+            'note': sr.note
+        }

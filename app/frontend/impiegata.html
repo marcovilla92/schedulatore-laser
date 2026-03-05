@@ -269,26 +269,6 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   outline-offset: 2px;
 }
 
-/* DXF BUTTON */
-.upload-button-dxf {
-  border-color: #3b82f6;
-  color: #3b82f6;
-}
-
-.upload-button-dxf:hover {
-  background: #3b82f6;
-  color: var(--white);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-}
-
-.upload-button-dxf:active {
-  transform: scale(0.98);
-}
-
-.upload-button-dxf:focus-visible {
-  outline: 3px solid #3b82f6;
-  outline-offset: 2px;
-}
 
 /* UPLOAD STATUS MESSAGE */
 .upload-status {
@@ -371,15 +351,12 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   }
 }
 
-#pdf-input, #dxf-input { display: none; }
+#pdf-input { display: none; }
 
 .pdf-preview { border: 1px solid var(--border); border-radius: 8px; height: 200px; background: white; overflow: hidden; display: none; margin-top: 8px; }
 .pdf-preview.active { display: block; }
 .pdf-preview iframe { width: 100%; height: 100%; border: none; }
 
-.dxf-files-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto; }
-.dxf-item { background: var(--bg); padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-.dxf-remove-btn { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
 
 .dest-section { display: flex; flex-direction: column; gap: 8px; }
 .dest-label { font-size: 11px; font-weight: 600; color: var(--gray-text); }
@@ -618,7 +595,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .ordini-table th:hover { color: var(--green); }
 .ordini-table td { padding: 12px 14px; border-top: 1px solid var(--border); }
 .ordini-table tbody tr { transition: background 0.15s; }
-.ordini-table tbody tr:hover { background: rgba(26,122,72,0.02); }
+.ordini-table tbody tr:hover { background: rgba(26,122,72,0.06); }
 
 .fase-badge {
   display: inline-block;
@@ -672,14 +649,366 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .modal-body { flex: 1; }
 .modal-body iframe { width: 100%; height: 100%; border: none; }
 
+/* === DETTAGLIO ORDINE MODALE === */
+.detail-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+}
+.detail-modal-overlay.active { display: flex; }
+.detail-modal {
+  background: var(--white);
+  border-radius: 16px;
+  width: 600px;
+  max-width: 92vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.detail-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-modal-header h3 { font-size: 16px; font-weight: 700; margin: 0; }
+.detail-modal-close {
+  background: none; border: none; font-size: 24px;
+  cursor: pointer; color: var(--gray-text); line-height: 1;
+}
+.detail-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+.detail-section { margin-bottom: 20px; }
+.detail-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gray-text);
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.detail-info-item label {
+  font-size: 11px;
+  color: var(--gray-text);
+  display: block;
+  margin-bottom: 2px;
+}
+.detail-info-item span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--black);
+}
+.storico-list-detail { display: flex; flex-direction: column; gap: 8px; }
+.storico-item-d {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+.storico-top-d {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.storico-fase-d {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.storico-durata-d {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+}
+.storico-detail-d {
+  font-size: 11px;
+  color: var(--gray-text);
+  line-height: 1.5;
+}
+.storico-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.storico-badge.in-pausa { background: #fff7ed; color: #c2410c; }
+.storico-badge.parziale { background: #fef3c7; color: #92400e; }
+.storico-sessions-d {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+.session-item-d {
+  font-size: 10px;
+  color: var(--gray-text);
+  padding: 2px 0;
+  line-height: 1.5;
+}
+.session-tipo-d {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+.session-tipo-d.parziale { background: #fef3c7; color: #92400e; }
+.session-tipo-d.totale { background: #d1fae5; color: #065f46; }
+.detail-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.detail-progress-wrap .progress-bar-bg { flex: 1; }
+
+/* === ARCHIVIO ORDINI === */
+.archivio-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 48px;
+}
+.archivio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.archivio-header h2 { font-size: 20px; font-weight: 700; }
+.archivio-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: flex-end;
+}
+.archivio-filters .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.archivio-filters label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.archivio-filters select,
+.archivio-filters input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--white);
+  min-width: 160px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.archivio-filters select:focus,
+.archivio-filters input[type="date"]:focus {
+  border-color: var(--green);
+}
+.btn-excel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #166534;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-excel:hover { background: #14532d; }
+.btn-excel svg { width: 16px; height: 16px; }
+.btn-filter {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--gray-text);
+}
+.btn-filter:hover { border-color: var(--green); color: var(--green); }
+.btn-filter.active { background: var(--green); color: white; border-color: var(--green); }
+.archivio-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.arch-stat {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.arch-stat-label { font-size: 11px; color: var(--gray-text); text-transform: uppercase; font-weight: 600; letter-spacing: 0.3px; }
+.arch-stat-value { font-size: 18px; font-weight: 700; color: var(--black); }
+.archivio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.archivio-table thead { background: #f1f5f9; }
+.archivio-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.archivio-table th:hover { color: var(--green); }
+.archivio-table td { padding: 10px 14px; border-top: 1px solid var(--border); }
+.archivio-table tbody tr { transition: background 0.15s; cursor: pointer; }
+.archivio-table tbody tr:hover { background: rgba(26,122,72,0.06); }
+.arch-fase-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+.archivio-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.archivio-pagination button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--white);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.archivio-pagination button:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+.archivio-pagination button:disabled { opacity: 0.4; cursor: default; }
+.archivio-pagination span { font-size: 13px; color: var(--gray-text); }
+.archivio-empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--gray-muted);
+  font-size: 14px;
+}
+.arch-detail-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.arch-detail-overlay.active { display: flex; }
+.arch-detail-modal {
+  background: var(--white);
+  width: 700px;
+  max-height: 85vh;
+  border-radius: 12px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.arch-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  z-index: 1;
+}
+.arch-detail-header h3 { font-size: 16px; font-weight: 700; }
+.arch-detail-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-text); }
+.arch-detail-body { padding: 24px; }
+.arch-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin-bottom: 24px;
+}
+.arch-info-item label { display: block; font-size: 11px; color: var(--gray-text); text-transform: uppercase; font-weight: 600; margin-bottom: 2px; }
+.arch-info-item span { font-size: 14px; font-weight: 500; }
+.arch-phases-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.arch-phase-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.arch-phase-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.arch-phase-name { font-weight: 700; font-size: 13px; }
+.arch-phase-time { font-size: 13px; color: var(--green); font-weight: 600; }
+.arch-phase-meta { font-size: 12px; color: var(--gray-text); line-height: 1.6; }
+.arch-sessions-list { margin-top: 8px; padding-left: 12px; border-left: 2px solid var(--border); }
+.arch-session-row { font-size: 12px; color: var(--gray-text); padding: 3px 0; }
+.arch-session-tipo {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.arch-session-tipo.parziale { background: #fef3c7; color: #92400e; }
+.arch-session-tipo.totale { background: #d1fae5; color: #065f46; }
+
 /* === RESPONSIVE === */
 @media (max-width: 1024px) {
   .cal-container { flex-direction: column; height: auto; }
   .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
   .topbar, .tab-bar { padding: 0 24px; }
-  .ordini-container { padding: 24px; }
+  .ordini-container, .archivio-container { padding: 24px; }
   .form-row { flex-direction: column; }
   .form-card { width: 95vw; }
+  .archivio-filters { flex-direction: column; }
+  .arch-info-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -705,6 +1034,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   <div class="tab-item active" data-tab="carica" onclick="switchTab('carica')">Carica Ordine</div>
   <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
   <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
+  <div class="tab-item" data-tab="archivio" onclick="switchTab('archivio')">Archivio</div>
 </div>
 
 <!-- ===================== TAB 1: CARICA ORDINE ===================== -->
@@ -729,41 +1059,22 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
         </div>
       </div>
 
-      <!-- FILE DXF/DWG UPLOAD -->
-      <div class="form-group">
-        <label class="form-label">Disegni Tecnici (DXF/DWG)</label>
-        <div class="upload-button-wrapper">
-          <button type="button" class="upload-button upload-button-dxf" id="dxf-upload-btn" aria-label="Carica file DXF/DWG per disegni tecnici, supporta file multipli">
-            Carica Disegni
-          </button>
-          <input type="file" id="dxf-input" accept=".dxf,.dwg" multiple style="display:none;">
-          <div class="upload-progress" id="dxf-progress" style="display:none;">
-            <div class="progress-bar">
-              <div class="progress-fill"></div>
-            </div>
-            <span class="progress-label" id="dxf-progress-label">Caricamento...</span>
-          </div>
-        </div>
-        <div class="dxf-files-list" id="dxf-list"></div>
-      </div>
-
       <!-- DATI ORDINE -->
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Cliente</label>
-          <input type="text" id="mod-cliente" class="form-input" placeholder="Nome cliente">
+          <label class="form-label">Numero Ordine <span style="color:#ef4444">*</span></label>
+          <input type="text" id="mod-numero" class="form-input" placeholder="Es: 2024-001" required>
         </div>
         <div class="form-group">
-          <label class="form-label">Data Consegna</label>
-          <input type="date" id="mod-data" class="form-input">
+          <label class="form-label">Cliente <span style="color:#ef4444">*</span></label>
+          <input type="text" id="mod-cliente" class="form-input" placeholder="Nome cliente">
         </div>
       </div>
 
-      <!-- NUMERO ORDINE HIDDEN -->
-      <div class="form-row" style="display:none;">
+      <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Numero Ordine</label>
-          <input type="text" id="mod-numero" class="form-input" placeholder="Es: 2024-001">
+          <label class="form-label">Data Consegna <span style="color:#ef4444">*</span></label>
+          <input type="date" id="mod-data" class="form-input">
         </div>
       </div>
 
@@ -857,6 +1168,74 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   </div>
 </div>
 
+<!-- ===================== TAB 4: ARCHIVIO ===================== -->
+<div class="tab-panel" id="panel-archivio">
+  <div class="archivio-container">
+    <div class="archivio-header">
+      <h2>Archivio Ordini Completati</h2>
+      <button class="btn-excel" onclick="downloadExcel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+        Scarica Excel
+      </button>
+    </div>
+
+    <div class="archivio-filters">
+      <div class="filter-group">
+        <label>Cliente</label>
+        <select id="arch-filter-cliente" onchange="loadArchive()">
+          <option value="">Tutti i clienti</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Operatore</label>
+        <select id="arch-filter-operatore" onchange="loadArchive()">
+          <option value="">Tutti gli operatori</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Data da</label>
+        <input type="date" id="arch-filter-from" onchange="loadArchive()">
+      </div>
+      <div class="filter-group">
+        <label>Data a</label>
+        <input type="date" id="arch-filter-to" onchange="loadArchive()">
+      </div>
+      <button class="btn-filter" onclick="resetArchiveFilters()">Reset filtri</button>
+    </div>
+
+    <div class="archivio-stats" id="arch-stats"></div>
+
+    <table class="archivio-table">
+      <thead>
+        <tr>
+          <th onclick="sortArchive('numero_ordine')">Ordine &#8597;</th>
+          <th onclick="sortArchive('cliente')">Cliente &#8597;</th>
+          <th onclick="sortArchive('data_consegna')">Consegna &#8597;</th>
+          <th>Tempo Totale</th>
+          <th>Fasi</th>
+          <th>Stato</th>
+        </tr>
+      </thead>
+      <tbody id="arch-tbody"></tbody>
+    </table>
+
+    <div class="archivio-pagination" id="arch-pagination"></div>
+  </div>
+</div>
+
+<!-- ARCHIVIO DETTAGLIO MODALE -->
+<div class="arch-detail-overlay" id="arch-detail-modal" onclick="if(event.target===this)closeArchDetail()">
+  <div class="arch-detail-modal">
+    <div class="arch-detail-header">
+      <h3 id="arch-detail-title">Dettaglio Ordine</h3>
+      <button class="arch-detail-close" onclick="closeArchDetail()">&times;</button>
+    </div>
+    <div class="arch-detail-body" id="arch-detail-body">
+      <div style="text-align:center;padding:40px;color:var(--gray-text);">Caricamento...</div>
+    </div>
+  </div>
+</div>
+
 <!-- PDF MODALE -->
 <div class="modal-overlay" id="pdf-modal">
   <div class="modal-content">
@@ -870,6 +1249,19 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   </div>
 </div>
 
+<!-- DETTAGLIO ORDINE MODALE -->
+<div class="detail-modal-overlay" id="detail-modal" onclick="if(event.target===this)closeDetailModal()">
+  <div class="detail-modal">
+    <div class="detail-modal-header">
+      <h3 id="detail-modal-title">Dettaglio Ordine</h3>
+      <button class="detail-modal-close" onclick="closeDetailModal()">&times;</button>
+    </div>
+    <div class="detail-modal-body" id="detail-modal-body">
+      <div style="text-align:center;padding:40px;color:var(--gray-text);">Caricamento...</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===========================
 // GLOBALS
@@ -877,7 +1269,6 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 const API_URL = 'http://localhost:5000';
 let currentUser = null;
 let pdfData = {};
-let uploadedDXFFiles = [];
 let allOrders = [];
 let calDate = new Date();
 let calSelectedDate = null;
@@ -940,6 +1331,7 @@ function switchTab(tabId) {
   document.getElementById(`panel-${tabId}`).classList.add('active');
   if (tabId === 'calendario') loadCalendar();
   if (tabId === 'ordini') loadOrdersList();
+  if (tabId === 'archivio') { loadArchiveFilters(); loadArchive(); }
 }
 
 // ===========================
@@ -949,10 +1341,6 @@ function switchTab(tabId) {
 // Upload Button Handlers
 document.getElementById('pdf-upload-btn').addEventListener('click', () => {
   document.getElementById('pdf-input').click();
-});
-
-document.getElementById('dxf-upload-btn').addEventListener('click', () => {
-  document.getElementById('dxf-input').click();
 });
 
 // PDF File Input Handler
@@ -998,48 +1386,6 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
   }
 });
 
-document.getElementById('dxf-input').addEventListener('change', async (e) => {
-  const files = e.target.files;
-  if (files.length === 0) return;
-
-  const progressEl = document.getElementById('dxf-progress');
-  const progressFill = progressEl.querySelector('.progress-fill');
-  const progressLabel = document.getElementById('dxf-progress-label');
-
-  progressEl.classList.add('active');
-  let completed = 0;
-
-  for (const file of files) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('order_id', 'draft');
-    try {
-      const resp = await fetch(`${API_URL}/api/upload-drawing`, { method: 'POST', body: formData });
-      const result = await resp.json();
-      if (result.success) {
-        uploadedDXFFiles.push(result.filename);
-        completed++;
-        const progressPercent = (completed / files.length) * 100;
-        progressFill.style.width = progressPercent + '%';
-        progressLabel.textContent = `${completed}/${files.length} file caricati`;
-      }
-    } catch (err) {
-      showMessage('Errore upload DXF: ' + err.message, 'error');
-    }
-  }
-
-  renderDXFList();
-  setTimeout(() => progressEl.classList.remove('active'), 1500);
-});
-
-function renderDXFList() {
-  document.getElementById('dxf-list').innerHTML = uploadedDXFFiles.map((f, i) =>
-    `<div class="dxf-item"><span>${escapeHtml(f)}</span><button class="dxf-remove-btn" onclick="removeDXF(${i})">Rimuovi</button></div>`
-  ).join('');
-}
-
-function removeDXF(idx) { uploadedDXFFiles.splice(idx, 1); renderDXFList(); }
-
 function selectDest(type) {
   if (type === 'laser') {
     document.getElementById('dest-laser').checked = true;
@@ -1058,12 +1404,12 @@ function updateDestStyle() {
 }
 
 async function submitOrder() {
-  const cliente = document.getElementById('mod-cliente').value.trim();
   const numero = document.getElementById('mod-numero').value.trim();
+  const cliente = document.getElementById('mod-cliente').value.trim();
   const data = document.getElementById('mod-data').value.trim();
   const note = document.getElementById('mod-note').value.trim();
-  const prezzo = document.getElementById('mod-prezzo').value;
   const dest = document.querySelector('input[name="destinazione"]:checked').value;
+  if (!numero) { showMessage('Inserisci il numero ordine', 'error'); return; }
   if (!cliente || !data) { showMessage('Inserisci cliente e data consegna', 'error'); return; }
   if (!pdfData.pdf_filename) { showMessage('Carica un PDF prima di confermare', 'error'); return; }
   try {
@@ -1072,8 +1418,7 @@ async function submitOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente, numero_ordine: numero, data_consegna: data, note, destinazione: dest,
-        prezzo_quotato: prezzo ? parseFloat(prezzo) : null,
-        pdf_filename: pdfData.pdf_filename, dxf_filenames: uploadedDXFFiles,
+        pdf_filename: pdfData.pdf_filename,
         operatore_id: currentUser.id
       })
     });
@@ -1092,31 +1437,29 @@ async function submitOrder() {
 
 function resetCaricaForm() {
   pdfData = {};
-  uploadedDXFFiles = [];
-  document.getElementById('mod-cliente').value = '';
   document.getElementById('mod-numero').value = '';
+  document.getElementById('mod-cliente').value = '';
   document.getElementById('mod-data').value = '';
-  document.getElementById('mod-prezzo').value = '';
   document.getElementById('mod-note').value = '';
   document.getElementById('dest-laser').checked = true;
   updateDestStyle();
   document.getElementById('pdf-preview').classList.remove('active');
-  document.getElementById('pdf-upload-area').classList.remove('active');
+  const pdfArea = document.getElementById('pdf-upload-area');
+  if (pdfArea) pdfArea.classList.remove('active');
   document.getElementById('pdf-iframe').src = '';
-  document.getElementById('dxf-list').innerHTML = '';
 }
 
 // Drag & Drop PDF
-['pdf-upload-area'].forEach(id => {
-  const area = document.getElementById(id);
-  ['dragenter','dragover','dragleave','drop'].forEach(evt => area.addEventListener(evt, e => e.preventDefault()));
-  area.addEventListener('drop', e => {
+const pdfDropArea = document.getElementById('pdf-upload-btn');
+if (pdfDropArea) {
+  ['dragenter','dragover','dragleave','drop'].forEach(evt => pdfDropArea.addEventListener(evt, e => e.preventDefault()));
+  pdfDropArea.addEventListener('drop', e => {
     if (e.dataTransfer.files[0]) {
       document.getElementById('pdf-input').files = e.dataTransfer.files;
       document.getElementById('pdf-input').dispatchEvent(new Event('change'));
     }
   });
-});
+}
 
 // ===========================
 // TAB 2: CALENDARIO
@@ -1244,7 +1587,7 @@ function showDayDetail(dateStr) {
       const progress = calculateProgress(order);
       const statusColor = getStatusColor(order);
       const faseColor = faseColors[order.fase_corrente] || '#666';
-      html += `<div class="cal-order-card" style="border-left-color: ${statusColor};" onclick="openPdfModal('${order.id}','${escapeHtml(order.cliente)}')">
+      html += `<div class="cal-order-card" style="border-left-color: ${statusColor};" onclick="openDetailModal('${order.id}')">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div style="display:flex;flex-direction:column;gap:2px;">
             <div style="font-weight: 700; font-size: 14px;">${escapeHtml(order.cliente) || 'N/A'}</div>
@@ -1339,7 +1682,7 @@ function renderOrdersTable() {
       const statusColor = getStatusColor(o);
       const faseColor = faseColors[o.fase_corrente] || '#666';
       const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : 'N/A';
-      return `<tr>
+      return `<tr style="cursor:pointer;" onclick="openDetailModal('${o.id}')">
         <td style="font-weight: 600;">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}</td>
         <td>${escapeHtml(o.cliente) || 'N/A'}</td>
         <td>${consegna}</td>
@@ -1353,7 +1696,7 @@ function renderOrdersTable() {
             <span style="font-size: 12px; font-weight: 700; min-width: 32px;">${progress}%</span>
           </div>
         </td>
-        <td><button class="pdf-btn" onclick="openPdfModal('${o.id}','${escapeHtml(o.cliente)}')">PDF</button></td>
+        <td><button class="pdf-btn" onclick="event.stopPropagation();openPdfModal('${o.id}','${escapeHtml(o.cliente)}')">PDF</button></td>
       </tr>`;
     }).join('');
   }
@@ -1380,6 +1723,163 @@ document.getElementById('pdf-modal').addEventListener('click', function(e) {
 });
 
 // ===========================
+// DETTAGLIO ORDINE MODALE
+// ===========================
+async function openDetailModal(orderId) {
+  document.getElementById('detail-modal').classList.add('active');
+  document.getElementById('detail-modal-body').innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-text);">Caricamento...</div>';
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}`);
+    if (!resp.ok) throw new Error('Errore caricamento');
+    const order = await resp.json();
+    renderDetailModal(order);
+  } catch (err) {
+    document.getElementById('detail-modal-body').innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;">Errore: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.remove('active');
+}
+
+function formatDetailDate(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDurationSec(totalSec) {
+  if (!totalSec && totalSec !== 0) return '0m';
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function renderDetailModal(order) {
+  const steps = order.processing_steps || [];
+  const progress = calculateProgress(order);
+  const statusColor = getStatusColor(order);
+  const faseColor = faseColors[order.fase_corrente] || '#666';
+  const consegna = order.data_consegna ? new Date(order.data_consegna).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const ricezione = order.data_ricezione ? new Date(order.data_ricezione).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+
+  // Calcola tempo totale lavorazione
+  let tempoTotale = 0;
+  steps.forEach(s => {
+    if (s.tempo_cumulativo_secondi) tempoTotale += s.tempo_cumulativo_secondi;
+  });
+
+  document.getElementById('detail-modal-title').textContent = `Ordine — ${escapeHtml(order.cliente)}`;
+
+  let html = `
+    <!-- INFO ORDINE -->
+    <div class="detail-section">
+      <div class="detail-section-title">Informazioni</div>
+      <div class="detail-info-grid">
+        <div class="detail-info-item">
+          <label>Cliente</label>
+          <span>${escapeHtml(order.cliente)}</span>
+        </div>
+        <div class="detail-info-item">
+          <label>Numero Ordine</label>
+          <span>${escapeHtml(order.numero_ordine || order.id?.substring(0, 8))}</span>
+        </div>
+        <div class="detail-info-item">
+          <label>Data Ricezione</label>
+          <span>${ricezione}</span>
+        </div>
+        <div class="detail-info-item">
+          <label>Data Consegna</label>
+          <span>${consegna}</span>
+        </div>
+        <div class="detail-info-item">
+          <label>Stato</label>
+          <span style="color: ${statusColor};">${order.status}</span>
+        </div>
+        <div class="detail-info-item">
+          <label>Fase Corrente</label>
+          <span><span class="fase-badge" style="background: ${faseColor}; font-size: 11px;">${order.fase_corrente || '—'}</span></span>
+        </div>
+        ${order.prezzo_quotato ? `
+        <div class="detail-info-item">
+          <label>Prezzo Quotato</label>
+          <span>&euro; ${Number(order.prezzo_quotato).toFixed(2)}</span>
+        </div>` : ''}
+        ${tempoTotale > 0 ? `
+        <div class="detail-info-item">
+          <label>Tempo Totale Lavorazione</label>
+          <span style="color: var(--green);">${formatDurationSec(tempoTotale)}</span>
+        </div>` : ''}
+      </div>
+      <div class="detail-progress-wrap" style="margin-top: 12px;">
+        <div class="progress-bar-bg" style="flex: 1;">
+          <div class="progress-bar-fill" style="width: ${progress}%; background: ${statusColor};"></div>
+        </div>
+        <span style="font-size: 13px; font-weight: 700;">${progress}%</span>
+      </div>
+    </div>
+
+    ${order.note ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Note</div>
+      <div style="font-size: 13px; color: var(--gray-text); line-height: 1.5;">${escapeHtml(order.note)}</div>
+    </div>` : ''}
+
+    <!-- STORICO FASI -->
+    <div class="detail-section">
+      <div class="detail-section-title">Storico Fasi</div>
+      ${steps.length > 0 ? `
+      <div class="storico-list-detail">
+        ${steps.map(s => {
+          const hasSessions = s.sessioni && s.sessioni.length > 1;
+          const durataDisplay = hasSessions
+            ? `${formatDurationSec(s.tempo_cumulativo_secondi || 0)} (${s.sessioni.length} sess.)`
+            : (s.durata || '');
+          return `
+          <div class="storico-item-d">
+            <div class="storico-top-d">
+              <span class="storico-fase-d" style="color: ${faseColors[s.fase] || '#666'};">${escapeHtml(s.fase)}</span>
+              ${durataDisplay ? `<span class="storico-durata-d">${escapeHtml(durataDisplay)}</span>` : ''}
+            </div>
+            <div class="storico-detail-d">
+              ${s.operatore ? 'Operatore: ' + escapeHtml(s.operatore) : ''}
+              ${!hasSessions && s.timestamp_inizio ? '<br>Inizio: ' + formatDetailDate(s.timestamp_inizio) : ''}
+              ${!hasSessions && s.timestamp_fine ? ' — Fine: ' + formatDetailDate(s.timestamp_fine) : ''}
+              ${s.fase_successiva ? '<br>&rarr; ' + escapeHtml(s.fase_successiva) : ''}
+              ${s.note ? '<br>Nota: ' + escapeHtml(s.note) : ''}
+            </div>
+            ${s.in_pausa ? '<span class="storico-badge in-pausa">IN PAUSA</span>' : ''}
+            ${!s.in_pausa && s.completamento_parziale ? '<span class="storico-badge parziale">PARZIALE</span>' : ''}
+            ${hasSessions ? `
+              <div class="storico-sessions-d">
+                ${s.sessioni.map((sess, i) => `
+                  <div class="session-item-d">
+                    #${i + 1}: ${formatDetailDate(sess.timestamp_inizio)}${sess.timestamp_fine ? ' — ' + formatDetailDate(sess.timestamp_fine) : ' (in corso)'}
+                    ${sess.durata_secondi ? ' (' + formatDurationSec(sess.durata_secondi) + ')' : ''}
+                    ${sess.tipo_chiusura ? `<span class="session-tipo-d ${sess.tipo_chiusura}">${sess.tipo_chiusura}</span>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+      ` : '<div style="font-size: 13px; color: var(--gray-text); padding: 8px 0;">Nessuna fase registrata</div>'}
+    </div>
+
+    <!-- AZIONI -->
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--border);">
+      <button class="pdf-btn" style="padding: 8px 16px; font-size: 13px;" onclick="closeDetailModal();openPdfModal('${order.id}','${escapeHtml(order.cliente)}')">Vedi PDF</button>
+    </div>
+  `;
+
+  document.getElementById('detail-modal-body').innerHTML = html;
+}
+
+// ===========================
 // UTILITIES
 // ===========================
 function showMessage(text, type) {
@@ -1399,6 +1899,284 @@ async function logout() {
   }
   localStorage.removeItem('currentUser');
   window.location.href = '/login.html';
+}
+
+// ===========================
+// TAB 4: ARCHIVIO ORDINI
+// ===========================
+let archPage = 1;
+let archSortBy = 'data_consegna';
+let archSortDir = 'desc';
+let archFiltersLoaded = false;
+
+async function loadArchiveFilters() {
+  if (archFiltersLoaded) return;
+  try {
+    const res = await fetch(`${API_URL}/api/archive/filters`);
+    const data = await res.json();
+    if (!data.success) return;
+
+    const selCliente = document.getElementById('arch-filter-cliente');
+    data.clienti.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      selCliente.appendChild(opt);
+    });
+
+    const selOp = document.getElementById('arch-filter-operatore');
+    data.operatori.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o; opt.textContent = o;
+      selOp.appendChild(opt);
+    });
+
+    archFiltersLoaded = true;
+  } catch (e) { console.error('loadArchiveFilters error:', e); }
+}
+
+function getArchiveFilterParams() {
+  const params = new URLSearchParams();
+  const cliente = document.getElementById('arch-filter-cliente').value;
+  const operatore = document.getElementById('arch-filter-operatore').value;
+  const dateFrom = document.getElementById('arch-filter-from').value;
+  const dateTo = document.getElementById('arch-filter-to').value;
+  if (cliente) params.set('cliente', cliente);
+  if (operatore) params.set('operatore', operatore);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  return params;
+}
+
+async function loadArchive() {
+  archPage = 1;
+  await fetchArchivePage();
+}
+
+async function fetchArchivePage() {
+  try {
+    const params = getArchiveFilterParams();
+    params.set('page', archPage);
+    params.set('limit', 20);
+    params.set('sort_by', archSortBy);
+    params.set('sort_dir', archSortDir);
+
+    const res = await fetch(`${API_URL}/api/archive/orders?${params}`);
+    const data = await res.json();
+    if (!data.success) { showMessage('Errore caricamento archivio', 'error'); return; }
+
+    const result = data.data;
+    renderArchiveStats(result);
+    renderArchiveTable(result.orders);
+    renderArchivePagination(result);
+  } catch (e) {
+    console.error('loadArchive error:', e);
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+function renderArchiveStats(result) {
+  document.getElementById('arch-stats').innerHTML = `
+    <div class="arch-stat">
+      <span class="arch-stat-label">Ordini trovati</span>
+      <span class="arch-stat-value">${result.total}</span>
+    </div>
+  `;
+}
+
+const archFaseColors = { LASER: '#ef4444', PIEGA: '#f59e0b', SALDATURA: '#3b82f6', PULIZIA: '#8b5cf6', COMPLETATO: '#22c55e' };
+
+function renderArchiveTable(orders) {
+  const tbody = document.getElementById('arch-tbody');
+  if (!orders || orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="archivio-empty">Nessun ordine completato trovato</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = orders.map(o => {
+    const phases = o.phase_times || {};
+    const phaseChips = Object.entries(phases).map(([fase, tempo]) =>
+      `<span class="arch-fase-badge" style="background:${archFaseColors[fase] || '#888'}" title="${tempo}">${fase}</span>`
+    ).join(' ');
+
+    const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : '';
+
+    return `<tr onclick="openArchDetail('${o.id}')">
+      <td style="font-weight:600;">${o.numero_ordine || o.id.substring(0,8)}</td>
+      <td>${o.cliente}</td>
+      <td>${consegna}</td>
+      <td style="font-weight:500;color:var(--green);">${o.tempo_totale || 'N/A'}</td>
+      <td>${phaseChips || '-'}</td>
+      <td><span class="arch-fase-badge" style="background:${o.status === 'COMPLETATO' ? '#22c55e' : '#f59e0b'}">${o.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderArchivePagination(result) {
+  const div = document.getElementById('arch-pagination');
+  if (result.pages <= 1) { div.innerHTML = ''; return; }
+
+  div.innerHTML = `
+    <button onclick="archGoPage(${result.page - 1})" ${result.page <= 1 ? 'disabled' : ''}>&#8592; Prec</button>
+    <span>Pagina ${result.page} di ${result.pages}</span>
+    <button onclick="archGoPage(${result.page + 1})" ${result.page >= result.pages ? 'disabled' : ''}>Succ &#8594;</button>
+  `;
+}
+
+function archGoPage(page) {
+  archPage = page;
+  fetchArchivePage();
+}
+
+function sortArchive(field) {
+  if (archSortBy === field) {
+    archSortDir = archSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    archSortBy = field;
+    archSortDir = 'asc';
+  }
+  archPage = 1;
+  fetchArchivePage();
+}
+
+function resetArchiveFilters() {
+  document.getElementById('arch-filter-cliente').value = '';
+  document.getElementById('arch-filter-operatore').value = '';
+  document.getElementById('arch-filter-from').value = '';
+  document.getElementById('arch-filter-to').value = '';
+  loadArchive();
+}
+
+async function downloadExcel() {
+  try {
+    const params = getArchiveFilterParams();
+    const res = await fetch(`${API_URL}/api/archive/export/excel?${params}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Errore export' }));
+      showMessage(err.error || 'Errore durante il download', 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'archivio-ordini.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    showMessage('File Excel scaricato', 'success');
+  } catch (e) {
+    console.error('downloadExcel error:', e);
+    showMessage('Errore durante il download', 'error');
+  }
+}
+
+async function openArchDetail(orderId) {
+  const modal = document.getElementById('arch-detail-modal');
+  modal.classList.add('active');
+  document.getElementById('arch-detail-body').innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-text);">Caricamento...</div>';
+
+  try {
+    const res = await fetch(`${API_URL}/api/archive/orders/${orderId}/details`);
+    const data = await res.json();
+    if (!data.success) { showMessage('Errore caricamento dettaglio', 'error'); modal.classList.remove('active'); return; }
+    renderArchDetail(data.data);
+  } catch (e) {
+    console.error('openArchDetail error:', e);
+    modal.classList.remove('active');
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+function closeArchDetail() {
+  document.getElementById('arch-detail-modal').classList.remove('active');
+}
+
+function archFormatDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT') + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function archFormatDuration(sec) {
+  if (!sec || sec <= 0) return '-';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`;
+}
+
+function renderArchDetail(order) {
+  document.getElementById('arch-detail-title').textContent = `Ordine ${order.numero_ordine || order.id.substring(0,8)}`;
+  const body = document.getElementById('arch-detail-body');
+
+  const completamento = order.data_completamento ? archFormatDate(order.data_completamento) : '-';
+
+  let phasesHtml = '';
+  if (order.fasi && order.fasi.length > 0) {
+    phasesHtml = order.fasi.map(f => {
+      let sessionsHtml = '';
+      if (f.sessioni && f.sessioni.length > 1) {
+        sessionsHtml = '<div class="arch-sessions-list">' + f.sessioni.map((s, i) => {
+          const dur = s.durata_secondi ? archFormatDuration(s.durata_secondi) : '-';
+          const tipo = s.tipo_chiusura ? `<span class="arch-session-tipo ${s.tipo_chiusura}">${s.tipo_chiusura}</span>` : '';
+          return `<div class="arch-session-row">#${i+1}: ${archFormatDate(s.timestamp_inizio)} — ${archFormatDate(s.timestamp_fine)} (${dur}) ${tipo}</div>`;
+        }).join('') + '</div>';
+      }
+
+      const cumulSec = f.sessioni ? f.sessioni.reduce((acc, s) => acc + (s.durata_secondi || 0), 0) : 0;
+      const tempoDisplay = cumulSec > 0 ? archFormatDuration(cumulSec) : (f.tempo || '-');
+      const numSess = f.sessioni ? f.sessioni.length : 0;
+      const sessLabel = numSess > 1 ? ` (${numSess} sessioni)` : '';
+
+      return `<div class="arch-phase-item">
+        <div class="arch-phase-top">
+          <span class="arch-phase-name"><span class="arch-fase-badge" style="background:${archFaseColors[f.fase] || '#888'}">${f.fase}</span></span>
+          <span class="arch-phase-time">${tempoDisplay}${sessLabel}</span>
+        </div>
+        <div class="arch-phase-meta">
+          Operatore: <strong>${f.operatore || '-'}</strong><br>
+          Inizio: ${archFormatDate(f.data_inizio)} — Fine: ${archFormatDate(f.data_fine)}
+        </div>
+        ${sessionsHtml}
+      </div>`;
+    }).join('');
+
+    // Aggiungi fasi non necessarie per ordini completati anticipatamente
+    if (order.status === 'COMPLETATO') {
+      const executedFasi = new Set(order.fasi.map(f => f.fase));
+      ['LASER','PIEGA','SALDATURA','PULIZIA'].forEach(f => {
+        if (!executedFasi.has(f)) {
+          phasesHtml += `<div class="arch-phase-item" style="opacity:0.5;">
+            <div class="arch-phase-top">
+              <span class="arch-phase-name"><span class="arch-fase-badge" style="background:#d1d5db;text-decoration:line-through;">${f}</span></span>
+              <span style="font-size:12px;color:#9ca3af;font-style:italic;">Non necessaria</span>
+            </div>
+          </div>`;
+        }
+      });
+    }
+  }
+
+  body.innerHTML = `
+    <div class="arch-info-grid">
+      <div class="arch-info-item"><label>Cliente</label><span>${order.cliente}</span></div>
+      <div class="arch-info-item"><label>Numero Ordine</label><span>${order.numero_ordine || order.id.substring(0,8)}</span></div>
+      <div class="arch-info-item"><label>Data Consegna</label><span>${archFormatDate(order.data_consegna)}</span></div>
+      <div class="arch-info-item"><label>Completamento</label><span>${completamento}</span></div>
+      <div class="arch-info-item"><label>Tempo Totale</label><span style="color:var(--green);font-weight:700;">${order.tempo_totale || '-'}</span></div>
+      <div class="arch-info-item"><label>Stato</label><span>${order.status}</span></div>
+    </div>
+    ${order.note ? `<div style="margin-bottom:20px;"><label style="font-size:11px;color:var(--gray-text);text-transform:uppercase;font-weight:600;">Note</label><p style="font-size:13px;margin-top:4px;">${order.note}</p></div>` : ''}
+    <div class="arch-phases-title">Dettaglio Fasi</div>
+    ${phasesHtml || '<div class="archivio-empty">Nessuna fase registrata</div>'}
+    ${(order.support_requests || []).filter(sr => sr.stato === 'accepted').length > 0 ? `
+      <div class="arch-phases-title" style="margin-top:16px;">Operatori di Supporto</div>
+      ${(order.support_requests || []).filter(sr => sr.stato === 'accepted').map(sr => `
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:4px;">
+          <span style="font-size:12px; font-weight:700; color:#1e40af;">&#129309; ${escapeHtml(sr.nome_supporto)}</span>
+          <span style="font-size:11px; color:#6b7280;">in supporto a ${escapeHtml(sr.nome_principale)}</span>
+        </div>
+      `).join('')}
+    ` : ''}
+  `;
 }
 </script>
 

@@ -8,8 +8,8 @@ import uuid
 from pathlib import Path
 
 # Importa moduli locali
-from .models import initialize_database, Order, OrderFile, get_session
-from .database import OrderManager, UserManager, AuditManager, ArchiveManager, NotificationManager, OperatorClientManager, AlertManager, KPIManager
+from .models import initialize_database, Order, OrderFile, get_session, SupportRequest as SRModel
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager, NotificationManager, OperatorClientManager, AlertManager, KPIManager, DelegationManager, SupportManager
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
@@ -241,16 +241,19 @@ def create_order():
     try:
         data = request.get_json()
 
+        numero_ordine = data.get('numero_ordine', '').strip()
+        if not numero_ordine:
+            return jsonify({'success': False, 'error': 'Numero ordine obbligatorio'}), 400
+
         order = OrderManager.create_order(
             cliente=data.get('cliente'),
             data_consegna=data.get('data_consegna'),
             destinazione=data.get('destinazione', 'LASER'),
-            numero_ordine=data.get('numero_ordine'),
-            prezzo_quotato=data.get('prezzo_quotato'),
+            numero_ordine=numero_ordine,
             note=data.get('note', '')
         )
 
-        # Registra i file (PDF e DXF) nel DB
+        # Registra il file PDF nel DB
         session = get_session()
         try:
             pdf_filename = data.get('pdf_filename')
@@ -267,32 +270,36 @@ def create_order():
                     )
                     session.add(file_record)
 
-            dxf_filenames = data.get('dxf_filenames', [])
-            drawings_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'drawings')
-            for dxf_filename in dxf_filenames:
-                dxf_path = os.path.join(drawings_folder, dxf_filename)
-                if os.path.exists(dxf_path):
-                    file_record = OrderFile(
-                        id=str(uuid.uuid4()),
-                        order_id=order.id,
-                        filename=dxf_filename,
-                        filepath=dxf_path,
-                        file_type='DXF'
-                    )
-                    session.add(file_record)
-
             session.commit()
         finally:
             session.close()
 
-        # Notifica capo officina + impiegata
-        NotificationManager.create_notification(
-            user_id='marco-capo',
-            order_id=order.id,
-            title='Nuovo ordine',
-            message=f'Ordine {order.cliente} inviato a {data.get("destinazione", "LASER")}',
-            notification_type='order'
-        )
+        # Notifica capi officina
+        for capo_id in ['paolo-responsabile', 'stefano-responsabile']:
+            NotificationManager.create_notification(
+                user_id=capo_id,
+                order_id=order.id,
+                title='Nuovo ordine',
+                message=f'Ordine {order.cliente} inviato a {data.get("destinazione", "LASER")}',
+                notification_type='order',
+                notification_category='informativa'
+            )
+
+        # Notifica informativa all'operatore responsabile del cliente
+        # (se l'ordine va al laser, l'operatore officina viene avvisato che arriverà)
+        destinazione = data.get('destinazione', 'LASER')
+        numero_display = order.numero_ordine or order.id[:8]
+        if destinazione == 'LASER':
+            op_id = OperatorClientManager.find_operator_for_client(order.cliente)
+            if op_id and op_id not in ['paolo-responsabile', 'stefano-responsabile']:
+                NotificationManager.create_notification(
+                    user_id=op_id,
+                    order_id=order.id,
+                    title='Ordine ricevuto',
+                    message=f'Ordine #{numero_display} del cliente {order.cliente} ricevuto — attualmente in lavorazione al laser',
+                    notification_type='order',
+                    notification_category='informativa'
+                )
 
         return jsonify({
             'success': True,
@@ -319,6 +326,39 @@ def get_order(order_id):
         return jsonify(details), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/delivery-date', methods=['PUT'])
+def update_delivery_date(order_id):
+    """Aggiorna data di consegna di un ordine (drag & drop calendario laser)"""
+    try:
+        data = request.get_json()
+        if not data or 'data_consegna' not in data:
+            return jsonify({'success': False, 'error': 'data_consegna obbligatoria'}), 400
+        new_date_str = data['data_consegna']
+        try:
+            new_date = datetime.strptime(new_date_str[:10], '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Formato YYYY-MM-DD richiesto'}), 400
+        result = OrderManager.update_delivery_date(order_id, new_date)
+        if result.get('success'):
+            return jsonify(result), 200
+        return jsonify(result), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>', methods=['PUT'])
+def update_order(order_id):
+    """Aggiorna dati ordine: cliente, note, data_consegna, numero_ordine."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Body JSON richiesto'}), 400
+        result = OrderManager.update_order(order_id, data)
+        if result.get('success'):
+            return jsonify(result), 200
+        return jsonify(result), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/orders/<order_id>/pdf', methods=['GET'])
 def get_order_pdf(order_id):
@@ -391,6 +431,19 @@ def get_orders():
             cliente=cliente, status=status,
             fase_corrente=fase_corrente, operatore=operatore
         )
+
+        # Includi ordini in supporto per l'operatore
+        if operatore:
+            supported_ids = SupportManager.get_supported_order_ids(operatore)
+            if supported_ids:
+                existing_ids = {o['id'] for o in orders_data}
+                new_ids = [sid for sid in supported_ids if sid not in existing_ids]
+                if new_ids:
+                    supported_orders = OrderManager.get_all_orders_dict()
+                    for so in supported_orders:
+                        if so['id'] in new_ids:
+                            orders_data.append(so)
+
         return jsonify({'orders': orders_data}), 200
 
     except Exception as e:
@@ -469,26 +522,52 @@ def complete_phase(order_id, phase):
                     ip_address=request.remote_addr
                 )
 
-            # Notifica se ordine completato o parziale
-            if result.get('all_completed') or completamento_parziale:
-                status_text = "completato" if result.get('all_completed') else "parziale"
-                details = OrderManager.get_order_details(order_id)
-                NotificationManager.create_notification(
-                    user_id='giulia-impiegata',
-                    order_id=order_id,
-                    title=f'Ordine {status_text}',
-                    message=f'Ordine {details.get("cliente", "")} - {status_text}',
-                    notification_type='completion'
-                )
-                NotificationManager.create_notification(
-                    user_id='marco-capo',
-                    order_id=order_id,
-                    title=f'Ordine {status_text}',
-                    message=f'Ordine {details.get("cliente", "")} - {status_text}',
-                    notification_type='completion'
-                )
+            # Se parziale (paused), ritorna direttamente senza notifiche
+            if result.get('paused'):
+                return jsonify(result), 200
 
             details = OrderManager.get_order_details(order_id)
+            cliente = details.get('cliente', '')
+            numero_display = details.get('numero_ordine', order_id[:8])
+
+            # Notifica ordine completato definitivamente
+            if result.get('all_completed'):
+                for uid in ['elena-impiegata', 'paolo-responsabile', 'stefano-responsabile']:
+                    NotificationManager.create_notification(
+                        user_id=uid,
+                        order_id=order_id,
+                        title='Ordine completato',
+                        message=f'Ordine {cliente} - completato',
+                        notification_type='completion',
+                        notification_category='attiva'
+                    )
+
+            # Notifica attiva all'operatore assegnato quando ordine esce dal laser
+            if fase_successiva and fase_successiva not in ('COMPLETATO', 'LASER'):
+                op_id = details.get('operatore_assegnato')
+                if not op_id:
+                    op_id = OperatorClientManager.find_operator_for_client(cliente)
+                if op_id:
+                    NotificationManager.create_notification(
+                        user_id=op_id,
+                        order_id=order_id,
+                        title='Ordine pronto',
+                        message=f'Ordine #{numero_display} del cliente {cliente} pronto — scegli la prossima lavorazione',
+                        notification_type='phase_ready',
+                        notification_category='attiva'
+                    )
+                # Notifica anche i capi
+                for capo_id in ['paolo-responsabile', 'stefano-responsabile']:
+                    if capo_id != op_id:
+                        NotificationManager.create_notification(
+                            user_id=capo_id,
+                            order_id=order_id,
+                            title='Fase completata',
+                            message=f'Ordine #{numero_display} ({cliente}): {phase} completata → {fase_successiva}',
+                            notification_type='phase_ready',
+                            notification_category='informativa'
+                        )
+
             return jsonify({
                 'success': True,
                 'phase': phase,
@@ -496,6 +575,110 @@ def complete_phase(order_id, phase):
                 'order_details': details
             }), 200
 
+        return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/phase/<phase>/save-partial', methods=['POST'])
+def save_partial(order_id, phase):
+    """Salva parziale: chiude la sessione corrente, mantiene la fase aperta"""
+    try:
+        data = request.get_json() or {}
+        note = data.get('note', '')
+        operatore_id = data.get('operatore_id')
+
+        operatore_name = ''
+        if operatore_id:
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+
+        result = OrderManager.save_partial(order_id, phase, note=note, operatore=operatore_name)
+
+        if result.get('success'):
+            if operatore_id:
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=operatore_name,
+                    action='SAVE_PARTIAL',
+                    entity_type='phase',
+                    entity_id=order_id,
+                    detail=f"Phase: {phase}, Sessions: {result.get('sessioni_count')}",
+                    ip_address=request.remote_addr
+                )
+            return jsonify(result), 200
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/complete-order', methods=['POST'])
+def complete_order_early(order_id):
+    """Completa un ordine anticipatamente dalla fase corrente"""
+    try:
+        data = request.get_json() or {}
+        note = data.get('note', '')
+        operatore_id = data.get('operatore_id')
+
+        operatore_name = ''
+        if operatore_id:
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+
+        # Determina fase corrente
+        order = OrderManager.get_order(order_id)
+        if not order:
+            return jsonify({'success': False, 'error': 'Ordine non trovato'}), 404
+        current_phase = order.fase_corrente
+
+        # Solo operatore principale o capo può chiudere l'ordine
+        if operatore_id:
+            is_capo = False
+            user_check = UserManager.get_user(operatore_id)
+            if user_check:
+                is_capo = user_check.get('is_capo', False)
+            if not is_capo:
+                sr_session = get_session()
+                try:
+                    is_support = sr_session.query(SRModel).filter(
+                        SRModel.order_id == order_id,
+                        SRModel.operatore_supporto == operatore_id,
+                        SRModel.stato == 'accepted'
+                    ).first()
+                    if is_support:
+                        return jsonify({'success': False, 'error': "Solo l'operatore principale può chiudere l'ordine"}), 403
+                finally:
+                    sr_session.close()
+
+        result = OrderManager.complete_order(order_id, current_phase, note=note, operatore=operatore_name)
+
+        if result.get('success'):
+            if operatore_id:
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=operatore_name,
+                    action='COMPLETE_ORDER',
+                    entity_type='order',
+                    entity_id=order_id,
+                    detail=f"Ordine completato anticipatamente da fase {current_phase}",
+                    ip_address=request.remote_addr
+                )
+
+            # Notifiche completamento ordine
+            details = OrderManager.get_order_details(order_id)
+            cliente = details.get('cliente', '')
+            numero_display = details.get('numero_ordine', order_id[:8])
+
+            for uid in ['elena-impiegata', 'paolo-responsabile', 'stefano-responsabile']:
+                NotificationManager.create_notification(
+                    user_id=uid,
+                    order_id=order_id,
+                    title='Ordine completato',
+                    message=f'Ordine #{numero_display} ({cliente}) - completato',
+                    notification_type='completion',
+                    notification_category='attiva'
+                )
+
+            return jsonify(result), 200
         return jsonify(result), 400
 
     except Exception as e:
@@ -509,9 +692,20 @@ def get_orders_by_phase(phase):
         orders = OrderManager.get_orders_by_phase(phase, operatore_id)
 
         result = []
+        existing_ids = set()
         for order in orders:
             details = OrderManager.get_order_details(order.id)
             result.append(details)
+            existing_ids.add(order.id)
+
+        # Includi ordini in supporto per l'operatore
+        if operatore_id:
+            supported_ids = SupportManager.get_supported_order_ids(operatore_id)
+            for sid in supported_ids:
+                if sid not in existing_ids:
+                    details = OrderManager.get_order_details(sid)
+                    if details and not details.get('error') and details.get('fase_corrente') == phase:
+                        result.append(details)
 
         return jsonify(result), 200
 
@@ -794,6 +988,8 @@ def get_archive_orders():
         filters = {}
         if request.args.get('cliente'):
             filters['cliente'] = request.args.get('cliente')
+        if request.args.get('operatore'):
+            filters['operatore'] = request.args.get('operatore')
         if request.args.get('date_from'):
             filters['date_from'] = request.args.get('date_from')
         if request.args.get('date_to'):
@@ -868,6 +1064,95 @@ def export_archive_csv():
             'Content-Disposition': 'attachment; filename=archivio-ordini.csv'
         }
 
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/archive/export/excel', methods=['GET'])
+def export_archive_excel():
+    """Esporta ordini completati come Excel (una riga per fase)"""
+    try:
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        filters = {}
+        if request.args.get('cliente'):
+            filters['cliente'] = request.args.get('cliente')
+        if request.args.get('operatore'):
+            filters['operatore'] = request.args.get('operatore')
+        if request.args.get('date_from'):
+            filters['date_from'] = request.args.get('date_from')
+        if request.args.get('date_to'):
+            filters['date_to'] = request.args.get('date_to')
+
+        rows = ArchiveManager.export_excel_data(filters=filters if filters else None)
+
+        if not rows:
+            return jsonify({'success': False, 'error': 'Nessun dato da esportare'}), 400
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Archivio Ordini"
+
+        headers = list(rows[0].keys())
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="1A7A48", end_color="1A7A48", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin', color='CCCCCC'),
+            right=Side(style='thin', color='CCCCCC'),
+            top=Side(style='thin', color='CCCCCC'),
+            bottom=Side(style='thin', color='CCCCCC')
+        )
+
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        for row_idx, row_data in enumerate(rows, 2):
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=row_data.get(header, ''))
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical="center")
+
+        col_widths = {
+            'Cliente': 22, 'Numero Ordine': 16, 'Data Caricamento': 18,
+            'Data Completamento': 18, 'Tempo Totale Ordine': 18, 'Fase': 14,
+            'Operatore Fase': 20, 'Inizio Fase': 18, 'Fine Fase': 18,
+            'Tempo Effettivo Lavorato': 20, 'Numero Sessioni': 14,
+            'Operatore Delegato': 20, 'Tempo Delega': 14,
+        }
+        for col_idx, header in enumerate(headers, 1):
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = col_widths.get(header, 15)
+
+        ws.auto_filter.ref = f"A1:{ws.cell(row=1, column=len(headers)).column_letter}{len(rows)+1}"
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return output.getvalue(), 200, {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': 'attachment; filename=archivio-ordini.xlsx'
+        }
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/archive/filters', methods=['GET'])
+def get_archive_filters():
+    """Ritorna liste per i filtri dell'archivio (clienti e operatori)"""
+    try:
+        clients = ArchiveManager.get_archive_clients()
+        operators = ArchiveManager.get_archive_operators()
+        return jsonify({
+            'success': True,
+            'clienti': clients,
+            'operatori': operators
+        }), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
@@ -966,6 +1251,7 @@ def handle_notifications():
             title = data.get('title', 'Notifica')
             message = data.get('message', '')
             notification_type = data.get('notification_type', 'order')
+            notification_category = data.get('notification_category', 'informativa')
 
             if not user_id or not title:
                 return jsonify({'success': False, 'error': 'user_id e title obbligatori'}), 400
@@ -975,7 +1261,8 @@ def handle_notifications():
                 order_id=order_id,
                 title=title,
                 message=message,
-                notification_type=notification_type
+                notification_type=notification_type,
+                notification_category=notification_category
             )
 
             if notification:
@@ -987,6 +1274,15 @@ def handle_notifications():
                 return jsonify({'success': False, 'error': 'Failed to create notification'}), 400
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/notifications/<notification_id>/read', methods=['PUT'])
+def mark_notification_read(notification_id):
+    """Segna una notifica come letta"""
+    try:
+        success = NotificationManager.mark_as_read(notification_id)
+        return jsonify({'success': success}), 200 if success else 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/notifications/<notification_id>', methods=['DELETE'])
 def delete_notification(notification_id):
@@ -1018,6 +1314,259 @@ def clear_all_notifications():
             return jsonify({'success': False, 'error': 'Errore durante la cancellazione'}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
+
+# ============ DELEGHE FASE ============
+
+@app.route('/api/delegations', methods=['POST'])
+def create_delegation():
+    """Crea una nuova delega di fase"""
+    try:
+        data = request.json
+        required = ['order_id', 'fase', 'operatore_principale', 'operatore_delegato', 'delegata_da']
+        for field in required:
+            if field not in data:
+                return jsonify({'success': False, 'error': f'{field} obbligatorio'}), 400
+
+        result = DelegationManager.create_delegation(
+            order_id=data['order_id'],
+            fase=data['fase'],
+            op_principale=data['operatore_principale'],
+            op_delegato=data['operatore_delegato'],
+            delegata_da=data['delegata_da'],
+            forzata=data.get('forzata', False),
+            note=data.get('note', '')
+        )
+        status = 201 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/accept', methods=['POST'])
+def accept_delegation(delegation_id):
+    """Accetta una delega"""
+    try:
+        data = request.json
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+        result = DelegationManager.accept_delegation(delegation_id, operatore_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/reject', methods=['POST'])
+def reject_delegation(delegation_id):
+    """Rifiuta una delega"""
+    try:
+        data = request.json
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+        result = DelegationManager.reject_delegation(delegation_id, operatore_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/start', methods=['POST'])
+def start_delegated_phase(delegation_id):
+    """Inizia la fase delegata"""
+    try:
+        data = request.json
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+        result = DelegationManager.start_delegated_phase(delegation_id, operatore_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/complete', methods=['POST'])
+def complete_delegated_phase(delegation_id):
+    """Completa la fase delegata"""
+    try:
+        data = request.json
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+        result = DelegationManager.complete_delegated_phase(
+            delegation_id, operatore_id, note=data.get('note', '')
+        )
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/save-partial', methods=['POST'])
+def save_partial_delegated(delegation_id):
+    """Salva parziale su fase delegata"""
+    try:
+        data = request.json
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+        result = DelegationManager.save_partial_delegated_phase(
+            delegation_id, operatore_id, note=data.get('note', '')
+        )
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/resume', methods=['POST'])
+def resume_delegated_phase_endpoint(delegation_id):
+    """Riprende una fase delegata in pausa"""
+    try:
+        data = request.json
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+        result = DelegationManager.resume_delegated_phase(delegation_id, operatore_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations/<delegation_id>/revoke', methods=['POST'])
+def revoke_delegation(delegation_id):
+    """Revoca una delega (solo capo o op_principale)"""
+    try:
+        data = request.json
+        revocata_da = data.get('revocata_da')
+        if not revocata_da:
+            return jsonify({'success': False, 'error': 'revocata_da obbligatorio'}), 400
+        result = DelegationManager.revoke_delegation(delegation_id, revocata_da)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/delegations', methods=['GET'])
+def get_delegations():
+    """Recupera deleghe con filtri opzionali"""
+    try:
+        order_id = request.args.get('order_id')
+        op_principale = request.args.get('op_principale')
+        op_delegato = request.args.get('op_delegato')
+        stato = request.args.get('stato')
+
+        # Se richieste tutte le attive (per capo)
+        if request.args.get('active_only') == 'true':
+            delegations = DelegationManager.get_all_active_delegations()
+        else:
+            delegations = DelegationManager.get_delegations(
+                order_id=order_id,
+                op_principale=op_principale,
+                op_delegato=op_delegato,
+                stato=stato
+            )
+        return jsonify({'success': True, 'delegations': delegations}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# ============ API SUPPORTO ============
+
+@app.route('/api/support-requests', methods=['POST'])
+def create_support_request():
+    """Crea una richiesta di supporto per un ordine"""
+    try:
+        data = request.get_json() or {}
+        order_id = data.get('order_id')
+        op_principale = data.get('operatore_principale')
+        op_supporto = data.get('operatore_supporto')
+        forzata = data.get('forzata', False)
+        note = data.get('note', '')
+
+        if not order_id or not op_principale or not op_supporto:
+            return jsonify({'success': False, 'error': 'order_id, operatore_principale e operatore_supporto obbligatori'}), 400
+
+        result = SupportManager.create_support_request(
+            order_id=order_id, op_principale=op_principale,
+            op_supporto=op_supporto, forzata=forzata, note=note
+        )
+
+        if result.get('success'):
+            # Audit log
+            principale = UserManager.get_user(op_principale)
+            supporto = UserManager.get_user(op_supporto)
+            nome_p = principale.get('name') if principale else op_principale
+            nome_s = supporto.get('name') if supporto else op_supporto
+            AuditManager.log(
+                user_id=op_principale,
+                user_name=nome_p,
+                action='CREATE_SUPPORT',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f"Richiesta supporto a {nome_s}" + (" (forzata)" if forzata else ""),
+                ip_address=request.remote_addr
+            )
+
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/support-requests/<request_id>/accept', methods=['POST'])
+def accept_support_request(request_id):
+    """Accetta una richiesta di supporto"""
+    try:
+        data = request.get_json() or {}
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+
+        result = SupportManager.accept_support_request(request_id, operatore_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/support-requests/<request_id>/reject', methods=['POST'])
+def reject_support_request(request_id):
+    """Rifiuta una richiesta di supporto"""
+    try:
+        data = request.get_json() or {}
+        operatore_id = data.get('operatore_id')
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+
+        result = SupportManager.reject_support_request(request_id, operatore_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/support-requests/<request_id>/revoke', methods=['POST'])
+def revoke_support_request(request_id):
+    """Revoca una richiesta di supporto"""
+    try:
+        result = SupportManager.revoke_support_request(request_id)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/support-requests', methods=['GET'])
+def get_support_requests():
+    """Recupera richieste di supporto con filtri"""
+    try:
+        order_id = request.args.get('order_id')
+        op_principale = request.args.get('op_principale')
+        op_supporto = request.args.get('op_supporto')
+        stato = request.args.get('stato')
+        active_only = request.args.get('active_only') == 'true'
+
+        requests_data = SupportManager.get_support_requests(
+            order_id=order_id, op_principale=op_principale,
+            op_supporto=op_supporto, stato=stato, active_only=active_only
+        )
+        return jsonify({'success': True, 'data': requests_data}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

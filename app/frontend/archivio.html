@@ -954,7 +954,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     </div>
   </a>
   <div class="topbar-actions">
-    <button class="btn-home" onclick="window.location.href='/login.html'">Home</button>
+    <button class="btn-home" onclick="goHome()">Home</button>
     <button class="btn-logout" onclick="logout()">Esci</button>
   </div>
 </div>
@@ -1171,6 +1171,14 @@ function escapeHtml(str) {
 }
 
 // === LOGOUT ===
+function goHome() {
+  const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!u.id) { window.location.href = '/login.html'; return; }
+  if (u.role === 'Impiegata') { window.location.href = '/impiegata.html'; return; }
+  if (u.phase === 'LASER') { window.location.href = '/laser-v2.html'; return; }
+  window.location.href = '/officina.html';
+}
+
 async function logout() {
   try {
     if (currentUser?.id) {

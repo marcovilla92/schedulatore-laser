@@ -1201,7 +1201,7 @@ body {
       <button type="submit" class="btn-login">Accedi al Dashboard</button>
 
       <div class="demo-users">
-        <div class="demo-title">Quick Login (Demo)</div>
+        <div class="demo-title">Accesso Rapido</div>
         <div class="demo-buttons" id="demoButtons">
           <p style="font-size: 12px; color: var(--text-secondary);">Caricamento...</p>
         </div>
@@ -1472,7 +1472,7 @@ async function loadUsers() {
     // Popola quick login buttons
     const demoButtons = document.getElementById('demoButtons');
     demoButtons.innerHTML = '';
-    const demoUsers = allUsers.slice(0, 4);
+    const demoUsers = allUsers;
     demoUsers.forEach(user => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -1533,15 +1533,15 @@ async function loginUser(userId) {
       return;
     }
 
-    // Redirect operatori officina (piega/saldatura/pulizia) alla pagina officina
-    if (['PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
+    // Redirect operatori officina alla pagina officina
+    if (['OFFICINA', 'PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
       window.location.href = '/officina.html';
       return;
     }
 
-    // Redirect capo officina alla dashboard capo
+    // Redirect capo officina alla vista operativa (con nav verso gestione)
     if (currentUser.role === 'Capo Officina' || (currentUser.is_capo && currentUser.role !== 'Amministratore')) {
-      window.location.href = '/approva-ordine.html';
+      window.location.href = '/officina.html';
       return;
     }
 
@@ -2204,12 +2204,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/laser-v2.html';
         return;
       }
-      if (['PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
+      if (['OFFICINA', 'PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
         window.location.href = '/officina.html';
         return;
       }
       if (currentUser.role === 'Capo Officina' || (currentUser.is_capo && currentUser.role !== 'Amministratore')) {
-        window.location.href = '/approva-ordine.html';
+        window.location.href = '/officina.html';
         return;
       }
       if (currentUser.role === 'Amministratore') {
