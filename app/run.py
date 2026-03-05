@@ -21,8 +21,12 @@ from backend.models import initialize_database
 if __name__ == '__main__':
     # Inizializza database
     initialize_database()
-    
+
+    # Beta: debug=False per stabilità
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+
     # Avvia Flask
-    print("[START] Avvio SCHEDULATORE LASER su localhost:5000")
+    print("[START] Avvio SCHEDULATORE LASER su porta 5000")
     print("[INFO] Accedi via browser: http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print(f"[INFO] Debug mode: {'ON' if debug_mode else 'OFF'}")
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
