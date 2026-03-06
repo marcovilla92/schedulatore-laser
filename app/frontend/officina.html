@@ -633,15 +633,19 @@ body {
 .notif-clear-btn:hover { text-decoration: underline; }
 .notif-empty { text-align: center; padding: 32px 16px; color: var(--gray-muted); font-size: 13px; }
 
-/* RESPONSIVE */
-@media (max-width: 800px) {
-  .body-content { padding: 20px; }
-  .topbar { padding: 0 20px; }
+/* RESPONSIVE — Tablet 9 pollici (800px portrait) */
+@media (max-width: 900px) {
+  .body-content { padding: 16px; }
+  .topbar { padding: 0 16px; gap: 8px; }
+  .topbar h1 { font-size: 16px; }
   .cal-container { flex-direction: column; height: auto; }
   .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
   .card-row { flex-direction: column; }
   .order-card { max-width: 100%; min-width: 100%; }
-  .notif-panel { width: 320px; right: -60px; }
+  .notif-panel { width: calc(100vw - 32px); max-width: 380px; right: 0; }
+  /* Touch-friendly: bottoni più grandi */
+  .action-btn { padding: 12px 16px; font-size: 14px; }
+  .btn-home { padding: 10px 16px; font-size: 13px; }
 }
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1362,6 +1366,11 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .form-row { flex-direction: column; }
   .form-card { width: 95vw; }
 }
+@media (max-width: 900px) {
+  .topbar, .tab-bar { padding: 0 16px; }
+  .ordini-container { padding: 16px; }
+  .tab-item { padding: 12px 14px; font-size: 12px; }
+}
 
 /* === TAB BAR === */
 .tab-bar {
@@ -1937,7 +1946,18 @@ function renderCards() {
         sessionCount: myInfo.sessioni_count || 0
       };
     }
-    // Fallback: usa dati globali dello step (operatore singolo)
+    // Se ci sono operatori_info ma NON per me, sono un supporter senza sessione
+    // NON mostrare il timer di un altro operatore
+    if (step.operatori_info && Object.keys(step.operatori_info).length > 0) {
+      return {
+        isActive: false,
+        isPaused: false,
+        sessionStart: null,
+        cumulativeSeconds: 0,
+        sessionCount: 0
+      };
+    }
+    // Fallback: usa dati globali dello step (operatore singolo, nessun supporto)
     return {
       isActive: step.sessione_attiva,
       isPaused: step.in_pausa,
@@ -2194,12 +2214,23 @@ function buildPhaseActions(order) {
   const steps = order.processing_steps || [];
   const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
   const labels = { LASER: '⚡ Manda al Laser', PIEGA: '▶ Avvia Piega', SALDATURA: '▶ Avvia Saldatura', PULIZIA: '▶ Avvia Pulizia' };
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
 
   return allPhases.map(p => {
     const step = steps.filter(s => s.fase === p).pop();
     const done = step?.timestamp_fine;
     const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
-    if (done || inProgress) return '';
+    if (done) return '';
+    // Se la fase è in corso ma io sono supporto senza sessione attiva, mostra "Avvia"
+    if (inProgress) {
+      if (isSupport) {
+        const myInfo = step.operatori_info?.[currentUser.id];
+        if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
+          return `<button class="action-btn green" onclick="startAndWork('${order.id}')">▶ Avvia il mio lavoro</button>`;
+        }
+      }
+      return '';
+    }
     if (p === 'LASER') {
       return `<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`;
     }

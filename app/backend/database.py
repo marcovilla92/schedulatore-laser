@@ -2629,6 +2629,14 @@ class SupportManager:
                 )
 
             session.commit()
+
+            # Se forzata (auto-accepted), avvia fase per il supporter
+            if forzata and order.fase_corrente:
+                try:
+                    OrderManager.start_phase(order_id, order.fase_corrente, nome_s)
+                except Exception as e:
+                    print(f"[WARN] auto-start phase for forced supporter: {e}")
+
             return {'success': True, 'support_request_id': req_id}
         except Exception as e:
             session.rollback()
@@ -2668,6 +2676,14 @@ class SupportManager:
             )
 
             session.commit()
+
+            # Auto-avvia fase per l'operatore di supporto (timer personale indipendente)
+            if order and order.fase_corrente:
+                try:
+                    OrderManager.start_phase(sr.order_id, order.fase_corrente, nome_s)
+                except Exception as e:
+                    print(f"[WARN] auto-start phase for supporter failed: {e}")
+
             return {'success': True}
         except Exception as e:
             session.rollback()

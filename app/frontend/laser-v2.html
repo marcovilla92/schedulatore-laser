@@ -1064,6 +1064,38 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .form-card { width: 95vw; }
 }
 
+/* === TABLET 9 pollici (800px portrait) === */
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: calc(100vh - 120px);
+  }
+  .calendar {
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 12px;
+  }
+  .calendar-list { max-height: 120px; overflow-y: auto; }
+  .pdf-viewer { min-height: 300px; border-right: none; border-bottom: 1px solid var(--border); }
+  .details { max-height: 280px; }
+  .topbar { padding: 0 16px; gap: 8px; }
+  .topbar h1 { font-size: 16px; }
+  .tab-bar { padding: 0 12px; }
+  .tab-item { padding: 12px 14px; font-size: 12px; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); padding: 16px; gap: 10px; }
+  .kpi-card { padding: 14px 16px; }
+  .kpi-value { font-size: 24px; }
+  .notif-panel { width: calc(100vw - 32px); right: -60px; max-width: 380px; }
+  .form-card { width: 95vw; }
+  .ordini-container { padding: 16px; }
+  /* Touch-friendly: ordini e bottoni più grandi */
+  .order-item { padding: 14px 16px; font-size: 14px; }
+  .view-toggle-btn { padding: 8px 14px; font-size: 12px; }
+  .detail-btn { padding: 12px 16px; font-size: 14px; }
+}
+
 /* === KPI CARDS === */
 .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px 32px 0; }
 .kpi-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; display: flex; flex-direction: column; gap: 6px; border-left: 4px solid var(--green); }
