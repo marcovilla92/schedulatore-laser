@@ -2347,7 +2347,7 @@ class DelegationManager:
             session.commit()
 
             # Completa la fase tramite OrderManager
-            result = OrderManager.complete_phase(d.order_id, d.fase, operatore_id)
+            result = OrderManager.complete_phase(d.order_id, d.fase, operatore=operatore_id)
 
             # Calcola durata_effettiva da sessioni cumulative (non wall-clock)
             try:
