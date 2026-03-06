@@ -575,7 +575,7 @@ def complete_phase(order_id, phase):
                         notification_type='phase_ready',
                         notification_category='attiva'
                     )
-                # Notifica anche i capi
+                # Notifica sempre i capi
                 for capo_id in ['paolo-responsabile', 'stefano-responsabile']:
                     if capo_id != op_id:
                         NotificationManager.create_notification(
