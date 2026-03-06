@@ -1613,6 +1613,7 @@ function selectOrder(orderId) {
 }
 
 // === DESELECT ORDER ===
+function clearDetails() { deselectOrder(); }
 function deselectOrder() {
   selectedOrderId = null;
   renderCalendar();
@@ -1757,8 +1758,6 @@ async function completePhase(orderId) {
     const result = await response.json();
     if (result.success) {
       showToast('Fase completata!');
-      selectedOrderId = null;
-      clearDetails();
       await loadOrders();
       if (currentTab === 'stato') loadStatoOrdini();
     } else {
