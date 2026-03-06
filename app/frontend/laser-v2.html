@@ -2568,6 +2568,17 @@ async function confirmCompleteOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ operatore_id: user.id, note })
     });
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error('complete-order error:', resp.status, text);
+      try {
+        const err = JSON.parse(text);
+        showToast('Errore: ' + (err.error || resp.status), 'error');
+      } catch (_) {
+        showToast('Errore server: ' + resp.status, 'error');
+      }
+      return;
+    }
     const result = await resp.json();
     if (result.success) {
       closeCompleteOrderModal();
@@ -2580,7 +2591,8 @@ async function confirmCompleteOrder() {
       showToast('Errore: ' + (result.error || ''), 'error');
     }
   } catch (err) {
-    showToast('Errore di connessione', 'error');
+    console.error('complete-order fetch error:', err);
+    showToast('Errore di connessione: ' + err.message, 'error');
   }
 }
 
