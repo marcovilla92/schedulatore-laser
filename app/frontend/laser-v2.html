@@ -1049,6 +1049,58 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .modal-body { flex: 1; }
 .modal-body iframe { width: 100%; height: 100%; border: none; }
 
+/* === STATO ORDINI === */
+.stato-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: box-shadow 0.2s;
+}
+.stato-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.stato-card-info { flex: 1; min-width: 0; }
+.stato-card-client { font-size: 15px; font-weight: 700; color: var(--black); }
+.stato-card-meta { font-size: 12px; color: var(--gray-text); margin-top: 2px; }
+.stato-card-progress { width: 200px; flex-shrink: 0; }
+.stato-fase-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.stato-fase-badge.laser { background: var(--blue-bg, #e0f2fe); color: var(--blue, #1e40af); }
+.stato-fase-badge.piega { background: #fef3c7; color: #92400e; }
+.stato-fase-badge.saldatura { background: #fce7f3; color: #9d174d; }
+.stato-fase-badge.pulizia { background: #e0e7ff; color: #3730a3; }
+.stato-fase-badge.completato { background: var(--green-badge-bg, #d1fae5); color: var(--green-badge, #065f46); }
+.stato-empty { text-align: center; padding: 48px 16px; color: var(--gray-text); font-size: 14px; }
+.stato-group-header { font-size: 13px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.stato-group-header:first-child { padding-top: 0; }
+.stato-card-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.stato-action-btn {
+  padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--white); color: var(--black);
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.stato-action-btn.green { background: var(--green); color: white; border-color: var(--green); }
+.stato-action-btn.green:hover { background: var(--green-light); }
+.stato-action-btn.outline:hover { background: var(--bg); }
+.stato-timeline { display: flex; align-items: center; gap: 0; margin-top: 8px; }
+.stato-phase-dot {
+  font-size: 9px; font-weight: 700; padding: 3px 6px; border-radius: 4px;
+  background: #f3f4f6; color: var(--gray-text); white-space: nowrap;
+}
+.stato-phase-dot.done { background: var(--green-badge-bg, #d1fae5); color: var(--green-badge, #065f46); }
+.stato-phase-dot.active { background: #fef3c7; color: #92400e; }
+.stato-phase-line { width: 12px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
+
 /* === RESPONSIVE === */
 @media (max-width: 1400px) {
   .main { grid-template-columns: 300px 1fr 340px; }
@@ -1094,6 +1146,9 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .order-item { padding: 14px 16px; font-size: 14px; }
   .view-toggle-btn { padding: 8px 14px; font-size: 12px; }
   .detail-btn { padding: 12px 16px; font-size: 14px; }
+  #panel-stato { padding: 16px !important; }
+  .stato-card { flex-direction: column; align-items: stretch; gap: 10px; }
+  .stato-card-progress { width: 100%; }
 }
 
 /* === KPI CARDS === */
@@ -1204,6 +1259,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 <!-- TAB BAR -->
 <div class="tab-bar">
   <div class="tab-item active" onclick="switchTab('lavoro')" id="tab-lavoro">Lavoro</div>
+  <div class="tab-item" onclick="switchTab('stato')" id="tab-stato">Stato Ordini</div>
   <div class="tab-item" onclick="switchTab('calendario')" id="tab-calendario">Calendario &amp; KPI</div>
 </div>
 
@@ -1243,6 +1299,25 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     <div class="details-footer" id="details-footer"></div>
   </div>
   </div>
+</div>
+
+<!-- TAB PANEL: STATO ORDINI -->
+<div class="tab-panel" id="panel-stato" style="padding: 24px 32px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <h2 style="font-size:18px; font-weight:700; color:var(--black);">Stato Ordini</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <select id="stato-filtro-fase" onchange="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+        <option value="">Tutte le fasi</option>
+        <option value="LASER">Laser</option>
+        <option value="PIEGA">Piega</option>
+        <option value="SALDATURA">Saldatura</option>
+        <option value="PULIZIA">Pulizia</option>
+        <option value="COMPLETATO">Completato</option>
+      </select>
+      <input type="text" id="stato-search" placeholder="Cerca cliente..." oninput="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; width:180px;">
+    </div>
+  </div>
+  <div id="stato-ordini-list"></div>
 </div>
 
 <!-- TAB PANEL: CALENDARIO & KPI -->
@@ -1656,6 +1731,7 @@ async function startPhase(orderId) {
     if (result.success) {
       showToast('Lavorazione iniziata');
       await loadOrders();
+      if (currentTab === 'stato') loadStatoOrdini();
     } else {
       showToast('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
     }
@@ -1682,6 +1758,7 @@ async function completePhase(orderId) {
       selectedOrderId = null;
       clearDetails();
       await loadOrders();
+      if (currentTab === 'stato') loadStatoOrdini();
     } else {
       showToast('Errore: ' + (result.error || 'Impossibile completare'), 'error');
     }
@@ -1741,7 +1818,145 @@ function switchTab(tab) {
   if (tab === 'calendario') {
     renderCalendarView();
     updateKPIs();
+  } else if (tab === 'stato') {
+    loadStatoOrdini();
   }
+}
+
+// === STATO ORDINI ===
+let allOrdiniStato = [];
+
+async function loadStatoOrdini() {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders`);
+    const data = await resp.json();
+    allOrdiniStato = data.orders || data;
+    renderStatoOrdini();
+  } catch (err) {
+    console.error('Errore caricamento stato ordini:', err);
+  }
+}
+
+function statoCalcProgress(order) {
+  if (order.status === 'COMPLETATO') return 100;
+  if (order.status === 'PARZIALE') return 85;
+  const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
+  const base = map[order.fase_corrente] || 0;
+  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  return hasActive ? Math.min(base + 10, 95) : base;
+}
+
+function statoProgressColor(pct) {
+  if (pct >= 100) return '#22c55e';
+  if (pct >= 60) return '#22c55e';
+  if (pct >= 30) return '#f59e0b';
+  return '#ef4444';
+}
+
+function renderStatoOrdini() {
+  const container = document.getElementById('stato-ordini-list');
+  const filtroFase = document.getElementById('stato-filtro-fase').value;
+  const search = (document.getElementById('stato-search').value || '').toLowerCase().trim();
+
+  let filtered = allOrdiniStato.filter(o => {
+    if (filtroFase && o.fase_corrente !== filtroFase && !(filtroFase === 'COMPLETATO' && o.status === 'COMPLETATO')) return false;
+    if (search && !o.cliente.toLowerCase().includes(search) && !(o.numero_ordine || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="stato-empty">Nessun ordine trovato</div>';
+    return;
+  }
+
+  // Raggruppa per cliente
+  const groups = {};
+  filtered.forEach(o => {
+    const c = o.cliente || 'Sconosciuto';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(o);
+  });
+
+  const sortedClients = Object.keys(groups).sort();
+  let html = '';
+  sortedClients.forEach(client => {
+    const orders = groups[client].sort((a, b) => {
+      if (!a.data_consegna) return 1;
+      if (!b.data_consegna) return -1;
+      return new Date(a.data_consegna) - new Date(b.data_consegna);
+    });
+    html += `<div class="stato-group-header">${escapeHtml(client)} (${orders.length})</div>`;
+    orders.forEach(o => {
+      const pct = statoCalcProgress(o);
+      const color = statoProgressColor(pct);
+      const fase = o.status === 'COMPLETATO' ? 'COMPLETATO' : (o.fase_corrente || 'N/A');
+      const faseClass = fase.toLowerCase();
+      const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+      const numero = o.numero_ordine || o.id.substring(0, 8);
+
+      // Timeline fasi
+      const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+      const steps = o.processing_steps || [];
+      const timelineHtml = allPhases.map(p => {
+        const step = steps.filter(s => s.fase === p).pop();
+        const done = step?.timestamp_fine;
+        const active = step?.timestamp_inizio && !step?.timestamp_fine;
+        const cls = done ? 'done' : active ? 'active' : '';
+        return `<span class="stato-phase-dot ${cls}" title="${p}">${p.substring(0,3)}</span>`;
+      }).join('<span class="stato-phase-line"></span>');
+
+      // Azioni per ordini LASER
+      let actionsHtml = '';
+      if (fase === 'LASER') {
+        const laserStep = steps.filter(s => s.fase === 'LASER').pop();
+        const started = laserStep?.timestamp_inizio && !laserStep?.timestamp_fine;
+        const done = laserStep?.timestamp_fine;
+        if (!done && !started) {
+          actionsHtml = `<button class="stato-action-btn green" onclick="startPhase('${o.id}')">Inizia Taglio</button>`;
+        } else if (started) {
+          actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa Taglio</button>`;
+        }
+      }
+      // PDF per tutti
+      actionsHtml += `<button class="stato-action-btn outline" onclick="statoViewPdf('${o.id}')">PDF</button>`;
+      // Vai al lavoro se è LASER
+      if (fase === 'LASER') {
+        actionsHtml += `<button class="stato-action-btn outline" onclick="statoGoToOrder('${o.id}')">Apri</button>`;
+      }
+
+      html += `<div class="stato-card">
+        <div class="stato-card-info">
+          <div class="stato-card-client">#${escapeHtml(numero)}</div>
+          <div class="stato-card-meta">Consegna: ${consegna}</div>
+          <div class="stato-timeline">${timelineHtml}</div>
+        </div>
+        <div class="stato-card-progress">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="flex:1; height:8px; background:#f3f4f6; border-radius:4px; overflow:hidden;">
+              <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.3s;"></div>
+            </div>
+            <span style="font-size:12px; font-weight:700; color:var(--black); min-width:32px;">${pct}%</span>
+          </div>
+        </div>
+        <span class="stato-fase-badge ${faseClass}">${fase}</span>
+        <div class="stato-card-actions">${actionsHtml}</div>
+      </div>`;
+    });
+  });
+
+  container.innerHTML = html;
+}
+
+function statoViewPdf(orderId) {
+  const modal = document.getElementById('pdf-modal');
+  document.getElementById('pdf-modal-frame').src = `${API_URL}/api/orders/${orderId}/pdf`;
+  modal.classList.add('active');
+}
+
+function statoGoToOrder(orderId) {
+  // Passa al tab Lavoro e seleziona l'ordine
+  switchTab('lavoro');
+  setTimeout(() => selectOrder(orderId), 300);
 }
 
 // === CALENDAR ROUTING ===
@@ -2492,6 +2707,26 @@ async function rejectSupport(requestId) {
         </div>
     </div>
 </div>
+
+<!-- PDF MODAL (per Stato Ordini) -->
+<div class="modal-overlay" id="pdf-modal" onclick="closePdfModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>PDF Ordine</h3>
+      <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="pdf-modal-frame" style="width:100%; height:100%; border:none;"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+function closePdfModal() {
+  document.getElementById('pdf-modal').classList.remove('active');
+  document.getElementById('pdf-modal-frame').src = '';
+}
+</script>
 
 </body>
 </html>
