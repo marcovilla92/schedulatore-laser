@@ -2482,7 +2482,7 @@ function renderNotifs(notifs) {
     const cat = n.notification_category || 'informativa';
     const unreadClass = n.is_read ? '' : ' unread';
     const time = formatNotifTime(n.timestamp);
-    return `<div class="notif-item${unreadClass}" onclick="markNotifRead('${n.id}', this)">
+    return `<div class="notif-item${unreadClass}" onclick="markNotifRead('${n.id}', this, '${n.order_id || ''}')">
       <div class="notif-dot ${cat}"></div>
       <div class="notif-content">
         <div class="notif-title">${n.title}</div>
@@ -2505,9 +2505,10 @@ function formatNotifTime(isoStr) {
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
 }
 
-async function markNotifRead(id, el) {
+async function markNotifRead(id, el, orderId) {
   if (el) el.classList.remove('unread');
   try { await fetch(`${API_URL}/api/notifications/${id}/read`, { method: 'PUT' }); pollNotifCount(); } catch (_) {}
+  if (orderId) window.open(`/dettaglio-ordine.html?id=${orderId}`, '_blank');
 }
 
 async function deleteNotif(id) {
