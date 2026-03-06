@@ -1091,6 +1091,8 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 }
 .stato-action-btn.green { background: var(--green); color: white; border-color: var(--green); }
 .stato-action-btn.green:hover { background: var(--green-light); }
+.stato-action-btn.orange { background: #f59e0b; color: white; border-color: #f59e0b; }
+.stato-action-btn.orange:hover { background: #d97706; }
 .stato-action-btn.outline:hover { background: var(--bg); }
 .stato-timeline { display: flex; align-items: center; gap: 0; margin-top: 8px; }
 .stato-phase-dot {
@@ -1914,7 +1916,8 @@ function renderStatoOrdini() {
         if (!done && !started) {
           actionsHtml = `<button class="stato-action-btn green" onclick="startPhase('${o.id}')">Inizia Taglio</button>`;
         } else if (started) {
-          actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa Taglio</button>`;
+          actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa → Officina</button>`;
+          actionsHtml += `<button class="stato-action-btn orange" onclick="openCompleteOrderModal('${o.id}')">Solo Taglio ✓</button>`;
         }
       }
       // PDF per tutti
@@ -2511,7 +2514,7 @@ function formatDurSec(sec) {
 }
 
 function openCompleteOrderModal(orderId) {
-  const order = allOrders.find(o => o.id === orderId);
+  const order = allOrders.find(o => o.id === orderId) || allOrdiniStato.find(o => o.id === orderId);
   if (!order) return;
   // Blocca se operatore di supporto
   const curUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -2569,6 +2572,7 @@ async function confirmCompleteOrder() {
       selectedOrderId = null;
       clearDetails();
       await loadOrders();
+      if (currentTab === 'stato') loadStatoOrdini();
     } else {
       showToast('Errore: ' + (result.error || ''), 'error');
     }
