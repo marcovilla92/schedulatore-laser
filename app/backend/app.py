@@ -545,6 +545,8 @@ def complete_phase(order_id, phase):
             if result.get('paused'):
                 return jsonify(result), 200
 
+            # Usa fase_successiva dal result (auto-routing nel DB la calcola se mancante)
+            fase_successiva = result.get('fase_successiva', fase_successiva)
             details = OrderManager.get_order_details(order_id)
             cliente = details.get('cliente', '')
             numero_display = details.get('numero_ordine', order_id[:8])
