@@ -1700,7 +1700,7 @@ function renderDayCell(day, dateStr, todayStr, isOtherMonth) {
 
   return `<div class="${classes}" onclick="selectCalDay('${dateStr}')">
     <div class="cal-day-num">${day}</div>
-    ${ordersOnDay.length > 0 ? `<div class="cal-day-count">${ordersOnDay.length} ordine${ordersOnDay.length > 1 ? 'i' : ''}</div>` : ''}
+    ${ordersOnDay.length > 0 ? `<div class="cal-day-count">${ordersOnDay.length} ordin${ordersOnDay.length > 1 ? 'i' : 'e'}</div>` : ''}
     ${dots}
   </div>`;
 }
@@ -1718,7 +1718,7 @@ function showDayDetail(dateStr) {
   const formatted = dt.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   let html = `<div class="cal-detail-title">${formatted}</div>
-    <div class="cal-detail-sub">${ordersOnDay.length} ordine${ordersOnDay.length !== 1 ? 'i' : ''} in consegna</div>`;
+    <div class="cal-detail-sub">${ordersOnDay.length} ordin${ordersOnDay.length !== 1 ? 'i' : 'e'} in consegna</div>`;
 
   if (ordersOnDay.length === 0) {
     html += '<div style="color: var(--gray-text); font-size: 13px; padding: 20px 0;">Nessun ordine in consegna per questo giorno</div>';
