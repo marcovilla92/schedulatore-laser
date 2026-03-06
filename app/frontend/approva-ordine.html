@@ -1665,6 +1665,25 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .app-modal-btn.confirm-red:hover { background:#b91c1c; }
 .app-modal-btn.confirm-blue { background:#2563eb; color:white; }
 .app-modal-btn.confirm-blue:hover { background:#1d4ed8; }
+
+/* === GESTIONE OPERAI === */
+.operai-table { width:100%; border-collapse:collapse; background:var(--white); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+.operai-table th { background:var(--bg); padding:12px 16px; text-align:left; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; }
+.operai-table td { padding:12px 16px; border-top:1px solid var(--border); font-size:14px; vertical-align:middle; }
+.operai-table tr:hover td { background:#f9fafb; }
+.operai-status { display:inline-block; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; }
+.operai-status.active { background:#d1fae5; color:#065f46; }
+.operai-status.inactive { background:#f3f4f6; color:#6b7280; }
+.operai-fase-badge { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; background:#dbeafe; color:#1e40af; }
+
+#operaio-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+#operaio-modal.active { display:flex; }
+.operaio-modal-content { background:var(--white); border-radius:16px; width:460px; max-width:90vw; padding:32px; }
+.operaio-form-group { margin-bottom:16px; }
+.operaio-form-group label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+.operaio-form-group input, .operaio-form-group select { width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; box-sizing:border-box; }
+.operaio-form-group input:focus, .operaio-form-group select:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+.operaio-id-preview { font-size:12px; color:var(--text-secondary); margin-top:4px; font-family:monospace; }
 </style>
 </head>
 <body>
@@ -1687,6 +1706,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     <button class="tab-btn" id="tab-deleghe" onclick="switchTab('deleghe')">Deleghe <span class="notif-badge-capo" id="deleghe-badge-capo"></span></button>
     <button class="tab-btn" id="tab-kpi" onclick="switchTab('kpi')">KPI</button>
     <button class="tab-btn" id="tab-archivio" onclick="switchTab('archivio')">Archivio</button>
+    <button class="tab-btn" id="tab-operai" onclick="switchTab('operai')">Operai</button>
     <div class="notif-bell-capo" style="position:relative;display:inline-flex;align-items:center;">
       <button onclick="toggleNotifPanelCapo()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:18px;cursor:pointer;line-height:1;" title="Notifiche">&#128276;</button>
       <div id="notif-badge-capo" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 4px;">0</div>
@@ -1974,6 +1994,67 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <tbody id="capo-arch-tbody"></tbody>
     </table>
     <div id="capo-arch-pagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:16px;"></div>
+  </div>
+</div>
+
+<!-- === TAB OPERAI === -->
+<div class="deleghe-view" id="view-operai" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h1 style="font-size:24px;font-weight:700;">Gestione Operai</h1>
+      <button class="deleg-btn primary" onclick="openOperaioModal()">+ Aggiungi Operaio</button>
+    </div>
+    <table class="operai-table">
+      <thead>
+        <tr><th>Nome</th><th>Ruolo</th><th>Fase</th><th>Stato</th><th>Azioni</th></tr>
+      </thead>
+      <tbody id="operai-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODALE CREA/MODIFICA OPERAIO -->
+<div id="operaio-modal" onclick="if(event.target===this) closeOperaioModal();">
+  <div class="operaio-modal-content" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div id="operaio-modal-title" style="font-family:'Geist',sans-serif;font-size:18px;font-weight:800;">Nuovo Operaio</div>
+      <button style="background:none;border:none;font-size:20px;cursor:pointer;" onclick="closeOperaioModal()">&times;</button>
+    </div>
+    <div class="operaio-form-group" id="operaio-id-group">
+      <label>ID Operaio</label>
+      <input type="text" id="operaio-id" placeholder="Generato automaticamente dal nome" readonly style="background:#f9fafb;">
+      <div class="operaio-id-preview" id="operaio-id-preview"></div>
+    </div>
+    <div class="operaio-form-group">
+      <label>Nome Completo *</label>
+      <input type="text" id="operaio-nome" placeholder="Es. Marco Rossi" oninput="updateOperaioId()">
+    </div>
+    <div class="operaio-form-group">
+      <label>Ruolo *</label>
+      <select id="operaio-ruolo" onchange="onRuoloChange()">
+        <option value="">Seleziona ruolo...</option>
+        <option value="Operaio Officina">Operaio Officina</option>
+        <option value="Operaio Laser">Operaio Laser</option>
+        <option value="Impiegata">Impiegata</option>
+        <option value="Capo Officina">Capo Officina</option>
+      </select>
+    </div>
+    <div class="operaio-form-group">
+      <label>Fase Assegnata</label>
+      <select id="operaio-fase">
+        <option value="">Nessuna</option>
+        <option value="OFFICINA">OFFICINA</option>
+        <option value="LASER">LASER</option>
+        <option value="PIEGA">PIEGA</option>
+        <option value="SALDATURA">SALDATURA</option>
+        <option value="PULIZIA">PULIZIA</option>
+        <option value="ALL">ALL (Tutte le fasi)</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px;">
+      <button class="app-modal-btn cancel" onclick="closeOperaioModal()">Annulla</button>
+      <button class="app-modal-btn confirm-green" onclick="submitOperaio()">Salva</button>
+    </div>
   </div>
 </div>
 
@@ -2411,16 +2492,19 @@ function switchTab(tab) {
   document.getElementById('tab-deleghe').classList.toggle('active', tab === 'deleghe');
   document.getElementById('tab-kpi').classList.toggle('active', tab === 'kpi');
   document.getElementById('tab-archivio').classList.toggle('active', tab === 'archivio');
+  document.getElementById('tab-operai').classList.toggle('active', tab === 'operai');
   document.getElementById('view-ordini').style.display = tab === 'ordini' ? 'grid' : 'none';
   document.getElementById('view-clienti').style.display = tab === 'clienti' ? 'block' : 'none';
   document.getElementById('view-deleghe').style.display = tab === 'deleghe' ? 'block' : 'none';
   document.getElementById('view-kpi').style.display = tab === 'kpi' ? 'block' : 'none';
   document.getElementById('view-archivio').style.display = tab === 'archivio' ? 'block' : 'none';
+  document.getElementById('view-operai').style.display = tab === 'operai' ? 'block' : 'none';
 
   if (tab === 'clienti') renderClientiView();
   if (tab === 'deleghe') loadCapoDeleghe();
   if (tab === 'kpi') loadKPI();
   if (tab === 'archivio') { capoLoadArchFilters(); capoLoadArch(); }
+  if (tab === 'operai') loadOperatori();
 }
 
 // === GESTIONE CLIENTI ===
@@ -3381,6 +3465,188 @@ async function capoPolBadge() {
 }
 setInterval(capoPolBadge, 30000);
 setTimeout(capoPolBadge, 2000);
+
+// === GESTIONE OPERAI ===
+let operatoriData = [];
+let editingOperaioId = null;
+
+async function loadOperatori() {
+  try {
+    const resp = await fetch(`${API_URL}/api/users?include_inactive=true`);
+    const data = await resp.json();
+    operatoriData = data.users || [];
+    renderOperatori();
+  } catch (e) { console.error('Errore caricamento operatori:', e); }
+}
+
+function renderOperatori() {
+  const tbody = document.getElementById('operai-tbody');
+  if (!operatoriData.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);">Nessun operaio trovato</td></tr>';
+    return;
+  }
+  tbody.innerHTML = operatoriData.map(u => `
+    <tr style="${!u.is_active ? 'opacity:0.5;' : ''}">
+      <td style="font-weight:600;">${escapeHtml(u.name)}</td>
+      <td>${escapeHtml(u.role || '-')}</td>
+      <td>${u.phase ? `<span class="operai-fase-badge">${escapeHtml(u.phase)}</span>` : '-'}</td>
+      <td><span class="operai-status ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Attivo' : 'Disattivato'}</span></td>
+      <td style="display:flex;gap:8px;">
+        <button class="deleg-btn primary" onclick="openOperaioModal('${u.id}')">Modifica</button>
+        <button class="deleg-btn ${u.is_active ? 'danger' : 'primary'}" onclick="toggleOperaioActive('${u.id}', ${u.is_active})">${u.is_active ? 'Disattiva' : 'Riattiva'}</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function generateUserId(name) {
+  return name.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function updateOperaioId() {
+  const nome = document.getElementById('operaio-nome').value;
+  const id = generateUserId(nome);
+  document.getElementById('operaio-id').value = id;
+  document.getElementById('operaio-id-preview').textContent = id ? `ID: ${id}` : '';
+}
+
+function onRuoloChange() {
+  const ruolo = document.getElementById('operaio-ruolo').value;
+  const faseSelect = document.getElementById('operaio-fase');
+  const autoMap = {
+    'Operaio Officina': 'OFFICINA',
+    'Operaio Laser': 'LASER',
+    'Impiegata': '',
+    'Capo Officina': 'ALL'
+  };
+  if (autoMap[ruolo] !== undefined) {
+    faseSelect.value = autoMap[ruolo];
+  }
+}
+
+function openOperaioModal(userId) {
+  editingOperaioId = userId || null;
+  const idGroup = document.getElementById('operaio-id-group');
+
+  if (editingOperaioId) {
+    // Modifica
+    document.getElementById('operaio-modal-title').textContent = 'Modifica Operaio';
+    idGroup.style.display = 'none';
+    const u = operatoriData.find(o => o.id === userId);
+    if (u) {
+      document.getElementById('operaio-nome').value = u.name;
+      document.getElementById('operaio-ruolo').value = u.role || '';
+      document.getElementById('operaio-fase').value = u.phase || '';
+    }
+  } else {
+    // Nuovo
+    document.getElementById('operaio-modal-title').textContent = 'Nuovo Operaio';
+    idGroup.style.display = 'block';
+    document.getElementById('operaio-id').value = '';
+    document.getElementById('operaio-id-preview').textContent = '';
+    document.getElementById('operaio-nome').value = '';
+    document.getElementById('operaio-ruolo').value = '';
+    document.getElementById('operaio-fase').value = '';
+  }
+  document.getElementById('operaio-modal').classList.add('active');
+}
+
+function closeOperaioModal() {
+  document.getElementById('operaio-modal').classList.remove('active');
+  editingOperaioId = null;
+}
+
+async function submitOperaio() {
+  const nome = document.getElementById('operaio-nome').value.trim();
+  const ruolo = document.getElementById('operaio-ruolo').value;
+  const fase = document.getElementById('operaio-fase').value;
+
+  if (!nome || !ruolo) {
+    showAppModal({ title:'Campi obbligatori', message:'Inserisci nome e ruolo.', type:'warning', confirmText:'OK' });
+    return;
+  }
+
+  const isCap = ruolo === 'Capo Officina';
+
+  try {
+    let resp;
+    if (editingOperaioId) {
+      // PUT update
+      resp = await fetch(`${API_URL}/api/users/${editingOperaioId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nome, role: ruolo, phase: fase || null })
+      });
+    } else {
+      // POST create
+      const userId = generateUserId(nome);
+      if (!userId) {
+        showAppModal({ title:'ID non valido', message:'Inserisci un nome valido per generare l\'ID.', type:'error', confirmText:'OK' });
+        return;
+      }
+      resp = await fetch(`${API_URL}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          name: nome,
+          role: ruolo,
+          phase: fase || 'OFFICINA'
+        })
+      });
+    }
+
+    const result = await resp.json();
+    if (result.success) {
+      closeOperaioModal();
+      showMessage(editingOperaioId ? 'Operaio aggiornato!' : 'Operaio creato!', 'success');
+      await loadOperatori();
+      // Aggiorna anche allUsers per le altre sezioni
+      const usersResp = await fetch(`${API_URL}/api/users`);
+      const usersData = await usersResp.json();
+      allUsers = usersData.users || [];
+    } else {
+      showAppModal({ title:'Errore', message: result.error || 'Errore nel salvataggio', type:'error', confirmText:'OK' });
+    }
+  } catch (e) {
+    showAppModal({ title:'Errore', message:'Errore di connessione', type:'error', confirmText:'OK' });
+  }
+}
+
+async function toggleOperaioActive(userId, isCurrentlyActive) {
+  const action = isCurrentlyActive ? 'disattivare' : 'riattivare';
+  const u = operatoriData.find(o => o.id === userId);
+  const nome = u ? u.name : userId;
+
+  const ok = await showAppModal({
+    title: isCurrentlyActive ? 'Disattiva Operaio' : 'Riattiva Operaio',
+    message: `Sei sicuro di voler ${action} ${nome}?`,
+    type: 'warning',
+    confirmText: isCurrentlyActive ? 'Disattiva' : 'Riattiva',
+    cancelText: 'Annulla',
+    confirmColor: isCurrentlyActive ? 'confirm-red' : 'confirm-green'
+  });
+  if (!ok) return;
+
+  try {
+    const resp = await fetch(`${API_URL}/api/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !isCurrentlyActive })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage(`${nome} ${isCurrentlyActive ? 'disattivato' : 'riattivato'}`, 'success');
+      await loadOperatori();
+    } else {
+      showMessage('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (e) { showMessage('Errore di connessione', 'error'); }
+}
 </script>
 
 <!-- APP MODAL (sostituto di confirm/alert) -->

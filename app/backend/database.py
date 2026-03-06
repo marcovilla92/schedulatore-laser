@@ -987,11 +987,14 @@ class UserManager:
             session.close()
 
     @staticmethod
-    def get_all_users() -> list[dict]:
-        """Recupera tutti gli utenti attivi"""
+    def get_all_users(include_inactive: bool = False) -> list[dict]:
+        """Recupera tutti gli utenti (attivi, o tutti se include_inactive=True)"""
         session = get_session()
         try:
-            users = session.query(User).filter(User.is_active == True).all()
+            query = session.query(User)
+            if not include_inactive:
+                query = query.filter(User.is_active == True)
+            users = query.all()
             return [UserManager._serialize_user(u) for u in users]
         finally:
             session.close()

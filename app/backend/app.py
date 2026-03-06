@@ -177,9 +177,10 @@ def logout():
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    """Recupera lista utenti attivi"""
+    """Recupera lista utenti (attivi, o tutti se include_inactive=true)"""
     try:
-        users = UserManager.get_all_users()
+        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+        users = UserManager.get_all_users(include_inactive=include_inactive)
         return jsonify({
             'success': True,
             'users': users
@@ -230,6 +231,24 @@ def delete_user(user_id):
 
         return jsonify({'success': True, 'message': f'User {user_id} deleted'}), 200
 
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/users/<user_id>', methods=['PUT'])
+def update_user(user_id):
+    """Modifica un utente esistente"""
+    try:
+        data = request.get_json()
+        result = UserManager.update_user(
+            user_id=user_id,
+            name=data.get('name'),
+            role=data.get('role'),
+            phase=data.get('phase'),
+            is_active=data.get('is_active')
+        )
+        if result is None:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        return jsonify({'success': True, 'user': result})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
