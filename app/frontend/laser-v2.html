@@ -2583,8 +2583,6 @@ async function confirmCompleteOrder() {
     if (result.success) {
       closeCompleteOrderModal();
       showToast('Ordine completato!');
-      selectedOrderId = null;
-      clearDetails();
       await loadOrders();
       if (currentTab === 'stato') loadStatoOrdini();
     } else {
