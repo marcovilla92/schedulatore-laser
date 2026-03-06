@@ -1907,10 +1907,10 @@ function renderStatoOrdini() {
         return `<span class="stato-phase-dot ${cls}" title="${p}">${p.substring(0,3)}</span>`;
       }).join('<span class="stato-phase-line"></span>');
 
-      // Azioni per ordini LASER
+      // Azioni per ordini
       let actionsHtml = '';
+      const laserStep = steps.filter(s => s.fase === 'LASER').pop();
       if (fase === 'LASER') {
-        const laserStep = steps.filter(s => s.fase === 'LASER').pop();
         const started = laserStep?.timestamp_inizio && !laserStep?.timestamp_fine;
         const done = laserStep?.timestamp_fine;
         if (!done && !started) {
@@ -1919,6 +1919,9 @@ function renderStatoOrdini() {
           actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa → Officina</button>`;
           actionsHtml += `<button class="stato-action-btn orange" onclick="openCompleteOrderModal('${o.id}')">Solo Taglio ✓</button>`;
         }
+      } else if (fase !== 'COMPLETATO' && laserStep?.timestamp_fine) {
+        // Ordine passato in officina ma era solo taglio — permetti chiusura
+        actionsHtml = `<button class="stato-action-btn orange" onclick="openCompleteOrderModal('${o.id}')">Solo Taglio ✓</button>`;
       }
       // PDF per tutti
       actionsHtml += `<button class="stato-action-btn outline" onclick="statoViewPdf('${o.id}')">PDF</button>`;
