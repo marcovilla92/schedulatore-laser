@@ -520,6 +520,14 @@ class OrderManager:
             elif fase_successiva:
                 order.fase_corrente = fase_successiva
 
+            # Auto-assegna operatore quando ordine esce dal laser e non ha operatore
+            if phase == 'LASER' and fase_successiva not in ('LASER', 'COMPLETATO') and not order.operatore_assegnato:
+                assignment = session.query(OperatorClient).filter(
+                    func.lower(OperatorClient.client_name) == func.lower(order.cliente)
+                ).first()
+                if assignment:
+                    order.operatore_assegnato = assignment.operator_id
+
             session.commit()
 
             return {
