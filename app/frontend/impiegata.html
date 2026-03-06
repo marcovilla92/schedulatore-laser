@@ -1428,17 +1428,22 @@ async function submitOrder() {
   if (!pdfData.pdf_filename) { showMessage('Carica un PDF prima di confermare', 'error'); return; }
 
   // Warning: controlla se il cliente è assegnato a un operatore
-  if (dest === 'OFFICINA') {
-    try {
-      const acResp = await fetch(`${API_URL}/api/operator-clients`);
-      const acData = await acResp.json();
-      const assignedClients = (acData.assignments || []).map(a => a.client_name.toLowerCase());
-      if (!assignedClients.includes(cliente.toLowerCase())) {
-        const ok = confirm(`⚠️ Il cliente "${cliente}" non è assegnato a nessun operatore.\n\nL'ordine non sarà visibile in officina!\n\nVerifica di aver scritto il nome correttamente.\nContinuare comunque?`);
-        if (!ok) return;
-      }
-    } catch (_) { /* se l'API fallisce, procedi comunque */ }
-  }
+  try {
+    const acResp = await fetch(`${API_URL}/api/operator-clients`);
+    const acData = await acResp.json();
+    const assignedClients = (acData.assignments || []).map(a => a.client_name.toLowerCase());
+    if (!assignedClients.includes(cliente.toLowerCase())) {
+      const ok = await showAppModal({
+        title: 'Cliente non riconosciuto',
+        message: `Il cliente "${cliente}" non è assegnato a nessun operatore. L'ordine potrebbe non essere visibile agli operai. Verifica di aver scritto il nome correttamente.`,
+        type: 'warning',
+        confirmText: 'Continua comunque',
+        cancelText: 'Correggi',
+        confirmColor: 'confirm-green'
+      });
+      if (!ok) return;
+    }
+  } catch (_) { /* se l'API fallisce, procedi comunque */ }
 
   try {
     const resp = await fetch(`${API_URL}/api/orders`, {
@@ -2205,6 +2210,42 @@ function renderArchDetail(order) {
       `).join('')}
     ` : ''}
   `;
+}
+</script>
+
+<div class="app-modal-overlay" id="app-modal" onclick="resolveAppModal(false)">
+  <div class="app-modal-box" onclick="event.stopPropagation()">
+    <div class="app-modal-icon" id="app-modal-icon"></div>
+    <div class="app-modal-title" id="app-modal-title"></div>
+    <div class="app-modal-msg" id="app-modal-msg"></div>
+    <div class="app-modal-actions" id="app-modal-actions"></div>
+  </div>
+</div>
+<script>
+let _appModalResolve = null;
+
+function showAppModal({ title, message, type, confirmText, cancelText, confirmColor }) {
+  return new Promise(resolve => {
+    _appModalResolve = resolve;
+    const icons = { warning:'⚠️', info:'ℹ️', error:'❌', success:'✅' };
+    document.getElementById('app-modal-icon').className = 'app-modal-icon ' + (type||'info');
+    document.getElementById('app-modal-icon').textContent = icons[type] || icons.info;
+    document.getElementById('app-modal-title').textContent = title || '';
+    document.getElementById('app-modal-msg').textContent = message || '';
+    const actions = document.getElementById('app-modal-actions');
+    if (cancelText !== undefined) {
+      actions.innerHTML = `<button class="app-modal-btn cancel" onclick="resolveAppModal(false)">${cancelText || 'Annulla'}</button>
+        <button class="app-modal-btn ${confirmColor || 'confirm-green'}" onclick="resolveAppModal(true)">${confirmText || 'Conferma'}</button>`;
+    } else {
+      actions.innerHTML = `<button class="app-modal-btn ${confirmColor || 'confirm-blue'}" onclick="resolveAppModal(true)">${confirmText || 'OK'}</button>`;
+    }
+    document.getElementById('app-modal').classList.add('active');
+  });
+}
+
+function resolveAppModal(value) {
+  document.getElementById('app-modal').classList.remove('active');
+  if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
 }
 </script>
 
