@@ -1410,9 +1410,12 @@ function getStatusColor(order) {
 function calculateProgress(order) {
   if (order.status === 'COMPLETATO') return 100;
   if (order.status === 'PARZIALE') return 85;
+  const steps = order.processing_steps || [];
+  const anyStarted = steps.some(s => s.timestamp_inizio);
+  if (!anyStarted) return 0;
   const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
   const base = map[order.fase_corrente] || 0;
-  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  const hasActive = steps.some(s => s.timestamp_inizio && !s.timestamp_fine);
   return hasActive ? Math.min(base + 10, 95) : base;
 }
 
