@@ -1426,6 +1426,20 @@ async function submitOrder() {
   if (!numero) { showMessage('Inserisci il numero ordine', 'error'); return; }
   if (!cliente || !data) { showMessage('Inserisci cliente e data consegna', 'error'); return; }
   if (!pdfData.pdf_filename) { showMessage('Carica un PDF prima di confermare', 'error'); return; }
+
+  // Warning: controlla se il cliente è assegnato a un operatore
+  if (dest === 'OFFICINA') {
+    try {
+      const acResp = await fetch(`${API_URL}/api/operator-clients`);
+      const acData = await acResp.json();
+      const assignedClients = (acData.assignments || []).map(a => a.client_name.toLowerCase());
+      if (!assignedClients.includes(cliente.toLowerCase())) {
+        const ok = confirm(`⚠️ Il cliente "${cliente}" non è assegnato a nessun operatore.\n\nL'ordine non sarà visibile in officina!\n\nVerifica di aver scritto il nome correttamente.\nContinuare comunque?`);
+        if (!ok) return;
+      }
+    } catch (_) { /* se l'API fallisce, procedi comunque */ }
+  }
+
   try {
     const resp = await fetch(`${API_URL}/api/orders`, {
       method: 'POST',
