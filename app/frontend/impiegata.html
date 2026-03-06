@@ -1977,9 +1977,20 @@ function renderDetailModal(order) {
       ${steps.length > 0 ? `
       <div class="storico-list-detail">
         ${steps.map(s => {
-          const hasSessions = s.sessioni && s.sessioni.length > 1;
+          const sessions = s.sessioni || [];
+          const hasSessions = sessions.length > 1;
+          // Raggruppa sessioni per operatore
+          const opGroups = {};
+          sessions.forEach(sess => {
+            const op = sess.operatore || 'Sconosciuto';
+            if (!opGroups[op]) opGroups[op] = { sessions: [], totalSec: 0 };
+            opGroups[op].sessions.push(sess);
+            if (sess.durata_secondi) opGroups[op].totalSec += sess.durata_secondi;
+          });
+          const opNames = Object.keys(opGroups);
+          const multiOperator = opNames.length > 1;
           const durataDisplay = hasSessions
-            ? `${formatDurationSec(s.tempo_cumulativo_secondi || 0)} (${s.sessioni.length} sess.)`
+            ? `${formatDurationSec(s.tempo_cumulativo_secondi || 0)} (${sessions.length} sess.)`
             : (s.durata || '');
           return `
           <div class="storico-item-d">
@@ -1988,7 +1999,7 @@ function renderDetailModal(order) {
               ${durataDisplay ? `<span class="storico-durata-d">${escapeHtml(durataDisplay)}</span>` : ''}
             </div>
             <div class="storico-detail-d">
-              ${s.operatore ? 'Operatore: ' + escapeHtml(s.operatore) : ''}
+              ${!multiOperator && s.operatore ? 'Operatore: ' + escapeHtml(s.operatore) : ''}
               ${!hasSessions && s.timestamp_inizio ? '<br>Inizio: ' + formatDetailDate(s.timestamp_inizio) : ''}
               ${!hasSessions && s.timestamp_fine ? ' — Fine: ' + formatDetailDate(s.timestamp_fine) : ''}
               ${s.fase_successiva ? '<br>&rarr; ' + escapeHtml(s.fase_successiva) : ''}
@@ -1996,9 +2007,26 @@ function renderDetailModal(order) {
             </div>
             ${s.in_pausa ? '<span class="storico-badge in-pausa">IN PAUSA</span>' : ''}
             ${!s.in_pausa && s.completamento_parziale ? '<span class="storico-badge parziale">PARZIALE</span>' : ''}
-            ${hasSessions ? `
+            ${multiOperator ? `
               <div class="storico-sessions-d">
-                ${s.sessioni.map((sess, i) => `
+                ${opNames.map(op => {
+                  const g = opGroups[op];
+                  return `<div style="margin-bottom:8px;">
+                    <div style="font-weight:700;font-size:12px;color:#374151;margin-bottom:4px;">${escapeHtml(op)} — ${formatDurationSec(g.totalSec)}</div>
+                    ${g.sessions.map((sess, i) => `
+                      <div class="session-item-d" style="margin-left:12px;">
+                        #${i + 1}: ${formatDetailDate(sess.timestamp_inizio)}${sess.timestamp_fine ? ' — ' + formatDetailDate(sess.timestamp_fine) : ' (in corso)'}
+                        ${sess.durata_secondi ? ' (' + formatDurationSec(sess.durata_secondi) + ')' : ''}
+                        ${sess.tipo_chiusura ? `<span class="session-tipo-d ${sess.tipo_chiusura}">${sess.tipo_chiusura}</span>` : ''}
+                      </div>
+                    `).join('')}
+                  </div>`;
+                }).join('')}
+                <div style="font-weight:700;font-size:12px;color:var(--green);border-top:1px solid var(--border);padding-top:6px;margin-top:4px;">Totale: ${formatDurationSec(s.tempo_cumulativo_secondi || 0)}</div>
+              </div>
+            ` : hasSessions ? `
+              <div class="storico-sessions-d">
+                ${sessions.map((sess, i) => `
                   <div class="session-item-d">
                     #${i + 1}: ${formatDetailDate(sess.timestamp_inizio)}${sess.timestamp_fine ? ' — ' + formatDetailDate(sess.timestamp_fine) : ' (in corso)'}
                     ${sess.durata_secondi ? ' (' + formatDurationSec(sess.durata_secondi) + ')' : ''}
