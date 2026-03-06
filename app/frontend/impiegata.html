@@ -1014,8 +1014,33 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .topbar { padding: 0 16px; }
   .tab-bar { padding: 0 12px; }
   .tab-item { padding: 12px 14px; font-size: 12px; }
-  .ordini-container, .archivio-container { padding: 16px; }
+  .ordini-container, .archivio-container, .clienti-container { padding: 16px; }
+  .clienti-form-row { flex-direction: column; }
 }
+
+/* === GESTIONE CLIENTI === */
+.clienti-container { max-width: 900px; padding: 24px; }
+.clienti-header { margin-bottom: 24px; }
+.clienti-add-form { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+.clienti-add-form h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.clienti-form-row { display: flex; gap: 12px; align-items: flex-end; }
+.clienti-form-group { flex: 1; }
+.clienti-form-group label { font-size: 11px; font-weight: 600; color: #6b7280; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+.clienti-form-group input, .clienti-form-group select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Geist', sans-serif; }
+.clienti-form-group input:focus, .clienti-form-group select:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+.clienti-table-wrapper { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.clienti-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.clienti-table thead { background: #f9fafb; }
+.clienti-table th { padding: 12px 16px; text-align: left; font-weight: 700; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+.clienti-table tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+.clienti-table tbody tr:hover { background: #f9fafb; }
+.clienti-table td { padding: 12px 16px; vertical-align: middle; }
+.clienti-table td:first-child { font-weight: 600; }
+.clienti-operator-select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'Geist', sans-serif; cursor: pointer; }
+.clienti-operator-select:focus { outline: none; border-color: var(--green); }
+.clienti-btn-remove { padding: 6px 14px; background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.clienti-btn-remove:hover { background: #fecaca; }
+.clienti-empty { padding: 40px 20px; text-align: center; color: #6b7280; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -1041,6 +1066,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
   <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
   <div class="tab-item" data-tab="archivio" onclick="switchTab('archivio')">Archivio</div>
+  <div class="tab-item" data-tab="clienti" onclick="switchTab('clienti')">Clienti</div>
 </div>
 
 <!-- ===================== TAB 1: CARICA ORDINE ===================== -->
@@ -1255,6 +1281,35 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   </div>
 </div>
 
+<!-- === TAB 5: GESTIONE CLIENTI === -->
+<div class="tab-panel" id="panel-clienti">
+  <div class="clienti-container">
+    <div class="clienti-header">
+      <h2 style="font-size:20px; font-weight:800; margin:0;">Assegnazioni Clienti — Operatori</h2>
+    </div>
+
+    <div class="clienti-add-form">
+      <h3>Nuova Assegnazione</h3>
+      <div class="clienti-form-row">
+        <div class="clienti-form-group">
+          <label>Operatore</label>
+          <select id="assign-operator">
+            <option value="">Seleziona operatore...</option>
+          </select>
+        </div>
+        <div class="clienti-form-group">
+          <label>Nome Cliente</label>
+          <input type="text" id="assign-client" placeholder="Es: ABC S.r.l.">
+        </div>
+        <button class="btn-submit" onclick="addAssignment()" style="margin-bottom:0; padding:10px 20px; white-space:nowrap;">Aggiungi</button>
+      </div>
+      <div id="assign-status" style="margin-top:10px; font-size:13px;"></div>
+    </div>
+
+    <div id="clienti-list"></div>
+  </div>
+</div>
+
 <!-- DETTAGLIO ORDINE MODALE -->
 <div class="detail-modal-overlay" id="detail-modal" onclick="if(event.target===this)closeDetailModal()">
   <div class="detail-modal">
@@ -1281,6 +1336,8 @@ let calSelectedDate = null;
 let currentStatusFilter = '';
 let currentFaseFilter = '';
 let currentSort = { field: 'data_consegna', dir: 'asc' };
+let allUsersClienti = [];
+let operatorClients = [];
 
 // ===========================
 // COLORS
@@ -1346,6 +1403,7 @@ function switchTab(tabId) {
   if (tabId === 'calendario') loadCalendar();
   if (tabId === 'ordini') loadOrdersList();
   if (tabId === 'archivio') { loadArchiveFilters(); loadArchive(); }
+  if (tabId === 'clienti') loadClienti();
 }
 
 // ===========================
@@ -1910,6 +1968,114 @@ function renderDetailModal(order) {
   `;
 
   document.getElementById('detail-modal-body').innerHTML = html;
+}
+
+// ===========================
+// TAB 5: GESTIONE CLIENTI
+// ===========================
+async function loadClienti() {
+  try {
+    const [usersResp, clientsResp] = await Promise.all([
+      fetch(`${API_URL}/api/users`),
+      fetch(`${API_URL}/api/operator-clients`)
+    ]);
+    const usersData = await usersResp.json();
+    const clientsData = await clientsResp.json();
+    allUsersClienti = (usersData.users || []).filter(u => u.is_active !== false);
+    operatorClients = clientsData.assignments || [];
+  } catch (err) {
+    console.error('Errore caricamento clienti:', err);
+  }
+  populateAssignOperator();
+  renderClientiList();
+}
+
+function populateAssignOperator() {
+  const sel = document.getElementById('assign-operator');
+  sel.innerHTML = '<option value="">Seleziona operatore...</option>';
+  allUsersClienti.filter(u => u.phase === 'OFFICINA' || u.phase === 'LASER' || u.phase === 'ALL').forEach(u => {
+    sel.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)}</option>`;
+  });
+}
+
+function renderClientiList() {
+  const container = document.getElementById('clienti-list');
+  if (operatorClients.length === 0) {
+    container.innerHTML = '<div class="clienti-empty">Nessuna assegnazione cliente-operatore</div>';
+    return;
+  }
+  let html = `<div class="clienti-table-wrapper"><table class="clienti-table">
+    <thead><tr><th>Cliente</th><th>Operatore</th><th style="text-align:right;">Azioni</th></tr></thead>
+    <tbody>`;
+  const opUsers = allUsersClienti.filter(u => u.phase === 'OFFICINA' || u.phase === 'LASER' || u.phase === 'ALL');
+  operatorClients.forEach(a => {
+    const op = allUsersClienti.find(u => u.id === a.operator_id);
+    html += `<tr>
+      <td>${escapeHtml(a.client_name)}</td>
+      <td><select class="clienti-operator-select" onchange="reassignClient('${a.id}', this.value)">
+        <option value="">Seleziona...</option>
+        ${opUsers.map(u => `<option value="${u.id}" ${u.id === a.operator_id ? 'selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+      </select></td>
+      <td style="text-align:right;"><button class="clienti-btn-remove" onclick="removeAssignment('${a.id}')">Rimuovi</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+async function addAssignment() {
+  const operatorId = document.getElementById('assign-operator').value;
+  const clientName = document.getElementById('assign-client').value.trim();
+  const statusEl = document.getElementById('assign-status');
+  if (!operatorId || !clientName) {
+    statusEl.innerHTML = '<span style="color:#ef4444;">Seleziona operatore e inserisci nome cliente</span>';
+    setTimeout(() => statusEl.innerHTML = '', 3000);
+    return;
+  }
+  try {
+    const resp = await fetch(`${API_URL}/api/operator-clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operator_id: operatorId, client_name: clientName })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      statusEl.innerHTML = '<span style="color:var(--green);">Assegnazione creata!</span>';
+      document.getElementById('assign-client').value = '';
+      await loadClienti();
+    } else {
+      statusEl.innerHTML = `<span style="color:#ef4444;">Errore: ${result.error}</span>`;
+    }
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:#ef4444;">Errore: ${err.message}</span>`;
+  }
+  setTimeout(() => statusEl.innerHTML = '', 3000);
+}
+
+async function removeAssignment(assignmentId) {
+  const ok = await showAppModal({ title: 'Rimuovi Assegnazione', message: 'Sei sicuro di voler rimuovere questa assegnazione?', type: 'warning', confirmText: 'Rimuovi', cancelText: 'Annulla', confirmColor: 'confirm-red' });
+  if (!ok) return;
+  try {
+    const resp = await fetch(`${API_URL}/api/operator-clients/${assignmentId}`, { method: 'DELETE' });
+    const result = await resp.json();
+    if (result.success) await loadClienti();
+  } catch (err) { console.error('Errore rimozione:', err); }
+}
+
+async function reassignClient(assignmentId, newOperatorId) {
+  if (!newOperatorId) return;
+  const assignment = operatorClients.find(a => a.id === assignmentId);
+  if (!assignment || assignment.operator_id === newOperatorId) return;
+  try {
+    await fetch(`${API_URL}/api/operator-clients/${assignmentId}`, { method: 'DELETE' });
+    const resp = await fetch(`${API_URL}/api/operator-clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operator_id: newOperatorId, client_name: assignment.client_name })
+    });
+    const result = await resp.json();
+    if (result.success) await loadClienti();
+  } catch (err) { console.error('Errore riassegnazione:', err); }
 }
 
 // ===========================
