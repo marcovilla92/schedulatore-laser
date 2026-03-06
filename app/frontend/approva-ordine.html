@@ -1078,7 +1078,7 @@ body {
 .deleg-status-badge.completed { background:#d1fae5; color:#065f46; }
 .deleg-status-badge.rejected { background:#fee2e2; color:#991b1b; }
 .deleg-alert-row { background:#fff7ed !important; }
-.deleg-btn { padding:4px 10px; border-radius:6px; border:1px solid var(--border); background:var(--white); font-size:11px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.deleg-btn { padding:10px 20px; border-radius:10px; border:1px solid var(--border); background:var(--white); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
 .deleg-btn:hover { background:var(--bg); }
 .deleg-btn.danger { color:#dc2626; border-color:#fecaca; }
 .deleg-btn.danger:hover { background:#fef2f2; }
@@ -1642,6 +1642,29 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .form-row { flex-direction: column; }
   .form-card { width: 95vw; }
 }
+
+/* === CUSTOM CONFIRM/ALERT MODAL === */
+.app-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; justify-content:center; align-items:center; }
+.app-modal-overlay.active { display:flex; }
+.app-modal-box { background:var(--white); border-radius:16px; width:400px; max-width:90vw; padding:28px 32px; box-shadow:0 20px 60px rgba(0,0,0,0.15); animation: modalIn 0.2s ease-out; }
+@keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.app-modal-icon { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:16px; }
+.app-modal-icon.warning { background:#fef3c7; }
+.app-modal-icon.info { background:#dbeafe; }
+.app-modal-icon.error { background:#fee2e2; }
+.app-modal-icon.success { background:#d1fae5; }
+.app-modal-title { font-family:'Geist',sans-serif; font-size:17px; font-weight:800; color:var(--black); margin-bottom:8px; }
+.app-modal-msg { font-size:14px; color:#6b7280; line-height:1.5; margin-bottom:24px; }
+.app-modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+.app-modal-btn { padding:10px 22px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all 0.15s; }
+.app-modal-btn.cancel { background:#f3f4f6; color:#374151; }
+.app-modal-btn.cancel:hover { background:#e5e7eb; }
+.app-modal-btn.confirm-green { background:var(--green); color:white; }
+.app-modal-btn.confirm-green:hover { background:#15803d; }
+.app-modal-btn.confirm-red { background:#dc2626; color:white; }
+.app-modal-btn.confirm-red:hover { background:#b91c1c; }
+.app-modal-btn.confirm-blue { background:#2563eb; color:white; }
+.app-modal-btn.confirm-blue:hover { background:#1d4ed8; }
 </style>
 </head>
 <body>
@@ -1760,7 +1783,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   <div class="deleghe-title">Gestione Deleghe</div>
   <div style="display:flex; gap:12px; margin-bottom:20px;">
     <button class="deleg-btn primary" onclick="openForceDelegModal()">+ Forza Delega</button>
-    <button class="deleg-btn primary" onclick="openForceSupportModal()" style="background:#1e40af; border-color:#1e40af;">+ Forza Supporto</button>
+    <button class="deleg-btn primary" onclick="openForceSupportModal()" style="background:#1e40af; border-color:#1e40af; color:white;">+ Forza Supporto</button>
   </div>
   <table class="deleghe-table">
     <thead>
@@ -2489,7 +2512,8 @@ async function addAssignment() {
 }
 
 async function removeAssignment(assignmentId) {
-  if (!confirm('Rimuovere questa assegnazione?')) return;
+  const ok = await showAppModal({ title:'Rimuovi Assegnazione', message:'Sei sicuro di voler rimuovere questa assegnazione?', type:'warning', confirmText:'Rimuovi', cancelText:'Annulla', confirmColor:'confirm-red' });
+  if (!ok) return;
 
   try {
     const response = await fetch(`${API_URL}/api/operator-clients/${assignmentId}`, {
@@ -2882,7 +2906,8 @@ function renderCapoDelegheTable(deleghe) {
 }
 
 async function revokeCapoDeleg(delegId) {
-  if (!confirm('Sei sicuro di voler revocare questa delega?')) return;
+  const ok = await showAppModal({ title:'Revoca Delega', message:'Sei sicuro di voler revocare questa delega?', type:'warning', confirmText:'Revoca', cancelText:'Annulla', confirmColor:'confirm-red' });
+  if (!ok) return;
   const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
   try {
     const resp = await fetch(`${API_URL}/api/delegations/${delegId}/revoke`, {
@@ -2919,7 +2944,8 @@ async function acceptCapoDeleg(delegId) {
 }
 
 async function rejectCapoDeleg(delegId) {
-  if (!confirm('Sei sicuro di voler rifiutare questa delega?')) return;
+  const ok = await showAppModal({ title:'Rifiuta Delega', message:'Sei sicuro di voler rifiutare questa delega?', type:'warning', confirmText:'Rifiuta', cancelText:'Annulla', confirmColor:'confirm-red' });
+  if (!ok) return;
   const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
   try {
     const resp = await fetch(`${API_URL}/api/delegations/${delegId}/reject`, {
@@ -3191,12 +3217,12 @@ document.getElementById('capo-btn-excel').addEventListener('click', async functi
   try {
     const p = capoGetArchParams();
     const res = await fetch(`${API_URL}/api/archive/export/excel?${p}`);
-    if (!res.ok) { alert('Errore durante il download'); return; }
+    if (!res.ok) { showAppModal({ title:'Errore', message:'Errore durante il download del file.', type:'error', confirmText:'OK' }); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'archivio-ordini.xlsx'; a.click();
     URL.revokeObjectURL(url);
-  } catch (e) { console.error(e); alert('Errore download'); }
+  } catch (e) { console.error(e); showAppModal({ title:'Errore', message:'Errore durante il download.', type:'error', confirmText:'OK' }); }
 });
 
 function capoSortArch(field) {
@@ -3355,6 +3381,43 @@ async function capoPolBadge() {
 }
 setInterval(capoPolBadge, 30000);
 setTimeout(capoPolBadge, 2000);
+</script>
+
+<!-- APP MODAL (sostituto di confirm/alert) -->
+<div class="app-modal-overlay" id="app-modal" onclick="resolveAppModal(false)">
+  <div class="app-modal-box" onclick="event.stopPropagation()">
+    <div class="app-modal-icon" id="app-modal-icon"></div>
+    <div class="app-modal-title" id="app-modal-title"></div>
+    <div class="app-modal-msg" id="app-modal-msg"></div>
+    <div class="app-modal-actions" id="app-modal-actions"></div>
+  </div>
+</div>
+<script>
+let _appModalResolve = null;
+
+function showAppModal({ title, message, type, confirmText, cancelText, confirmColor }) {
+  return new Promise(resolve => {
+    _appModalResolve = resolve;
+    const icons = { warning:'\u26a0\ufe0f', info:'\u2139\ufe0f', error:'\u274c', success:'\u2705' };
+    document.getElementById('app-modal-icon').className = 'app-modal-icon ' + (type||'info');
+    document.getElementById('app-modal-icon').textContent = icons[type] || icons.info;
+    document.getElementById('app-modal-title').textContent = title || '';
+    document.getElementById('app-modal-msg').textContent = message || '';
+    const actions = document.getElementById('app-modal-actions');
+    if (cancelText !== undefined) {
+      actions.innerHTML = `<button class="app-modal-btn cancel" onclick="resolveAppModal(false)">${cancelText || 'Annulla'}</button>
+        <button class="app-modal-btn ${confirmColor || 'confirm-green'}" onclick="resolveAppModal(true)">${confirmText || 'Conferma'}</button>`;
+    } else {
+      actions.innerHTML = `<button class="app-modal-btn ${confirmColor || 'confirm-blue'}" onclick="resolveAppModal(true)">${confirmText || 'OK'}</button>`;
+    }
+    document.getElementById('app-modal').classList.add('active');
+  });
+}
+
+function resolveAppModal(value) {
+  document.getElementById('app-modal').classList.remove('active');
+  if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
+}
 </script>
 
 </body>

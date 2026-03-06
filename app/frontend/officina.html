@@ -1596,6 +1596,29 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   font-size: 14px;
   margin-bottom: 24px;
 }
+
+/* === CUSTOM CONFIRM/ALERT MODAL === */
+.app-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; justify-content:center; align-items:center; }
+.app-modal-overlay.active { display:flex; }
+.app-modal-box { background:var(--white); border-radius:16px; width:400px; max-width:90vw; padding:28px 32px; box-shadow:0 20px 60px rgba(0,0,0,0.15); animation: modalIn 0.2s ease-out; }
+@keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.app-modal-icon { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:16px; }
+.app-modal-icon.warning { background:#fef3c7; }
+.app-modal-icon.info { background:#dbeafe; }
+.app-modal-icon.error { background:#fee2e2; }
+.app-modal-icon.success { background:#d1fae5; }
+.app-modal-title { font-family:'Geist',sans-serif; font-size:17px; font-weight:800; color:var(--black); margin-bottom:8px; }
+.app-modal-msg { font-size:14px; color:#6b7280; line-height:1.5; margin-bottom:24px; }
+.app-modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+.app-modal-btn { padding:10px 22px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all 0.15s; }
+.app-modal-btn.cancel { background:#f3f4f6; color:#374151; }
+.app-modal-btn.cancel:hover { background:#e5e7eb; }
+.app-modal-btn.confirm-green { background:var(--green); color:white; }
+.app-modal-btn.confirm-green:hover { background:#15803d; }
+.app-modal-btn.confirm-red { background:#dc2626; color:white; }
+.app-modal-btn.confirm-red:hover { background:#b91c1c; }
+.app-modal-btn.confirm-blue { background:#2563eb; color:white; }
+.app-modal-btn.confirm-blue:hover { background:#1d4ed8; }
 </style>
 </head>
 <body>
@@ -1889,9 +1912,9 @@ function renderCards() {
   const isOfficina = (userPhase === 'OFFICINA' || userPhase === 'ALL');
   const isCapo = currentUser.is_capo || currentUser.role === 'Capo Officina';
 
-  // Separa ordini attivi da completati (solo per operatori, non capi)
-  const activeOrders = isCapo ? allOrders : allOrders.filter(o => o.status !== 'COMPLETATO');
-  const completedOrders = isCapo ? [] : allOrders.filter(o => o.status === 'COMPLETATO');
+  // Separa ordini attivi da completati
+  const activeOrders = allOrders.filter(o => o.status !== 'COMPLETATO');
+  const completedOrders = allOrders.filter(o => o.status === 'COMPLETATO');
 
   document.getElementById('page-sub').textContent =
     `${currentUser.name || 'Operatore'} \u2014 ${activeOrders.length === 1 ? '1 ordine attivo' : activeOrders.length + ' ordini attivi'}`;
@@ -2059,9 +2082,11 @@ function renderWaitingCard(order, phase, consegna) {
       </div>
       <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
       ${supportBadgeHtml}
-      <div class="waiting-note">
-        <span>&#9202;</span>
-        <span>${noteText}</span>
+      <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--bg); border-radius:8px;">
+        <div class="progress-bar-bg" style="flex:1; height:8px;">
+          <div class="progress-bar-fill" style="width:${calculateProgress(order)}%; background:${getProgressColor(calculateProgress(order))};"></div>
+        </div>
+        <span style="font-size:13px; font-weight:700; color:var(--black); min-width:36px;">${calculateProgress(order)}%</span>
       </div>
     </div>
     <div class="card-actions">
@@ -2176,9 +2201,9 @@ function buildPhaseActions(order) {
     const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
     if (done || inProgress) return '';
     if (p === 'LASER') {
-      return `<button class="action-btn green-outline" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`;
+      return `<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`;
     }
-    return `<button class="action-btn green-outline" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`;
+    return `<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`;
   }).filter(Boolean).join('');
 }
 
@@ -2416,7 +2441,8 @@ function renderSupportRequests(requests) {
 
 async function savePartial(orderId) {
   const phase = getPhaseForOrder(orderId);
-  if (!confirm('Salvare parziale? La fase resterà aperta e potrai riprendere dopo.')) return;
+  const ok = await showAppModal({ title:'Salva Parziale', message:'La fase resterà aperta e potrai riprendere dopo.', type:'warning', confirmText:'Salva', cancelText:'Annulla', confirmColor:'confirm-green' });
+  if (!ok) return;
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/save-partial`, {
       method: 'POST',
@@ -2854,6 +2880,22 @@ function escapeHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function calculateProgress(order) {
+  if (order.status === 'COMPLETATO') return 100;
+  if (order.status === 'PARZIALE') return 85;
+  const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
+  const base = map[order.fase_corrente] || 0;
+  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  return hasActive ? Math.min(base + 10, 95) : base;
+}
+
+function getProgressColor(pct) {
+  if (pct >= 100) return '#22c55e';
+  if (pct >= 60) return '#22c55e';
+  if (pct >= 30) return '#f59e0b';
+  return '#ef4444';
+}
+
 function showMessage(text, type) {
   const msg = document.getElementById('status-message');
   msg.textContent = text;
@@ -3076,7 +3118,8 @@ async function acceptDelegation(id) {
 }
 
 async function rejectDelegation(id) {
-  if (!confirm('Sei sicuro di voler rifiutare questa delega?')) return;
+  const ok = await showAppModal({ title:'Rifiuta Delega', message:'Sei sicuro di voler rifiutare questa delega?', type:'warning', confirmText:'Rifiuta', cancelText:'Annulla', confirmColor:'confirm-red' });
+  if (!ok) return;
   try {
     const resp = await fetch(`${API_URL}/api/delegations/${id}/reject`, {
       method: 'POST',
@@ -3167,7 +3210,8 @@ async function confirmDelegComplete() {
 }
 
 async function savePartialDelegated(delegationId) {
-  if (!confirm('Salvare parziale? La fase resterà aperta.')) return;
+  const ok2 = await showAppModal({ title:'Salva Parziale', message:'La fase resterà aperta e potrai riprendere dopo.', type:'warning', confirmText:'Salva', cancelText:'Annulla', confirmColor:'confirm-green' });
+  if (!ok2) return;
   try {
     // Ferma timer delega
     if (activeTimers['deleg-' + delegationId]) {
@@ -3417,6 +3461,43 @@ setTimeout(pollNotifCount, 2000);
         </div>
     </div>
 </div>
+
+<!-- APP MODAL (sostituto di confirm/alert) -->
+<div class="app-modal-overlay" id="app-modal" onclick="resolveAppModal(false)">
+  <div class="app-modal-box" onclick="event.stopPropagation()">
+    <div class="app-modal-icon" id="app-modal-icon"></div>
+    <div class="app-modal-title" id="app-modal-title"></div>
+    <div class="app-modal-msg" id="app-modal-msg"></div>
+    <div class="app-modal-actions" id="app-modal-actions"></div>
+  </div>
+</div>
+<script>
+let _appModalResolve = null;
+
+function showAppModal({ title, message, type, confirmText, cancelText, confirmColor }) {
+  return new Promise(resolve => {
+    _appModalResolve = resolve;
+    const icons = { warning:'⚠️', info:'ℹ️', error:'❌', success:'✅' };
+    document.getElementById('app-modal-icon').className = 'app-modal-icon ' + (type||'info');
+    document.getElementById('app-modal-icon').textContent = icons[type] || icons.info;
+    document.getElementById('app-modal-title').textContent = title || '';
+    document.getElementById('app-modal-msg').textContent = message || '';
+    const actions = document.getElementById('app-modal-actions');
+    if (cancelText !== undefined) {
+      actions.innerHTML = `<button class="app-modal-btn cancel" onclick="resolveAppModal(false)">${cancelText || 'Annulla'}</button>
+        <button class="app-modal-btn ${confirmColor || 'confirm-green'}" onclick="resolveAppModal(true)">${confirmText || 'Conferma'}</button>`;
+    } else {
+      actions.innerHTML = `<button class="app-modal-btn ${confirmColor || 'confirm-blue'}" onclick="resolveAppModal(true)">${confirmText || 'OK'}</button>`;
+    }
+    document.getElementById('app-modal').classList.add('active');
+  });
+}
+
+function resolveAppModal(value) {
+  document.getElementById('app-modal').classList.remove('active');
+  if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
+}
+</script>
 
 </body>
 </html>
