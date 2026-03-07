@@ -134,10 +134,10 @@ class OrderManager:
     
     @staticmethod
     def get_all_orders(cliente: str = None) -> list:
-        """Recupera ordini, opzionalmente filtrati per cliente"""
+        """Recupera ordini non eliminati, opzionalmente filtrati per cliente"""
         session = get_session()
         try:
-            query = session.query(Order)
+            query = session.query(Order).filter(Order.is_deleted == False)
             if cliente:
                 query = query.filter(Order.cliente == cliente)
             return query.all()
