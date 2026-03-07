@@ -184,7 +184,7 @@ class OrderManager:
                         if f.file_type == 'PDF':
                             pdf_file = f.filename
                         elif f.file_type == 'DXF':
-                            dxf_files.append({'filename': f.filename, 'filepath': f.filepath})
+                            dxf_files.append({'filename': f.filename})
 
                 operatore_nome = None
                 if order.operatore_assegnato:
@@ -351,6 +351,13 @@ class OrderManager:
         try:
             now = datetime.utcnow()
 
+            # Verifica che la fase richiesta corrisponda alla fase corrente dell'ordine
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return False
+            if order.fase_corrente != phase:
+                raise ValueError(f"Fase '{phase}' non corrisponde alla fase corrente '{order.fase_corrente}' dell'ordine")
+
             # Cerca ProcessingStep aperto per questa fase (potrebbe essere in pausa)
             existing_step = session.query(ProcessingStep).filter(
                 ProcessingStep.order_id == order_id,
@@ -392,12 +399,10 @@ class OrderManager:
             )
             session.add(new_sess)
 
-            # Aggiorna fase_corrente dell'ordine
-            order = session.query(Order).filter(Order.id == order_id).first()
-            if order:
-                order.fase_corrente = phase
-                if order.status == "PARZIALE":
-                    order.status = "IN_LAVORAZIONE"
+            # Aggiorna stato dell'ordine (order già caricato all'inizio)
+            order.fase_corrente = phase
+            if order.status == "PARZIALE":
+                order.status = "IN_LAVORAZIONE"
 
             session.commit()
             return True
@@ -941,7 +946,7 @@ class OrderManager:
                     if f.file_type == 'PDF':
                         pdf_file = f.filename
                     elif f.file_type == 'DXF':
-                        dxf_files.append({'filename': f.filename, 'filepath': f.filepath})
+                        dxf_files.append({'filename': f.filename})
 
             # Recupera nome operatore assegnato
             operatore_nome = None

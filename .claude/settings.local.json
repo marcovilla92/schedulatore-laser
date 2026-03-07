@@ -18,7 +18,13 @@
       "Bash(python:*)",
       "Bash(powershell -Command \"Stop-Process -Name python -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\")",
       "Bash(claude logout --all)",
-      "Bash(claude logout)"
+      "Bash(claude logout)",
+      "Bash(python run.py)",
+      "Bash(python3 run.py)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -m py_compile backend/models.py)",
+      "Bash(python3 -m py_compile backend/database.py)",
+      "Bash(python3 -m py_compile backend/app.py)"
     ]
   }
 }

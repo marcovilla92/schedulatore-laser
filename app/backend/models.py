@@ -33,6 +33,7 @@ class Order(Base):
     prezzo_quotato = Column(Float, nullable=True)  # Prezzo quotato per calcolo margine
 
     note = Column(Text)
+    is_deleted = Column(Boolean, default=False)  # Soft delete — mai cancellare fisicamente
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
     processing_steps = relationship('ProcessingStep', back_populates='order', cascade='all, delete-orphan')
     notifications = relationship('OrderNotification', back_populates='order', cascade='all, delete-orphan')
@@ -174,6 +175,18 @@ class Notification(Base):
 engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+from sqlalchemy import event
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Abilita WAL mode, FK enforcement e impostazioni ottimali per SQLite"""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")       # Anti-corruzione su crash/blackout
+    cursor.execute("PRAGMA foreign_keys=ON")         # Integrità referenziale reale
+    cursor.execute("PRAGMA synchronous=NORMAL")      # Sicuro con WAL, più veloce di FULL
+    cursor.execute("PRAGMA wal_autocheckpoint=1000") # Checkpoint ogni 1000 pagine WAL
+    cursor.close()
+
 def get_session():
     return SessionLocal()
 
@@ -232,13 +245,7 @@ def seed_users():
             }
         ]
 
-        # Rimuovi vecchi utenti fittizi
-        valid_ids = [u['id'] for u in default_users]
-        old_users = session.query(User).filter(User.id.notin_(valid_ids)).all()
-        for old in old_users:
-            session.delete(old)
-
-        # Inserisci/aggiorna utenti reali
+        # Inserisci/aggiorna utenti di default (non toccare utenti creati dinamicamente)
         for user_data in default_users:
             existing = session.query(User).filter(User.id == user_data['id']).first()
             if existing:
@@ -257,8 +264,23 @@ def seed_users():
     finally:
         session.close()
 
+def _backup_db_before_migration():
+    """Crea uno snapshot del database prima di ogni migrazione"""
+    import shutil, time
+    db_path = os.path.abspath(DATABASE_PATH)
+    if not os.path.exists(db_path):
+        return  # DB non ancora creato, nessun backup necessario
+    backup_dir = os.path.join(os.path.dirname(db_path), 'backups')
+    os.makedirs(backup_dir, exist_ok=True)
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    dst = os.path.join(backup_dir, f'scheduler_pre_migration_{ts}.db')
+    shutil.copy2(db_path, dst)
+    print(f'[BACKUP] Snapshot pre-migrazione: {dst}')
+
+
 def initialize_database():
     """Crea le tabelle se non esistono e popola i dati di default"""
+    _backup_db_before_migration()
     Base.metadata.create_all(bind=engine)
 
     # Migrazione: aggiunge colonne tempo a phase_delegations se mancanti
@@ -312,5 +334,14 @@ def initialize_database():
                 conn.execute(text("ALTER TABLE notifications ADD COLUMN notification_category VARCHAR DEFAULT 'informativa'"))
                 conn.commit()
                 print('[MIGRATION] Aggiunta colonna notification_category a notifications')
+
+    # Migrazione: aggiunge is_deleted a orders se mancante
+    if 'orders' in insp.get_table_names():
+        existing_orders = [c['name'] for c in insp.get_columns('orders')]
+        if 'is_deleted' not in existing_orders:
+            with engine.connect() as conn:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN is_deleted BOOLEAN DEFAULT 0'))
+                conn.commit()
+                print('[MIGRATION] Aggiunta colonna is_deleted a orders')
 
     seed_users()

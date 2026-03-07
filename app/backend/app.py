@@ -110,6 +110,15 @@ def extract_minimal_from_pdf(filepath: str) -> dict:
             "error": str(e)
         }
 
+# ============ UTILITÀ AUTORIZZAZIONE ============
+
+def _require_capo(user_id: str) -> bool:
+    """Verifica che user_id appartenga a un utente con is_capo=True."""
+    if not user_id:
+        return False
+    user = UserManager.get_user(user_id)
+    return bool(user and user.get('is_capo', False))
+
 # ============ FRONTEND ROUTES ============
 
 @app.route('/')
@@ -194,6 +203,10 @@ def create_user():
     """Crea un nuovo utente"""
     try:
         data = request.get_json()
+        created_by = data.get('created_by')
+        if not _require_capo(created_by):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
+
         user_id = data.get('user_id', '').strip()
         name = data.get('name', '').strip()
         role = data.get('role', '').strip()
@@ -225,6 +238,11 @@ def create_user():
 def delete_user(user_id):
     """Disattiva un utente (soft delete)"""
     try:
+        data = request.get_json() or {}
+        deleted_by = data.get('deleted_by')
+        if not _require_capo(deleted_by):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
+
         success = UserManager.delete_user(user_id)
         if not success:
             return jsonify({'success': False, 'error': 'User not found'}), 404
@@ -239,6 +257,10 @@ def update_user(user_id):
     """Modifica un utente esistente"""
     try:
         data = request.get_json()
+        updated_by = data.get('updated_by')
+        if not _require_capo(updated_by):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
+
         result = UserManager.update_user(
             user_id=user_id,
             name=data.get('name'),
@@ -512,9 +534,14 @@ def complete_phase(order_id, phase):
     try:
         data = request.get_json() or {}
         note = data.get('note', '')
-        fase_successiva = data.get('fase_successiva')  # PIEGA, SALDATURA, PULIZIA, LASER, COMPLETATO
+        fase_successiva = data.get('fase_successiva')
         completamento_parziale = data.get('completamento_parziale', False)
         operatore_id = data.get('operatore_id')
+
+        # Whitelist fase_successiva
+        _VALID_PHASES = {'LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO'}
+        if fase_successiva and fase_successiva not in _VALID_PHASES:
+            return jsonify({'success': False, 'error': f"fase_successiva '{fase_successiva}' non valida"}), 400
 
         operatore_name = ''
         if operatore_id:
@@ -641,10 +668,12 @@ def complete_order_early(order_id):
         note = data.get('note', '')
         operatore_id = data.get('operatore_id')
 
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+
         operatore_name = ''
-        if operatore_id:
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
+        user = UserManager.get_user(operatore_id)
+        operatore_name = user.get('name', operatore_id) if user else operatore_id
 
         # Determina fase corrente
         order = OrderManager.get_order(order_id)
@@ -797,9 +826,12 @@ def reassign_order(order_id):
     try:
         data = request.get_json() or {}
         new_operator_id = data.get('new_operator_id')
+        capo_id = data.get('capo_id')
 
         if not new_operator_id:
             return jsonify({'success': False, 'error': 'new_operator_id obbligatorio'}), 400
+        if not _require_capo(capo_id):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
 
         result = OrderManager.reassign_order(order_id, new_operator_id)
         if result.get('success'):
@@ -823,9 +855,12 @@ def correct_time(order_id):
         step_id = data.get('step_id')
         new_start = data.get('timestamp_inizio')
         new_end = data.get('timestamp_fine')
+        capo_id = data.get('capo_id')
 
         if not step_id:
             return jsonify({'success': False, 'error': 'step_id obbligatorio'}), 400
+        if not _require_capo(capo_id):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
 
         result = OrderManager.correct_time(step_id, new_start, new_end)
         if result.get('success'):
@@ -847,9 +882,12 @@ def move_phase(order_id):
     try:
         data = request.get_json() or {}
         new_phase = data.get('new_phase')
+        capo_id = data.get('capo_id')
 
         if not new_phase:
             return jsonify({'success': False, 'error': 'new_phase obbligatorio'}), 400
+        if not _require_capo(capo_id):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
 
         result = OrderManager.move_phase(order_id, new_phase)
         if result.get('success'):
@@ -982,6 +1020,10 @@ def get_admin_kpi():
 def get_admin_audit_log():
     """Recupera log di audit per admin dashboard"""
     try:
+        requester_id = request.args.get('requester_id')
+        if not _require_capo(requester_id):
+            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
+
         limit = request.args.get('limit', 100, type=int)
         user_id = request.args.get('user_id', None)
 
@@ -1239,8 +1281,12 @@ def upload_drawing():
         
         file = request.files['file']
         order_id = request.form.get('order_id', 'unknown')
-        
-        filename = f"{order_id}_{file.filename}"
+
+        from werkzeug.utils import secure_filename
+        safe_name = secure_filename(file.filename)
+        if not safe_name:
+            return jsonify({'error': 'Nome file non valido'}), 400
+        filename = f"{order_id}_{safe_name}"
         filepath = os.path.join(DRAWINGS_FOLDER, filename)
         file.save(filepath)
 
@@ -1258,6 +1304,42 @@ def upload_drawing():
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'online', 'timestamp': datetime.utcnow().isoformat()}), 200
+
+# ============ BACKUP & EXPORT ============
+
+@app.route('/api/admin/backup', methods=['POST'])
+def manual_backup():
+    """Esegue un backup manuale del database (solo admin/capo)"""
+    try:
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from backup_db import backup, integrity_check
+        ok = integrity_check()
+        path = backup(motivo='manuale')
+        if path:
+            return jsonify({'success': True, 'backup_path': os.path.basename(path), 'integrity_ok': ok}), 200
+        return jsonify({'success': False, 'error': 'Backup fallito'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/export-json', methods=['GET'])
+def export_json():
+    """Esporta tutti gli ordini attivi in formato JSON (download)"""
+    try:
+        import json, io
+        orders = OrderManager.get_all_orders_dict()
+        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        payload = json.dumps(orders, ensure_ascii=False, indent=2, default=str).encode('utf-8')
+        buf = io.BytesIO(payload)
+        buf.seek(0)
+        return send_file(
+            buf,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name=f'ordini_{ts}.json'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ============ NOTIFICATION SYSTEM (WhatsApp-like) ============
 
@@ -1289,6 +1371,10 @@ def handle_notifications():
     elif request.method == 'POST':
         try:
             data = request.get_json() or {}
+            sender_id = data.get('sender_id')
+            if not sender_id or not UserManager.get_user(sender_id):
+                return jsonify({'success': False, 'error': 'sender_id obbligatorio e deve essere un utente valido'}), 403
+
             user_id = data.get('user_id')
             order_id = data.get('order_id')
             title = data.get('title', 'Notifica')
