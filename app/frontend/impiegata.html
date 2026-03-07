@@ -1015,19 +1015,21 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .tab-bar { padding: 0 12px; }
   .tab-item { padding: 12px 14px; font-size: 12px; }
   .ordini-container, .archivio-container, .clienti-container { padding: 16px; }
-  .clienti-form-row { flex-direction: column; }
+  .clienti-form-row { flex-direction: column; align-items: stretch; }
+  .clienti-form-row .btn-submit { width: 100%; }
 }
 
 /* === GESTIONE CLIENTI === */
 .clienti-container { max-width: 900px; padding: 24px; }
 .clienti-header { margin-bottom: 24px; }
-.clienti-add-form { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
-.clienti-add-form h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
-.clienti-form-row { display: flex; gap: 12px; align-items: flex-end; }
-.clienti-form-group { flex: 1; }
-.clienti-form-group label { font-size: 11px; font-weight: 600; color: #6b7280; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
-.clienti-form-group input, .clienti-form-group select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Geist', sans-serif; }
+.clienti-add-form { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 24px; }
+.clienti-add-form h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.clienti-form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.clienti-form-group { flex: 1; min-width: 180px; }
+.clienti-form-group label { font-size: 12px; font-weight: 600; color: #6b7280; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+.clienti-form-group input, .clienti-form-group select { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: 'Geist', sans-serif; box-sizing: border-box; }
 .clienti-form-group input:focus, .clienti-form-group select:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+.clienti-form-row .btn-submit { width: auto; height: auto; padding: 11px 32px; flex-shrink: 0; }
 .clienti-table-wrapper { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .clienti-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .clienti-table thead { background: #f9fafb; }
@@ -1350,7 +1352,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
           <label>Nome Cliente</label>
           <input type="text" id="assign-client" placeholder="Es: ABC S.r.l.">
         </div>
-        <button class="btn-submit" onclick="addAssignment()" style="margin-bottom:0; padding:10px 20px; white-space:nowrap;">Aggiungi</button>
+        <button class="btn-submit" onclick="addAssignment()">Aggiungi</button>
       </div>
       <div id="assign-status" style="margin-top:10px; font-size:13px;"></div>
     </div>

@@ -688,7 +688,6 @@ def complete_order_early(order_id):
         if not operatore_id:
             return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
 
-        operatore_name = ''
         user = UserManager.get_user(operatore_id)
         operatore_name = user.get('name', operatore_id) if user else operatore_id
 
@@ -699,37 +698,32 @@ def complete_order_early(order_id):
         current_phase = order.fase_corrente
 
         # Solo operatore principale o capo può chiudere l'ordine
-        if operatore_id:
-            is_capo = False
-            user_check = UserManager.get_user(operatore_id)
-            if user_check:
-                is_capo = user_check.get('is_capo', False)
-            if not is_capo:
-                sr_session = get_session()
-                try:
-                    is_support = sr_session.query(SRModel).filter(
-                        SRModel.order_id == order_id,
-                        SRModel.operatore_supporto == operatore_id,
-                        SRModel.stato == 'accepted'
-                    ).first()
-                    if is_support:
-                        return jsonify({'success': False, 'error': "Solo l'operatore principale può chiudere l'ordine"}), 403
-                finally:
-                    sr_session.close()
+        is_capo = user.get('is_capo', False) if user else False
+        if not is_capo:
+            sr_session = get_session()
+            try:
+                is_support = sr_session.query(SRModel).filter(
+                    SRModel.order_id == order_id,
+                    SRModel.operatore_supporto == operatore_id,
+                    SRModel.stato == 'accepted'
+                ).first()
+                if is_support:
+                    return jsonify({'success': False, 'error': "Solo l'operatore principale può chiudere l'ordine"}), 403
+            finally:
+                sr_session.close()
 
         result = OrderManager.complete_order(order_id, current_phase, note=note, operatore=operatore_name)
 
         if result.get('success'):
-            if operatore_id:
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=operatore_name,
-                    action='COMPLETE_ORDER',
-                    entity_type='order',
-                    entity_id=order_id,
-                    detail=f"Ordine completato anticipatamente da fase {current_phase}",
-                    ip_address=request.remote_addr
-                )
+            AuditManager.log(
+                user_id=operatore_id,
+                user_name=operatore_name,
+                action='COMPLETE_ORDER',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f"Ordine completato anticipatamente da fase {current_phase}",
+                ip_address=request.remote_addr
+            )
 
             # Notifiche completamento ordine
             details = OrderManager.get_order_details(order_id)

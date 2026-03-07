@@ -2025,6 +2025,8 @@ window.addEventListener('load', () => {
 
 // === LOAD ORDERS ===
 async function loadOrders() {
+  // Skip refresh se menu "Altro" è aperto
+  if (document.querySelector('.card-actions-secondary.visible')) return;
   try {
     let url;
     const phase = currentUser.phase || 'PIEGA';

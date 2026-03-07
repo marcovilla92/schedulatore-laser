@@ -15,11 +15,26 @@ html, body { height: 100%; }
   --ls-gray: #c8c2b8;
   --ls-gray-light: #e2ddd5;
   --bg-light: #fafafa;
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
   --text-primary: #000000;
   --text-secondary: #666666;
+  --green: #1a7a48;
+  --green-light: #22a060;
+  --gray-text: #666666;
+  --gray-muted: #999999;
   --border: #e5e5e5;
   --shadow: 0 2px 8px rgba(0,0,0,0.08);
   --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+  --blue: #1e40af;
+  --blue-bg: #dbeafe;
+  --red: #991b1b;
+  --red-bg: #fee2e2;
+  --orange: #92400e;
+  --orange-bg: #fef3c7;
+  --green-badge: #166534;
+  --green-badge-bg: #dcfce7;
 }
 
 body {
@@ -208,11 +223,6 @@ body {
 .kpi-phase-row-label { color: var(--text-secondary); }
 .kpi-phase-row-val { font-weight: 700; }
 
-@media (max-width: 900px) {
-  .kpi-summary { grid-template-columns: repeat(2, 1fr); }
-  .kpi-phases { grid-template-columns: repeat(2, 1fr); }
-  .main-kpi { padding: 16px 24px; }
-}
 
 h1 {
   font-family: 'Geist', sans-serif;
@@ -916,90 +926,111 @@ h1 {
   margin-left: 6px;
 }
 
+/* === PDF OVERLAY (tablet) === */
+.btn-show-pdf { display: none; align-items: center; gap: 6px; background: #525659; color: white;
+  border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; margin: 8px 0; }
+.btn-show-pdf:hover { background: #3a3d40; }
+.pdf-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 3000;
+  justify-content: center; align-items: center; padding: 20px; }
+.pdf-overlay.active { display: flex; }
+.pdf-overlay-content { background: white; border-radius: 12px; width: 90vw; height: 85vh;
+  display: flex; flex-direction: column; overflow: hidden; }
+.pdf-overlay-header { display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.pdf-overlay-header span { font-size: 14px; font-weight: 600; }
+.pdf-overlay-close { background: none; border: none; font-size: 24px; cursor: pointer;
+  color: var(--text-secondary); padding: 4px 8px; }
+.pdf-overlay-body { flex: 1; background: #525659; }
+.pdf-overlay-body iframe { width: 100%; height: 100%; border: none; }
+
+/* === TABLET LANDSCAPE (1200px) === */
 @media (max-width: 1200px) {
-  .main { grid-template-columns: 260px 1fr 350px; }
+  .main { grid-template-columns: 240px 1fr 320px; }
+  .topbar { padding: 0 16px; height: auto; min-height: 72px; flex-wrap: wrap; gap: 8px; padding-top: 12px; padding-bottom: 12px; }
+  .capo-nav { margin-left: 12px; }
+  .capo-nav-item { padding: 6px 12px; font-size: 12px; }
+  .topbar-actions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .tab-btn { padding: 6px 10px; font-size: 11px; }
+  .home-btn { padding: 6px 12px; font-size: 12px; }
+  .logout-btn { padding: 6px 12px; font-size: 12px; }
+  .tab-bar { padding: 0 24px; }
+  .deleghe-view { padding: 24px; }
+  .main-kpi { padding: 24px; }
+  .main-clienti { padding: 24px; }
 }
 
-@media (max-width: 900px) {
-  .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .col-orders { max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
-  .col-pdf { min-height: 300px; }
-  .col-details { border-left: none; border-top: 1px solid var(--border); }
-  .topbar { padding: 0 16px; gap: 8px; }
-  .topbar h1 { font-size: 16px; }
-  .tab-btn { padding: 10px 14px; font-size: 12px; }
-  .home-btn { padding: 8px 14px; font-size: 12px; }
-  #notif-panel-capo { width: calc(100vw - 32px) !important; max-width: 380px !important; }
-  .deleghe-table th, .deleghe-table td { padding: 10px 8px; font-size: 12px; }
-  .operai-table th, .operai-table td { padding: 10px 8px; font-size: 12px; }
-  .deleg-btn { padding: 10px 16px; font-size: 13px; }
-}
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; }
-
-:root {
-  --bg: #fafafa;
-  --white: #ffffff;
-  --black: #000000;
-  --green: #1a7a48;
-  --green-light: #22a060;
-  --gray-text: #666666;
-  --gray-muted: #999999;
-  --border: #e5e5e5;
-  --blue: #1e40af;
-  --blue-bg: #dbeafe;
-  --red: #991b1b;
-  --red-bg: #fee2e2;
-  --orange: #92400e;
-  --orange-bg: #fef3c7;
-  --green-badge: #166534;
-  --green-badge-bg: #dcfce7;
-}
-
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--black);
+/* === TABLET PORTRAIT (1024px) === */
+@media (max-width: 1024px) {
+  .topbar { flex-wrap: wrap; height: auto; min-height: 60px; padding: 10px 12px; gap: 6px; }
+  .logo-section { gap: 8px; }
+  .logo-icon { width: 32px; height: 32px; font-size: 14px; }
+  .logo-main { font-size: 14px; }
+  .logo-sub { font-size: 9px; }
+  .capo-nav { margin-left: 8px; gap: 2px; }
+  .capo-nav-item { padding: 5px 10px; font-size: 11px; }
+  .topbar-actions { width: 100%; order: 3; justify-content: center; gap: 4px; flex-wrap: wrap;
+    border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+  .tab-btn { padding: 6px 10px; font-size: 11px; }
+  .home-btn { padding: 6px 10px; font-size: 11px; }
+  .logout-btn { padding: 6px 10px; font-size: 11px; }
+  .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; margin-top: 110px; height: calc(100vh - 110px); }
+  .col-orders { grid-row: 1; grid-column: 1; border-right: 1px solid var(--border); overflow-y: auto; }
+  .col-pdf { display: none; }
+  .col-details { grid-row: 1; grid-column: 2; border-left: none; overflow-y: auto; }
+  .btn-show-pdf { display: inline-flex !important; }
+  .main-kpi { margin-top: 110px; height: calc(100vh - 110px); padding: 20px 16px; }
+  .main-clienti { margin-top: 110px; height: calc(100vh - 110px); padding: 20px 16px; }
+  .main-archivio { margin-top: 110px !important; height: calc(100vh - 110px) !important; padding: 20px 16px !important; }
+  .deleghe-view { margin-top: 110px !important; height: calc(100vh - 110px) !important; padding: 20px 16px !important; }
+  .kpi-summary { grid-template-columns: repeat(2, 1fr); }
+  .kpi-phases { grid-template-columns: repeat(2, 1fr); }
+  .kpi-card-value { font-size: 24px; }
+  .kpi-card-label { font-size: 12px; }
+  .kpi-phase-card { padding: 14px; }
+  .kpi-phase-name { font-size: 14px; }
+  .tab-bar { padding: 0 16px; }
+  .tab-item { padding: 12px 16px; font-size: 13px; }
+  .form-row { flex-direction: column; }
+  .form-card { width: 95vw; }
+  .deleghe-table { font-size: 12px; }
+  .deleghe-table th, .deleghe-table td { padding: 10px 10px; font-size: 12px; }
+  .operai-table th, .operai-table td { padding: 10px 10px; font-size: 13px; }
+  .deleghe-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .operai-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #notif-panel-capo { width: calc(100vw - 24px) !important; max-width: 360px !important; }
 }
 
-/* === TOPBAR === */
-.topbar {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 64px;
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 48px;
-  z-index: 1000;
+/* === MOBILE / SMALL TABLET (768px) === */
+@media (max-width: 768px) {
+  .topbar { padding: 8px 10px; gap: 4px; }
+  .logo-icon { width: 28px; height: 28px; font-size: 12px; }
+  .logo-main { font-size: 13px; }
+  .capo-nav-item { padding: 4px 8px; font-size: 10px; }
+  .topbar-actions { gap: 3px; }
+  .tab-btn { padding: 5px 8px; font-size: 10px; }
+  .home-btn { padding: 5px 8px; font-size: 10px; }
+  .logout-btn { padding: 5px 8px; font-size: 10px; }
+  .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; margin-top: 120px; height: calc(100vh - 120px); }
+  .col-orders { grid-row: 1; grid-column: 1; max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
+  .col-details { grid-row: 2; grid-column: 1; border-left: none; border-top: 1px solid var(--border); max-height: 50vh; overflow-y: auto; }
+  .col-pdf { display: none; }
+  .btn-show-pdf { display: inline-flex !important; }
+  .main-kpi { margin-top: 120px; height: calc(100vh - 120px); padding: 12px; }
+  .main-clienti { margin-top: 120px; height: calc(100vh - 120px); padding: 12px; }
+  .main-archivio { margin-top: 120px !important; height: calc(100vh - 120px) !important; padding: 12px !important; }
+  .deleghe-view { margin-top: 120px !important; height: calc(100vh - 120px) !important; padding: 12px !important; }
+  .detail-content { padding: 12px 14px; }
+  .action-row { flex-direction: column; }
+  .action-select { width: 100%; }
+  .kpi-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi-phases { grid-template-columns: 1fr; gap: 10px; }
+  .kpi-card-value { font-size: 20px; }
+  .deleghe-table th, .deleghe-table td { padding: 8px 6px; font-size: 11px; }
+  .operai-table th, .operai-table td { padding: 8px 6px; font-size: 11px; }
+  .deleg-btn { padding: 8px 12px; font-size: 12px; }
+  #notif-panel-capo { width: calc(100vw - 16px) !important; max-width: 340px !important; }
 }
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--green), var(--green-light));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 16px;
-}
-
-.logo-text { display: flex; flex-direction: column; gap: 1px; }
-.logo-main { font-family: 'Geist', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: -0.5px; color: var(--black); }
-.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--green); }
 
 /* === CAPO NAV MENU === */
 .capo-nav { display:flex; align-items:center; gap:4px; margin-left:32px; }
@@ -1641,15 +1672,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .modal-body { flex: 1; }
 .modal-body iframe { width: 100%; height: 100%; border: none; }
 
-/* === RESPONSIVE === */
-@media (max-width: 1024px) {
-  .cal-container { flex-direction: column; height: auto; }
-  .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
-  .topbar, .tab-bar { padding: 0 24px; }
-  .ordini-container { padding: 24px; }
-  .form-row { flex-direction: column; }
-  .form-card { width: 95vw; }
-}
+/* calendario + form responsive — merged into main breakpoints above */
 
 /* === CUSTOM CONFIRM/ALERT MODAL === */
 .app-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; justify-content:center; align-items:center; }
@@ -1988,7 +2011,8 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
     <div id="capo-arch-stats" style="display:flex;gap:16px;margin-bottom:20px;"></div>
 
-    <table style="width:100%;border-collapse:collapse;font-size:13px;background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:600px;">
       <thead style="background:#f1f5f9;">
         <tr>
           <th style="text-align:left;padding:12px 14px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;cursor:pointer;" onclick="capoSortArch('numero_ordine')">Ordine &#8597;</th>
@@ -2001,6 +2025,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       </thead>
       <tbody id="capo-arch-tbody"></tbody>
     </table>
+    </div>
     <div id="capo-arch-pagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:16px;"></div>
   </div>
 </div>
@@ -2257,6 +2282,7 @@ function renderDetailPanel(order) {
         ${order.operatore_nome ? ' &bull; Operatore: <strong>' + escapeHtml(order.operatore_nome) + '</strong>' : ''}
         ${order.prezzo_quotato ? '<br>Prezzo quotato: <strong>' + order.prezzo_quotato.toFixed(2) + ' &euro;</strong>' : ''}
       </div>
+      <button class="btn-show-pdf" onclick="openPdfOverlay()">&#128196; Vedi PDF</button>
     </div>
 
     <div class="detail-content">
@@ -3692,7 +3718,36 @@ function resolveAppModal(value) {
   document.getElementById('app-modal').classList.remove('active');
   if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
 }
+
+// === PDF OVERLAY (tablet) ===
+function openPdfOverlay() {
+  const iframe = document.querySelector('.col-pdf .pdf-viewer iframe');
+  const overlay = document.getElementById('pdf-overlay');
+  const overlayIframe = document.getElementById('pdf-overlay-iframe');
+  if (iframe && iframe.src && iframe.src !== 'about:blank') {
+    overlayIframe.src = iframe.src;
+    overlay.classList.add('active');
+  }
+}
+function closePdfOverlay() {
+  const overlay = document.getElementById('pdf-overlay');
+  overlay.classList.remove('active');
+  document.getElementById('pdf-overlay-iframe').src = 'about:blank';
+}
 </script>
+
+<!-- PDF Overlay for tablet -->
+<div class="pdf-overlay" id="pdf-overlay" onclick="if(event.target===this) closePdfOverlay();">
+  <div class="pdf-overlay-content">
+    <div class="pdf-overlay-header">
+      <span>Anteprima PDF</span>
+      <button class="pdf-overlay-close" onclick="closePdfOverlay()">&times;</button>
+    </div>
+    <div class="pdf-overlay-body">
+      <iframe id="pdf-overlay-iframe" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

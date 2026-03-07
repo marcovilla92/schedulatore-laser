@@ -245,7 +245,7 @@ def seed_users():
             }
         ]
 
-        # Inserisci/aggiorna utenti di default (non toccare utenti creati dinamicamente)
+        # Inserisci/aggiorna utenti reali (non cancella utenti creati dinamicamente)
         for user_data in default_users:
             existing = session.query(User).filter(User.id == user_data['id']).first()
             if existing:
