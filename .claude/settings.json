@@ -52,23 +52,5 @@
       "Write(.claude/**)",
       "Write(.planning/**)"
     ]
-  },
-  "mcpServers": {
-    "sqlite": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-server-sqlite",
-        "app/database/scheduler.db"
-      ]
-    },
-    "fetch": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-fetch"]
-    },
-    "chrome-devtools": {
-      "command": "npx",
-      "args": ["chrome-devtools-mcp@latest"]
-    }
   }
 }
