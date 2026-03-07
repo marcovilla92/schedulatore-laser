@@ -170,114 +170,70 @@ body {
   margin-bottom: 32px;
 }
 
-.form-group {
-  margin-bottom: 24px;
-}
-
-.form-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.form-input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  transition: all 0.3s;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--ls-green);
-  box-shadow: 0 0 0 3px rgba(26, 122, 72, 0.1);
-}
-
-.form-select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.form-select:focus {
-  outline: none;
-  border-color: var(--ls-green);
-  box-shadow: 0 0 0 3px rgba(26, 122, 72, 0.1);
-}
-
-.btn-login {
-  width: 100%;
-  padding: 14px 16px;
-  background: var(--ls-green);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  letter-spacing: 0.5px;
-  will-change: transform, box-shadow;
-}
-
-.btn-login:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(26, 122, 72, 0.3);
-}
-
-.btn-login:active {
-  transform: scale(0.98);
-}
-
-.demo-users {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
-}
-
-.demo-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-}
-
 .demo-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .btn-demo {
-  padding: 10px 12px;
+  width: 100%;
+  padding: 16px 20px;
   border: 1px solid var(--border);
   background: white;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
 }
 
 .btn-demo:hover {
   background: var(--ls-gray-light);
   border-color: var(--ls-green);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.btn-demo:active {
+  transform: scale(0.98);
+}
+
+.btn-demo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.btn-demo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.btn-demo-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-demo-role {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 /* ── DASHBOARD HIDDEN ── */
@@ -1186,27 +1142,16 @@ body {
   </div>
 
   <div class="login-right">
-    <form class="login-form" id="loginForm">
+    <div class="login-form" id="loginForm">
       <h2>Login</h2>
-      <p>Accedi con il tuo account di operaio</p>
+      <p>Seleziona il tuo profilo per accedere</p>
 
-      <div class="form-group">
-        <label class="form-label">Seleziona Operaio</label>
-        <select class="form-select" id="operatorSelect" required>
-          <option value="">-- Caricamento operai... --</option>
-        </select>
-        <div class="error-message" id="loginError"></div>
+      <div class="error-message" id="loginError"></div>
+
+      <div class="demo-buttons" id="demoButtons">
+        <p style="font-size: 12px; color: var(--text-secondary);">Caricamento...</p>
       </div>
-
-      <button type="submit" class="btn-login">Accedi al Dashboard</button>
-
-      <div class="demo-users">
-        <div class="demo-title">Accesso Rapido</div>
-        <div class="demo-buttons" id="demoButtons">
-          <p style="font-size: 12px; color: var(--text-secondary);">Caricamento...</p>
-        </div>
-      </div>
-    </form>
+    </div>
   </div>
 </div>
 
@@ -1459,45 +1404,21 @@ async function loadUsers() {
     const data = await resp.json();
     allUsers = data.users || [];
 
-    // Popola select
-    const select = document.getElementById('operatorSelect');
-    select.innerHTML = '<option value="">-- Scegli un operaio --</option>';
-    allUsers.forEach(user => {
-      const option = document.createElement('option');
-      option.value = user.id;
-      option.textContent = `${user.name} - ${user.role}`;
-      select.appendChild(option);
-    });
-
-    // Popola quick login buttons
     const demoButtons = document.getElementById('demoButtons');
     demoButtons.innerHTML = '';
-    const demoUsers = allUsers;
-    demoUsers.forEach(user => {
+    allUsers.forEach(user => {
+      const initials = user.name.split(' ').map(w => w[0]).join('').toUpperCase();
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn-demo';
-      btn.textContent = user.name.split(' ')[0];
-      btn.onclick = () => quickLogin(user.id);
+      btn.innerHTML = `<div class="btn-demo-icon">${initials}</div><div class="btn-demo-info"><span class="btn-demo-name">${user.name}</span><span class="btn-demo-role">${user.role}</span></div>`;
+      btn.onclick = () => loginUser(user.id);
       demoButtons.appendChild(btn);
     });
   } catch (e) {
     console.error('Error loading users:', e);
-    document.getElementById('operatorSelect').innerHTML = '<option value="">Errore nel caricamento...</option>';
+    document.getElementById('demoButtons').innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Errore nel caricamento utenti</p>';
   }
-}
-
-// ── LOGIN HANDLER ──
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const userId = document.getElementById('operatorSelect').value;
-  if (userId) {
-    await loginUser(userId);
-  }
-});
-
-async function quickLogin(userId) {
-  await loginUser(userId);
 }
 
 async function loginUser(userId) {
@@ -1590,7 +1511,7 @@ function logout() {
   document.getElementById('userDropdown').classList.remove('active');
   document.getElementById('dashboard').classList.remove('active');
   document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('loginForm').reset();
+  // loginForm è un div, non serve reset
 }
 
 async function updateDashboardUI() {

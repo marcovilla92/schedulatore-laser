@@ -15,6 +15,8 @@ html, body { height: 100%; }
   --bg: #fafafa;
   --white: #ffffff;
   --black: #000000;
+  --green: #1a7a48;
+  --green-light: #22a060;
   --gray-text: #666666;
   --gray-muted: #999999;
   --border: #e5e5e5;
@@ -22,8 +24,10 @@ html, body { height: 100%; }
   --orange-bg: #fef3c7;
   --blue: #1e40af;
   --blue-bg: #dbeafe;
+  --red: #991b1b;
+  --red-bg: #fee2e2;
+  --green-badge: #166534;
   --green-badge-bg: #dcfce7;
-  --red: #ef4444;
 }
 
 body {
@@ -181,45 +185,97 @@ body {
 }
 .storico-cards { margin-top: 12px; }
 
-/* CARD ROW */
-.card-row {
+/* === ACCORDION LIST === */
+.accordion-list {
   display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-/* ORDER CARD */
-.order-card {
-  flex: 1;
-  min-width: 340px;
-  max-width: 600px;
-  background: var(--white);
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  transition: box-shadow 0.2s;
-}
-
-.order-card.active {
-  border: 2px solid var(--ls-green);
-  box-shadow: 0 4px 16px rgba(26,122,72,0.12);
-}
-
-.order-card.waiting {
-  border: 1px solid var(--border);
+  background: var(--white);
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
+.accordion-item {
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
+  transition: background 0.2s;
+}
+.accordion-item:last-child { border-bottom: none; }
 
-/* CARD TOP */
-.card-top {
-  padding: 20px;
+/* Color-coded left border for active orders */
+.accordion-item.color-green { border-left: 5px solid #1a7a48; background: #f0fdf4; }
+.accordion-item.color-blue { border-left: 5px solid #1e40af; background: #eff6ff; }
+.accordion-item.color-purple { border-left: 5px solid #6b21a8; background: #faf5ff; }
+.accordion-item.color-orange { border-left: 5px solid #92400e; background: #fffbeb; }
+.accordion-item.color-confirmed { border-left: 5px dashed #1a7a48; background: #f0fdf4; }
+
+/* Collapsed row header */
+.accordion-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 56px;
+  transition: background 0.15s;
 }
+.accordion-header:hover { background: rgba(0,0,0,0.02); }
+.accordion-header:active { background: rgba(0,0,0,0.04); }
+
+.acc-client {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--black);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.acc-order-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-text);
+  white-space: nowrap;
+}
+.acc-consegna {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-text);
+  white-space: nowrap;
+  margin-left: auto;
+}
+.acc-consegna.urgent { color: #ef4444; font-weight: 700; }
+.acc-consegna.soon { color: #f59e0b; font-weight: 700; }
+.acc-chevron {
+  font-size: 14px;
+  color: var(--gray-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+.accordion-item.expanded .acc-chevron { transform: rotate(180deg); }
+
+/* Expanded content panel */
+.accordion-body {
+  display: none;
+  padding: 0 20px 16px;
+  border-top: 1px solid var(--border);
+}
+.accordion-item.expanded .accordion-body { display: block; }
+.accordion-body .card-actions { padding: 10px 0; border-top: none; }
+.accordion-body .card-actions-secondary { padding: 4px 0 10px; }
+.accordion-body .card-phases { border-top: 1px solid var(--border); padding: 10px 0 0; }
+.accordion-body .support-badge { margin-bottom: 8px; }
+.accordion-body .timer-section { margin: 8px 0; }
+.accordion-body .card-fase { margin: 8px 0; }
+
+/* Storico accordion overrides */
+.storico-cards .accordion-item { opacity: 0.7; }
+
+/* Legacy compat — .card-row no longer used, accordion-list replaces it */
 
 .card-header {
   display: flex;
@@ -293,6 +349,80 @@ body {
   color: var(--ls-green);
 }
 
+/* Timer separati per operatori (supporto) */
+.timers-multi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(26,122,72,0.05);
+}
+.timer-operator-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.timer-op-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-text);
+}
+.timer-op-label.me {
+  color: var(--ls-green);
+  font-weight: 700;
+}
+.timer-op-value {
+  font-family: 'Geist', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ls-green);
+}
+.timer-op-value.other {
+  color: var(--blue);
+  font-size: 18px;
+}
+.timer-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  margin-top: 4px;
+}
+.timer-total-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--black);
+}
+.timer-total-value {
+  font-family: 'Geist', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--black);
+}
+
+/* Card confermato in attesa */
+.confirmed-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(26,122,72,0.08);
+  border: 1px solid rgba(26,122,72,0.2);
+}
+.confirmed-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ls-green);
+}
+.confirmed-waiting {
+  font-size: 12px;
+  color: var(--gray-text);
+}
+
 /* WAITING NOTE */
 .waiting-note {
   display: flex;
@@ -358,8 +488,22 @@ body {
 }
 .action-btn.outline:hover { background: var(--bg); border-color: #9ca3af; }
 
+/* COMPACT CARD ACTIONS — secondary hidden behind "Altro" toggle */
+.card-actions-secondary {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 20px 10px;
+}
+.card-actions-secondary.visible { display: flex; }
+.action-btn.more-toggle {
+  background: var(--bg);
+  color: var(--gray-text);
+  border: 1px dashed #d1d5db;
+}
+.action-btn.more-toggle:hover { background: #e5e5e5; color: var(--black); border-color: #9ca3af; }
+
 /* PAUSED CARD */
-.order-card.paused { border: 2px solid var(--orange); box-shadow: 0 4px 16px rgba(146,64,14,0.12); }
 .paused-info { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px; border-radius:8px; background:rgba(146,64,14,0.05); }
 .paused-label { font-size:12px; font-weight:700; color:var(--orange); text-transform:uppercase; letter-spacing:0.5px; }
 .paused-time { font-family:'Geist',sans-serif; font-size:22px; font-weight:900; letter-spacing:-0.5px; color:var(--orange); }
@@ -640,41 +784,16 @@ body {
   .topbar h1 { font-size: 16px; }
   .cal-container { flex-direction: column; height: auto; }
   .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
-  .card-row { flex-direction: column; }
-  .order-card { max-width: 100%; min-width: 100%; }
   .notif-panel { width: calc(100vw - 32px); max-width: 380px; right: 0; }
-  /* Touch-friendly: bottoni più grandi */
+  /* Touch-friendly accordion on tablet */
+  .accordion-header { padding: 14px 16px; gap: 8px; }
+  .acc-client { max-width: 140px; font-size: 14px; }
+  .accordion-body { padding: 0 16px 12px; }
+  .accordion-body .action-btn { min-height: 48px; padding: 12px 16px; font-size: 14px; }
   .action-btn { padding: 12px 16px; font-size: 14px; }
   .btn-home { padding: 10px 16px; font-size: 13px; }
 }
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; }
-
-:root {
-  --bg: #fafafa;
-  --white: #ffffff;
-  --black: #000000;
-  --green: #1a7a48;
-  --green-light: #22a060;
-  --gray-text: #666666;
-  --gray-muted: #999999;
-  --border: #e5e5e5;
-  --blue: #1e40af;
-  --blue-bg: #dbeafe;
-  --red: #991b1b;
-  --red-bg: #fee2e2;
-  --orange: #92400e;
-  --orange-bg: #fef3c7;
-  --green-badge: #166534;
-  --green-badge-bg: #dcfce7;
-}
-
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--black);
-}
+/* === OLD CSS BLOCK (kept for modals, selects, etc.) === */
 
 /* === TOPBAR === */
 .topbar {
@@ -1678,7 +1797,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <div class="page-sub" id="page-sub">Caricamento...</div>
     </div>
 
-    <div class="card-row" id="card-row">
+    <div class="accordion-list" id="card-row">
       <div class="empty-state">
         <div class="empty-icon">&#128230;</div>
         Caricamento ordini...
@@ -1692,7 +1811,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
         <span class="storico-toggle-title">Storico Ordini Completati</span>
         <span class="storico-count" id="storico-count">0</span>
       </div>
-      <div class="card-row storico-cards" id="storico-cards" style="display:none;"></div>
+      <div class="accordion-list storico-cards" id="storico-cards" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -1856,6 +1975,9 @@ const API_URL = '';
 let currentUser = null;
 let allOrders = [];
 let activeTimers = {};
+let expandedOrders = new Set();
+let activeColorMap = {};
+let manuallyCollapsed = new Set();
 
 // === SESSION ===
 window.addEventListener('load', () => {
@@ -1864,10 +1986,12 @@ window.addEventListener('load', () => {
   currentUser = JSON.parse(saved);
   if (!currentUser.id) { window.location.href = '/login.html'; return; }
 
-  // === CAPO NAV MENU + TAB CALENDARIO ===
+  // === NAV MENU ===
+  const topbar = document.querySelector('.topbar');
+  const logoSection = topbar.querySelector('.logo-section');
+
   if (currentUser.is_capo || currentUser.role === 'Capo Officina') {
-    const topbar = document.querySelector('.topbar');
-    const logoSection = topbar.querySelector('.logo-section');
+    // Capo: I miei ordini + Gestione officina
     const nav = document.createElement('div');
     nav.className = 'capo-nav';
     nav.innerHTML = `
@@ -1884,6 +2008,15 @@ window.addEventListener('load', () => {
     calTab.textContent = 'Calendario Ordini';
     calTab.onclick = () => switchOperTab('calendario');
     tabBar.appendChild(calTab);
+  } else if (currentUser.phase === 'LASER') {
+    // Laser: I miei ordini (qui) + Laser
+    const nav = document.createElement('div');
+    nav.className = 'capo-nav';
+    nav.innerHTML = `
+      <a class="capo-nav-item active" href="/officina.html">I miei ordini</a>
+      <a class="capo-nav-item" href="/laser-v2.html">Laser</a>
+    `;
+    logoSection.insertAdjacentElement('afterend', nav);
   }
 
   loadOrders();
@@ -1895,8 +2028,8 @@ async function loadOrders() {
   try {
     let url;
     const phase = currentUser.phase || 'PIEGA';
-    if (phase === 'OFFICINA' || phase === 'ALL') {
-      // Operai OFFICINA o Capo (ALL): carica tutti gli ordini assegnati
+    if (phase === 'OFFICINA' || phase === 'ALL' || phase === 'LASER') {
+      // Operai OFFICINA, Capo (ALL) o Laser: carica tutti gli ordini assegnati
       url = `${API_URL}/api/orders?operatore=${currentUser.id}`;
     } else {
       // Operai con fase specifica (PIEGA, SALDATURA, PULIZIA)
@@ -1911,137 +2044,268 @@ async function loadOrders() {
   }
 }
 
-// === RENDER CARDS ===
+// === ACCORDION UTILITIES ===
+function toggleAccordion(orderId) {
+  const item = document.querySelector('.accordion-item[data-order-id="' + orderId + '"]');
+  if (!item) return;
+  if (item.classList.contains('expanded')) {
+    item.classList.remove('expanded');
+    expandedOrders.delete(orderId);
+    manuallyCollapsed.add(orderId);
+  } else {
+    item.classList.add('expanded');
+    expandedOrders.add(orderId);
+    manuallyCollapsed.delete(orderId);
+  }
+}
+
+function assignActiveColors(orders, getOrderPhase, getMyStepInfo) {
+  const colorClasses = ['color-green', 'color-blue', 'color-purple'];
+  let colorIdx = 0;
+  activeColorMap = {};
+  orders.forEach(order => {
+    const phase = getOrderPhase(order);
+    const step = (order.processing_steps || []).filter(s => s.fase === phase).pop();
+    const myInfo = step ? getMyStepInfo(step) : {};
+    if (myInfo.isActive) {
+      activeColorMap[order.id] = colorClasses[colorIdx % colorClasses.length];
+      colorIdx++;
+    } else if (myInfo.isPaused) {
+      activeColorMap[order.id] = 'color-orange';
+    } else if (myInfo.isConfirmed && !myInfo.isActive) {
+      activeColorMap[order.id] = 'color-confirmed';
+    }
+  });
+}
+
+// === RENDER CARDS (ACCORDION) ===
 function renderCards() {
   const container = document.getElementById('card-row');
   const storicoSection = document.getElementById('storico-section');
   const storicoCards = document.getElementById('storico-cards');
   const storicoCount = document.getElementById('storico-count');
   const userPhase = currentUser.phase || 'PIEGA';
-  const isOfficina = (userPhase === 'OFFICINA' || userPhase === 'ALL');
-  const isCapo = currentUser.is_capo || currentUser.role === 'Capo Officina';
+  const isOfficina = (userPhase === 'OFFICINA' || userPhase === 'ALL' || userPhase === 'LASER');
 
-  // Separa ordini attivi da completati
   const activeOrders = allOrders.filter(o => o.status !== 'COMPLETATO');
   const completedOrders = allOrders.filter(o => o.status === 'COMPLETATO');
 
   document.getElementById('page-sub').textContent =
     `${currentUser.name || 'Operatore'} \u2014 ${activeOrders.length === 1 ? '1 ordine attivo' : activeOrders.length + ' ordini attivi'}`;
 
-  // Per OFFICINA: la fase rilevante è fase_corrente dell'ordine
-  // Per fase specifica: usa la fase dell'utente
   function getOrderPhase(order) {
     return isOfficina ? (order.fase_corrente || 'PIEGA') : userPhase;
   }
 
   function getMyStepInfo(step) {
-    // Restituisce stato e tempo per-operatore (supporto parallelo)
     const myInfo = step.operatori_info?.[currentUser.id];
     if (myInfo) {
-      return {
-        isActive: myInfo.sessione_attiva,
-        isPaused: myInfo.in_pausa,
-        sessionStart: myInfo.sessione_attiva_inizio,
-        cumulativeSeconds: myInfo.tempo_cumulativo_secondi || 0,
-        sessionCount: myInfo.sessioni_count || 0
-      };
+      return { isActive: myInfo.sessione_attiva, isPaused: myInfo.in_pausa, isConfirmed: myInfo.confermato || false,
+        sessionStart: myInfo.sessione_attiva_inizio, cumulativeSeconds: myInfo.tempo_cumulativo_secondi || 0, sessionCount: myInfo.sessioni_count || 0 };
     }
-    // Se ci sono operatori_info ma NON per me, sono un supporter senza sessione
-    // NON mostrare il timer di un altro operatore
     if (step.operatori_info && Object.keys(step.operatori_info).length > 0) {
-      return {
-        isActive: false,
-        isPaused: false,
-        sessionStart: null,
-        cumulativeSeconds: 0,
-        sessionCount: 0
-      };
+      return { isActive: false, isPaused: false, isConfirmed: false, sessionStart: null, cumulativeSeconds: 0, sessionCount: 0 };
     }
-    // Fallback: usa dati globali dello step (operatore singolo, nessun supporto)
-    return {
-      isActive: step.sessione_attiva,
-      isPaused: step.in_pausa,
-      sessionStart: step.sessione_attiva_inizio,
-      cumulativeSeconds: step.tempo_cumulativo_secondi || 0,
-      sessionCount: step.sessioni_count || 0
-    };
+    return { isActive: step.sessione_attiva, isPaused: step.in_pausa, isConfirmed: false,
+      sessionStart: step.sessione_attiva_inizio, cumulativeSeconds: step.tempo_cumulativo_secondi || 0, sessionCount: step.sessioni_count || 0 };
   }
 
-  // Pulisci timer precedenti
+  // Pulisci timer
   Object.keys(activeTimers).forEach(k => {
     if (!k.startsWith('deleg-')) { clearInterval(activeTimers[k]); delete activeTimers[k]; }
   });
 
   if (activeOrders.length === 0) {
-    container.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">&#9996;</div>
-      Nessun ordine attivo al momento
-    </div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">&#9996;</div>Nessun ordine attivo al momento</div>`;
   } else {
-    // Sort: active first, then paused, then waiting
+    // Sort by consegna date ascending
     const sorted = [...activeOrders].sort((a, b) => {
-      const phaseA = getOrderPhase(a);
-      const phaseB = getOrderPhase(b);
-      const stepA = (a.processing_steps || []).filter(s => s.fase === phaseA).pop();
-      const stepB = (b.processing_steps || []).filter(s => s.fase === phaseB).pop();
-      const infoA = stepA ? getMyStepInfo(stepA) : {};
-      const infoB = stepB ? getMyStepInfo(stepB) : {};
-      const scoreA = infoA.isActive ? 2 : infoA.isPaused ? 1 : 0;
-      const scoreB = infoB.isActive ? 2 : infoB.isPaused ? 1 : 0;
-      return scoreB - scoreA;
+      const dateA = a.data_consegna ? new Date(a.data_consegna) : new Date('2099-12-31');
+      const dateB = b.data_consegna ? new Date(b.data_consegna) : new Date('2099-12-31');
+      return dateA - dateB;
     });
 
+    // Assign colors to active orders
+    assignActiveColors(sorted, getOrderPhase, getMyStepInfo);
+
+    // Render accordion items
     container.innerHTML = sorted.map(order => {
       const phase = getOrderPhase(order);
       const step = (order.processing_steps || []).filter(s => s.fase === phase).pop();
       const myInfo = step ? getMyStepInfo(step) : {};
-      const isActive = myInfo.isActive;
-      const isPaused = myInfo.isPaused;
-      const isCompleted = order.status === 'COMPLETATO';
-      const consegna = order.data_consegna
-        ? new Date(order.data_consegna).toLocaleDateString('it-IT')
-        : 'N/A';
-
-      if (isActive) {
-        return renderActiveCard(order, step, phase, consegna);
-      } else if (isPaused) {
-        return renderPausedCard(order, step, phase, consegna);
-      } else if (isCompleted) {
-        return renderCompletedCard(order, consegna);
-      } else {
-        return renderWaitingCard(order, phase, consegna);
-      }
+      return renderAccordionItem(order, step, phase, myInfo, {
+        isActive: myInfo.isActive,
+        isPaused: myInfo.isPaused,
+        isConfirmed: myInfo.isConfirmed && !myInfo.isActive,
+        isCompleted: false
+      });
     }).join('');
 
-    // Start timers for active orders (with cumulative offset per-operatore)
+    // Auto-expand active/paused/confirmed (respect manuallyCollapsed)
+    sorted.forEach(order => {
+      const phase = getOrderPhase(order);
+      const step = (order.processing_steps || []).filter(s => s.fase === phase).pop();
+      const myInfo = step ? getMyStepInfo(step) : {};
+      if ((myInfo.isActive || myInfo.isPaused || (myInfo.isConfirmed && !myInfo.isActive)) && !manuallyCollapsed.has(order.id)) {
+        expandedOrders.add(order.id);
+      }
+    });
+    expandedOrders.forEach(id => {
+      const el = document.querySelector('.accordion-item[data-order-id="' + id + '"]');
+      if (el) el.classList.add('expanded');
+    });
+
+    // Start timers (unchanged logic)
     sorted.forEach(order => {
       const phase = getOrderPhase(order);
       const step = (order.processing_steps || []).filter(s => s.fase === phase).pop();
       if (step) {
-        const myInfo = getMyStepInfo(step);
-        if (myInfo.isActive && myInfo.sessionStart) {
-          startTimer(order.id, myInfo.sessionStart, myInfo.cumulativeSeconds);
+        const opInfo = step.operatori_info || {};
+        const opIds = Object.keys(opInfo);
+        const anyActive = opIds.some(id => opInfo[id].sessione_attiva);
+        if (opIds.length > 1 && anyActive) {
+          startMultiTimer(order.id, opInfo);
+        } else {
+          const myInfo = getMyStepInfo(step);
+          if (myInfo.isActive && myInfo.sessionStart) {
+            startTimer(order.id, myInfo.sessionStart, myInfo.cumulativeSeconds);
+          }
         }
       }
     });
   }
 
-  // Storico ordini completati (solo operatori, non capi)
+  // Storico completati
   if (completedOrders.length > 0) {
     storicoSection.style.display = '';
     storicoCount.textContent = completedOrders.length;
     storicoCards.innerHTML = completedOrders.map(order => {
-      const consegna = order.data_consegna
-        ? new Date(order.data_consegna).toLocaleDateString('it-IT')
-        : 'N/A';
-      return renderCompletedCard(order, consegna);
+      return renderAccordionItem(order, null, null, {}, {
+        isActive: false, isPaused: false, isConfirmed: false, isCompleted: true
+      });
     }).join('');
   } else {
     storicoSection.style.display = 'none';
   }
 }
 
-function renderActiveCard(order, step, phase, consegna) {
+function getOperatorDisplayName(opId, order) {
+  if (opId === currentUser.id) return 'Tu';
+  const srs = order.support_requests || [];
+  for (const sr of srs) {
+    if (sr.operatore_supporto === opId) return sr.nome_supporto || opId;
+    if (sr.operatore_principale === opId) return sr.nome_principale || opId;
+  }
+  return opId;
+}
+
+function buildTimerHtml(order, step, mode) {
+  // mode: 'active' (live timers) or 'paused' (static times)
+  const opInfo = step.operatori_info || {};
+  const opIds = Object.keys(opInfo);
+  const hasMulti = opIds.length > 1;
+
+  if (!hasMulti) {
+    if (mode === 'active') {
+      return `<div class="timer-section">
+        <span class="timer-icon">&#9202;</span>
+        <span class="timer-value" id="timer-${order.id}">00:00:00</span>
+      </div>`;
+    } else {
+      const myInfo = opInfo[currentUser.id] || {};
+      const sec = myInfo.tempo_cumulativo_secondi || (step.tempo_cumulativo_secondi || 0);
+      return `<div class="timer-section" style="background:rgba(234,88,12,0.05);">
+        <span class="timer-icon">&#9208;</span>
+        <span class="timer-value" style="color:var(--orange);">${formatTimerVal(sec)}</span>
+      </div>`;
+    }
+  }
+
+  // Multi-operator: show each operator's timer + total
+  let rows = '';
+  opIds.forEach(opId => {
+    const info = opInfo[opId];
+    const isMe = opId === currentUser.id;
+    const name = getOperatorDisplayName(opId, order);
+    const timerId = isMe ? `timer-${order.id}` : `timer-${order.id}-${opId}`;
+    const labelCls = isMe ? 'timer-op-label me' : 'timer-op-label';
+    const valCls = isMe ? 'timer-op-value' : 'timer-op-value other';
+    const statusIcon = info.sessione_attiva ? '&#9654;' : (info.in_pausa ? '&#9208;' : '&#9744;');
+    rows += `<div class="timer-operator-row">
+      <span class="${labelCls}">${statusIcon} ${escapeHtml(name)}</span>
+      <span class="${valCls}" id="${timerId}">00:00:00</span>
+    </div>`;
+  });
+  rows += `<div class="timer-total-row">
+    <span class="timer-total-label">Totale</span>
+    <span class="timer-total-value" id="timer-total-${order.id}">00:00:00</span>
+  </div>`;
+  return `<div class="timers-multi">${rows}</div>`;
+}
+
+function formatTimerVal(totalSec) {
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSec % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+// === ACCORDION RENDER ===
+function renderAccordionItem(order, step, phase, myInfo, flags) {
+  const { isActive, isPaused, isConfirmed, isCompleted } = flags;
+  const orderId = order.id;
+  const cliente = escapeHtml(order.cliente);
+  const numOrdine = escapeHtml(order.numero_ordine || order.id.substring(0, 8));
+  const consegnaRaw = order.data_consegna ? new Date(order.data_consegna) : null;
+  const consegna = consegnaRaw ? consegnaRaw.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : 'N/A';
+  const consegnaFull = consegnaRaw ? consegnaRaw.toLocaleDateString('it-IT') : 'N/A';
+
+  let consegnaClass = '';
+  if (consegnaRaw) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const c = new Date(consegnaRaw); c.setHours(0,0,0,0);
+    if (c < today) consegnaClass = 'urgent';
+    else {
+      const twoDays = new Date(today); twoDays.setDate(twoDays.getDate() + 2);
+      if (c <= twoDays) consegnaClass = 'soon';
+    }
+  }
+
+  let statusBadgeClass = '', statusText = '';
+  if (isActive) { statusBadgeClass = 'lavorazione'; statusText = 'IN LAVORAZIONE'; }
+  else if (isPaused) { statusBadgeClass = 'pausa'; statusText = 'IN PAUSA'; }
+  else if (isConfirmed) { statusBadgeClass = 'lavorazione'; statusText = 'CONFERMATO'; }
+  else if (isCompleted) { statusBadgeClass = 'lavorazione'; statusText = 'COMPLETATO'; }
+  else {
+    const laserStep = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+    if (laserStep?.timestamp_fine) { statusBadgeClass = 'in-attesa'; statusText = 'IN ATTESA'; }
+    else { statusBadgeClass = 'ricevuto'; statusText = 'DA TAGLIARE'; }
+  }
+
+  const colorClass = activeColorMap[orderId] || '';
+
+  const headerHtml = `<div class="accordion-header" onclick="toggleAccordion('${orderId}')">
+    <span class="acc-client">${cliente}</span>
+    <span class="acc-order-num">#${numOrdine}</span>
+    <span class="acc-consegna ${consegnaClass}">${consegna}</span>
+    <span class="acc-status-badge card-status ${statusBadgeClass}">${statusText}</span>
+    <span class="acc-chevron">&#9660;</span>
+  </div>`;
+
+  let bodyHtml = '';
+  if (isActive) bodyHtml = buildActiveBody(order, step, phase, consegnaFull);
+  else if (isPaused) bodyHtml = buildPausedBody(order, step, phase, consegnaFull);
+  else if (isConfirmed) bodyHtml = buildConfirmedBody(order, step, phase, consegnaFull);
+  else if (isCompleted) bodyHtml = buildCompletedBody(order, consegnaFull);
+  else bodyHtml = buildWaitingBody(order, phase, consegnaFull);
+
+  return `<div class="accordion-item ${colorClass}" data-order-id="${orderId}" data-cliente="${cliente}">
+    ${headerHtml}
+    <div class="accordion-body">${bodyHtml}</div>
+  </div>`;
+}
+
+function buildActiveBody(order, step, phase, consegna) {
   const faseBadgeClass = phase.toLowerCase();
   const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
   const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
@@ -2049,43 +2313,87 @@ function renderActiveCard(order, step, phase, consegna) {
   const supportInfo = (order.support_requests || []).find(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
   const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
     (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
-  return `<div class="order-card active" data-cliente="${escapeHtml(order.cliente)}">
-    <div class="card-top">
-      <div class="card-header">
-        <span class="card-client">${escapeHtml(order.cliente)}</span>
-        <span class="card-status lavorazione">IN LAVORAZIONE</span>
-      </div>
-      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna} &middot; Tagliato</div>
-      ${supportBadgeHtml}
-      <div class="card-fase">
-        <span class="card-fase-label">Fase:</span>
-        <span class="fase-badge ${faseBadgeClass}">${phase}</span>
-      </div>
-      <div class="timer-section">
-        <span class="timer-icon">&#9202;</span>
-        <span class="timer-value" id="timer-${order.id}">00:00:00</span>
-      </div>
-    </div>
+  const timerHtml = buildTimerHtml(order, step, 'active');
+
+  let sec = '';
+  if (!isSupport) sec += `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>`;
+  if (!isSupport) sec += `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>`;
+  if (canModify) sec += `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>`;
+
+  return `${supportBadgeHtml}
+    <div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
+    ${timerHtml}
     <div class="card-actions">
       <button class="action-btn green" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
       <button class="action-btn outline" onclick="savePartial('${order.id}')">&#9208; Pausa</button>
-      ${!isSupport ? `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>` : ''}
-      ${!isSupport ? `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>` : ''}
-      ${canModify ? `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>` : ''}
+      ${sec ? `<button class="action-btn more-toggle" id="card-more-${order.id}" onclick="event.stopPropagation();toggleCardActions('${order.id}')">Altro &#9662;</button>` : ''}
     </div>
-    <div class="card-phases">
-      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
-      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
-    </div>
-  </div>`;
+    ${sec ? `<div class="card-actions-secondary" id="card-secondary-${order.id}">${sec}</div>` : ''}
+    <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
-function renderWaitingCard(order, phase, consegna) {
-  const laserStep = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
-  const laserDone = laserStep?.timestamp_fine;
-  const statusClass = laserDone ? 'in-attesa' : 'ricevuto';
-  const statusText = laserDone ? 'IN ATTESA' : 'DA TAGLIARE';
-  const noteText = laserDone ? 'In attesa di lavorazione' : 'In attesa taglio laser';
+function buildPausedBody(order, step, phase, consegna) {
+  const faseBadgeClass = phase.toLowerCase();
+  const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
+  const opInfo = step.operatori_info || {};
+  const opIds = Object.keys(opInfo);
+  const hasMulti = opIds.length > 1;
+  const myInfo = opInfo[currentUser.id];
+  const cumulSec = myInfo ? myInfo.tempo_cumulativo_secondi : (step.tempo_cumulativo_secondi || 0);
+  const sessCount = myInfo ? myInfo.sessioni_count : (step.sessioni_count || 0);
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supporters = (order.support_requests || []).filter(sr => sr.operatore_principale === currentUser.id && sr.stato === 'accepted');
+  const supportInfo = (order.support_requests || []).find(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
+    (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
+  const pausedInfoHtml = hasMulti ? buildTimerHtml(order, step, 'paused')
+    : `<div class="paused-info"><span class="paused-label">&#9208; In Pausa</span><span class="paused-time">${formatTimerVal(cumulSec)}</span><span class="paused-sessions">${sessCount} ${sessCount === 1 ? 'sessione' : 'sessioni'} completate</span></div>`;
+
+  let sec = '';
+  if (!isSupport) sec += `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>`;
+  if (!isSupport) sec += `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>`;
+  if (canModify) sec += `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>`;
+
+  return `${supportBadgeHtml}
+    <div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
+    ${pausedInfoHtml}
+    <div class="card-actions">
+      <button class="action-btn green" onclick="resumePhase('${order.id}','${phase}')">&#9654; Riprendi</button>
+      <button class="action-btn outline" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
+      ${sec ? `<button class="action-btn more-toggle" id="card-more-${order.id}" onclick="event.stopPropagation();toggleCardActions('${order.id}')">Altro &#9662;</button>` : ''}
+    </div>
+    ${sec ? `<div class="card-actions-secondary" id="card-secondary-${order.id}">${sec}</div>` : ''}
+    <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
+}
+
+function buildConfirmedBody(order, step, phase, consegna) {
+  const faseBadgeClass = phase.toLowerCase();
+  const opInfo = step.operatori_info || {};
+  const opIds = Object.keys(opInfo);
+  const pendingNames = [];
+  opIds.forEach(opId => { if (opId !== currentUser.id && !opInfo[opId].confermato) pendingNames.push(getOperatorDisplayName(opId, order)); });
+  let timersHtml = '';
+  if (opIds.length > 1) {
+    let rows = '', totalSec = 0;
+    opIds.forEach(opId => {
+      const info = opInfo[opId]; const sec = info.tempo_cumulativo_secondi || 0; totalSec += sec;
+      const name = getOperatorDisplayName(opId, order);
+      const icon = info.confermato ? '&#10004;' : (info.sessione_attiva ? '&#9654;' : '&#9208;');
+      const color = info.confermato ? 'var(--ls-green)' : (info.sessione_attiva ? 'var(--blue)' : 'var(--orange)');
+      const timerId = opId === currentUser.id ? `timer-${order.id}` : `timer-${order.id}-${opId}`;
+      rows += `<div class="timer-operator-row"><span class="timer-op-label" style="color:${color};">${icon} ${escapeHtml(name)}</span><span class="timer-op-value" style="color:${color};font-size:16px;" id="${timerId}">${formatTimerVal(sec)}</span></div>`;
+    });
+    rows += `<div class="timer-total-row"><span class="timer-total-label">Totale</span><span class="timer-total-value" style="font-size:18px;" id="timer-total-${order.id}">${formatTimerVal(totalSec)}</span></div>`;
+    timersHtml = `<div class="timers-multi" style="margin-top:8px;">${rows}</div>`;
+  }
+  return `<div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
+    <div class="confirmed-info"><span class="confirmed-label">&#10004; Hai confermato la fine della fase</span>${pendingNames.length > 0 ? `<span class="confirmed-waiting">In attesa che ${pendingNames.join(', ')} confermi...</span>` : ''}</div>
+    ${timersHtml}
+    <div class="card-actions"><button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button></div>
+    <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
+}
+
+function buildWaitingBody(order, phase, consegna) {
   const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
   const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
   const supporters = (order.support_requests || []).filter(sr => sr.operatore_principale === currentUser.id && sr.stato === 'accepted');
@@ -2093,117 +2401,42 @@ function renderWaitingCard(order, phase, consegna) {
   const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
     (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
   const hasCompletedPhases = (order.processing_steps || []).some(s => s.timestamp_fine);
+  const phaseActions = buildPhaseActionsSplit(order);
 
-  return `<div class="order-card waiting" data-cliente="${escapeHtml(order.cliente)}">
-    <div class="card-top">
-      <div class="card-header">
-        <span class="card-client">${escapeHtml(order.cliente)}</span>
-        <span class="card-status ${statusClass}">${statusText}</span>
-      </div>
-      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
-      ${supportBadgeHtml}
-      <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--bg); border-radius:8px;">
-        <div class="progress-bar-bg" style="flex:1; height:8px;">
-          <div class="progress-bar-fill" style="width:${calculateProgress(order)}%; background:${getProgressColor(calculateProgress(order))};"></div>
-        </div>
-        <span style="font-size:13px; font-weight:700; color:var(--black); min-width:36px;">${calculateProgress(order)}%</span>
-      </div>
+  let sec = phaseActions.secondary;
+  sec += `<button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>`;
+  if (!isSupport) sec += `<button class="action-btn outline" onclick="openDelegationModal('${order.id}','${phase}')">&#128101; Delega</button>`;
+  if (!isSupport) sec += `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>`;
+  if (!isSupport && hasCompletedPhases) sec += `<button class="action-btn outline" style="color:var(--red);" onclick="openCompleteOrderModal('${order.id}')">&#9632; Chiudi Ordine</button>`;
+  if (canModify) sec += `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>`;
+
+  return `${supportBadgeHtml}
+    <div style="display:flex; align-items:center; gap:10px; padding:8px 0;">
+      <div class="progress-bar-bg" style="flex:1; height:8px;"><div class="progress-bar-fill" style="width:${calculateProgress(order)}%; background:${getProgressColor(calculateProgress(order))};"></div></div>
+      <span style="font-size:13px; font-weight:700; color:var(--black); min-width:36px;">${calculateProgress(order)}%</span>
     </div>
     <div class="card-actions">
-      ${buildPhaseActions(order)}
-      <button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>
-      ${!isSupport ? `<button class="action-btn outline" onclick="openDelegationModal('${order.id}','${phase}')">&#128101; Delega</button>` : ''}
-      ${!isSupport ? `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>` : ''}
-      ${!isSupport && hasCompletedPhases ? `<button class="action-btn outline" style="color:var(--red);" onclick="openCompleteOrderModal('${order.id}')">&#9632; Chiudi Ordine</button>` : ''}
-      ${canModify ? `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>` : ''}
+      ${phaseActions.primary}
+      ${sec ? `<button class="action-btn more-toggle" id="card-more-${order.id}" onclick="event.stopPropagation();toggleCardActions('${order.id}')">Altro &#9662;</button>` : ''}
     </div>
-    <div class="card-phases">
-      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
-      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
-    </div>
-  </div>`;
+    ${sec ? `<div class="card-actions-secondary" id="card-secondary-${order.id}">${sec}</div>` : ''}
+    <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
-function renderCompletedCard(order, consegna) {
-  // Calcola tempo totale lavorazione
+function buildCompletedBody(order, consegna) {
   let tempoTotale = 0;
-  (order.processing_steps || []).forEach(s => {
-    if (s.tempo_cumulativo_secondi) tempoTotale += s.tempo_cumulativo_secondi;
-  });
+  (order.processing_steps || []).forEach(s => { if (s.tempo_cumulativo_secondi) tempoTotale += s.tempo_cumulativo_secondi; });
   const tempoStr = tempoTotale > 0 ? formatDuration(tempoTotale) : '';
-
-  return `<div class="order-card waiting" style="opacity: 0.7;" data-cliente="${escapeHtml(order.cliente)}">
-    <div class="card-top">
-      <div class="card-header">
-        <span class="card-client">${escapeHtml(order.cliente)}</span>
-        <span class="card-status lavorazione">COMPLETATO</span>
-      </div>
-      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
-      <div class="waiting-note" style="background: var(--green-badge-bg); color: #166534;">
-        <span>&#10004;</span>
-        <span>Ordine completato${tempoStr ? ' &mdash; Tempo totale: ' + tempoStr : ''}</span>
-      </div>
+  return `<div class="waiting-note" style="background: var(--green-badge-bg); color: #166534;">
+      <span>&#10004;</span><span>Ordine completato${tempoStr ? ' &mdash; Tempo totale: ' + tempoStr : ''}</span>
     </div>
-    <div class="card-actions">
-      <button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>
-    </div>
-    <div class="card-phases">
-      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
-      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
-    </div>
-  </div>`;
-}
-
-function renderPausedCard(order, step, phase, consegna) {
-  const faseBadgeClass = phase.toLowerCase();
-  const canModify = currentUser.is_capo || currentUser.role === 'Amministratore';
-  const myInfo = step.operatori_info?.[currentUser.id];
-  const cumulSec = myInfo ? myInfo.tempo_cumulativo_secondi : (step.tempo_cumulativo_secondi || 0);
-  const h = String(Math.floor(cumulSec / 3600)).padStart(2, '0');
-  const m = String(Math.floor((cumulSec % 3600) / 60)).padStart(2, '0');
-  const s = String(cumulSec % 60).padStart(2, '0');
-  const sessCount = myInfo ? myInfo.sessioni_count : (step.sessioni_count || 0);
-  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
-  const supporters = (order.support_requests || []).filter(sr => sr.operatore_principale === currentUser.id && sr.stato === 'accepted');
-  const supportInfo = (order.support_requests || []).find(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
-  const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
-    (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
-
-  return `<div class="order-card paused" data-cliente="${escapeHtml(order.cliente)}">
-    <div class="card-top">
-      <div class="card-header">
-        <span class="card-client">${escapeHtml(order.cliente)}</span>
-        <span class="card-status pausa">IN PAUSA</span>
-      </div>
-      <div class="card-meta">#${escapeHtml(order.numero_ordine || order.id.substring(0, 8))} &middot; Consegna: ${consegna}</div>
-      ${supportBadgeHtml}
-      <div class="card-fase">
-        <span class="card-fase-label">Fase:</span>
-        <span class="fase-badge ${faseBadgeClass}">${phase}</span>
-      </div>
-      <div class="paused-info">
-        <span class="paused-label">&#9208; In Pausa</span>
-        <span class="paused-time">${h}:${m}:${s}</span>
-        <span class="paused-sessions">${sessCount} ${sessCount === 1 ? 'sessione' : 'sessioni'} completate</span>
-      </div>
-    </div>
-    <div class="card-actions">
-      <button class="action-btn green" onclick="resumePhase('${order.id}','${phase}')">&#9654; Riprendi</button>
-      <button class="action-btn outline" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
-      ${!isSupport ? `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>` : ''}
-      ${!isSupport ? `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>` : ''}
-      ${canModify ? `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>` : ''}
-    </div>
-    <div class="card-phases">
-      <div class="phases-toggle" onclick="togglePhases(this)">Fasi ▸</div>
-      <div class="phases-timeline">${buildPhaseTimeline(order)}</div>
-    </div>
-  </div>`;
+    <div class="card-actions"><button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button></div>
+    <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
 // === ACTIONS ===
 function getPhaseForOrder(orderId) {
-  if (currentUser.phase === 'OFFICINA' || currentUser.phase === 'ALL') {
+  if (currentUser.phase === 'OFFICINA' || currentUser.phase === 'ALL' || currentUser.phase === 'LASER') {
     const order = allOrders.find(o => o.id === orderId);
     return order ? (order.fase_corrente || 'PIEGA') : 'PIEGA';
   }
@@ -2236,6 +2469,45 @@ function buildPhaseActions(order) {
     }
     return `<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`;
   }).filter(Boolean).join('');
+}
+
+// Split phase actions into primary (first) and secondary (rest)
+function buildPhaseActionsSplit(order) {
+  const steps = order.processing_steps || [];
+  const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  const labels = { LASER: '⚡ Manda al Laser', PIEGA: '▶ Avvia Piega', SALDATURA: '▶ Avvia Saldatura', PULIZIA: '▶ Avvia Pulizia' };
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
+  const buttons = [];
+  allPhases.forEach(p => {
+    const step = steps.filter(s => s.fase === p).pop();
+    const done = step?.timestamp_fine;
+    const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
+    if (done) return;
+    if (inProgress) {
+      if (isSupport) {
+        const myInfo = step.operatori_info?.[currentUser.id];
+        if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
+          buttons.push(`<button class="action-btn green" onclick="startAndWork('${order.id}')">▶ Avvia il mio lavoro</button>`);
+        }
+      }
+      return;
+    }
+    if (p === 'LASER') {
+      buttons.push(`<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`);
+    } else {
+      buttons.push(`<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`);
+    }
+  });
+  return { primary: buttons[0] || '', secondary: buttons.slice(1).join('') };
+}
+
+function toggleCardActions(orderId) {
+  const sec = document.getElementById('card-secondary-' + orderId);
+  const btn = document.getElementById('card-more-' + orderId);
+  if (sec) {
+    const show = sec.classList.toggle('visible');
+    if (btn) btn.innerHTML = show ? 'Meno &#9652;' : 'Altro &#9662;';
+  }
 }
 
 async function startPhaseDirectly(orderId, phase) {
@@ -2287,7 +2559,24 @@ async function completePhase(orderId) {
     });
     const result = await resp.json();
     if (result.success) {
-      showMessage('Fase completata!', 'success');
+      if (result.waiting_for_others) {
+        // Multi-operatore: in attesa che l'altro confermi
+        const pending = result.pending_operators || [];
+        showMessage(`Hai confermato la fine della fase! In attesa che ${pending.join(', ')} confermi`, 'success');
+      } else {
+        // Fase completata da tutti
+        const tempi = result.operatori_tempi || [];
+        if (tempi.length > 1) {
+          const totalSec = tempi.reduce((sum, t) => sum + t.secondi, 0);
+          const lines = tempi.map(t => `${t.nome}: ${formatDuration(t.secondi)}`).join(' | ');
+          showMessage(`Fase completata! ${lines} — Totale: ${formatDuration(totalSec)}`, 'success');
+        } else if (tempi.length === 1) {
+          showMessage(`Fase completata! Tempo: ${formatDuration(tempi[0].secondi)}`, 'success');
+        } else {
+          showMessage('Fase completata!', 'success');
+        }
+      }
+      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
       await loadOrders();
     } else {
       showMessage('Errore: ' + (result.error || 'Impossibile completare'), 'error');
@@ -2719,6 +3008,30 @@ function startTimer(orderId, timestamp_inizio, cumulativeSeconds = 0) {
   activeTimers[orderId] = setInterval(update, 1000);
 }
 
+// Timer multi-operatore: aggiorna ogni operatore + totale
+function startMultiTimer(orderId, operatoriInfo) {
+  const entries = Object.entries(operatoriInfo);
+  const update = () => {
+    const now = new Date();
+    let totalSec = 0;
+    entries.forEach(([opId, info]) => {
+      let opSec = info.tempo_cumulativo_secondi || 0;
+      if (info.sessione_attiva && info.sessione_attiva_inizio) {
+        const ts = info.sessione_attiva_inizio.endsWith('Z') ? info.sessione_attiva_inizio : info.sessione_attiva_inizio + 'Z';
+        opSec += Math.max(0, Math.floor((now - new Date(ts)) / 1000));
+      }
+      totalSec += opSec;
+      const timerId = opId === currentUser.id ? `timer-${orderId}` : `timer-${orderId}-${opId}`;
+      const el = document.getElementById(timerId);
+      if (el) el.textContent = formatTimerVal(opSec);
+    });
+    const totalEl = document.getElementById(`timer-total-${orderId}`);
+    if (totalEl) totalEl.textContent = formatTimerVal(totalSec);
+  };
+  update();
+  activeTimers[orderId] = setInterval(update, 1000);
+}
+
 // === PDF MODAL ===
 function openPdfModal(orderId, cliente) {
   document.getElementById('modal-title').textContent = `PDF \u2014 ${cliente || orderId}`;
@@ -2790,10 +3103,9 @@ function renderClientCards(clients) {
 
 function filterOrdersByClient(clientName) {
   switchOperTab('ordini');
-  document.querySelectorAll('.order-card').forEach(card => {
-    const name = card.dataset.cliente || '';
-    const wrapper = card.closest('div');
-    if (wrapper) wrapper.style.display = name === clientName ? '' : 'none';
+  document.querySelectorAll('.accordion-item').forEach(item => {
+    const name = item.dataset.cliente || '';
+    item.style.display = name === clientName ? '' : 'none';
   });
   document.getElementById('page-sub').textContent = `Filtro: ${clientName} — click su "I Miei Ordini" per rimuovere filtro`;
 }
@@ -3452,8 +3764,8 @@ async function pollNotifCount() {
   } catch (_) {}
 }
 
-// Poll badge ogni 30 secondi
-setInterval(pollNotifCount, 30000);
+// Poll badge ogni 5 secondi (come refresh ordini)
+setInterval(pollNotifCount, 5000);
 setTimeout(pollNotifCount, 2000);
 </script>
 

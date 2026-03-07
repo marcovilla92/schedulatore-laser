@@ -92,6 +92,12 @@ body {
 }
 .btn-home:hover { opacity: 0.9; }
 
+.laser-nav { display:flex; align-items:center; gap:4px; margin-left:32px; }
+.laser-nav-item { padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; text-decoration:none; color:var(--gray-text); border:1px solid transparent; }
+.laser-nav-item:hover { color:var(--black); background:var(--bg); }
+.laser-nav-item.active { background:var(--green); color:white; border-color:var(--green); }
+
 .btn-logout {
   background: var(--white);
   color: var(--black);
@@ -1136,6 +1142,8 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .details { max-height: 280px; }
   .topbar { padding: 0 16px; gap: 8px; }
   .topbar h1 { font-size: 16px; }
+  .laser-nav { margin-left: 16px; }
+  .laser-nav-item { padding: 6px 12px; font-size: 12px; }
   .tab-bar { padding: 0 12px; }
   .tab-item { padding: 12px 14px; font-size: 12px; }
   .kpi-row { grid-template-columns: repeat(2, 1fr); padding: 16px; gap: 10px; }
@@ -1236,6 +1244,10 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <div class="logo-sub">LS</div>
     </div>
   </a>
+  <div class="laser-nav">
+    <a class="laser-nav-item active" href="/laser-v2.html">Laser</a>
+    <a class="laser-nav-item" href="/officina.html">I miei ordini</a>
+  </div>
   <div class="topbar-actions">
     <div class="notif-bell">
       <button class="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifiche">&#128276;</button>
@@ -1253,7 +1265,6 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
         </div>
       </div>
     </div>
-    <button class="btn-home" onclick="goHome()">Home</button>
     <button class="btn-logout" onclick="logout()">Esci</button>
   </div>
 </div>
@@ -1778,14 +1789,6 @@ function escapeHtml(str) {
 }
 
 // === LOGOUT ===
-function goHome() {
-  const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
-  if (!u.id) { window.location.href = '/login.html'; return; }
-  if (u.role === 'Impiegata') { window.location.href = '/impiegata.html'; return; }
-  if (u.phase === 'LASER') { window.location.href = '/laser-v2.html'; return; }
-  window.location.href = '/officina.html';
-}
-
 async function logout() {
   try {
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');

@@ -211,10 +211,12 @@ class OrderManager:
                         op_active = [x for x in op_ss if x.timestamp_fine is None]
                         op_cumul = sum(int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) for x in op_closed)
                         op_key = name_to_id.get(op_name, op_name)  # Usa ID utente come chiave
+                        op_confermato = any(x.tipo_chiusura == 'totale' for x in op_ss)
                         operatori_info[op_key] = {
                             'sessione_attiva': len(op_active) > 0,
                             'sessione_attiva_inizio': op_active[0].timestamp_inizio.isoformat() if op_active else None,
                             'in_pausa': len(op_active) == 0 and len(op_closed) > 0,
+                            'confermato': op_confermato,
                             'tempo_cumulativo_secondi': op_cumul,
                             'sessioni_count': len(op_ss)
                         }
@@ -469,17 +471,81 @@ class OrderManager:
                     "paused": True
                 }
 
-            # --- COMPLETAMENTO DEFINITIVO ---
-            # Chiudi TUTTE le sessioni attive (anche di altri operatori in supporto)
-            all_active_sessions = session.query(PhaseSession).filter(
-                PhaseSession.step_id == processing_step.id,
-                PhaseSession.timestamp_fine.is_(None)
-            ).all()
-            for sess in all_active_sessions:
-                sess.timestamp_fine = now
-                sess.tipo_chiusura = 'totale'
-                if note and sess == active_sess:
-                    sess.note = note
+            # --- VERIFICA MULTI-OPERATORE ---
+            # Conta operatori distinti su questo step
+            distinct_ops = set(
+                s[0] for s in session.query(PhaseSession.operatore).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.operatore.isnot(None)
+                ).distinct().all()
+            )
+
+            if len(distinct_ops) > 1 and operatore:
+                # Multi-operatore: conferma individuale
+                # Chiudi solo la sessione di QUESTO operatore
+                my_active = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.operatore == operatore,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).first()
+                if my_active:
+                    my_active.timestamp_fine = now
+                    my_active.tipo_chiusura = 'totale'
+                    if note:
+                        my_active.note = note
+                else:
+                    # Operatore in pausa: segna ultima sessione come confermata
+                    last_sess = session.query(PhaseSession).filter(
+                        PhaseSession.step_id == processing_step.id,
+                        PhaseSession.operatore == operatore
+                    ).order_by(PhaseSession.timestamp_fine.desc()).first()
+                    if last_sess:
+                        last_sess.tipo_chiusura = 'totale'
+
+                session.flush()
+
+                # Verifica se TUTTI gli operatori hanno confermato
+                all_confirmed = True
+                pending_names = []
+                for op_name in distinct_ops:
+                    has_confirm = session.query(PhaseSession).filter(
+                        PhaseSession.step_id == processing_step.id,
+                        PhaseSession.operatore == op_name,
+                        PhaseSession.tipo_chiusura == 'totale'
+                    ).first()
+                    if not has_confirm:
+                        all_confirmed = False
+                        pending_names.append(op_name)
+
+                if not all_confirmed:
+                    session.commit()
+                    return {
+                        "success": True,
+                        "order_id": order_id,
+                        "phase": phase,
+                        "waiting_for_others": True,
+                        "pending_operators": pending_names
+                    }
+
+                # Tutti hanno confermato → chiudi sessioni rimaste e prosegui
+                remaining = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).all()
+                for s in remaining:
+                    s.timestamp_fine = now
+                    s.tipo_chiusura = 'totale'
+            else:
+                # Singolo operatore: chiudi tutte le sessioni come prima
+                all_active_sessions = session.query(PhaseSession).filter(
+                    PhaseSession.step_id == processing_step.id,
+                    PhaseSession.timestamp_fine.is_(None)
+                ).all()
+                for sess in all_active_sessions:
+                    sess.timestamp_fine = now
+                    sess.tipo_chiusura = 'totale'
+                    if note and sess == active_sess:
+                        sess.note = note
 
             # Completa lo step
             processing_step.timestamp_fine = now
@@ -530,13 +596,37 @@ class OrderManager:
 
             session.commit()
 
+            # Calcola tempi per-operatore per il riepilogo
+            all_step_sessions = session.query(PhaseSession).filter(
+                PhaseSession.step_id == processing_step.id
+            ).all()
+            all_users_db = session.query(User).all()
+            n2id = {u.name: u.id for u in all_users_db}
+            id2name = {u.id: u.name for u in all_users_db}
+            op_tempi = {}
+            for s in all_step_sessions:
+                if s.timestamp_fine and s.timestamp_inizio:
+                    op = s.operatore or 'unknown'
+                    op_id = n2id.get(op, op)
+                    op_tempi.setdefault(op_id, 0)
+                    op_tempi[op_id] += int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+
+            operatori_tempi = []
+            for op_id, sec in op_tempi.items():
+                operatori_tempi.append({
+                    'operatore_id': op_id,
+                    'nome': id2name.get(op_id, op_id),
+                    'secondi': sec
+                })
+
             return {
                 "success": True,
                 "order_id": order_id,
                 "phase": phase,
                 "fase_successiva": fase_successiva,
                 "completamento_parziale": False,
-                "all_completed": fase_successiva == "COMPLETATO"
+                "all_completed": fase_successiva == "COMPLETATO",
+                "operatori_tempi": operatori_tempi
             }
 
         except Exception as e:
@@ -878,10 +968,12 @@ class OrderManager:
                     op_active = [x for x in op_ss if x.timestamp_fine is None]
                     op_cumul = sum(int((x.timestamp_fine - x.timestamp_inizio).total_seconds()) for x in op_closed)
                     op_key = name_to_id.get(op_name, op_name)
+                    op_confermato2 = any(x.tipo_chiusura == 'totale' for x in op_ss)
                     operatori_info[op_key] = {
                         'sessione_attiva': len(op_active) > 0,
                         'sessione_attiva_inizio': (op_active[0].timestamp_inizio.isoformat() + 'Z') if op_active else None,
                         'in_pausa': len(op_active) == 0 and len(op_closed) > 0,
+                        'confermato': op_confermato2,
                         'tempo_cumulativo_secondi': op_cumul,
                         'sessioni_count': len(op_ss)
                     }
@@ -1546,8 +1638,10 @@ class ArchiveManager:
     @staticmethod
     def export_excel_data(filters: dict = None) -> list[dict]:
         """
-        Esporta dati di archivio con UNA RIGA PER FASE per ordine.
-        Include info sessioni, deleghe, tempi effettivi.
+        Esporta dati di archivio con UNA RIGA PER OPERATORE PER FASE.
+        Ogni operatore (principale, supporto, delegato) ha la sua riga.
+        A fine ordine, riga riepilogativa con somma tempi.
+        Ritorna (rows, summary_row_indices) per formattazione Excel.
         """
         session = get_session()
         try:
@@ -1558,6 +1652,8 @@ class ArchiveManager:
             orders = query.order_by(Order.data_consegna.desc()).all()
 
             rows = []
+            summary_indices = []  # indici righe riepilogo
+
             for order in orders:
                 notification = session.query(OrderNotification).filter(
                     OrderNotification.order_id == order.id
@@ -1573,78 +1669,130 @@ class ArchiveManager:
                     ProcessingStep.order_id == order.id
                 ).order_by(ProcessingStep.timestamp_inizio).all()
 
-                # Se nessuna fase, aggiungi una riga base
+                base_info = {
+                    'Cliente': order.cliente,
+                    'Numero Ordine': order.numero_ordine or order.id[:8],
+                    'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
+                    'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
+                }
+
+                # Se nessuna fase, aggiungi solo riga riepilogo
                 if not steps:
                     rows.append({
-                        'Cliente': order.cliente,
-                        'Numero Ordine': order.numero_ordine or order.id[:8],
-                        'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
-                        'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
-                        'Tempo Totale Ordine': notification.tempi_totali if notification else '',
+                        **base_info,
                         'Fase': '',
-                        'Operatore Fase': '',
-                        'Inizio Fase': '',
-                        'Fine Fase': '',
-                        'Tempo Effettivo Lavorato': '',
-                        'Numero Sessioni': '',
-                        'Operatore Delegato': '',
-                        'Tempo Delega': '',
+                        'Operatore': '',
+                        'Ruolo': '',
+                        'Inizio': '',
+                        'Fine': '',
+                        'Tempo Lavorato': '',
+                        'Sessioni': '',
                     })
                     continue
 
+                order_total_sec = 0
+
                 for step in steps:
-                    # Tempo effettivo: somma sessioni se disponibili
                     sessions_list = session.query(PhaseSession).filter(
                         PhaseSession.step_id == step.id
                     ).order_by(PhaseSession.timestamp_inizio).all()
 
-                    if sessions_list:
-                        total_sec = sum(
-                            int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
-                            for s in sessions_list if s.timestamp_fine
-                        )
-                        tempo_eff = ArchiveManager._format_seconds(total_sec)
-                        num_sessioni = len(sessions_list)
-                    elif step.timestamp_inizio and step.timestamp_fine:
-                        dur = step.timestamp_fine - step.timestamp_inizio
-                        tempo_eff = OrderManager._format_duration(dur)
-                        num_sessioni = 1
-                    else:
-                        tempo_eff = ''
-                        num_sessioni = 0
+                    # Raggruppa sessioni per operatore
+                    op_sessions = {}
+                    for s in sessions_list:
+                        op_name = s.operatore or 'Sconosciuto'
+                        op_sessions.setdefault(op_name, []).append(s)
 
-                    # Cerca delega completata per questa fase
+                    main_op = step.operatore or ''
+                    fase_inizio = step.timestamp_inizio.strftime('%d/%m/%Y %H:%M') if step.timestamp_inizio else ''
+                    fase_fine = step.timestamp_fine.strftime('%d/%m/%Y %H:%M') if step.timestamp_fine else ''
+
+                    if op_sessions:
+                        # Una riga per ogni operatore che ha lavorato
+                        for op_name, op_ss in op_sessions.items():
+                            op_sec = sum(
+                                int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                                for s in op_ss if s.timestamp_fine
+                            )
+                            order_total_sec += op_sec
+                            ruolo = 'Principale' if op_name == main_op else 'Supporto'
+
+                            rows.append({
+                                **base_info,
+                                'Fase': step.fase,
+                                'Operatore': op_name,
+                                'Ruolo': ruolo,
+                                'Inizio': fase_inizio,
+                                'Fine': fase_fine,
+                                'Tempo Lavorato': ArchiveManager._format_seconds(op_sec),
+                                'Sessioni': str(len(op_ss)),
+                            })
+                    elif step.timestamp_inizio and step.timestamp_fine:
+                        # Nessuna sessione, usa timestamp step
+                        dur_sec = int((step.timestamp_fine - step.timestamp_inizio).total_seconds())
+                        order_total_sec += dur_sec
+                        rows.append({
+                            **base_info,
+                            'Fase': step.fase,
+                            'Operatore': main_op,
+                            'Ruolo': 'Principale',
+                            'Inizio': fase_inizio,
+                            'Fine': fase_fine,
+                            'Tempo Lavorato': ArchiveManager._format_seconds(dur_sec),
+                            'Sessioni': '1',
+                        })
+                    else:
+                        # Fase senza tempi
+                        rows.append({
+                            **base_info,
+                            'Fase': step.fase,
+                            'Operatore': main_op,
+                            'Ruolo': 'Principale',
+                            'Inizio': fase_inizio,
+                            'Fine': fase_fine,
+                            'Tempo Lavorato': '',
+                            'Sessioni': '',
+                        })
+
+                    # Riga delegato se presente
                     delega = session.query(PhaseDelegation).filter(
                         PhaseDelegation.order_id == order.id,
                         PhaseDelegation.fase == step.fase,
                         PhaseDelegation.stato == 'completed'
                     ).first()
-
-                    op_delegato = ''
-                    tempo_delega = ''
                     if delega:
                         delegato_user = session.query(User).filter(User.id == delega.operatore_delegato).first()
-                        op_delegato = delegato_user.name if delegato_user else delega.operatore_delegato
-                        if delega.durata_effettiva:
-                            tempo_delega = ArchiveManager._format_seconds(delega.durata_effettiva)
+                        del_name = delegato_user.name if delegato_user else delega.operatore_delegato
+                        del_sec = delega.durata_effettiva or 0
+                        order_total_sec += del_sec
+                        rows.append({
+                            **base_info,
+                            'Fase': step.fase,
+                            'Operatore': del_name,
+                            'Ruolo': 'Delegato',
+                            'Inizio': '',
+                            'Fine': '',
+                            'Tempo Lavorato': ArchiveManager._format_seconds(del_sec) if del_sec else '',
+                            'Sessioni': '',
+                        })
 
-                    rows.append({
-                        'Cliente': order.cliente,
-                        'Numero Ordine': order.numero_ordine or order.id[:8],
-                        'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
-                        'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
-                        'Tempo Totale Ordine': notification.tempi_totali if notification else '',
-                        'Fase': step.fase,
-                        'Operatore Fase': step.operatore or '',
-                        'Inizio Fase': step.timestamp_inizio.strftime('%d/%m/%Y %H:%M') if step.timestamp_inizio else '',
-                        'Fine Fase': step.timestamp_fine.strftime('%d/%m/%Y %H:%M') if step.timestamp_fine else '',
-                        'Tempo Effettivo Lavorato': tempo_eff,
-                        'Numero Sessioni': str(num_sessioni) if num_sessioni else '',
-                        'Operatore Delegato': op_delegato,
-                        'Tempo Delega': tempo_delega,
-                    })
+                # Riga riepilogativa ordine
+                summary_indices.append(len(rows))
+                rows.append({
+                    'Cliente': '',
+                    'Numero Ordine': '',
+                    'Data Caricamento': '',
+                    'Data Completamento': '',
+                    'Fase': 'RIEPILOGO',
+                    'Operatore': f"{order.cliente} #{order.numero_ordine or order.id[:8]}",
+                    'Ruolo': '',
+                    'Inizio': '',
+                    'Fine': '',
+                    'Tempo Lavorato': ArchiveManager._format_seconds(order_total_sec) if order_total_sec > 0 else '',
+                    'Sessioni': '',
+                })
 
-            return rows
+            return rows, summary_indices
         finally:
             session.close()
 

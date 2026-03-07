@@ -593,7 +593,8 @@ def complete_phase(order_id, phase):
                 'success': True,
                 'phase': phase,
                 'fase_successiva': fase_successiva,
-                'order_details': details
+                'order_details': details,
+                'operatori_tempi': result.get('operatori_tempi', [])
             }), 200
 
         return jsonify(result), 400
@@ -1108,7 +1109,7 @@ def export_archive_excel():
         if request.args.get('date_to'):
             filters['date_to'] = request.args.get('date_to')
 
-        rows = ArchiveManager.export_excel_data(filters=filters if filters else None)
+        rows, summary_indices = ArchiveManager.export_excel_data(filters=filters if filters else None)
 
         if not rows:
             return jsonify({'success': False, 'error': 'Nessun dato da esportare'}), 400
@@ -1128,6 +1129,16 @@ def export_archive_excel():
             bottom=Side(style='thin', color='CCCCCC')
         )
 
+        # Stili riga riepilogo
+        summary_font = Font(bold=True, size=11)
+        summary_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+        summary_border = Border(
+            left=Side(style='thin', color='CCCCCC'),
+            right=Side(style='thin', color='CCCCCC'),
+            top=Side(style='medium', color='1A7A48'),
+            bottom=Side(style='medium', color='1A7A48')
+        )
+
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=header)
             cell.font = header_font
@@ -1135,18 +1146,27 @@ def export_archive_excel():
             cell.alignment = header_align
             cell.border = thin_border
 
+        # Set di indici riepilogo per lookup veloce
+        summary_set = set(summary_indices)
+
         for row_idx, row_data in enumerate(rows, 2):
+            is_summary = (row_idx - 2) in summary_set
             for col_idx, header in enumerate(headers, 1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=row_data.get(header, ''))
-                cell.border = thin_border
-                cell.alignment = Alignment(vertical="center")
+                if is_summary:
+                    cell.font = summary_font
+                    cell.fill = summary_fill
+                    cell.border = summary_border
+                    cell.alignment = Alignment(vertical="center")
+                else:
+                    cell.border = thin_border
+                    cell.alignment = Alignment(vertical="center")
 
         col_widths = {
             'Cliente': 22, 'Numero Ordine': 16, 'Data Caricamento': 18,
-            'Data Completamento': 18, 'Tempo Totale Ordine': 18, 'Fase': 14,
-            'Operatore Fase': 20, 'Inizio Fase': 18, 'Fine Fase': 18,
-            'Tempo Effettivo Lavorato': 20, 'Numero Sessioni': 14,
-            'Operatore Delegato': 20, 'Tempo Delega': 14,
+            'Data Completamento': 18, 'Fase': 14,
+            'Operatore': 22, 'Ruolo': 12, 'Inizio': 18, 'Fine': 18,
+            'Tempo Lavorato': 18, 'Sessioni': 10,
         }
         for col_idx, header in enumerate(headers, 1):
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = col_widths.get(header, 15)
