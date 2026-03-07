@@ -147,10 +147,10 @@ class OrderManager:
     @staticmethod
     def get_all_orders_dict(cliente: str = None, status: str = None,
                             fase_corrente: str = None, operatore: str = None) -> list:
-        """Recupera ordini come dizionari con filtri per il nuovo workflow"""
+        """Recupera ordini non eliminati come dizionari con filtri per il nuovo workflow"""
         session = get_session()
         try:
-            query = session.query(Order)
+            query = session.query(Order).filter(Order.is_deleted == False)
             if cliente:
                 query = query.filter(Order.cliente == cliente)
             if status:
@@ -285,7 +285,7 @@ class OrderManager:
         """Recupera ordini per fase corrente (e opzionalmente per operatore)"""
         session = get_session()
         try:
-            query = session.query(Order).filter(Order.fase_corrente == phase)
+            query = session.query(Order).filter(Order.fase_corrente == phase, Order.is_deleted == False)
             if operatore_id:
                 query = query.filter(Order.operatore_assegnato == operatore_id)
             return query.order_by(Order.data_consegna.asc()).all()
