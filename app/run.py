@@ -9,6 +9,14 @@ import os
 import threading
 import time
 
+# Verifica versione Python — richiesto 3.10+ per sintassi Union types (dict | None)
+if sys.version_info < (3, 10):
+    print(f"[ERRORE] Python {sys.version_info.major}.{sys.version_info.minor} non supportato.")
+    print("[ERRORE] Richiesto Python 3.10 o superiore.")
+    print("[INFO]   Su macOS usa: /opt/homebrew/bin/python3.12 run.py")
+    print("[INFO]   Su Windows installa Python 3.10+ da python.org")
+    sys.exit(1)
+
 # Aggiungi la cartella app al path
 sys.path.insert(0, os.path.dirname(__file__))
 
