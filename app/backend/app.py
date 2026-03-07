@@ -401,6 +401,23 @@ def update_order(order_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/orders/<order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    """Soft delete di un ordine: setta is_deleted=True, non cancella fisicamente i dati"""
+    try:
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return jsonify({'success': False, 'error': 'Ordine non trovato'}), 404
+            order.is_deleted = True
+            session.commit()
+            return jsonify({'success': True, 'message': f'Ordine {order_id} eliminato (recuperabile)'}), 200
+        finally:
+            session.close()
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/orders/<order_id>/pdf', methods=['GET'])
 def get_order_pdf(order_id):
     """Serve il PDF dell'ordine inline (per iframe viewer)"""
