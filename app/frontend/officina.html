@@ -467,7 +467,7 @@ body {
 .card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
   padding: 10px 20px;
   border-top: 1px solid var(--border);
 }
@@ -480,8 +480,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  height: 36px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
@@ -518,7 +518,7 @@ body {
 .card-actions-secondary {
   display: none;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
   padding: 4px 20px 10px;
 }
 .card-actions-secondary.visible { display: flex; }
@@ -1806,6 +1806,38 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .app-modal-btn.confirm-red:hover { background:#b91c1c; }
 .app-modal-btn.confirm-blue { background:#2563eb; color:white; }
 .app-modal-btn.confirm-blue:hover { background:#1d4ed8; }
+/* === MODAL ANIMATIONS === */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.modal-overlay.active { animation: fadeIn 0.2s ease; }
+.modal-overlay .modal-content { animation: slideUp 0.2s ease; }
+.app-modal-overlay.active { animation: fadeIn 0.2s ease; }
+
+/* === TABLET ACTIVE STATE === */
+.action-btn:active {
+  transform: scale(0.96);
+  transition: transform 0.1s;
+}
+
+/* === FOCUS RING ACCESSIBILITY === */
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* === CSS SPINNER === */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 </style>
 </head>
 <body>
@@ -2230,7 +2262,11 @@ function renderCards() {
   });
 
   if (activeOrders.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">&#9996;</div>Nessun ordine attivo al momento</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:48px 24px;">
+  <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#128203;</div>
+  <div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine attivo al momento</div>
+  <div style="font-size:13px;color:var(--gray-text);margin-top:4px;opacity:0.7;">Gli ordini assegnati appariranno qui</div>
+</div>`;
   } else {
     // Sort by consegna date ascending
     const sorted = [...activeOrders].sort((a, b) => {

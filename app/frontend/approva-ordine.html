@@ -96,6 +96,8 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tab-btn:hover { border-color: var(--text-secondary); }
 .tab-btn.active { background: var(--ls-green); color: white; border-color: var(--ls-green); }
@@ -260,7 +262,7 @@ h1 {
 
 .filter-select {
   flex: 1;
-  padding: 6px 8px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
@@ -272,7 +274,7 @@ h1 {
 
 .filter-search {
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
@@ -953,7 +955,10 @@ h1 {
   .topbar { padding: 0 16px; height: auto; min-height: 72px; flex-wrap: wrap; gap: 8px; padding-top: 12px; padding-bottom: 12px; }
   .capo-nav { margin-left: 12px; }
   .capo-nav-item { padding: 6px 12px; font-size: 12px; }
-  .topbar-actions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .topbar-actions { gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%); }
+  .topbar-actions::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 6px 10px; font-size: 11px; }
   .home-btn { padding: 6px 12px; font-size: 12px; }
   .logout-btn { padding: 6px 12px; font-size: 12px; }
@@ -972,8 +977,13 @@ h1 {
   .logo-sub { font-size: 9px; }
   .capo-nav { margin-left: 8px; gap: 2px; }
   .capo-nav-item { padding: 5px 10px; font-size: 11px; }
-  .topbar-actions { width: 100%; order: 3; justify-content: center; gap: 4px; flex-wrap: wrap;
-    border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+  .topbar-actions { width: 100%; order: 3; gap: 6px; flex-wrap: nowrap;
+    border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
+    padding-left: 12px; padding-right: 12px; }
+  .topbar-actions::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 6px 10px; font-size: 11px; }
   .home-btn { padding: 6px 10px; font-size: 11px; }
   .logout-btn { padding: 6px 10px; font-size: 11px; }
@@ -1010,8 +1020,8 @@ h1 {
   .logo-icon { width: 28px; height: 28px; font-size: 12px; }
   .logo-main { font-size: 13px; }
   .capo-nav-item { padding: 4px 8px; font-size: 10px; }
-  .topbar-actions { gap: 3px; }
-  .tab-btn { padding: 5px 8px; font-size: 10px; }
+  .topbar-actions { gap: 4px; padding-left: 8px; padding-right: 8px; }
+  .tab-btn { padding: 6px 10px; font-size: 11px; }
   .home-btn { padding: 5px 8px; font-size: 10px; }
   .logout-btn { padding: 5px 8px; font-size: 10px; }
   .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; margin-top: 120px; height: calc(100vh - 120px); }
@@ -1653,7 +1663,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   align-items: center;
   justify-content: center;
 }
-.modal-overlay.active { display: flex; }
+.modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
 .modal-content {
   background: var(--white);
   width: 80%;
@@ -1662,6 +1672,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: slideUp 0.2s ease;
 }
 .modal-header {
   display: flex;
@@ -1679,7 +1690,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
 /* === CUSTOM CONFIRM/ALERT MODAL === */
 .app-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; justify-content:center; align-items:center; }
-.app-modal-overlay.active { display:flex; }
+.app-modal-overlay.active { display:flex; animation: fadeIn 0.2s ease; }
 .app-modal-box { background:var(--white); border-radius:16px; width:400px; max-width:90vw; padding:28px 32px; box-shadow:0 20px 60px rgba(0,0,0,0.15); animation: modalIn 0.2s ease-out; }
 @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
 .app-modal-icon { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:16px; }
@@ -1711,13 +1722,41 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .operai-fase-badge { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; background:#dbeafe; color:#1e40af; }
 
 #operaio-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
-#operaio-modal.active { display:flex; }
-.operaio-modal-content { background:var(--white); border-radius:16px; width:460px; max-width:90vw; padding:32px; }
+#operaio-modal.active { display:flex; animation: fadeIn 0.2s ease; }
+.operaio-modal-content { background:var(--white); border-radius:16px; width:460px; max-width:90vw; padding:32px; animation: slideUp 0.2s ease; }
 .operaio-form-group { margin-bottom:16px; }
 .operaio-form-group label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
 .operaio-form-group input, .operaio-form-group select { width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; box-sizing:border-box; }
 .operaio-form-group input:focus, .operaio-form-group select:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
 .operaio-id-preview { font-size:12px; color:var(--text-secondary); margin-top:4px; font-family:monospace; }
+
+/* === ANIMATIONS === */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* === ACTIVE/PRESSED STATE === */
+.tab-btn:active, .home-btn:active, button:active:not(.tab-btn) {
+  transform: scale(0.96);
+  transition: transform 0.1s;
+}
+
+/* === FOCUS RING ACCESSIBILITY === */
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid var(--ls-green);
+  outline-offset: 2px;
+}
+
+/* === CSS SPINNER === */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border);
+  border-top-color: var(--ls-green);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -1741,7 +1780,6 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     <button class="tab-btn" id="tab-kpi" onclick="switchTab('kpi')">KPI</button>
     <button class="tab-btn" id="tab-archivio" onclick="switchTab('archivio')">Archivio</button>
     <button class="tab-btn" id="tab-operai" onclick="switchTab('operai')">Operai</button>
-    <button class="tab-btn" id="tab-backup" onclick="switchTab('backup')">Backup</button>
     <button class="tab-btn" id="tab-attivita" onclick="switchTab('attivita')">Attivit&agrave;</button>
     <div class="notif-bell-capo" style="position:relative;display:inline-flex;align-items:center;">
       <button onclick="toggleNotifPanelCapo()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:18px;cursor:pointer;line-height:1;" title="Notifiche">&#128276;</button>
@@ -2051,78 +2089,6 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   </div>
 </div>
 
-<!-- === TAB BACKUP === -->
-<div class="deleghe-view" id="view-backup" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
-  <div style="max-width:800px;margin:0 auto;">
-    <h1 style="font-size:24px;font-weight:700;margin-bottom:24px;">Impostazioni Backup</h1>
-
-    <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
-      <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;">Configurazione</h3>
-
-      <div style="display:flex;flex-direction:column;gap:16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-size:14px;font-weight:600;">Backup automatico</div>
-            <div style="font-size:12px;color:var(--text-secondary);">Esegue backup del database a intervalli regolari</div>
-          </div>
-          <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;">
-            <input type="checkbox" id="bk-enabled" onchange="saveBackupSettings()" style="opacity:0;width:0;height:0;">
-            <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:26px;transition:.3s;" id="bk-toggle-track"></span>
-            <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s;" id="bk-toggle-dot"></span>
-          </label>
-        </div>
-
-        <div style="display:flex;gap:16px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:200px;">
-            <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Intervallo (ore)</label>
-            <select id="bk-interval" onchange="saveBackupSettings()" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-              <option value="1">Ogni ora</option>
-              <option value="6">Ogni 6 ore</option>
-              <option value="12">Ogni 12 ore</option>
-              <option value="24">Ogni giorno</option>
-              <option value="48">Ogni 2 giorni</option>
-              <option value="168">Ogni settimana</option>
-            </select>
-          </div>
-          <div style="flex:1;min-width:200px;">
-            <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Max copie da tenere</label>
-            <input type="number" id="bk-max" min="5" max="100" onchange="saveBackupSettings()" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-          </div>
-        </div>
-
-        <div>
-          <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Cartella backup locale (vuoto = default)</label>
-          <input type="text" id="bk-path" placeholder="Es. D:\backup\ferrotrack" onchange="saveBackupSettings()" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Default: app/database/backups/</div>
-        </div>
-
-        <div>
-          <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Cartella backup remota — NAS / rete (opzionale)</label>
-          <input type="text" id="bk-remote" placeholder="Es. \\NAS\backups\ferrotrack" onchange="saveBackupSettings()" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
-        </div>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:12px;margin-bottom:24px;">
-      <button onclick="doManualBackup()" style="display:inline-flex;align-items:center;gap:8px;background:var(--green);color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
-        Esegui Backup Ora
-      </button>
-      <button onclick="loadBackupList()" style="display:inline-flex;align-items:center;gap:8px;background:white;border:1px solid var(--border);padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
-        Aggiorna Lista
-      </button>
-    </div>
-
-    <div id="bk-status" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:600;"></div>
-
-    <div style="background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;">Backup Esistenti</div>
-      <div id="bk-list" style="max-height:400px;overflow-y:auto;">
-        <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Caricamento...</div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="deleghe-view" id="view-attivita" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
   <div style="max-width:900px;margin:0 auto;">
     <h1 style="font-size:24px;font-weight:700;margin-bottom:16px;">Log Attivit&agrave;</h1>
@@ -2312,7 +2278,7 @@ function renderOrdersList() {
   const container = document.getElementById('orders-list');
 
   if (filteredOrders.length === 0) {
-    container.innerHTML = '<div class="empty-state">Nessun ordine trovato</div>';
+    container.innerHTML = '<div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📋</div><div style="font-size:15px;font-weight:600;color:var(--text-secondary);">Nessun ordine trovato</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;opacity:0.7;">Prova a modificare i filtri</div></div>';
     return;
   }
 
@@ -2633,7 +2599,6 @@ function switchTab(tab) {
   document.getElementById('tab-kpi').classList.toggle('active', tab === 'kpi');
   document.getElementById('tab-archivio').classList.toggle('active', tab === 'archivio');
   document.getElementById('tab-operai').classList.toggle('active', tab === 'operai');
-  document.getElementById('tab-backup').classList.toggle('active', tab === 'backup');
   document.getElementById('tab-attivita').classList.toggle('active', tab === 'attivita');
   document.getElementById('view-ordini').style.display = tab === 'ordini' ? 'grid' : 'none';
   document.getElementById('view-clienti').style.display = tab === 'clienti' ? 'block' : 'none';
@@ -2641,7 +2606,6 @@ function switchTab(tab) {
   document.getElementById('view-kpi').style.display = tab === 'kpi' ? 'block' : 'none';
   document.getElementById('view-archivio').style.display = tab === 'archivio' ? 'block' : 'none';
   document.getElementById('view-operai').style.display = tab === 'operai' ? 'block' : 'none';
-  document.getElementById('view-backup').style.display = tab === 'backup' ? 'block' : 'none';
   document.getElementById('view-attivita').style.display = tab === 'attivita' ? 'block' : 'none';
 
   if (tab === 'clienti') renderClientiView();
@@ -2649,8 +2613,11 @@ function switchTab(tab) {
   if (tab === 'kpi') loadKPI();
   if (tab === 'archivio') { capoLoadArchFilters(); capoLoadArch(); }
   if (tab === 'operai') loadOperatori();
-  if (tab === 'backup') { loadBackupSettings(); loadBackupList(); }
   if (tab === 'attivita') loadAuditLog();
+
+  // Scroll tab attiva in vista (swipe bar tablet)
+  const activeBtn = document.getElementById('tab-' + tab);
+  if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 
 // === GESTIONE CLIENTI ===
@@ -2987,7 +2954,7 @@ function formatMinutes(min) {
 function renderKPIOperators(ops) {
   const container = document.getElementById('kpi-operators');
   if (!ops || ops.length === 0) {
-    container.innerHTML = '<div style="color: var(--text-secondary); padding: 24px;">Nessun operatore trovato</div>';
+    container.innerHTML = '<div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">👥</div><div style="font-size:15px;font-weight:600;color:var(--text-secondary);">Nessun operatore trovato</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;opacity:0.7;">Nessun operatore registrato nel sistema</div></div>';
     return;
   }
   container.innerHTML = ops.map(op => {
@@ -3027,8 +2994,8 @@ function renderKPIOperators(ops) {
           <div class="kpi-op-stat-label">Tempo medio</div>
         </div>
         <div class="kpi-op-stat">
-          <div class="kpi-op-stat-val">${op.clienti_assegnati}</div>
-          <div class="kpi-op-stat-label">Clienti</div>
+          <div class="kpi-op-stat-val">${formatMinutes(op.tempo_oggi_minuti)}</div>
+          <div class="kpi-op-stat-label">Lavorato oggi</div>
         </div>
       </div>
       <div>
@@ -3098,7 +3065,7 @@ async function loadCapoDeleghe() {
 function renderCapoDelegheTable(deleghe) {
   const tbody = document.getElementById('deleghe-table-body');
   if (!deleghe.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--gray-muted); padding:24px;">Nessuna delega attiva</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">🤝</div><div style="font-size:15px;font-weight:600;color:var(--text-secondary);">Nessuna delega attiva</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;opacity:0.7;">Le deleghe appariranno qui quando create</div></div></td></tr>';
     return;
   }
 
@@ -3411,7 +3378,7 @@ async function capoFetchArchPage() {
     const faseColors = { LASER:'#ef4444', PIEGA:'#f59e0b', SALDATURA:'#3b82f6', PULIZIA:'#8b5cf6', COMPLETATO:'#22c55e' };
     const tbody = document.getElementById('capo-arch-tbody');
     if (!r.orders || r.orders.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">Nessun ordine completato</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📋</div><div style="font-size:15px;font-weight:600;color:var(--text-secondary);">Nessun ordine completato</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;opacity:0.7;">Gli ordini completati appariranno qui</div></div></td></tr>';
     } else {
       tbody.innerHTML = r.orders.map(o => {
         const chips = Object.entries(o.phase_times||{}).map(([f,t]) =>
@@ -3829,98 +3796,6 @@ function showAppModal({ title, message, type, confirmText, cancelText, confirmCo
 function resolveAppModal(value) {
   document.getElementById('app-modal').classList.remove('active');
   if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
-}
-
-// === BACKUP SETTINGS ===
-async function loadBackupSettings() {
-  try {
-    const res = await fetch('/api/admin/backup/settings');
-    const data = await res.json();
-    if (!data.success) return;
-    const s = data.settings;
-    const cb = document.getElementById('bk-enabled');
-    cb.checked = s.backup_enabled;
-    updateToggleStyle(cb.checked);
-    document.getElementById('bk-interval').value = s.interval_hours;
-    document.getElementById('bk-max').value = s.max_backups;
-    document.getElementById('bk-path').value = s.backup_path || '';
-    document.getElementById('bk-remote').value = s.remote_path || '';
-  } catch(e) { console.error('Errore caricamento settings backup:', e); }
-}
-
-function updateToggleStyle(on) {
-  document.getElementById('bk-toggle-track').style.background = on ? 'var(--green)' : '#ccc';
-  document.getElementById('bk-toggle-dot').style.transform = on ? 'translateX(22px)' : 'translateX(0)';
-}
-
-async function saveBackupSettings() {
-  const enabled = document.getElementById('bk-enabled').checked;
-  updateToggleStyle(enabled);
-  const body = {
-    backup_enabled: enabled,
-    interval_hours: parseInt(document.getElementById('bk-interval').value),
-    max_backups: parseInt(document.getElementById('bk-max').value),
-    backup_path: document.getElementById('bk-path').value.trim(),
-    remote_path: document.getElementById('bk-remote').value.trim()
-  };
-  try {
-    const res = await fetch('/api/admin/backup/settings', {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (data.success) showBackupStatus('Impostazioni salvate', 'success');
-    else showBackupStatus('Errore: ' + data.error, 'error');
-  } catch(e) { showBackupStatus('Errore di rete', 'error'); }
-}
-
-async function doManualBackup() {
-  showBackupStatus('Backup in corso...', 'info');
-  try {
-    const res = await fetch('/api/admin/backup', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showBackupStatus('Backup completato: ' + data.backup_path + (data.integrity_ok ? ' (DB integro)' : ' (ATTENZIONE: integrity check fallito)'), 'success');
-      loadBackupList();
-    } else {
-      showBackupStatus('Errore: ' + data.error, 'error');
-    }
-  } catch(e) { showBackupStatus('Errore di rete', 'error'); }
-}
-
-async function loadBackupList() {
-  const container = document.getElementById('bk-list');
-  try {
-    const res = await fetch('/api/admin/backup/list');
-    const data = await res.json();
-    if (!data.success || data.backups.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Nessun backup trovato</div>';
-      return;
-    }
-    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
-    html += '<thead><tr><th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;border-bottom:1px solid var(--border);">File</th>';
-    html += '<th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;border-bottom:1px solid var(--border);">Dimensione</th>';
-    html += '<th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;border-bottom:1px solid var(--border);">Data</th></tr></thead><tbody>';
-    data.backups.forEach(b => {
-      html += `<tr><td style="padding:10px 16px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px;">${b.filename}</td>`;
-      html += `<td style="padding:10px 16px;border-bottom:1px solid var(--border);">${b.size_kb} KB</td>`;
-      html += `<td style="padding:10px 16px;border-bottom:1px solid var(--border);">${b.created}</td></tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-  } catch(e) {
-    container.innerHTML = '<div style="text-align:center;padding:32px;color:#ef4444;font-size:13px;">Errore caricamento lista backup</div>';
-  }
-}
-
-function showBackupStatus(msg, type) {
-  const el = document.getElementById('bk-status');
-  el.style.display = 'block';
-  el.textContent = msg;
-  el.style.background = type === 'success' ? '#dcfce7' : type === 'error' ? '#fee2e2' : '#dbeafe';
-  el.style.color = type === 'success' ? '#166534' : type === 'error' ? '#991b1b' : '#1e40af';
-  if (type !== 'info') setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
 
 // === AUDIT LOG ===

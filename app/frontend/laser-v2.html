@@ -236,8 +236,8 @@ body {
   overflow: hidden;
 }
 .view-toggle-btn {
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 6px 14px;
+  font-size: 12px;
   font-weight: 600;
   border: none;
   background: transparent;
@@ -498,7 +498,7 @@ body {
 .support-request-card .sr-actions { display:flex; gap:8px; margin-top:12px; }
 
 /* COMPLETE ORDER MODAL */
-.co-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
+.co-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; animation: fadeIn 0.2s ease; }
 .co-modal { background:white; border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
 .co-modal h3 { margin:0 0 4px; font-size:16px; font-weight:700; }
 .co-modal .co-subtitle { font-size:13px; color:var(--gray-text); margin-bottom:16px; }
@@ -878,13 +878,13 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .cal-grid {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
 }
 
 .cal-header-row {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
 .cal-header {
@@ -899,7 +899,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
 .cal-week-row {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
 }
 
@@ -1036,7 +1036,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   align-items: center;
   justify-content: center;
 }
-.modal-overlay.active { display: flex; }
+.modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
 .modal-content {
   background: var(--white);
   width: 80%;
@@ -1045,6 +1045,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: slideUp 0.2s ease;
 }
 .modal-header {
   display: flex;
@@ -1235,6 +1236,34 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .notif-clear-btn { background: none; border: none; color: #ef4444; font-size: 12px; font-weight: 600; cursor: pointer; }
 .notif-clear-btn:hover { text-decoration: underline; }
 .notif-empty { text-align: center; padding: 32px 16px; color: var(--gray-muted); font-size: 13px; }
+
+/* === MODAL ANIMATIONS === */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* === FOCUS RING === */
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* === CSS SPINNER === */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* === ACTIVE BUTTON STATE === */
+button:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
 </style>
 </head>
 <body>
@@ -1310,7 +1339,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <div class="details-meta" id="details-meta"></div>
     </div>
     <div class="details-content" id="details-content">
-      <div class="empty-state">Seleziona un ordine dal calendario</div>
+      <div class="empty-state">&#x1F4CB; Seleziona un ordine dal calendario</div>
     </div>
     <div class="details-footer" id="details-footer"></div>
   </div>
@@ -1531,7 +1560,7 @@ function renderByDeadline() {
     </div>`;
   });
 
-  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">Nessun ordine</div>';
+  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">&#x1F4CB; Nessun ordine</div>';
 }
 
 // === RENDER BY CLIENT ===
@@ -1607,7 +1636,7 @@ function renderByClient() {
     </div>`;
   });
 
-  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">Nessun ordine</div>';
+  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">&#x1F4CB; Nessun ordine</div>';
 }
 
 function toggleClientGroup(headerEl) {
@@ -1635,7 +1664,7 @@ function deselectOrder() {
   renderCalendar();
   document.getElementById('pdf-frame').src = '';
   document.getElementById('pdf-empty').style.display = 'flex';
-  document.getElementById('details-content').innerHTML = '<div class="empty-state">Seleziona un ordine</div>';
+  document.getElementById('details-content').innerHTML = '<div class="empty-state">&#x1F4CB; Seleziona un ordine</div>';
   document.getElementById('details-footer').innerHTML = '';
 }
 
@@ -1875,7 +1904,7 @@ function renderStatoOrdini() {
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="stato-empty">Nessun ordine trovato</div>';
+    container.innerHTML = '<div class="stato-empty">&#x1F4CB; Nessun ordine trovato</div>';
     return;
   }
 
@@ -2137,7 +2166,7 @@ function renderDayView() {
   const dayOrders = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === ds);
   let html = '';
   if (dayOrders.length === 0) {
-    html = `<div style="padding:40px; text-align:center; color:var(--gray-text); font-size:14px;">Nessun ordine in consegna per questo giorno</div>`;
+    html = `<div style="padding:40px; text-align:center; color:var(--gray-text); font-size:14px;">&#x2600;&#xFE0F; Nessun ordine in consegna per questo giorno</div>`;
   } else {
     html = dayOrders.map(o => renderOrderCard(o, ds)).join('');
   }
@@ -2163,7 +2192,7 @@ function showDayDetailPanel(dateStr) {
   let html = `<div class="cal-detail-title">${formatted}</div><div class="cal-detail-sub">${dayOrders.length} ordine${dayOrders.length !== 1 ? 'i' : ''} in consegna</div>`;
 
   if (dayOrders.length === 0) {
-    html += `<div style="color:var(--gray-text); font-size:13px; padding:20px 0;">Nessun ordine per questo giorno.<br>Trascina un ordine qui per riprogrammarlo.</div>`;
+    html += `<div style="color:var(--gray-text); font-size:13px; padding:20px 0;">&#x2600;&#xFE0F; Nessun ordine per questo giorno.<br>Trascina un ordine qui per riprogrammarlo.</div>`;
   } else {
     html += dayOrders.map(o => renderOrderCard(o, dateStr)).join('');
   }

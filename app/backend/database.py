@@ -2239,6 +2239,20 @@ class KPIManager:
             }
 
             # === KPI OPERATORI ===
+            # Pre-carica tutte le sessioni chiuse per calcolo tempo reale
+            all_closed_sessions = session.query(PhaseSession).filter(
+                PhaseSession.timestamp_fine != None
+            ).all()
+            # Mappa step_id -> lista sessioni chiuse
+            sessions_by_step = {}
+            for ps in all_closed_sessions:
+                sessions_by_step.setdefault(ps.step_id, []).append(ps)
+            # Mappa operatore_nome -> lista sessioni chiuse
+            sessions_by_operator = {}
+            for ps in all_closed_sessions:
+                op_name = ps.operatore or 'unknown'
+                sessions_by_operator.setdefault(op_name, []).append(ps)
+
             operatori_kpi = []
             operators = session.query(User).filter(
                 User.role.in_(['Operaio Officina', 'Operaio Laser', 'Capo Officina']),
@@ -2246,6 +2260,9 @@ class KPIManager:
             ).all()
 
             for op in operators:
+                # Sessioni chiuse di questo operatore (tempo reale lavorato)
+                op_sessions = sessions_by_operator.get(op.name, [])
+
                 # Steps completati da questo operatore
                 completed_steps = session.query(ProcessingStep).filter(
                     ProcessingStep.operatore == op.name,
@@ -2255,22 +2272,37 @@ class KPIManager:
                 # Steps completati oggi
                 steps_oggi = [s for s in completed_steps if s.timestamp_fine >= today_start]
 
-                # Tempo medio
-                durations = []
+                # Tempo medio per step: somma sessioni reali / numero step
+                step_real_times = []
                 for s in completed_steps:
-                    if s.timestamp_inizio and s.timestamp_fine:
-                        durations.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
-                tempo_medio_min = round(sum(durations) / len(durations) / 60) if durations else None
+                    step_ss = sessions_by_step.get(s.id, [])
+                    # Filtra solo sessioni di questo operatore
+                    op_step_ss = [x for x in step_ss if x.operatore == op.name]
+                    if op_step_ss:
+                        real_secs = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in op_step_ss)
+                        step_real_times.append(real_secs)
+                    elif s.timestamp_inizio and s.timestamp_fine:
+                        # Fallback: nessuna sessione trovata, usa durata step
+                        step_real_times.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                tempo_medio_min = round(sum(step_real_times) / len(step_real_times) / 60) if step_real_times else None
+
+                # Tempo totale lavorato oggi (dalle sessioni)
+                sessioni_oggi = [x for x in op_sessions if x.timestamp_fine >= today_start]
+                tempo_oggi_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_oggi)
 
                 # Ordini unici completati
                 ordini_unici = len(set(s.order_id for s in completed_steps))
 
-                # Step attivo (in corso)
-                active_step = session.query(ProcessingStep).filter(
-                    ProcessingStep.operatore == op.name,
-                    ProcessingStep.timestamp_inizio != None,
-                    ProcessingStep.timestamp_fine == None
+                # Step attivo (in corso) — cerca sessione attiva, non solo step
+                active_session = session.query(PhaseSession).filter(
+                    PhaseSession.operatore == op.name,
+                    PhaseSession.timestamp_fine == None
                 ).first()
+                active_step = None
+                if active_session:
+                    active_step = session.query(ProcessingStep).filter(
+                        ProcessingStep.id == active_session.step_id
+                    ).first()
 
                 # Clienti assegnati
                 clienti = session.query(OperatorClient).filter(
@@ -2280,8 +2312,15 @@ class KPIManager:
                 # Online = last_login oggi
                 is_online = op.last_login and op.last_login >= today_start
 
-                # Efficienza: rapporto ordini completati / tempo
-                eff = min(100, round((ordini_unici / max(len(durations), 1)) * 100)) if durations else 0
+                # Efficienza: ore lavorate effettive / ore di turno (8h) * 100
+                # Se ha lavorato oggi, calcola quanto del turno ha usato
+                total_real_secs = sum(step_real_times) if step_real_times else 0
+                if total_real_secs > 0 and ordini_unici > 0:
+                    # Media ordini/ora: ordini completati / ore lavorate totali
+                    ore_lavorate = total_real_secs / 3600
+                    eff = min(100, round((ordini_unici / max(ore_lavorate, 0.5)) * 10))
+                else:
+                    eff = 0
 
                 operatori_kpi.append({
                     'id': op.id,
@@ -2293,6 +2332,7 @@ class KPIManager:
                     'ordini_completati': ordini_unici,
                     'ordini_oggi': len(set(s.order_id for s in steps_oggi)),
                     'tempo_medio_minuti': tempo_medio_min,
+                    'tempo_oggi_minuti': round(tempo_oggi_sec / 60) if tempo_oggi_sec > 0 else 0,
                     'clienti_assegnati': clienti,
                     'fase_attiva': active_step.fase if active_step else None,
                     'ordine_attivo': active_step.order_id if active_step else None,
@@ -2321,10 +2361,14 @@ class KPIManager:
                 ).all()
                 completati_oggi_fase = sum(1 for s in completed_in_fase if s.timestamp_fine >= today_start)
 
-                # Tempo medio
+                # Tempo medio reale: somma sessioni per step / numero step
                 durations_fase = []
                 for s in completed_in_fase:
-                    if s.timestamp_inizio and s.timestamp_fine:
+                    step_ss = sessions_by_step.get(s.id, [])
+                    if step_ss:
+                        real_secs = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in step_ss)
+                        durations_fase.append(real_secs)
+                    elif s.timestamp_inizio and s.timestamp_fine:
                         durations_fase.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
                 tempo_medio_fase = round(sum(durations_fase) / len(durations_fase) / 60) if durations_fase else None
 
