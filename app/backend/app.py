@@ -221,6 +221,20 @@ def create_order():
         data_consegna = data.get('data_consegna')
         if not data_consegna:
             return jsonify({'success': False, 'error': 'Data consegna obbligatoria'}), 400
+        # Validazione: data consegna non nel passato (tolleranza: ieri)
+        try:
+            dc = datetime.strptime(data_consegna, '%Y-%m-%d').date()
+            ieri = (datetime.utcnow() - timedelta(days=1)).date()
+            if dc < ieri:
+                return jsonify({'success': False, 'error': f'Data consegna {data_consegna} è nel passato'}), 400
+        except ValueError:
+            pass  # formato non standard, lascia che il DB gestisca
+
+        # Check duplicati: stesso cliente + numero ordine (non archiviati)
+        existing = OrderManager.get_all_orders_dict(cliente=cliente)
+        for ex in existing:
+            if (ex.get('numero_ordine') or '').strip().lower() == numero_ordine.lower():
+                return jsonify({'success': False, 'error': f'Ordine #{numero_ordine} per {cliente} esiste già'}), 409
 
         order = OrderManager.create_order(
             cliente=cliente,
@@ -1306,6 +1320,17 @@ def backup_list():
     try:
         backups = _backup_list()
         return jsonify({'success': True, 'backups': backups, 'count': len(backups)}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/audit', methods=['GET'])
+def get_audit_log():
+    """Recupera log attività recenti"""
+    try:
+        limit = min(request.args.get('limit', 100, type=int), 500)
+        user_id = request.args.get('user_id')
+        logs = AuditManager.get_recent(limit=limit, user_id=user_id)
+        return jsonify({'success': True, 'logs': logs}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

@@ -1742,6 +1742,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
     <button class="tab-btn" id="tab-archivio" onclick="switchTab('archivio')">Archivio</button>
     <button class="tab-btn" id="tab-operai" onclick="switchTab('operai')">Operai</button>
     <button class="tab-btn" id="tab-backup" onclick="switchTab('backup')">Backup</button>
+    <button class="tab-btn" id="tab-attivita" onclick="switchTab('attivita')">Attivit&agrave;</button>
     <div class="notif-bell-capo" style="position:relative;display:inline-flex;align-items:center;">
       <button onclick="toggleNotifPanelCapo()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:18px;cursor:pointer;line-height:1;" title="Notifiche">&#128276;</button>
       <div id="notif-badge-capo" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 4px;">0</div>
@@ -2118,6 +2119,33 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <div id="bk-list" style="max-height:400px;overflow-y:auto;">
         <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Caricamento...</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="deleghe-view" id="view-attivita" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
+  <div style="max-width:900px;margin:0 auto;">
+    <h1 style="font-size:24px;font-weight:700;margin-bottom:16px;">Log Attivit&agrave;</h1>
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <select id="audit-filter-user" onchange="loadAuditLog()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+        <option value="">Tutti gli operatori</option>
+      </select>
+      <select id="audit-filter-limit" onchange="loadAuditLog()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+        <option value="50">Ultime 50</option>
+        <option value="100" selected>Ultime 100</option>
+        <option value="200">Ultime 200</option>
+      </select>
+    </div>
+    <div style="background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+          <th style="padding:10px 14px;text-align:left;font-weight:600;">Data/Ora</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;">Operatore</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;">Azione</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;">Dettaglio</th>
+        </tr></thead>
+        <tbody id="audit-tbody"><tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary);">Caricamento...</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -2606,6 +2634,7 @@ function switchTab(tab) {
   document.getElementById('tab-archivio').classList.toggle('active', tab === 'archivio');
   document.getElementById('tab-operai').classList.toggle('active', tab === 'operai');
   document.getElementById('tab-backup').classList.toggle('active', tab === 'backup');
+  document.getElementById('tab-attivita').classList.toggle('active', tab === 'attivita');
   document.getElementById('view-ordini').style.display = tab === 'ordini' ? 'grid' : 'none';
   document.getElementById('view-clienti').style.display = tab === 'clienti' ? 'block' : 'none';
   document.getElementById('view-deleghe').style.display = tab === 'deleghe' ? 'block' : 'none';
@@ -2613,6 +2642,7 @@ function switchTab(tab) {
   document.getElementById('view-archivio').style.display = tab === 'archivio' ? 'block' : 'none';
   document.getElementById('view-operai').style.display = tab === 'operai' ? 'block' : 'none';
   document.getElementById('view-backup').style.display = tab === 'backup' ? 'block' : 'none';
+  document.getElementById('view-attivita').style.display = tab === 'attivita' ? 'block' : 'none';
 
   if (tab === 'clienti') renderClientiView();
   if (tab === 'deleghe') loadCapoDeleghe();
@@ -2620,6 +2650,7 @@ function switchTab(tab) {
   if (tab === 'archivio') { capoLoadArchFilters(); capoLoadArch(); }
   if (tab === 'operai') loadOperatori();
   if (tab === 'backup') { loadBackupSettings(); loadBackupList(); }
+  if (tab === 'attivita') loadAuditLog();
 }
 
 // === GESTIONE CLIENTI ===
@@ -3890,6 +3921,55 @@ function showBackupStatus(msg, type) {
   el.style.background = type === 'success' ? '#dcfce7' : type === 'error' ? '#fee2e2' : '#dbeafe';
   el.style.color = type === 'success' ? '#166534' : type === 'error' ? '#991b1b' : '#1e40af';
   if (type !== 'info') setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+// === AUDIT LOG ===
+async function loadAuditLog() {
+  const tbody = document.getElementById('audit-tbody');
+  const userFilter = document.getElementById('audit-filter-user').value;
+  const limit = document.getElementById('audit-filter-limit').value;
+  try {
+    let url = `/api/admin/audit?limit=${limit}`;
+    if (userFilter) url += `&user_id=${encodeURIComponent(userFilter)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.success || !data.logs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary);">Nessuna attivit&agrave; registrata</td></tr>';
+      return;
+    }
+    const actionLabels = {
+      'LOGIN': 'Login', 'LOGOUT': 'Logout', 'START_PHASE': 'Avvio fase', 'COMPLETE_PHASE': 'Fase completata',
+      'COMPLETE_ORDER': 'Ordine completato', 'PAUSE_PHASE': 'Pausa fase', 'COMPLETE_LASER': 'Laser completato',
+      'SEND_TO_LASER': 'Inviato al laser', 'CREATE_ORDER': 'Ordine creato'
+    };
+    tbody.innerHTML = data.logs.map(l => {
+      const dt = new Date(l.timestamp + 'Z');
+      const dateStr = dt.toLocaleDateString('it-IT') + ' ' + dt.toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
+      const action = actionLabels[l.action] || l.action || '—';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 14px;white-space:nowrap;">${dateStr}</td>
+        <td style="padding:8px 14px;">${l.user_name || l.user_id || '—'}</td>
+        <td style="padding:8px 14px;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:var(--bg);">${action}</span></td>
+        <td style="padding:8px 14px;color:var(--text-secondary);font-size:12px;">${l.detail || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    // Popola filtro utenti se vuoto
+    const sel = document.getElementById('audit-filter-user');
+    if (sel.options.length <= 1) {
+      const users = [...new Set(data.logs.map(l => l.user_id).filter(Boolean))];
+      const names = {};
+      data.logs.forEach(l => { if (l.user_id && l.user_name) names[l.user_id] = l.user_name; });
+      users.forEach(uid => {
+        const opt = document.createElement('option');
+        opt.value = uid;
+        opt.textContent = names[uid] || uid;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:#ef4444;">Errore caricamento log</td></tr>';
+  }
 }
 
 // === PDF OVERLAY (tablet) ===

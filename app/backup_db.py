@@ -227,6 +227,15 @@ def _scheduler_loop():
             logger.info('[BACKUP] Esecuzione backup schedulato...')
             backup(motivo='schedulato')
 
+        # Pulizia notifiche lette > 30 giorni
+        try:
+            from backend.database import NotificationManager
+            deleted = NotificationManager.cleanup_old_notifications(30)
+            if deleted:
+                logger.info(f'[BACKUP] Pulizia: {deleted} notifiche vecchie eliminate')
+        except Exception as e:
+            logger.debug(f'[BACKUP] Pulizia notifiche skip: {e}')
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

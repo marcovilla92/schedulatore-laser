@@ -9,6 +9,7 @@ from .models import (
 )
 import uuid
 import json
+import logging
 
 class OrderManager:
     """Gestore operazioni su ordini con articoli"""
@@ -1994,6 +1995,25 @@ class NotificationManager:
             return count
         except Exception as e:
             print(f"[ERROR] get_unread_count: {e}")
+            return 0
+        finally:
+            session.close()
+
+    @staticmethod
+    def cleanup_old_notifications(days: int = 30) -> int:
+        """Elimina notifiche lette più vecchie di N giorni. Ritorna il numero eliminato."""
+        session = get_session()
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            deleted = session.query(Notification).filter(
+                Notification.is_read == True,
+                Notification.timestamp < cutoff
+            ).delete()
+            session.commit()
+            return deleted
+        except Exception as e:
+            session.rollback()
+            logging.error(f"[NOTIF] Errore cleanup: {e}")
             return 0
         finally:
             session.close()
