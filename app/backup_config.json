@@ -1,0 +1,7 @@
+{
+  "backup_enabled": true,
+  "interval_hours": 12,
+  "max_backups": 30,
+  "backup_path": "",
+  "remote_path": ""
+}

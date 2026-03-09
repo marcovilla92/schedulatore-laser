@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a7a48">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>LS FerroTrack — Impiegata</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1485,8 +1488,6 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
     const result = await resp.json();
     if (result.success) {
       pdfData = result.data;
-      document.getElementById('mod-cliente').value = pdfData.cliente || '';
-      document.getElementById('mod-data').value = pdfData.data_consegna || '';
       const blob = new Blob([file], { type: 'application/pdf' });
       document.getElementById('pdf-iframe').src = URL.createObjectURL(blob);
       document.getElementById('pdf-preview').classList.add('active');
@@ -2601,6 +2602,6 @@ function resolveAppModal(value) {
   if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
 }
 </script>
-
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
 </html>

@@ -38,89 +38,6 @@ def handle_file_too_large(e):
 # Inizializza database
 initialize_database()
 
-# ============ UTILITÀ ESTRAZIONE PDF MINIMALE ============
-
-def extract_minimal_from_pdf(filepath: str) -> dict:
-    """
-    Estrae SOLO cliente e data consegna da un PDF usando regex semplici.
-    Questo sostituisce i 7 parser precedenti (2000+ righe di codice).
-
-    Returns:
-        {
-            "cliente": str | None,
-            "data_consegna": str (formato YYYY-MM-DD) | None,
-            "pdf_filename": str,
-            "estrattore": "minimal"
-        }
-    """
-    import PyPDF2
-    import re
-
-    try:
-        text = ""
-        try:
-            with open(filepath, 'rb') as f:
-                reader = PyPDF2.PdfReader(f)
-                for page in reader.pages:
-                    text += (page.extract_text() or "") + "\n"
-        except Exception as _pdf_err:
-            print(f"[WARN] Errore PyPDF2: {_pdf_err}, tentando fallback...")
-            text = ""
-
-        # Estrae CLIENTE con pattern flessibile
-        cliente = None
-        patterns_cliente = [
-            r'(?:cliente|spett\.?le|destinatario)[:\s]+([A-Z][^\n]{3,80})',
-            r'^([A-Z][A-Z\s\.\,&-]{3,80}?)(?:\n|s\.r\.l|spa|srl)',
-        ]
-        for pattern in patterns_cliente:
-            match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
-            if match:
-                cliente = match.group(1).strip()
-                break
-
-        # Estrae DATA CONSEGNA
-        data_consegna = None
-        patterns_data = [
-            r'(?:consegna|delivery|scadenza|data\s+consegna)[^\d]*(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})',
-            r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})',
-        ]
-
-        for pattern in patterns_data:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                try:
-                    if len(match.groups()) >= 3:
-                        day, month, year = match.groups()
-                        year = int(year)
-                        if year < 100:
-                            year += 2000
-                        from datetime import datetime
-                        dt = datetime(year, int(month), int(day))
-                        data_consegna = dt.strftime("%Y-%m-%d")
-                        break
-                except (ValueError, IndexError):
-                    continue
-
-        pdf_filename = os.path.basename(filepath)
-
-        return {
-            "cliente": cliente,
-            "data_consegna": data_consegna,
-            "pdf_filename": pdf_filename,
-            "estrattore": "minimal"
-        }
-
-    except Exception as e:
-        print(f"[ERROR] extract_minimal_from_pdf: {e}")
-        return {
-            "cliente": None,
-            "data_consegna": None,
-            "pdf_filename": os.path.basename(filepath),
-            "estrattore": "minimal",
-            "error": str(e)
-        }
-
 # ============ UTILITÀ AUTORIZZAZIONE ============
 
 def _require_capo(user_id: str) -> bool:
@@ -1282,7 +1199,7 @@ def get_archive_filters():
 
 @app.route('/api/extract-pdf-data', methods=['POST'])
 def extract_pdf_data():
-    """Estrae SOLO cliente e data consegna dal PDF caricato (parsing minimale)"""
+    """Carica un PDF e restituisce il filename salvato (no parsing)"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'Nessun file caricato'}), 400
@@ -1292,21 +1209,19 @@ def extract_pdf_data():
         if file.filename == '' or not file.filename.lower().endswith('.pdf'):
             return jsonify({'error': 'Solo file PDF sono supportati'}), 400
 
-        # Salva il file
-        pdf_filename = f"{uuid.uuid4()}_{file.filename}"
+        # Salva il file (no parsing)
+        safe_name = os.path.basename(file.filename)
+        pdf_filename = f"{uuid.uuid4()}_{safe_name}"
         filepath = os.path.join(PDFS_FOLDER, pdf_filename)
         file.save(filepath)
 
-        # Estrai SOLO cliente + data consegna (parsing minimale)
-        pdf_data = extract_minimal_from_pdf(filepath)
-
         return jsonify({
             'success': True,
-            'data': pdf_data
+            'data': {'pdf_filename': pdf_filename}
         }), 200
 
     except Exception as e:
-        print(f"[ERROR] extract_pdf_data: {str(e)}")
+        logging.error(f"[ERROR] extract_pdf_data: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/upload-drawing', methods=['POST'])
@@ -1348,18 +1263,61 @@ def health_check():
 
 # ============ BACKUP & EXPORT ============
 
+# Avvia backup scheduler all'import del modulo
+try:
+    _backup_sys_path = os.path.join(os.path.dirname(__file__), '..')
+    if _backup_sys_path not in sys.path:
+        sys.path.insert(0, _backup_sys_path)
+    from backup_db import backup as _do_backup, integrity_check as _integrity_check
+    from backup_db import load_config as _backup_load_config, save_config as _backup_save_config
+    from backup_db import list_backups as _backup_list, start_scheduler as _start_backup_scheduler
+    _start_backup_scheduler()
+except Exception as _e:
+    logging.warning(f'[BACKUP] Impossibile avviare scheduler: {_e}')
+
 @app.route('/api/admin/backup', methods=['POST'])
 def manual_backup():
     """Esegue un backup manuale del database (solo admin/capo)"""
     try:
-        import sys
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-        from backup_db import backup, integrity_check
-        ok = integrity_check()
-        path = backup(motivo='manuale')
+        ok = _integrity_check()
+        path = _do_backup(motivo='manuale')
         if path:
             return jsonify({'success': True, 'backup_path': os.path.basename(path), 'integrity_ok': ok}), 200
         return jsonify({'success': False, 'error': 'Backup fallito'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/backup/settings', methods=['GET', 'PUT'])
+def backup_settings():
+    """Leggi o aggiorna impostazioni backup"""
+    try:
+        if request.method == 'GET':
+            config = _backup_load_config()
+            return jsonify({'success': True, 'settings': config}), 200
+        else:
+            data = request.get_json() or {}
+            config = _backup_load_config()
+            if 'backup_enabled' in data:
+                config['backup_enabled'] = bool(data['backup_enabled'])
+            if 'interval_hours' in data:
+                config['interval_hours'] = max(1, min(168, int(data['interval_hours'])))
+            if 'max_backups' in data:
+                config['max_backups'] = max(5, min(100, int(data['max_backups'])))
+            if 'backup_path' in data:
+                config['backup_path'] = str(data['backup_path']).strip()
+            if 'remote_path' in data:
+                config['remote_path'] = str(data['remote_path']).strip()
+            _backup_save_config(config)
+            return jsonify({'success': True, 'settings': config}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/backup/list', methods=['GET'])
+def backup_list():
+    """Lista dei backup esistenti"""
+    try:
+        backups = _backup_list()
+        return jsonify({'success': True, 'backups': backups, 'count': len(backups)}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
