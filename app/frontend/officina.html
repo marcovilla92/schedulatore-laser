@@ -213,6 +213,23 @@ body {
 .accordion-item.color-orange { border-left: 5px solid #92400e; background: #fffbeb; }
 .accordion-item.color-confirmed { border-left: 5px dashed #1a7a48; background: #f0fdf4; }
 
+/* SEARCH BAR */
+.search-bar-wrap {
+  padding: 0 0 12px;
+}
+.search-bar {
+  width: 100%;
+  padding: 10px 14px 10px 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") 12px center no-repeat;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.search-bar:focus { border-color: var(--green); }
+
 /* Collapsed row header */
 .accordion-header {
   display: flex;
@@ -263,11 +280,17 @@ body {
 
 /* Expanded content panel */
 .accordion-body {
-  display: none;
-  padding: 0 20px 16px;
-  border-top: 1px solid var(--border);
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 20px;
+  border-top: 1px solid transparent;
+  transition: max-height 0.3s ease, padding 0.3s ease, border-color 0.2s;
 }
-.accordion-item.expanded .accordion-body { display: block; }
+.accordion-item.expanded .accordion-body {
+  max-height: 1200px;
+  padding: 0 20px 16px;
+  border-top-color: var(--border);
+}
 .accordion-body .card-actions { padding: 10px 0; border-top: none; }
 .accordion-body .card-actions-secondary { padding: 4px 0 10px; }
 .accordion-body .card-phases { border-top: 1px solid var(--border); padding: 10px 0 0; }
@@ -557,6 +580,39 @@ body {
   margin-bottom: 16px;
   opacity: 0.4;
 }
+
+/* SKELETON LOADING */
+.skeleton-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.skeleton-bar {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* CONNECTION BADGE */
+.conn-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 9000;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  background: white; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: all 0.3s;
+}
+.conn-dot { width: 8px; height: 8px; border-radius: 50%; }
+.conn-badge.online .conn-dot { background: #22c55e; }
+.conn-badge.offline { background: #fee2e2; border-color: #fecaca; }
+.conn-badge.offline .conn-dot { background: #ef4444; }
 
 /* PDF MODAL */
 .modal-overlay {
@@ -1800,11 +1856,14 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
       <div class="page-sub" id="page-sub">Caricamento...</div>
     </div>
 
+    <div class="search-bar-wrap">
+      <input type="text" id="search-bar" class="search-bar" placeholder="Cerca cliente o numero ordine..." oninput="filterSearchOrders()">
+    </div>
     <div class="accordion-list" id="card-row">
-      <div class="empty-state">
-        <div class="empty-icon">&#128230;</div>
-        Caricamento ordini...
-      </div>
+      <div class="skeleton-item"><div class="skeleton-bar" style="width:100px"></div><div class="skeleton-bar" style="width:70px"></div><div class="skeleton-bar" style="width:80px; margin-left:auto"></div></div>
+      <div class="skeleton-item"><div class="skeleton-bar" style="width:130px"></div><div class="skeleton-bar" style="width:60px"></div><div class="skeleton-bar" style="width:70px; margin-left:auto"></div></div>
+      <div class="skeleton-item"><div class="skeleton-bar" style="width:90px"></div><div class="skeleton-bar" style="width:75px"></div><div class="skeleton-bar" style="width:85px; margin-left:auto"></div></div>
+      <div class="skeleton-item"><div class="skeleton-bar" style="width:110px"></div><div class="skeleton-bar" style="width:65px"></div><div class="skeleton-bar" style="width:75px; margin-left:auto"></div></div>
     </div>
 
     <!-- STORICO ORDINI COMPLETATI -->
@@ -2024,6 +2083,50 @@ window.addEventListener('load', () => {
 
   loadOrders();
   setInterval(loadOrders, 5000);
+
+  // === SWIPE GESTURE (accordion navigation) ===
+  (function() {
+    const container = document.getElementById('card-row');
+    let startX = 0, startY = 0, swiping = false;
+    container.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      swiping = true;
+    }, { passive: true });
+    container.addEventListener('touchmove', e => {
+      if (!swiping) return;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (dy > dx + 10) swiping = false; // vertical scroll, abort
+    }, { passive: true });
+    container.addEventListener('touchend', e => {
+      if (!swiping) return;
+      swiping = false;
+      const endX = e.changedTouches[0].clientX;
+      const dx = endX - startX;
+      if (Math.abs(dx) < 60) return;
+      const items = Array.from(container.querySelectorAll('.accordion-item:not([style*="display: none"])'));
+      if (items.length < 2) return;
+      const expandedIdx = items.findIndex(el => el.classList.contains('expanded'));
+      let targetIdx;
+      if (dx < 0) { // swipe left = next
+        targetIdx = expandedIdx >= 0 ? Math.min(expandedIdx + 1, items.length - 1) : 0;
+      } else { // swipe right = prev
+        targetIdx = expandedIdx >= 0 ? Math.max(expandedIdx - 1, 0) : 0;
+      }
+      if (expandedIdx >= 0 && expandedIdx !== targetIdx) {
+        const oldId = items[expandedIdx].dataset.orderId;
+        items[expandedIdx].classList.remove('expanded');
+        expandedOrders.delete(oldId);
+        manuallyCollapsed.add(oldId);
+      }
+      const newId = items[targetIdx].dataset.orderId;
+      items[targetIdx].classList.add('expanded');
+      expandedOrders.add(newId);
+      manuallyCollapsed.delete(newId);
+      items[targetIdx].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, { passive: true });
+  })();
 });
 
 // === LOAD ORDERS ===
@@ -2044,8 +2147,10 @@ async function loadOrders() {
     const data = await resp.json();
     allOrders = data.orders || data;
     renderCards();
+    updateConnBadge(true);
   } catch (err) {
     console.error('Errore caricamento ordini:', err);
+    updateConnBadge(false);
   }
 }
 
@@ -2092,8 +2197,12 @@ function renderCards() {
   const userPhase = currentUser.phase || 'PIEGA';
   const isOfficina = (userPhase === 'OFFICINA' || userPhase === 'ALL' || userPhase === 'LASER');
 
-  const activeOrders = allOrders.filter(o => o.status !== 'COMPLETATO');
-  const completedOrders = allOrders.filter(o => o.status === 'COMPLETATO');
+  // Operai officina (non capi): nascondi ordini ancora in fase LASER
+  const visibleOrders = (!currentUser.is_capo && userPhase === 'OFFICINA')
+    ? allOrders.filter(o => o.fase_corrente !== 'LASER' && o.status !== 'RICEVUTO')
+    : allOrders;
+  const activeOrders = visibleOrders.filter(o => o.status !== 'COMPLETATO');
+  const completedOrders = visibleOrders.filter(o => o.status === 'COMPLETATO');
 
   document.getElementById('page-sub').textContent =
     `${currentUser.name || 'Operatore'} \u2014 ${activeOrders.length === 1 ? '1 ordine attivo' : activeOrders.length + ' ordini attivi'}`;
@@ -2304,7 +2413,7 @@ function renderAccordionItem(order, step, phase, myInfo, flags) {
   else if (isCompleted) bodyHtml = buildCompletedBody(order, consegnaFull);
   else bodyHtml = buildWaitingBody(order, phase, consegnaFull);
 
-  return `<div class="accordion-item ${colorClass}" data-order-id="${orderId}" data-cliente="${cliente}">
+  return `<div class="accordion-item ${colorClass}" data-order-id="${orderId}" data-cliente="${cliente}" data-order-num="${numOrdine}">
     ${headerHtml}
     <div class="accordion-body">${bodyHtml}</div>
   </div>`;
@@ -2450,60 +2559,35 @@ function getPhaseForOrder(orderId) {
 
 function buildPhaseActions(order) {
   const steps = order.processing_steps || [];
-  const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  const faseCorrente = order.fase_corrente || 'PIEGA';
   const labels = { LASER: '⚡ Manda al Laser', PIEGA: '▶ Avvia Piega', SALDATURA: '▶ Avvia Saldatura', PULIZIA: '▶ Avvia Pulizia' };
   const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
 
-  return allPhases.map(p => {
-    const step = steps.filter(s => s.fase === p).pop();
-    const done = step?.timestamp_fine;
-    const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
-    if (done) return '';
-    // Se la fase è in corso ma io sono supporto senza sessione attiva, mostra "Avvia"
-    if (inProgress) {
-      if (isSupport) {
-        const myInfo = step.operatori_info?.[currentUser.id];
-        if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
-          return `<button class="action-btn green" onclick="startAndWork('${order.id}')">▶ Avvia il mio lavoro</button>`;
-        }
+  // Mostra solo il bottone per la fase corrente dell'ordine
+  const step = steps.filter(s => s.fase === faseCorrente).pop();
+  const done = step?.timestamp_fine;
+  const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
+  if (done) return '';
+  if (inProgress) {
+    if (isSupport) {
+      const myInfo = step.operatori_info?.[currentUser.id];
+      if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
+        return `<button class="action-btn green" onclick="startAndWork('${order.id}')">▶ Avvia il mio lavoro</button>`;
       }
-      return '';
     }
-    if (p === 'LASER') {
-      return `<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`;
-    }
-    return `<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`;
-  }).filter(Boolean).join('');
+    return '';
+  }
+  if (faseCorrente === 'LASER') {
+    return `<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[faseCorrente]}</button>`;
+  }
+  return `<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${faseCorrente}')">${labels[faseCorrente] || '▶ Avvia ' + faseCorrente}</button>`;
 }
 
 // Split phase actions into primary (first) and secondary (rest)
 function buildPhaseActionsSplit(order) {
-  const steps = order.processing_steps || [];
-  const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
-  const labels = { LASER: '⚡ Manda al Laser', PIEGA: '▶ Avvia Piega', SALDATURA: '▶ Avvia Saldatura', PULIZIA: '▶ Avvia Pulizia' };
-  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === currentUser.id && sr.stato === 'accepted');
-  const buttons = [];
-  allPhases.forEach(p => {
-    const step = steps.filter(s => s.fase === p).pop();
-    const done = step?.timestamp_fine;
-    const inProgress = step?.timestamp_inizio && !step?.timestamp_fine;
-    if (done) return;
-    if (inProgress) {
-      if (isSupport) {
-        const myInfo = step.operatori_info?.[currentUser.id];
-        if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
-          buttons.push(`<button class="action-btn green" onclick="startAndWork('${order.id}')">▶ Avvia il mio lavoro</button>`);
-        }
-      }
-      return;
-    }
-    if (p === 'LASER') {
-      buttons.push(`<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[p]}</button>`);
-    } else {
-      buttons.push(`<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${p}')">${labels[p]}</button>`);
-    }
-  });
-  return { primary: buttons[0] || '', secondary: buttons.slice(1).join('') };
+  // Mostra solo azione per la fase corrente — non fasi future
+  const btn = buildPhaseActions(order);
+  return { primary: btn, secondary: '' };
 }
 
 function toggleCardActions(orderId) {
@@ -2556,6 +2640,16 @@ async function startAndWork(orderId) {
 
 async function completePhase(orderId) {
   const phase = getPhaseForOrder(orderId);
+  const order = allOrders.find(o => o.id === orderId);
+  const confirmed = await showAppModal({
+    title: 'Completa Fase',
+    message: `Confermi di voler completare la fase ${phase} per ${order?.cliente || 'questo ordine'}?`,
+    type: 'warning',
+    confirmText: 'Completa',
+    cancelText: 'Annulla',
+    confirmColor: 'confirm-green'
+  });
+  if (!confirmed) return;
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/complete`, {
       method: 'POST',
@@ -3108,11 +3202,17 @@ function renderClientCards(clients) {
 
 function filterOrdersByClient(clientName) {
   switchOperTab('ordini');
-  document.querySelectorAll('.accordion-item').forEach(item => {
-    const name = item.dataset.cliente || '';
-    item.style.display = name === clientName ? '' : 'none';
+  document.getElementById('search-bar').value = clientName;
+  filterSearchOrders();
+}
+
+function filterSearchOrders() {
+  const query = (document.getElementById('search-bar').value || '').toLowerCase().trim();
+  document.querySelectorAll('#card-row .accordion-item, #storico-cards .accordion-item').forEach(item => {
+    const cliente = (item.dataset.cliente || '').toLowerCase();
+    const numero = (item.dataset.orderNum || '').toLowerCase();
+    item.style.display = (!query || cliente.includes(query) || numero.includes(query)) ? '' : 'none';
   });
-  document.getElementById('page-sub').textContent = `Filtro: ${clientName} — click su "I Miei Ordini" per rimuovere filtro`;
 }
 
 // === FASE TIMELINE ===
@@ -3259,16 +3359,17 @@ let delegCompleteId = '';
 
 async function loadDelegations() {
   try {
-    // Deleghe ricevute (a me)
+    // Deleghe ricevute (a me) — solo attive (no completate/rifiutate)
     const respRic = await fetch(`${API_URL}/api/delegations?op_delegato=${currentUser.id}`);
     const dataRic = await respRic.json();
-    delegheRicevuteData = dataRic.delegations || [];
+    const activeStates = ['pending', 'accepted', 'in_progress'];
+    delegheRicevuteData = (dataRic.delegations || []).filter(d => activeStates.includes(d.stato));
     renderDelegheRicevute(delegheRicevuteData);
 
-    // Deleghe inviate (da me)
+    // Deleghe inviate (da me) — solo attive
     const respInv = await fetch(`${API_URL}/api/delegations?op_principale=${currentUser.id}`);
     const dataInv = await respInv.json();
-    renderDelegheInviate(dataInv.delegations || []);
+    renderDelegheInviate((dataInv.delegations || []).filter(d => activeStates.includes(d.stato)));
 
     updateDelegheBadge(dataRic.delegations || []);
 
@@ -3845,6 +3946,15 @@ function showAppModal({ title, message, type, confirmText, cancelText, confirmCo
 function resolveAppModal(value) {
   document.getElementById('app-modal').classList.remove('active');
   if (_appModalResolve) { _appModalResolve(value); _appModalResolve = null; }
+}
+</script>
+<div class="conn-badge online" id="conn-badge"><span class="conn-dot"></span><span class="conn-label">Connesso</span></div>
+<script>
+function updateConnBadge(online) {
+  const b = document.getElementById('conn-badge');
+  if (!b) return;
+  b.className = 'conn-badge ' + (online ? 'online' : 'offline');
+  b.querySelector('.conn-label').textContent = online ? 'Connesso' : 'Offline';
 }
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>

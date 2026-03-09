@@ -1421,8 +1421,10 @@ async function loadOrders() {
         clearDetails();
       }
     }
+    updateConnBadge(true);
   } catch (err) {
     console.error('Errore caricamento ordini:', err);
+    updateConnBadge(false);
   }
 }
 
@@ -1761,6 +1763,7 @@ async function startPhase(orderId) {
 // === COMPLETE PHASE ===
 async function completePhase(orderId) {
   const user = JSON.parse(localStorage.getItem('currentUser'));
+  if (!confirm('Confermi di voler completare la fase LASER per questo ordine?')) return;
 
   try {
     const response = await fetch(`${API_URL}/api/orders/${orderId}/phase/${PHASE}/complete`, {
@@ -2750,6 +2753,9 @@ function closePdfModal() {
   document.getElementById('pdf-modal-frame').src = '';
 }
 </script>
+<style>.conn-badge{position:fixed;bottom:16px;right:16px;z-index:9000;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:#fff;border:1px solid #e5e7eb;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .3s}.conn-dot{width:8px;height:8px;border-radius:50%}.conn-badge.online .conn-dot{background:#22c55e}.conn-badge.offline{background:#fee2e2;border-color:#fecaca}.conn-badge.offline .conn-dot{background:#ef4444}</style>
+<div class="conn-badge online" id="conn-badge"><span class="conn-dot"></span><span class="conn-label">Connesso</span></div>
+<script>function updateConnBadge(o){const b=document.getElementById('conn-badge');if(!b)return;b.className='conn-badge '+(o?'online':'offline');b.querySelector('.conn-label').textContent=o?'Connesso':'Offline';}</script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
 </html>
