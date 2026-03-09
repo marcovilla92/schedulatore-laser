@@ -252,32 +252,19 @@ def create_order():
         finally:
             session.close()
 
-        # Notifica capi officina
-        for capo_id in ['paolo-responsabile', 'stefano-responsabile']:
+        # Notifica solo al gestore del cliente (operatore assegnato)
+        destinazione = data.get('destinazione', 'LASER')
+        numero_display = order.numero_ordine or order.id[:8]
+        op_id = OperatorClientManager.find_operator_for_client(order.cliente)
+        if op_id:
             NotificationManager.create_notification(
-                user_id=capo_id,
+                user_id=op_id,
                 order_id=order.id,
                 title='Nuovo ordine',
-                message=f'Ordine {order.cliente} inviato a {data.get("destinazione", "LASER")}',
+                message=f'Ordine #{numero_display} ({order.cliente}) inviato a {destinazione}',
                 notification_type='order',
                 notification_category='informativa'
             )
-
-        # Notifica informativa all'operatore responsabile del cliente
-        # (se l'ordine va al laser, l'operatore officina viene avvisato che arriverà)
-        destinazione = data.get('destinazione', 'LASER')
-        numero_display = order.numero_ordine or order.id[:8]
-        if destinazione == 'LASER':
-            op_id = OperatorClientManager.find_operator_for_client(order.cliente)
-            if op_id and op_id not in ['paolo-responsabile', 'stefano-responsabile']:
-                NotificationManager.create_notification(
-                    user_id=op_id,
-                    order_id=order.id,
-                    title='Ordine ricevuto',
-                    message=f'Ordine #{numero_display} del cliente {order.cliente} ricevuto — attualmente in lavorazione al laser',
-                    notification_type='order',
-                    notification_category='informativa'
-                )
 
         return jsonify({
             'success': True,
@@ -532,43 +519,38 @@ def complete_phase(order_id, phase):
             cliente = details.get('cliente', '')
             numero_display = details.get('numero_ordine', order_id[:8])
 
+            # Trova gestore del cliente
+            op_id = details.get('operatore_assegnato')
+            if not op_id:
+                op_id = OperatorClientManager.find_operator_for_client(cliente)
+
             # Notifica ordine completato definitivamente
             if result.get('all_completed'):
-                for uid in ['elena-impiegata', 'paolo-responsabile', 'stefano-responsabile']:
+                # Notifica impiegata + gestore cliente
+                notif_targets = set(['elena-impiegata'])
+                if op_id:
+                    notif_targets.add(op_id)
+                for uid in notif_targets:
                     NotificationManager.create_notification(
                         user_id=uid,
                         order_id=order_id,
                         title='Ordine completato',
-                        message=f'Ordine {cliente} - completato',
+                        message=f'Ordine #{numero_display} ({cliente}) - completato',
                         notification_type='completion',
                         notification_category='attiva'
                     )
 
-            # Notifica attiva all'operatore assegnato quando ordine esce dal laser
+            # Notifica attiva all'operatore assegnato quando fase completata
             if fase_successiva and fase_successiva not in ('COMPLETATO', 'LASER'):
-                op_id = details.get('operatore_assegnato')
-                if not op_id:
-                    op_id = OperatorClientManager.find_operator_for_client(cliente)
                 if op_id:
                     NotificationManager.create_notification(
                         user_id=op_id,
                         order_id=order_id,
                         title='Ordine pronto',
-                        message=f'Ordine #{numero_display} del cliente {cliente} pronto — scegli la prossima lavorazione',
+                        message=f'Ordine #{numero_display} ({cliente}): {phase} completata → {fase_successiva}',
                         notification_type='phase_ready',
                         notification_category='attiva'
                     )
-                # Notifica sempre i capi
-                for capo_id in ['paolo-responsabile', 'stefano-responsabile']:
-                    if capo_id != op_id:
-                        NotificationManager.create_notification(
-                            user_id=capo_id,
-                            order_id=order_id,
-                            title='Fase completata',
-                            message=f'Ordine #{numero_display} ({cliente}): {phase} completata → {fase_successiva}',
-                            notification_type='phase_ready',
-                            notification_category='informativa'
-                        )
 
             return jsonify({
                 'success': True,
@@ -662,12 +644,18 @@ def complete_order_early(order_id):
                 ip_address=request.remote_addr
             )
 
-            # Notifiche completamento ordine
+            # Notifiche completamento ordine — solo impiegata + gestore cliente
             details = OrderManager.get_order_details(order_id)
             cliente = details.get('cliente', '')
             numero_display = details.get('numero_ordine', order_id[:8])
 
-            for uid in ['elena-impiegata', 'paolo-responsabile', 'stefano-responsabile']:
+            notif_targets = set(['elena-impiegata'])
+            op_id = details.get('operatore_assegnato')
+            if not op_id:
+                op_id = OperatorClientManager.find_operator_for_client(cliente)
+            if op_id:
+                notif_targets.add(op_id)
+            for uid in notif_targets:
                 NotificationManager.create_notification(
                     user_id=uid,
                     order_id=order_id,
