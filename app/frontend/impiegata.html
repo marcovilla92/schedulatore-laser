@@ -2775,7 +2775,7 @@ function formatNotifTime(isoStr) {
 async function markNotifRead(id, el, orderId) {
   if (el) el.classList.remove('unread');
   try { await fetch(`${API_URL}/api/notifications/${id}/read`, { method: 'PUT' }); pollNotifCount(); } catch (_) {}
-  if (orderId) window.open(`/dettaglio-ordine.html?id=${orderId}`, '_blank');
+  if (orderId) window.location.href = `/dettaglio-ordine.html?id=${orderId}`;
 }
 
 async function deleteNotif(id) {
