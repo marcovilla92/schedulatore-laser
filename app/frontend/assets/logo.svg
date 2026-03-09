@@ -1,0 +1,48 @@
+<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+  <!-- Lamiera superiore (piano) -->
+  <polygon points="30,75 120,45 190,75 100,105" fill="#6b7280" stroke="#1f2937" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Spessore lamiera superiore -->
+  <polygon points="30,75 100,105 100,112 30,82" fill="#4b5563" stroke="#1f2937" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Lamiera piegata (verso il basso) -->
+  <polygon points="100,105 190,75 190,82 140,120 100,112" fill="#4b5563" stroke="#1f2937" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Faccia piega destra -->
+  <polygon points="140,120 190,82 190,90 155,130" fill="#374151" stroke="#1f2937" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Faccia inferiore piega -->
+  <polygon points="100,112 140,120 155,130 100,120" fill="#374151" stroke="#1f2937" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Testa laser -->
+  <rect x="88" y="8" width="24" height="22" rx="3" fill="#1f2937"/>
+  <rect x="93" y="5" width="14" height="6" rx="2" fill="#374151"/>
+  <rect x="96" y="28" width="8" height="4" fill="#1f2937"/>
+  <!-- Fessura ugello -->
+  <rect x="97" y="12" width="6" height="8" rx="1" fill="#374151"/>
+
+  <!-- Raggio laser -->
+  <line x1="100" y1="32" x2="100" y2="70" stroke="#22c55e" stroke-width="3" opacity="0.9"/>
+  <line x1="100" y1="32" x2="98" y2="70" stroke="#4ade80" stroke-width="1.5" opacity="0.5"/>
+  <line x1="100" y1="32" x2="102" y2="70" stroke="#4ade80" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Scintilla punto taglio (centro lamiera) -->
+  <circle cx="100" cy="72" r="4" fill="#22c55e" opacity="0.6"/>
+  <circle cx="100" cy="72" r="2" fill="#fff" opacity="0.9"/>
+  <!-- Raggi scintilla -->
+  <line x1="100" y1="65" x2="100" y2="60" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="106" y1="68" x2="111" y2="64" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="94" y1="68" x2="89" y2="64" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="105" y1="75" x2="110" y2="73" stroke="#22c55e" stroke-width="1" stroke-linecap="round"/>
+  <line x1="95" y1="75" x2="90" y2="73" stroke="#22c55e" stroke-width="1" stroke-linecap="round"/>
+
+  <!-- Scintilla bordo piega (destra) -->
+  <circle cx="145" cy="80" r="3" fill="#22c55e" opacity="0.5"/>
+  <circle cx="145" cy="80" r="1.5" fill="#fff" opacity="0.8"/>
+  <line x1="145" y1="74" x2="146" y2="70" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="149" y1="78" x2="153" y2="76" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Scintilla punto piega (sotto) -->
+  <circle cx="100" cy="112" r="3.5" fill="#22c55e" opacity="0.5"/>
+  <circle cx="100" cy="112" r="1.5" fill="#fff" opacity="0.8"/>
+  <line x1="96" y1="116" x2="92" y2="122" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="100" y1="118" x2="100" y2="124" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="104" y1="116" x2="108" y2="121" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="94" y1="113" x2="88" y2="115" stroke="#22c55e" stroke-width="1" stroke-linecap="round"/>
+</svg>

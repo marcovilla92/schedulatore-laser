@@ -1,6 +1,7 @@
 """CRUD operations for Order management"""
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 from .models import (
     Order, OrderFile, ProcessingStep, OrderNotification, PhaseSession,
@@ -91,11 +92,24 @@ class OrderManager:
             operatore_assegnato = None
             if destinazione == "OFFICINA":
                 # Cerca operatore assegnato a questo cliente (case-insensitive)
-                assignment = session.query(OperatorClient).filter(
+                assignments = session.query(OperatorClient).filter(
                     func.lower(OperatorClient.client_name) == func.lower(cliente)
-                ).first()
-                if assignment:
-                    operatore_assegnato = assignment.operator_id
+                ).all()
+                # Preferisci operatore non-LASER
+                for assignment in assignments:
+                    op_user = session.query(User).filter(User.id == assignment.operator_id).first()
+                    if op_user and op_user.phase != 'LASER':
+                        operatore_assegnato = assignment.operator_id
+                        break
+                # Fallback: primo mapping disponibile
+                if not operatore_assegnato and assignments:
+                    operatore_assegnato = assignments[0].operator_id
+                # Fallback finale: assegna a un capo per non perdere l'ordine
+                if not operatore_assegnato:
+                    capo = session.query(User).filter(User.is_capo == True).first()
+                    if capo:
+                        operatore_assegnato = capo.id
+                        logger.warning(f"Ordine {numero_ordine} ({cliente}): nessun operatore mappato per OFFICINA, assegnato al capo {capo.name}")
 
             # Determina fase_corrente
             fase_corrente = "LASER" if destinazione == "LASER" else "PIEGA"
@@ -149,11 +163,14 @@ class OrderManager:
     
     @staticmethod
     def get_all_orders_dict(cliente: str = None, status: str = None,
-                            fase_corrente: str = None, operatore: str = None) -> list:
+                            fase_corrente: str = None, operatore: str = None,
+                            order_ids: list = None) -> list:
         """Recupera ordini non eliminati come dizionari con filtri per il nuovo workflow"""
         session = get_session()
         try:
             query = session.query(Order).filter(Order.is_deleted == False)
+            if order_ids:
+                query = query.filter(Order.id.in_(order_ids))
             if cliente:
                 query = query.filter(Order.cliente == cliente)
             if status:
@@ -163,7 +180,19 @@ class OrderManager:
             if operatore:
                 query = query.filter(Order.operatore_assegnato == operatore)
 
-            orders = query.order_by(Order.data_consegna.asc()).all()
+            orders = query.options(
+                joinedload(Order.files),
+                joinedload(Order.processing_steps)
+            ).order_by(Order.data_consegna.asc()).all()
+
+            # De-duplica ordini (joinedload può duplicare)
+            seen_ids = set()
+            unique_orders = []
+            for o in orders:
+                if o.id not in seen_ids:
+                    seen_ids.add(o.id)
+                    unique_orders.append(o)
+            orders = unique_orders
 
             # Pre-carica tutte le sessioni per gli ordini trovati
             order_ids = [o.id for o in orders]
@@ -174,9 +203,19 @@ class OrderManager:
             for ps in all_sessions:
                 step_sessions.setdefault(ps.step_id, []).append(ps)
 
-            # Mapping nome→ID utente per operatori_info
+            # Pre-carica tutti gli utenti (evita N+1 queries)
             all_users = session.query(User).all()
             name_to_id = {u.name: u.id for u in all_users}
+            id_to_name = {u.id: u.name for u in all_users}
+
+            # Pre-carica tutte le support requests attive
+            all_support = session.query(SupportRequest).filter(
+                SupportRequest.order_id.in_(order_ids),
+                SupportRequest.stato.in_(['pending', 'accepted'])
+            ).all() if order_ids else []
+            support_by_order = {}
+            for sr in all_support:
+                support_by_order.setdefault(sr.order_id, []).append(sr)
 
             result = []
             for order in orders:
@@ -189,11 +228,7 @@ class OrderManager:
                         elif f.file_type == 'DXF':
                             dxf_files.append({'filename': f.filename})
 
-                operatore_nome = None
-                if order.operatore_assegnato:
-                    user = session.query(User).filter(User.id == order.operatore_assegnato).first()
-                    if user:
-                        operatore_nome = user.name
+                operatore_nome = id_to_name.get(order.operatore_assegnato)
 
                 steps_data = []
                 for ps in (order.processing_steps or []):
@@ -242,21 +277,15 @@ class OrderManager:
                         'operatori_info': operatori_info,
                     })
 
-                # Support requests attivi per quest'ordine
-                active_support = session.query(SupportRequest).filter(
-                    SupportRequest.order_id == order.id,
-                    SupportRequest.stato.in_(['pending', 'accepted'])
-                ).all()
+                # Support requests attivi per quest'ordine (pre-caricati)
                 support_data = []
-                for sr in active_support:
-                    sr_principale = session.query(User).filter(User.id == sr.operatore_principale).first()
-                    sr_supporto = session.query(User).filter(User.id == sr.operatore_supporto).first()
+                for sr in support_by_order.get(order.id, []):
                     support_data.append({
                         'id': sr.id,
                         'operatore_principale': sr.operatore_principale,
-                        'nome_principale': sr_principale.name if sr_principale else '',
+                        'nome_principale': id_to_name.get(sr.operatore_principale, ''),
                         'operatore_supporto': sr.operatore_supporto,
-                        'nome_supporto': sr_supporto.name if sr_supporto else '',
+                        'nome_supporto': id_to_name.get(sr.operatore_supporto, ''),
                         'stato': sr.stato,
                         'forzata': sr.forzata
                     })
@@ -282,7 +311,14 @@ class OrderManager:
             return result
         finally:
             session.close()
-    
+
+    @staticmethod
+    def get_orders_by_ids(order_ids: list) -> list:
+        """Recupera ordini specifici per ID come dizionari"""
+        if not order_ids:
+            return []
+        return OrderManager.get_all_orders_dict(order_ids=order_ids)
+
     @staticmethod
     def get_orders_by_phase(phase: str, operatore_id: str = None) -> list:
         """Recupera ordini per fase corrente (e opzionalmente per operatore)"""
@@ -404,7 +440,7 @@ class OrderManager:
 
             # Aggiorna stato dell'ordine (order già caricato all'inizio)
             order.fase_corrente = phase
-            if order.status == "PARZIALE":
+            if order.status in ("RICEVUTO", "PARZIALE"):
                 order.status = "IN_LAVORAZIONE"
 
             session.commit()
@@ -591,16 +627,30 @@ class OrderManager:
                 session.add(notification)
             elif fase_successiva == "LASER":
                 order.fase_corrente = "LASER"
+                order.status = "IN_LAVORAZIONE"
             elif fase_successiva:
                 order.fase_corrente = fase_successiva
+                order.status = "IN_LAVORAZIONE"
 
             # Auto-assegna operatore quando ordine esce dal laser e non ha operatore
             if phase == 'LASER' and fase_successiva not in ('LASER', 'COMPLETATO') and not order.operatore_assegnato:
-                assignment = session.query(OperatorClient).filter(
+                # Cerca mapping cliente→operatore, ma solo operatori officina (non LASER)
+                assignments = session.query(OperatorClient).filter(
                     func.lower(OperatorClient.client_name) == func.lower(order.cliente)
-                ).first()
-                if assignment:
-                    order.operatore_assegnato = assignment.operator_id
+                ).all()
+                assigned = False
+                for assignment in assignments:
+                    op_user = session.query(User).filter(User.id == assignment.operator_id).first()
+                    if op_user and op_user.phase != 'LASER':
+                        order.operatore_assegnato = assignment.operator_id
+                        assigned = True
+                        break
+                # Fallback: assegna a un capo se nessun mapping trovato
+                if not assigned:
+                    capo = session.query(User).filter(User.is_capo == True).first()
+                    if capo:
+                        order.operatore_assegnato = capo.id
+                        logger.warning(f"Ordine {order.numero_ordine} ({order.cliente}): nessun operatore mappato, assegnato al capo {capo.name}")
 
             session.commit()
 

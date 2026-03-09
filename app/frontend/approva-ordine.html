@@ -11,6 +11,10 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+body.page-exit { animation: pageOut 0.15s ease-in forwards; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pageOut { from { opacity: 1; } to { opacity: 0; } }
 
 :root {
   --ls-green: #1a7a48;
@@ -74,14 +78,13 @@ body {
 
 .logo-icon {
   width: 40px; height: 40px;
-  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 18px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 2px; }
@@ -1022,7 +1025,8 @@ h1 {
 @media (max-width: 1024px) {
   .topbar { padding: 10px 12px; gap: 6px; }
   .logo-section { gap: 8px; }
-  .logo-icon { width: 32px; height: 32px; font-size: 14px; }
+  .logo-icon { width: 32px; height: 32px; }
+  .logo-icon img { width: 32px; height: 32px; }
   .logo-main { font-size: 14px; }
   .logo-sub { font-size: 9px; }
   .capo-nav { margin-left: 8px; gap: 2px; }
@@ -1064,7 +1068,8 @@ h1 {
 /* === MOBILE / SMALL TABLET (768px) === */
 @media (max-width: 768px) {
   .topbar { padding: 8px 10px; gap: 4px; }
-  .logo-icon { width: 28px; height: 28px; font-size: 12px; }
+  .logo-icon { width: 28px; height: 28px; }
+  .logo-icon img { width: 28px; height: 28px; }
   .logo-main { font-size: 13px; }
   .capo-nav-item { padding: 4px 8px; font-size: 10px; }
   .capo-tab-bar { padding: 0 10px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
@@ -1200,6 +1205,15 @@ h1 {
 /* === TAB PANELS === */
 .tab-panel { display: none; margin-top: 120px; }
 .tab-panel.active { display: block; }
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes notifSlideIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 /* === CARICA ORDINE TAB === */
 .carica-body {
@@ -1812,8 +1826,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 <body>
 
 <div class="topbar">
-  <div class="logo-section" onclick="window.location.href='/login.html'">
-    <div class="logo-icon">&#10022;</div>
+  <div class="logo-section" onclick="window.location.href='/approva-ordine.html'">
+    <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
       <div class="logo-sub">LS</div>
@@ -2679,13 +2693,20 @@ function switchTab(tab) {
   document.getElementById('tab-archivio').classList.toggle('active', tab === 'archivio');
   document.getElementById('tab-operai').classList.toggle('active', tab === 'operai');
   document.getElementById('tab-attivita').classList.toggle('active', tab === 'attivita');
-  document.getElementById('view-ordini').style.display = tab === 'ordini' ? 'grid' : 'none';
-  document.getElementById('view-clienti').style.display = tab === 'clienti' ? 'block' : 'none';
-  document.getElementById('view-deleghe').style.display = tab === 'deleghe' ? 'block' : 'none';
-  document.getElementById('view-kpi').style.display = tab === 'kpi' ? 'block' : 'none';
-  document.getElementById('view-archivio').style.display = tab === 'archivio' ? 'block' : 'none';
-  document.getElementById('view-operai').style.display = tab === 'operai' ? 'block' : 'none';
-  document.getElementById('view-attivita').style.display = tab === 'attivita' ? 'block' : 'none';
+  const views = {
+    ordini: 'grid', clienti: 'block', deleghe: 'block',
+    kpi: 'block', archivio: 'block', operai: 'block', attivita: 'block'
+  };
+  Object.entries(views).forEach(([key, displayVal]) => {
+    const el = document.getElementById('view-' + key);
+    if (key === tab) {
+      el.style.display = displayVal;
+      el.style.animation = 'tabFadeIn 0.2s ease-out';
+    } else {
+      el.style.display = 'none';
+      el.style.animation = '';
+    }
+  });
 
   if (tab === 'clienti') renderClientiView();
   if (tab === 'deleghe') loadCapoDeleghe();
@@ -2854,14 +2875,24 @@ function showMessage(text, type) {
   if (!msg) {
     msg = document.createElement('div');
     msg.id = 'global-message';
-    msg.style.cssText = 'position:fixed; bottom:24px; right:24px; padding:12px 24px; border-radius:10px; font-size:14px; font-weight:600; z-index:9999; transition:opacity 0.3s; opacity:0;';
+    msg.style.cssText = 'position:fixed; bottom:24px; right:24px; padding:14px 24px; border-radius:12px; font-size:13px; font-weight:600; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.12); backdrop-filter:blur(8px); transform:translateY(100px); opacity:0; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;';
     document.body.appendChild(msg);
   }
   msg.textContent = text;
-  msg.style.background = type === 'success' ? '#dcfce7' : '#fee2e2';
+  msg.style.background = type === 'success' ? 'rgba(220,252,231,0.95)' : 'rgba(254,226,226,0.95)';
   msg.style.color = type === 'success' ? '#166534' : '#991b1b';
-  msg.style.opacity = '1';
-  setTimeout(() => msg.style.opacity = '0', 3500);
+  msg.style.border = type === 'success' ? '1px solid rgba(22,101,52,0.15)' : '1px solid rgba(153,27,27,0.15)';
+  msg.style.transform = 'translateY(100px)';
+  msg.style.opacity = '0';
+  requestAnimationFrame(() => {
+    msg.style.transform = 'translateY(0)';
+    msg.style.opacity = '1';
+  });
+  clearTimeout(msg._timer);
+  msg._timer = setTimeout(() => {
+    msg.style.transform = 'translateY(100px)';
+    msg.style.opacity = '0';
+  }, 3500);
 }
 
 function showDetailStatus(text, type) {
@@ -3579,8 +3610,14 @@ function getCapoUserId() {
 function toggleNotifPanelCapo() {
   const panel = document.getElementById('notif-panel-capo');
   capoNotifOpen = !capoNotifOpen;
-  panel.style.display = capoNotifOpen ? 'flex' : 'none';
-  if (capoNotifOpen) capoLoadNotifs();
+  if (capoNotifOpen) {
+    panel.style.display = 'flex';
+    panel.style.animation = 'notifSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    capoLoadNotifs();
+  } else {
+    panel.style.display = 'none';
+    panel.style.animation = '';
+  }
 }
 document.addEventListener('click', (e) => {
   if (capoNotifOpen && !e.target.closest('.notif-bell-capo')) {
@@ -3839,6 +3876,18 @@ async function toggleOperaioActive(userId, isCurrentlyActive) {
     }
   } catch (e) { showMessage('Errore di connessione', 'error'); }
 }
+
+// === SMOOTH PAGE TRANSITIONS ===
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript') || link.target === '_blank') return;
+  if (href === window.location.pathname) return;
+  e.preventDefault();
+  document.body.classList.add('page-exit');
+  setTimeout(() => { window.location.href = href; }, 150);
+});
 </script>
 
 <!-- APP MODAL (sostituto di confirm/alert) -->

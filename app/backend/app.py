@@ -434,10 +434,9 @@ def get_orders():
                 existing_ids = {o['id'] for o in orders_data}
                 new_ids = [sid for sid in supported_ids if sid not in existing_ids]
                 if new_ids:
-                    supported_orders = OrderManager.get_all_orders_dict()
-                    for so in supported_orders:
-                        if so['id'] in new_ids:
-                            orders_data.append(so)
+                    # Carica solo gli ordini supportati mancanti (non tutti)
+                    for so in OrderManager.get_orders_by_ids(new_ids):
+                        orders_data.append(so)
 
         return jsonify({'orders': orders_data}), 200
 

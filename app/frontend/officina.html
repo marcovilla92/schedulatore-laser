@@ -11,6 +11,10 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+body.page-exit { animation: pageOut 0.15s ease-in forwards; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pageOut { from { opacity: 1; } to { opacity: 0; } }
 
 :root {
   --ls-green: #1a7a48;
@@ -72,15 +76,14 @@ body {
 .logo-section:hover { opacity: 0.8; }
 
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
-  border-radius: 8px;
+  width: 40px; height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 16px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 1px; }
@@ -330,7 +333,7 @@ body {
   border-top-color: var(--border);
 }
 .accordion-body .card-actions { padding: 10px 0; border-top: none; }
-.accordion-body .card-actions-secondary { padding: 4px 0 10px; }
+.accordion-body .card-actions-secondary { padding: 0 0 4px; }
 .accordion-body .card-phases { border-top: 1px solid var(--border); padding: 10px 0 0; }
 .accordion-body .support-badge { margin-bottom: 8px; }
 .accordion-body .timer-section { margin: 8px 0; }
@@ -526,8 +529,10 @@ body {
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: all 0.25s var(--ease-apple);
+  transition: all 0.15s var(--ease-apple);
   white-space: nowrap;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Primario: verde pieno (Completa Fase, Riprendi, Lavora) */
@@ -553,20 +558,85 @@ body {
 }
 .action-btn.outline:hover { background: var(--bg); border-color: #9ca3af; }
 
-/* COMPACT CARD ACTIONS — secondary hidden behind "Altro" toggle */
+/* SECONDARY ACTIONS — touch-friendly pills */
 .card-actions-secondary {
-  display: none;
+  display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 4px 20px 10px;
+  gap: 8px;
+  padding: 4px 0 8px;
 }
-.card-actions-secondary.visible { display: flex; }
-.action-btn.more-toggle {
+.sec-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--black);
   background: var(--bg);
-  color: var(--gray-text);
-  border: 1px dashed #d1d5db;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-apple);
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
 }
-.action-btn.more-toggle:hover { background: #e5e5e5; color: var(--black); border-color: #9ca3af; }
+.sec-action:hover { background: #e5e7eb; border-color: #9ca3af; }
+.sec-action:active { transform: scale(0.97); }
+.sec-action.danger { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+.sec-action.danger:hover { background: #fee2e2; border-color: #f87171; }
+@media (max-width: 900px) {
+  .sec-action { min-height: 48px; padding: 12px 18px; font-size: 14px; }
+}
+
+/* PHASE CHOICE — equal-weight buttons for selecting phase */
+.phase-choice-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-text);
+  padding: 4px 0 6px;
+}
+.phase-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 8px;
+}
+.phase-choice-btn {
+  flex: 1;
+  min-width: 100px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a7a48;
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-apple);
+  -webkit-tap-highlight-color: transparent;
+}
+.phase-choice-btn:hover { background: #dcfce7; border-color: #86efac; }
+.phase-choice-btn:active { transform: scale(0.97); }
+.phase-choice-btn.current {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+.phase-choice-btn.current:hover { background: #15803d; border-color: #15803d; }
+.phase-choice-btn.laser {
+  color: #1e40af;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.phase-choice-btn.laser:hover { background: #dbeafe; border-color: #93c5fd; }
+@media (max-width: 900px) {
+  .phase-choice-btn { min-height: 52px; font-size: 15px; }
+}
 
 /* PAUSED CARD */
 .paused-info { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px; border-radius:8px; background:rgba(146,64,14,0.05); }
@@ -715,17 +785,20 @@ body {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(100px);
-  padding: 12px 24px;
-  border-radius: 8px;
+  padding: 14px 28px;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
   z-index: 3000;
-  transition: transform 0.3s;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
   pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  backdrop-filter: blur(8px);
 }
-.message.active { transform: translateX(-50%) translateY(0); }
-.message.success { background: var(--green-badge-bg); color: #166534; }
-.message.error { background: #fee2e2; color: #991b1b; }
+.message.active { transform: translateX(-50%) translateY(0); opacity: 1; }
+.message.success { background: rgba(220,252,231,0.95); color: #166534; border: 1px solid rgba(22,101,52,0.15); }
+.message.error { background: rgba(254,226,226,0.95); color: #991b1b; border: 1px solid rgba(153,27,27,0.15); }
 
 /* === CALENDARIO === */
 .cal-container { display: flex; height: calc(100vh - 140px); }
@@ -805,7 +878,14 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
-.notif-panel.active { display: flex; }
+.notif-panel.active {
+  display: flex;
+  animation: notifSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes notifSlideIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 .notif-panel-header {
   display: flex;
   justify-content: space-between;
@@ -825,9 +905,14 @@ body {
   gap: 10px;
   padding: 12px;
   border-radius: 8px;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.15s ease;
   cursor: default;
   position: relative;
+  animation: notifItemIn 0.2s ease-out both;
+}
+@keyframes notifItemIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 .notif-item:hover { background: var(--bg); }
 .notif-item.unread { background: rgba(26,122,72,0.04); }
@@ -920,15 +1005,10 @@ body {
 }
 
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--green), var(--green-light));
-  border-radius: 8px;
+  width: 40px; height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 16px;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 1px; }
@@ -1042,7 +1122,7 @@ body {
 
 /* === TAB PANELS === */
 .tab-panel { display: none; margin-top: 120px; }
-.tab-panel.active { display: block; }
+.tab-panel.active { display: block; animation: tabFadeIn 0.2s ease-out; }
 
 /* === CARICA ORDINE TAB === */
 .carica-body {
@@ -1639,6 +1719,12 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
 .tab-panel.active {
   display: block;
+  animation: tabFadeIn 0.2s ease-out;
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .body-content {
@@ -1863,9 +1949,24 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
 /* === TABLET ACTIVE STATE === */
 .action-btn:active {
-  transform: scale(0.96);
-  transition: transform 0.1s;
+  transform: scale(0.94);
+  transition: transform 0.08s;
 }
+.action-btn.loading {
+  pointer-events: none;
+  opacity: 0.6;
+  position: relative;
+}
+.action-btn.loading::after {
+  content: '';
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* === FOCUS RING ACCESSIBILITY === */
 button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible {
@@ -1890,8 +1991,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 <body>
 
 <div class="topbar">
-  <a class="logo-section" href="/login.html">
-    <div class="logo-icon">&#10022;</div>
+  <a class="logo-section" href="/officina.html">
+    <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
       <div class="logo-sub">LS</div>
@@ -2124,6 +2225,7 @@ let activeTimers = {};
 let expandedOrders = new Set();
 let activeColorMap = {};
 let manuallyCollapsed = new Set();
+let actionInProgress = false;
 
 // === USER PILL ===
 function updateUserPill() {
@@ -2177,7 +2279,18 @@ window.addEventListener('load', () => {
   }
 
   loadOrders();
-  setInterval(loadOrders, 5000);
+  // Polling intelligente: pausa quando la pagina non è visibile
+  let _pollTimer = setInterval(loadOrders, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearInterval(_pollTimer);
+      _pollTimer = null;
+    } else {
+      _lastOrdersFingerprint = ''; // Forza refresh al ritorno
+      loadOrders();
+      _pollTimer = setInterval(loadOrders, 5000);
+    }
+  });
 
   // === SWIPE GESTURE (accordion navigation) ===
   (function() {
@@ -2225,8 +2338,24 @@ window.addEventListener('load', () => {
 });
 
 // === LOAD ORDERS ===
+let _lastOrdersFingerprint = '';
+
+function _ordersFingerprint(orders) {
+  // Fingerprint leggero: cattura cambi di stato senza serializzare tutto
+  // Ordinato per ID per stabilità indipendente dall'ordine di arrivo
+  const parts = orders.map(o => {
+    const steps = (o.processing_steps || []);
+    const activeStep = steps.find(s => s.sessione_attiva);
+    const pauseCount = steps.filter(s => s.in_pausa).length;
+    return `${o.id}|${o.fase_corrente}|${o.status}|${steps.length}|${pauseCount}|${activeStep ? activeStep.id + ':' + activeStep.sessione_attiva_inizio : '-'}`;
+  });
+  parts.sort();
+  return parts.join(';');
+}
+
 async function loadOrders() {
-  // Skip refresh se menu "Altro" è aperto
+  // Skip refresh se azione in corso
+  if (actionInProgress) return;
   if (document.querySelector('.card-actions-secondary.visible')) return;
   try {
     let url;
@@ -2240,7 +2369,15 @@ async function loadOrders() {
     }
     const resp = await fetch(url);
     const data = await resp.json();
-    allOrders = data.orders || data;
+    const newOrders = data.orders || data;
+    // Skip re-render se i dati non sono cambiati (evita DOM thrashing)
+    const newFp = _ordersFingerprint(newOrders);
+    if (newFp === _lastOrdersFingerprint) {
+      updateConnBadge(true);
+      return;
+    }
+    _lastOrdersFingerprint = newFp;
+    allOrders = newOrders;
     renderCards();
     updateConnBadge(true);
   } catch (err) {
@@ -2292,10 +2429,8 @@ function renderCards() {
   const userPhase = currentUser.phase || 'PIEGA';
   const isOfficina = (userPhase === 'OFFICINA' || userPhase === 'ALL' || userPhase === 'LASER');
 
-  // Operai officina (non capi): nascondi ordini ancora in fase LASER
-  const visibleOrders = (!currentUser.is_capo && userPhase === 'OFFICINA')
-    ? allOrders.filter(o => o.fase_corrente !== 'LASER' && o.status !== 'RICEVUTO')
-    : allOrders;
+  // Tutti vedono gli ordini LASER come read-only (gestiti da buildLaserReadOnlyBody)
+  const visibleOrders = allOrders;
   const activeOrders = visibleOrders.filter(o => o.status !== 'COMPLETATO');
   const completedOrders = visibleOrders.filter(o => o.status === 'COMPLETATO');
 
@@ -2349,7 +2484,7 @@ function renderCards() {
       const myInfo = step ? getMyStepInfo(step) : {};
       return renderAccordionItem(order, step, phase, myInfo, {
         isActive: myInfo.isActive,
-        isPaused: myInfo.isPaused,
+        isPaused: myInfo.isPaused && !myInfo.isConfirmed,
         isConfirmed: myInfo.isConfirmed && !myInfo.isActive,
         isCompleted: false
       });
@@ -2491,9 +2626,9 @@ function renderAccordionItem(order, step, phase, myInfo, flags) {
   else if (isConfirmed) { statusBadgeClass = 'lavorazione'; statusText = 'CONFERMATO'; }
   else if (isCompleted) { statusBadgeClass = 'lavorazione'; statusText = 'COMPLETATO'; }
   else {
-    const laserStep = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
-    if (laserStep?.timestamp_fine) { statusBadgeClass = 'in-attesa'; statusText = 'IN ATTESA'; }
-    else { statusBadgeClass = 'ricevuto'; statusText = 'DA TAGLIARE'; }
+    const fase = order.fase_corrente || 'LASER';
+    if (fase === 'LASER') { statusBadgeClass = 'ricevuto'; statusText = 'DA TAGLIARE'; }
+    else { statusBadgeClass = 'in-attesa'; statusText = 'IN ATTESA'; }
   }
 
   const colorClass = activeColorMap[orderId] || '';
@@ -2506,8 +2641,12 @@ function renderAccordionItem(order, step, phase, myInfo, flags) {
     <span class="acc-chevron">&#9660;</span>
   </div>`;
 
+  // Ordini in fase LASER: read-only in officina (gestiti da laser-v2.html)
+  const isAtLaser = (order.fase_corrente === 'LASER') && !isActive && !isPaused && !isConfirmed && !isCompleted;
+
   let bodyHtml = '';
-  if (isActive) bodyHtml = buildActiveBody(order, step, phase, consegnaFull);
+  if (isAtLaser) bodyHtml = buildLaserReadOnlyBody(order, consegnaFull);
+  else if (isActive) bodyHtml = buildActiveBody(order, step, phase, consegnaFull);
   else if (isPaused) bodyHtml = buildPausedBody(order, step, phase, consegnaFull);
   else if (isConfirmed) bodyHtml = buildConfirmedBody(order, step, phase, consegnaFull);
   else if (isCompleted) bodyHtml = buildCompletedBody(order, consegnaFull);
@@ -2530,9 +2669,10 @@ function buildActiveBody(order, step, phase, consegna) {
   const timerHtml = buildTimerHtml(order, step, 'active');
 
   let sec = '';
-  if (!isSupport) sec += `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>`;
-  if (!isSupport) sec += `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>`;
-  if (canModify) sec += `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>`;
+  sec += `<button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button>`;
+  if (!isSupport) sec += `<button class="sec-action" onclick="openSupportModal('${order.id}')">&#129309; Aiuto</button>`;
+  if (!isSupport) sec += `<button class="sec-action danger" onclick="openCompleteOrderModal('${order.id}')">&#10004; Completato</button>`;
+  if (canModify) sec += `<button class="sec-action" onclick="openEditModal('${order.id}')">&#9998; Modifica</button>`;
 
   return `${supportBadgeHtml}
     <div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
@@ -2540,9 +2680,8 @@ function buildActiveBody(order, step, phase, consegna) {
     <div class="card-actions">
       <button class="action-btn green" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
       <button class="action-btn outline" onclick="savePartial('${order.id}')">&#9208; Pausa</button>
-      ${sec ? `<button class="action-btn more-toggle" id="card-more-${order.id}" onclick="event.stopPropagation();toggleCardActions('${order.id}')">Altro &#9662;</button>` : ''}
     </div>
-    ${sec ? `<div class="card-actions-secondary" id="card-secondary-${order.id}">${sec}</div>` : ''}
+    <div class="card-actions-secondary">${sec}</div>
     <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
@@ -2564,19 +2703,19 @@ function buildPausedBody(order, step, phase, consegna) {
     : `<div class="paused-info"><span class="paused-label">&#9208; In Pausa</span><span class="paused-time">${formatTimerVal(cumulSec)}</span><span class="paused-sessions">${sessCount} ${sessCount === 1 ? 'sessione' : 'sessioni'} completate</span></div>`;
 
   let sec = '';
-  if (!isSupport) sec += `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>`;
-  if (!isSupport) sec += `<button class="action-btn outline" onclick="openCompleteOrderModal('${order.id}')" style="color:var(--red);">&#9632; Chiudi Ordine</button>`;
-  if (canModify) sec += `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>`;
+  sec += `<button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button>`;
+  if (!isSupport) sec += `<button class="sec-action" onclick="openSupportModal('${order.id}')">&#129309; Aiuto</button>`;
+  if (!isSupport) sec += `<button class="sec-action danger" onclick="openCompleteOrderModal('${order.id}')">&#10004; Completato</button>`;
+  if (canModify) sec += `<button class="sec-action" onclick="openEditModal('${order.id}')">&#9998; Modifica</button>`;
 
   return `${supportBadgeHtml}
     <div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
     ${pausedInfoHtml}
     <div class="card-actions">
-      <button class="action-btn green" onclick="resumePhase('${order.id}','${phase}')">&#9654; Riprendi</button>
+      <button class="action-btn green" onclick="resumePhase('${order.id}','${phase}',this)">&#9654; Riprendi</button>
       <button class="action-btn outline" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
-      ${sec ? `<button class="action-btn more-toggle" id="card-more-${order.id}" onclick="event.stopPropagation();toggleCardActions('${order.id}')">Altro &#9662;</button>` : ''}
     </div>
-    ${sec ? `<div class="card-actions-secondary" id="card-secondary-${order.id}">${sec}</div>` : ''}
+    <div class="card-actions-secondary">${sec}</div>
     <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
@@ -2603,7 +2742,7 @@ function buildConfirmedBody(order, step, phase, consegna) {
   return `<div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
     <div class="confirmed-info"><span class="confirmed-label">&#10004; Hai confermato la fine della fase</span>${pendingNames.length > 0 ? `<span class="confirmed-waiting">In attesa che ${pendingNames.join(', ')} confermi...</span>` : ''}</div>
     ${timersHtml}
-    <div class="card-actions"><button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button></div>
+    <div class="card-actions-secondary"><button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button></div>
     <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
@@ -2615,26 +2754,67 @@ function buildWaitingBody(order, phase, consegna) {
   const supportBadgeHtml = isSupport ? `<div class="support-badge">&#129309; In supporto a ${escapeHtml(supportInfo.nome_principale)}</div>` :
     (supporters.length ? `<div class="support-badge">&#128101; Supporto: ${supporters.map(s => escapeHtml(s.nome_supporto)).join(', ')}</div>` : '');
   const hasCompletedPhases = (order.processing_steps || []).some(s => s.timestamp_fine);
-  const phaseActions = buildPhaseActionsSplit(order);
 
-  let sec = phaseActions.secondary;
-  sec += `<button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button>`;
-  if (!isSupport) sec += `<button class="action-btn outline" onclick="openDelegationModal('${order.id}','${phase}')">&#128101; Delega</button>`;
-  if (!isSupport) sec += `<button class="action-btn outline" onclick="openSupportModal('${order.id}')">&#129309; Chiedi Aiuto</button>`;
-  if (!isSupport && hasCompletedPhases) sec += `<button class="action-btn outline" style="color:var(--red);" onclick="openCompleteOrderModal('${order.id}')">&#9632; Chiudi Ordine</button>`;
-  if (canModify) sec += `<button class="action-btn outline" onclick="openEditModal('${order.id}')">Modifica</button>`;
+  // Controlla se la fase corrente è già stata avviata da qualcuno
+  const steps = order.processing_steps || [];
+  const currentStep = steps.filter(s => s.fase === phase).pop();
+  const phaseInProgress = currentStep?.timestamp_inizio && !currentStep?.timestamp_fine;
+
+  // Bottoni fase: se non avviato → scelta tra tutte le fasi; se in corso → solo join
+  let phaseButtonsHtml = '';
+  if (phaseInProgress) {
+    // Fase in corso da un altro operatore — bottone per unirsi
+    if (isSupport) {
+      const myInfo = currentStep.operatori_info?.[currentUser.id];
+      if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
+        phaseButtonsHtml = `<button class="action-btn green" onclick="startAndWork('${order.id}',this)">&#9654; Avvia il mio lavoro</button>`;
+      }
+    }
+  } else {
+    // Fase non avviata — mostra scelta fasi
+    const allPhases = ['PIEGA', 'SALDATURA', 'PULIZIA'];
+    const phaseLabels = { LASER: '&#9889; Laser', PIEGA: '&#9654; Piega', SALDATURA: '&#9654; Saldatura', PULIZIA: '&#9654; Pulizia' };
+    const laserDone = steps.some(s => s.fase === 'LASER' && s.timestamp_fine);
+    phaseButtonsHtml = `<div class="phase-choice-label">Scegli fase da avviare:</div><div class="phase-choice-row">`;
+    allPhases.forEach(p => {
+      const isCurrent = (p === phase);
+      const cls = isCurrent ? 'phase-choice-btn current' : 'phase-choice-btn';
+      phaseButtonsHtml += `<button class="${cls}" onclick="startPhaseChoice('${order.id}','${p}',this)">${phaseLabels[p]}</button>`;
+    });
+    if (!laserDone) {
+      phaseButtonsHtml += `<button class="phase-choice-btn laser" onclick="sendToLaser('${order.id}')">&#9889; Laser</button>`;
+    }
+    phaseButtonsHtml += `</div>`;
+  }
+
+  let sec = '';
+  sec += `<button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button>`;
+  if (!isSupport) sec += `<button class="sec-action" onclick="openDelegationModal('${order.id}','${phase}')">&#128101; Delega</button>`;
+  if (!isSupport) sec += `<button class="sec-action" onclick="openSupportModal('${order.id}')">&#129309; Aiuto</button>`;
+  if (!isSupport && hasCompletedPhases) sec += `<button class="sec-action danger" onclick="openCompleteOrderModal('${order.id}')">&#10004; Completato</button>`;
+  if (canModify) sec += `<button class="sec-action" onclick="openEditModal('${order.id}')">&#9998; Modifica</button>`;
 
   return `${supportBadgeHtml}
     <div style="display:flex; align-items:center; gap:10px; padding:8px 0;">
       <div class="progress-bar-bg" style="flex:1; height:8px;"><div class="progress-bar-fill" style="width:${calculateProgress(order)}%; background:${getProgressColor(calculateProgress(order))};"></div></div>
       <span style="font-size:13px; font-weight:700; color:var(--black); min-width:36px;">${calculateProgress(order)}%</span>
     </div>
-    <div class="card-actions">
-      ${phaseActions.primary}
-      ${sec ? `<button class="action-btn more-toggle" id="card-more-${order.id}" onclick="event.stopPropagation();toggleCardActions('${order.id}')">Altro &#9662;</button>` : ''}
-    </div>
-    ${sec ? `<div class="card-actions-secondary" id="card-secondary-${order.id}">${sec}</div>` : ''}
+    ${phaseButtonsHtml}
+    <div class="card-actions-secondary">${sec}</div>
     <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
+}
+
+function buildLaserReadOnlyBody(order, consegna) {
+  const laserStep = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+  const laserStarted = laserStep?.timestamp_inizio;
+  const statusMsg = laserStarted ? 'In lavorazione al laser' : 'In attesa di taglio laser';
+  const statusIcon = laserStarted ? '&#9889;' : '&#9203;';
+  return `<div class="waiting-note" style="background: #eff6ff; color: #1e40af;">
+      <span>${statusIcon}</span><span>${statusMsg}</span>
+    </div>
+    <div class="card-actions-secondary">
+      <button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button>
+    </div>`;
 }
 
 function buildCompletedBody(order, consegna) {
@@ -2644,7 +2824,7 @@ function buildCompletedBody(order, consegna) {
   return `<div class="waiting-note" style="background: var(--green-badge-bg); color: #166534;">
       <span>&#10004;</span><span>Ordine completato${tempoStr ? ' &mdash; Tempo totale: ' + tempoStr : ''}</span>
     </div>
-    <div class="card-actions"><button class="action-btn outline" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; Vedi PDF</button></div>
+    <div class="card-actions-secondary"><button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button></div>
     <div class="card-phases"><div class="phases-toggle" onclick="togglePhases(this)">Fasi &#9654;</div><div class="phases-timeline">${buildPhaseTimeline(order)}</div></div>`;
 }
 
@@ -2672,7 +2852,7 @@ function buildPhaseActions(order) {
     if (isSupport) {
       const myInfo = step.operatori_info?.[currentUser.id];
       if (!myInfo || (!myInfo.sessione_attiva && !myInfo.in_pausa)) {
-        return `<button class="action-btn green" onclick="startAndWork('${order.id}')">▶ Avvia il mio lavoro</button>`;
+        return `<button class="action-btn green" onclick="startAndWork('${order.id}',this)">▶ Avvia il mio lavoro</button>`;
       }
     }
     return '';
@@ -2680,26 +2860,96 @@ function buildPhaseActions(order) {
   if (faseCorrente === 'LASER') {
     return `<button class="action-btn green" onclick="sendToLaser('${order.id}')">${labels[faseCorrente]}</button>`;
   }
-  return `<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${faseCorrente}')">${labels[faseCorrente] || '▶ Avvia ' + faseCorrente}</button>`;
+  return `<button class="action-btn green" onclick="startPhaseDirectly('${order.id}','${faseCorrente}',this)">${labels[faseCorrente] || '▶ Avvia ' + faseCorrente}</button>`;
 }
 
 // Split phase actions into primary (first) and secondary (rest)
 function buildPhaseActionsSplit(order) {
-  // Mostra solo azione per la fase corrente — non fasi future
   const btn = buildPhaseActions(order);
   return { primary: btn, secondary: '' };
 }
 
-function toggleCardActions(orderId) {
-  const sec = document.getElementById('card-secondary-' + orderId);
-  const btn = document.getElementById('card-more-' + orderId);
-  if (sec) {
-    const show = sec.classList.toggle('visible');
-    if (btn) btn.innerHTML = show ? 'Meno &#9652;' : 'Altro &#9662;';
+function getSkipPhases(currentPhase) {
+  const all = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  return all.filter(p => p !== currentPhase);
+}
+
+async function skipToPhase(orderId, targetPhase) {
+  const phaseLabels = { LASER: 'Laser', PIEGA: 'Piega', SALDATURA: 'Saldatura', PULIZIA: 'Pulizia', COMPLETATO: 'Completato' };
+  if (!confirm(`Saltare direttamente a ${phaseLabels[targetPhase] || targetPhase}?`)) return;
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/move-phase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_phase: targetPhase })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage(`Ordine spostato a ${phaseLabels[targetPhase] || targetPhase}`, 'success');
+      _lastOrdersFingerprint = '';
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile spostare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
   }
 }
 
-async function startPhaseDirectly(orderId, phase) {
+// toggleCardActions removed — secondary actions are now always visible as compact links
+
+async function startPhaseChoice(orderId, targetPhase, btnEl) {
+  if (btnEl) btnEl.classList.add('loading');
+  actionInProgress = true;
+  expandedOrders.add(orderId);
+  manuallyCollapsed.delete(orderId);
+  try {
+    // Se la fase target è diversa dalla fase corrente, prima sposta
+    const order = allOrders.find(o => o.id === orderId);
+    const currentPhase = order ? (order.fase_corrente || 'PIEGA') : 'PIEGA';
+    if (targetPhase !== currentPhase) {
+      const moveResp = await fetch(`${API_URL}/api/orders/${orderId}/move-phase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_phase: targetPhase })
+      });
+      const moveResult = await moveResp.json();
+      if (!moveResult.success) {
+        showMessage('Errore spostamento fase: ' + (moveResult.error || ''), 'error');
+        actionInProgress = false;
+        if (btnEl) btnEl.classList.remove('loading');
+        return;
+      }
+    }
+    // Poi avvia la fase
+    startTimer(orderId, new Date().toISOString(), 0);
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${targetPhase}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore: currentUser.name, operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage(`Fase ${targetPhase} iniziata`, 'success');
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
+      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+    if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
+  }
+  actionInProgress = false;
+  _lastOrdersFingerprint = '';
+  await loadOrders();
+}
+
+async function startPhaseDirectly(orderId, phase, btnEl) {
+  if (btnEl) btnEl.classList.add('loading');
+  actionInProgress = true;
+  startTimer(orderId, new Date().toISOString(), 0);
+  expandedOrders.add(orderId);
+  manuallyCollapsed.delete(orderId);
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
       method: 'POST',
@@ -2709,17 +2959,29 @@ async function startPhaseDirectly(orderId, phase) {
     const result = await resp.json();
     if (result.success) {
       showMessage(`Fase ${phase} iniziata`, 'success');
-      await loadOrders();
     } else {
       showMessage('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
+      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
     }
   } catch (err) {
     showMessage('Errore di connessione', 'error');
+    if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
   }
+  actionInProgress = false;
+  _lastOrdersFingerprint = '';
+  await loadOrders();
 }
 
-async function startAndWork(orderId) {
+async function startAndWork(orderId, btnEl) {
   const phase = getPhaseForOrder(orderId);
+  // Optimistic: feedback immediato
+  if (btnEl) btnEl.classList.add('loading');
+  actionInProgress = true;
+  // Avvia timer locale subito (ottimistico)
+  const optimisticStart = new Date().toISOString();
+  startTimer(orderId, optimisticStart, 0);
+  expandedOrders.add(orderId);
+  manuallyCollapsed.delete(orderId);
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
       method: 'POST',
@@ -2729,13 +2991,17 @@ async function startAndWork(orderId) {
     const result = await resp.json();
     if (result.success) {
       showMessage('Lavorazione iniziata', 'success');
-      await loadOrders();
     } else {
       showMessage('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
+      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
     }
   } catch (err) {
     showMessage('Errore di connessione', 'error');
+    if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
   }
+  actionInProgress = false;
+  _lastOrdersFingerprint = '';
+  await loadOrders();
 }
 
 async function completePhase(orderId) {
@@ -2750,6 +3016,8 @@ async function completePhase(orderId) {
     confirmColor: 'confirm-green'
   });
   if (!confirmed) return;
+  actionInProgress = true;
+  if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/complete`, {
       method: 'POST',
@@ -2759,11 +3027,9 @@ async function completePhase(orderId) {
     const result = await resp.json();
     if (result.success) {
       if (result.waiting_for_others) {
-        // Multi-operatore: in attesa che l'altro confermi
         const pending = result.pending_operators || [];
         showMessage(`Hai confermato la fine della fase! In attesa che ${pending.join(', ')} confermi`, 'success');
       } else {
-        // Fase completata da tutti
         const tempi = result.operatori_tempi || [];
         if (tempi.length > 1) {
           const totalSec = tempi.reduce((sum, t) => sum + t.secondi, 0);
@@ -2775,14 +3041,15 @@ async function completePhase(orderId) {
           showMessage('Fase completata!', 'success');
         }
       }
-      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
-      await loadOrders();
     } else {
       showMessage('Errore: ' + (result.error || 'Impossibile completare'), 'error');
     }
   } catch (err) {
     showMessage('Errore di connessione', 'error');
   }
+  actionInProgress = false;
+  _lastOrdersFingerprint = '';
+  await loadOrders();
 }
 
 // === COMPLETE ORDER (chiusura anticipata) ===
@@ -2962,6 +3229,9 @@ async function savePartial(orderId) {
   const phase = getPhaseForOrder(orderId);
   const ok = await showAppModal({ title:'Salva Parziale', message:'La fase resterà aperta e potrai riprendere dopo.', type:'warning', confirmText:'Salva', cancelText:'Annulla', confirmColor:'confirm-green' });
   if (!ok) return;
+  actionInProgress = true;
+  // Ottimistico: ferma timer subito
+  if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/save-partial`, {
       method: 'POST',
@@ -2970,18 +3240,27 @@ async function savePartial(orderId) {
     });
     const result = await resp.json();
     if (result.success) {
-      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
       showMessage(`Parziale salvato — ${result.sessioni_count} sessioni, tempo: ${result.tempo_cumulativo}`, 'success');
-      await loadOrders();
     } else {
       showMessage('Errore: ' + (result.error || 'Impossibile salvare'), 'error');
     }
   } catch (err) {
     showMessage('Errore di connessione', 'error');
   }
+  actionInProgress = false;
+  _lastOrdersFingerprint = '';
+  await loadOrders();
 }
 
-async function resumePhase(orderId, phase) {
+async function resumePhase(orderId, phase, btnEl) {
+  if (btnEl) btnEl.classList.add('loading');
+  actionInProgress = true;
+  // Ottimistico: riparti timer con tempo cumulato precedente
+  const order = allOrders.find(o => o.id === orderId);
+  const step = order ? (order.processing_steps || []).filter(s => s.fase === phase).pop() : null;
+  const myInfo = step?.operatori_info?.[currentUser.id];
+  const cumSec = myInfo?.tempo_cumulativo_secondi || step?.tempo_cumulativo_secondi || 0;
+  startTimer(orderId, new Date().toISOString(), cumSec);
   try {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/phase/${phase}/start`, {
       method: 'POST',
@@ -2991,13 +3270,17 @@ async function resumePhase(orderId, phase) {
     const result = await resp.json();
     if (result.success) {
       showMessage('Fase ripresa', 'success');
-      await loadOrders();
     } else {
       showMessage('Errore: ' + (result.error || 'Impossibile riprendere'), 'error');
+      if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
     }
   } catch (err) {
     showMessage('Errore di connessione', 'error');
+    if (activeTimers[orderId]) { clearInterval(activeTimers[orderId]); delete activeTimers[orderId]; }
   }
+  actionInProgress = false;
+  _lastOrdersFingerprint = '';
+  await loadOrders();
 }
 
 async function completePartial(orderId) {
@@ -3261,8 +3544,13 @@ function switchOperTab(tab) {
   operCurrentTab = tab;
   document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
-  document.getElementById('panel-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(el => {
+    el.classList.remove('active');
+    el.style.animation = '';
+  });
+  const panel = document.getElementById('panel-' + tab);
+  panel.classList.add('active');
+  panel.style.animation = 'tabFadeIn 0.2s ease-out';
   if (tab === 'clienti') loadAssignedClients();
   if (tab === 'deleghe') loadDelegations();
   if (tab === 'calendario') loadCalendarData();
@@ -3438,9 +3726,12 @@ function escapeHtml(str) {
 function calculateProgress(order) {
   if (order.status === 'COMPLETATO') return 100;
   if (order.status === 'PARZIALE') return 85;
+  const steps = order.processing_steps || [];
+  const anyStarted = steps.some(s => s.timestamp_inizio);
+  if (!anyStarted) return 0;
   const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
   const base = map[order.fase_corrente] || 0;
-  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  const hasActive = steps.some(s => s.timestamp_inizio && !s.timestamp_fine);
   return hasActive ? Math.min(base + 10, 95) : base;
 }
 
@@ -3478,12 +3769,13 @@ async function loadDelegations() {
     const dataInv = await respInv.json();
     renderDelegheInviate((dataInv.delegations || []).filter(d => activeStates.includes(d.stato)));
 
-    updateDelegheBadge(dataRic.delegations || []);
-
     // Richieste di supporto ricevute (pending)
     const srResp = await fetch(`${API_URL}/api/support-requests?op_supporto=${currentUser.id}&stato=pending`);
     const srData = await srResp.json();
-    renderSupportRequests(srData.data || []);
+    const pendingSupportRequests = srData.data || [];
+    renderSupportRequests(pendingSupportRequests);
+
+    updateDelegheBadge(dataRic.delegations || [], pendingSupportRequests);
   } catch (e) {
     console.error('Errore caricamento deleghe:', e);
   }
@@ -3590,10 +3882,12 @@ function renderDelegheInviate(deleghe) {
   }).join('');
 }
 
-function updateDelegheBadge(delegheRicevute) {
-  const pending = (delegheRicevute || []).filter(d => d.stato === 'pending').length;
+function updateDelegheBadge(delegheRicevute, supportRequests) {
+  const pendingDeleghe = (delegheRicevute || []).filter(d => d.stato === 'pending').length;
+  const pendingSupport = (supportRequests || []).length;
+  const total = pendingDeleghe + pendingSupport;
   const badge = document.getElementById('deleghe-badge');
-  badge.textContent = pending > 0 ? pending : '';
+  badge.textContent = total > 0 ? total : '';
 }
 
 async function openDelegationModal(orderId, fase) {
@@ -3980,6 +4274,18 @@ async function pollNotifCount() {
 // Poll badge ogni 5 secondi (come refresh ordini)
 setInterval(pollNotifCount, 5000);
 setTimeout(pollNotifCount, 2000);
+
+// === SMOOTH PAGE TRANSITIONS ===
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript') || link.target === '_blank') return;
+  if (href === window.location.pathname) return;
+  e.preventDefault();
+  document.body.classList.add('page-exit');
+  setTimeout(() => { window.location.href = href; }, 150);
+});
 </script>
 
 <!-- COMPLETE ORDER MODAL -->

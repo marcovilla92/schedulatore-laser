@@ -11,6 +11,8 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 html,body { height:100%; overflow:hidden; }
+body { animation: pageIn 0.3s ease-out; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
 
 :root {
   --ls-green: #1a7a48;
@@ -81,14 +83,13 @@ body {
 .login-logo-icon {
   width: 60px;
   height: 60px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 32px;
+}
+.login-logo-icon img {
+  width: 60px; height: 60px;
+  object-fit: contain;
 }
 
 .login-logo-text h1 {
@@ -274,14 +275,13 @@ body {
 .logo-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 18px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text {
@@ -1113,7 +1113,7 @@ body {
   <div class="login-left">
     <div class="login-left-content">
       <div class="login-logo">
-        <div class="login-logo-icon">LS</div>
+        <div class="login-logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
         <div class="login-logo-text">
           <h1>FerroTrack</h1>
           <p>LS s.r.l.</p>
@@ -1163,7 +1163,7 @@ body {
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="logo-section">
-      <div class="logo-icon">LS</div>
+      <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
       <div class="logo-text">
         <div class="logo-main">FerroTrack</div>
         <div class="logo-sub">LS s.r.l.</div>

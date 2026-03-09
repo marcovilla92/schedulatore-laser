@@ -11,6 +11,10 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+body.page-exit { animation: pageOut 0.15s ease-in forwards; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pageOut { from { opacity: 1; } to { opacity: 0; } }
 
 :root {
   --bg: #fafafa;
@@ -66,15 +70,14 @@ body {
 }
 
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--green), var(--green-light));
-  border-radius: 8px;
+  width: 40px; height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 16px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 1px; }
@@ -178,7 +181,11 @@ body {
 
 /* === TAB PANELS === */
 .tab-panel { display: none; margin-top: 120px; }
-.tab-panel.active { display: block; }
+.tab-panel.active { display: block; animation: tabFadeIn 0.2s ease-out; }
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* === MAIN 3-COLUMN LAYOUT === */
 .main {
@@ -519,6 +526,9 @@ body {
 }
 
 .btn-primary:hover { opacity: 0.9; }
+.btn-primary:active, .btn-secondary:active, .stato-action-btn:active { transform: scale(0.94); transition: transform 0.08s; }
+.btn.loading, .stato-action-btn.loading { pointer-events: none; opacity: 0.6; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .btn-secondary:hover { background: var(--bg); }
 .btn-danger-outline { background:transparent; color:#991b1b; border:1px solid #991b1b; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
 .btn-danger-outline:hover { background:#991b1b; color:white; }
@@ -1262,12 +1272,14 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .notif-bell-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px; animation: notifPulse 2s ease-in-out infinite; }
 @keyframes notifPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 .notif-panel { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 380px; max-height: 480px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); z-index: 2000; flex-direction: column; overflow: hidden; }
-.notif-panel.active { display: flex; }
+.notif-panel.active { display: flex; animation: notifSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes notifSlideIn { from { opacity: 0; transform: translateY(-8px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .notif-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .notif-panel-header h3 { font-size: 15px; font-weight: 700; }
 .notif-panel-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-text); }
 .notif-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
-.notif-item { display: flex; gap: 10px; padding: 12px; border-radius: 8px; transition: background 0.15s; cursor: default; position: relative; }
+.notif-item { display: flex; gap: 10px; padding: 12px; border-radius: 8px; transition: background 0.15s, transform 0.15s ease; cursor: default; position: relative; animation: notifItemIn 0.2s ease-out both; }
+@keyframes notifItemIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
 .notif-item:hover { background: var(--bg); }
 .notif-item.unread { background: rgba(26,122,72,0.04); }
 .notif-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
@@ -1319,8 +1331,8 @@ button:active {
 <body>
 
 <div class="topbar">
-  <a class="logo-section" href="/login.html">
-    <div class="logo-icon">✦</div>
+  <a class="logo-section" href="/laser-v2.html">
+    <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
       <div class="logo-sub">LS</div>
@@ -1481,6 +1493,7 @@ const PHASE = 'LASER';  // Change to PIEGA, SALDATURA for different stations
 let allOrders = [];
 let selectedOrderId = null;
 let laserViewMode = 'scadenza'; // 'scadenza' | 'cliente'
+let actionInProgress = false;
 
 // === USER PILL ===
 function updateUserPill() {
@@ -1500,14 +1513,45 @@ window.addEventListener('load', () => {
   }
   updateUserPill();
   loadOrders();
-  setInterval(loadOrders, 5000);  // Refresh every 5s
+  let _pollTimer = setInterval(loadOrders, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearInterval(_pollTimer);
+      _pollTimer = null;
+    } else {
+      _lastOrdersFingerprint = '';
+      loadOrders();
+      _pollTimer = setInterval(loadOrders, 5000);
+    }
+  });
 });
 
 // === LOAD ORDERS ===
+let _lastOrdersFingerprint = '';
+
+function _ordersFingerprint(orders) {
+  const parts = orders.map(o => {
+    const steps = (o.processing_steps || []);
+    const activeStep = steps.find(s => s.sessione_attiva);
+    const pauseCount = steps.filter(s => s.in_pausa).length;
+    return `${o.id}|${o.fase_corrente}|${o.status}|${steps.length}|${pauseCount}|${activeStep ? activeStep.id + ':' + activeStep.sessione_attiva_inizio : '-'}`;
+  });
+  parts.sort();
+  return parts.join(';');
+}
+
 async function loadOrders() {
+  if (actionInProgress) return;
   try {
     const response = await fetch(`${API_URL}/api/phase/${PHASE}/orders`);
-    allOrders = await response.json();
+    const newOrders = await response.json();
+    const newFp = _ordersFingerprint(newOrders);
+    if (newFp === _lastOrdersFingerprint) {
+      updateConnBadge(true);
+      return;
+    }
+    _lastOrdersFingerprint = newFp;
+    allOrders = newOrders;
     renderCalendar();
     if (selectedOrderId) {
       const order = allOrders.find(o => o.id === selectedOrderId);
@@ -1835,19 +1879,16 @@ function renderDetails(order) {
 async function startPhase(orderId) {
   const user = JSON.parse(localStorage.getItem('currentUser'));
   const user_name = user.name;
-
+  actionInProgress = true;
   try {
     const response = await fetch(`${API_URL}/api/orders/${orderId}/phase/${PHASE}/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ operatore: user_name, operatore_id: user.id })
     });
-
     const result = await response.json();
     if (result.success) {
       showToast('Lavorazione iniziata');
-      await loadOrders();
-      if (currentTab === 'stato') loadStatoOrdini();
     } else {
       showToast('Errore: ' + (result.error || 'Impossibile iniziare'), 'error');
     }
@@ -1855,6 +1896,9 @@ async function startPhase(orderId) {
     console.error('Errore start fase:', err);
     showToast('Errore di connessione', 'error');
   }
+  actionInProgress = false;
+  await loadOrders();
+  if (currentTab === 'stato') loadStatoOrdini();
 }
 
 // === COMPLETE PHASE ===
@@ -1862,19 +1906,16 @@ async function completePhase(orderId) {
   const user = JSON.parse(localStorage.getItem('currentUser'));
   const ok = await showConfirm('Completa fase LASER', 'Confermi di voler completare la fase LASER per questo ordine?', { icon: '&#x2705;', okText: 'Completa' });
   if (!ok) return;
-
+  actionInProgress = true;
   try {
     const response = await fetch(`${API_URL}/api/orders/${orderId}/phase/${PHASE}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ operatore_id: user.id })
     });
-
     const result = await response.json();
     if (result.success) {
       showToast('Fase completata!');
-      await loadOrders();
-      if (currentTab === 'stato') loadStatoOrdini();
     } else {
       showToast('Errore: ' + (result.error || 'Impossibile completare'), 'error');
     }
@@ -1882,6 +1923,9 @@ async function completePhase(orderId) {
     console.error('Errore complete fase:', err);
     showToast('Errore di connessione', 'error');
   }
+  actionInProgress = false;
+  await loadOrders();
+  if (currentTab === 'stato') loadStatoOrdini();
 }
 
 // === UTILITY ===
@@ -1921,8 +1965,13 @@ function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
-  document.getElementById('panel-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(el => {
+    el.classList.remove('active');
+    el.style.animation = '';
+  });
+  const panel = document.getElementById('panel-' + tab);
+  panel.classList.add('active');
+  panel.style.animation = 'tabFadeIn 0.2s ease-out';
   if (tab === 'calendario') {
     renderCalendarView();
     updateKPIs();
@@ -2492,15 +2541,25 @@ function showToast(message, type = 'success') {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'cal-toast';
-    toast.style.cssText = `position: fixed; bottom: 24px; right: 24px; z-index: 9999; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.15); transition: opacity 0.3s; font-family: 'Inter', sans-serif;`;
+    toast.style.cssText = `position: fixed; bottom: 24px; right: 24px; z-index: 9999; padding: 14px 24px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.12); font-family: 'Inter', sans-serif; backdrop-filter: blur(8px); transform: translateY(100px); opacity: 0; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;`;
     document.body.appendChild(toast);
   }
   toast.textContent = message;
-  toast.style.background = type === 'error' ? '#fee2e2' : '#dcfce7';
+  toast.style.background = type === 'error' ? 'rgba(254,226,226,0.95)' : 'rgba(220,252,231,0.95)';
   toast.style.color = type === 'error' ? '#991b1b' : '#166534';
-  toast.style.opacity = '1';
+  toast.style.border = type === 'error' ? '1px solid rgba(153,27,27,0.15)' : '1px solid rgba(22,101,52,0.15)';
+  // Force reflow for re-triggering animation
+  toast.style.transform = 'translateY(100px)';
+  toast.style.opacity = '0';
+  requestAnimationFrame(() => {
+    toast.style.transform = 'translateY(0)';
+    toast.style.opacity = '1';
+  });
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+  toast._timer = setTimeout(() => {
+    toast.style.transform = 'translateY(100px)';
+    toast.style.opacity = '0';
+  }, 3000);
 }
 
 // === INTEGRATION WITH loadOrders ===
@@ -2805,6 +2864,18 @@ async function rejectSupport(requestId) {
     } else { showToast('Errore: ' + (result.error || ''), 'error'); }
   } catch (err) { showToast('Errore di connessione', 'error'); }
 }
+
+// === SMOOTH PAGE TRANSITIONS ===
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript') || link.target === '_blank') return;
+  if (href === window.location.pathname) return;
+  e.preventDefault();
+  document.body.classList.add('page-exit');
+  setTimeout(() => { window.location.href = href; }, 150);
+});
 </script>
 
 <!-- CONFIRM DIALOG (replaces native confirm()) -->

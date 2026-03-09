@@ -13,6 +13,10 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+body.page-exit { animation: pageOut 0.15s ease-in forwards; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pageOut { from { opacity: 1; } to { opacity: 0; } }
 
 :root {
   --bg: #fafafa;
@@ -68,15 +72,14 @@ body {
 }
 
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--green), var(--green-light));
-  border-radius: 8px;
+  width: 40px; height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 16px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 1px; }
@@ -175,7 +178,11 @@ body {
 
 /* === TAB PANELS === */
 .tab-panel { display: none; margin-top: 120px; }
-.tab-panel.active { display: block; }
+.tab-panel.active { display: block; animation: tabFadeIn 0.2s ease-out; }
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* === CARICA ORDINE TAB === */
 .carica-body {
@@ -458,10 +465,11 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .btn-submit:hover { opacity: 0.9; }
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.message { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
-.message.active { display: block; }
-.message.success { background: rgba(34,197,94,0.1); color: #15803d; }
-.message.error { background: rgba(239,68,68,0.1); color: #991b1b; }
+.message { padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; display: none; }
+.message.active { display: block; animation: msgFadeIn 0.25s ease-out; }
+.message.success { background: rgba(220,252,231,0.95); color: #166534; border: 1px solid rgba(22,101,52,0.15); }
+.message.error { background: rgba(254,226,226,0.95); color: #991b1b; border: 1px solid rgba(153,27,27,0.15); }
+@keyframes msgFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* === CALENDARIO TAB === */
 .cal-container { display: flex; height: calc(100vh - 120px); }
@@ -1108,12 +1116,14 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .notif-bell-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px; animation: notifPulse 2s ease-in-out infinite; }
 @keyframes notifPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 .notif-panel { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 380px; max-height: 480px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); z-index: 2000; flex-direction: column; overflow: hidden; }
-.notif-panel.active { display: flex; }
+.notif-panel.active { display: flex; animation: notifSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes notifSlideIn { from { opacity: 0; transform: translateY(-8px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .notif-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .notif-panel-header h3 { font-size: 15px; font-weight: 700; }
 .notif-panel-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; }
 .notif-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
-.notif-item { display: flex; gap: 10px; padding: 12px; border-radius: 8px; transition: background 0.15s; cursor: default; position: relative; }
+.notif-item { display: flex; gap: 10px; padding: 12px; border-radius: 8px; transition: background 0.15s, transform 0.15s ease; cursor: default; position: relative; animation: notifItemIn 0.2s ease-out both; }
+@keyframes notifItemIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
 .notif-item:hover { background: var(--bg); }
 .notif-item.unread { background: rgba(26,122,72,0.04); }
 .notif-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
@@ -1168,7 +1178,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 <!-- TOPBAR -->
 <div class="topbar">
   <a class="logo-section" href="/impiegata.html">
-    <div class="logo-icon">&#10022;</div>
+    <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
       <div class="logo-sub">LS</div>
@@ -1669,8 +1679,13 @@ window.addEventListener('load', () => {
 function switchTab(tabId) {
   document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
   document.querySelector(`.tab-item[data-tab="${tabId}"]`).classList.add('active');
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`panel-${tabId}`).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.animation = '';
+  });
+  const panel = document.getElementById(`panel-${tabId}`);
+  panel.classList.add('active');
+  panel.style.animation = 'tabFadeIn 0.2s ease-out';
   if (tabId === 'calendario') loadCalendar();
   if (tabId === 'ordini') loadOrdersList();
   if (tabId === 'archivio') { loadArchiveFilters(); loadArchive(); }
@@ -1762,10 +1777,10 @@ async function submitOrder() {
     const assignedClients = (acData.assignments || []).map(a => a.client_name.toLowerCase());
     if (!assignedClients.includes(cliente.toLowerCase())) {
       const ok = await showAppModal({
-        title: 'Cliente non riconosciuto',
-        message: `Il cliente "${cliente}" non è assegnato a nessun operatore. L'ordine potrebbe non essere visibile agli operai. Verifica di aver scritto il nome correttamente.`,
+        title: 'Cliente sconosciuto',
+        message: `"${cliente}" non è associato a nessun operatore. Controlla il nome o prosegui per assegnarlo manualmente dopo.`,
         type: 'warning',
-        confirmText: 'Continua comunque',
+        confirmText: 'Prosegui',
         cancelText: 'Correggi',
         confirmColor: 'confirm-green'
       });
@@ -2892,8 +2907,97 @@ function showBackupStatus(msg, type) {
   el.style.color = type === 'success' ? '#166534' : type === 'error' ? '#991b1b' : '#1e40af';
   if (type !== 'info') setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
+
+// === SMOOTH PAGE TRANSITIONS ===
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript') || link.target === '_blank') return;
+  if (href === window.location.pathname) return;
+  e.preventDefault();
+  document.body.classList.add('page-exit');
+  setTimeout(() => { window.location.href = href; }, 150);
+});
 </script>
 
+<style>
+.app-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0,0,0,0.45);
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.app-modal-overlay.active { display: flex; }
+.app-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.app-modal-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+.app-modal-icon.warning { color: #f59e0b; }
+.app-modal-icon.error { color: #ef4444; }
+.app-modal-icon.success { color: #22c55e; }
+.app-modal-icon.info { color: #3b82f6; }
+.app-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+.app-modal-msg {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.app-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.app-modal-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: all 0.15s ease;
+}
+.app-modal-btn.cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+.app-modal-btn.cancel:hover { background: #e5e7eb; }
+.app-modal-btn.confirm-green {
+  background: #16a34a;
+  color: #fff;
+}
+.app-modal-btn.confirm-green:hover { background: #15803d; }
+.app-modal-btn.confirm-blue {
+  background: #2563eb;
+  color: #fff;
+}
+.app-modal-btn.confirm-blue:hover { background: #1d4ed8; }
+.app-modal-btn.confirm-red {
+  background: #dc2626;
+  color: #fff;
+}
+.app-modal-btn.confirm-red:hover { background: #b91c1c; }
+</style>
 <div class="app-modal-overlay" id="app-modal" onclick="resolveAppModal(false)">
   <div class="app-modal-box" onclick="event.stopPropagation()">
     <div class="app-modal-icon" id="app-modal-icon"></div>

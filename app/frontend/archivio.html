@@ -50,11 +50,12 @@ body {
 .logo-section:hover { opacity: 0.8; }
 
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
-  border-radius: 8px;
+  width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  color: white; font-weight: 900; font-size: 16px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 1px; }
@@ -319,15 +320,14 @@ body {
 }
 
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--green), var(--green-light));
-  border-radius: 8px;
+  width: 40px; height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 16px;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
 }
 
 .logo-text { display: flex; flex-direction: column; gap: 1px; }
@@ -947,7 +947,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
 <div class="topbar">
   <a class="logo-section" href="/login.html">
-    <div class="logo-icon">&#10022;</div>
+    <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
     <div class="logo-text">
       <div class="logo-main">FerroTrack</div>
       <div class="logo-sub">LS</div>
