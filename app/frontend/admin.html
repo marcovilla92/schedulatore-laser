@@ -1402,7 +1402,7 @@ async function loadKPI() {
     const data = resp.json();
 
     // Populate KPI cards (basic implementation)
-    console.log('KPI loaded:', data);
+    // KPI data loaded
   } catch (e) {
     console.error('Error loading KPI:', e);
   }
@@ -1415,7 +1415,7 @@ async function loadAuditLog() {
     if (!resp.ok) throw new Error('Failed to load audit log');
     const data = resp.json();
 
-    console.log('Audit log loaded:', data);
+    // Audit log loaded
   } catch (e) {
     console.error('Error loading audit log:', e);
   }

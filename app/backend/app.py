@@ -6,7 +6,8 @@ import os
 import sys
 import uuid
 import logging
-from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Importa moduli locali
 from .models import initialize_database, Order, OrderFile, get_session, SupportRequest as SRModel
@@ -14,7 +15,7 @@ from .database import OrderManager, UserManager, AuditManager, ArchiveManager, N
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
-CORS(app)
+CORS(app, origins=[r"http://localhost:*", r"http://127\.0\.0\.1:*", r"http://192\.168\.\d+\.\d+:*"])
 
 # Configurazioni
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'uploads')
@@ -290,9 +291,7 @@ def create_order():
         }), 201
 
     except Exception as e:
-        print(f"[ERROR] Create order error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Create order error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/orders/<order_id>', methods=['GET'])
@@ -387,7 +386,7 @@ def get_order_pdf(order_id):
             session.close()
 
     except Exception as e:
-        print(f"[ERROR] get_order_pdf: {e}")
+        logger.error(f"get_order_pdf: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/orders/<order_id>/dxf/<filename>', methods=['GET'])
@@ -412,7 +411,7 @@ def get_dxf_file(order_id, filename):
         )
 
     except Exception as e:
-        print(f"[ERROR] Get DXF file error: {e}")
+        logger.error(f"Get DXF file error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/orders', methods=['GET'])
@@ -683,8 +682,7 @@ def complete_order_early(order_id):
         return jsonify(result), 400
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Phase operation error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/phase/<phase>/orders', methods=['GET'])

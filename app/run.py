@@ -8,6 +8,14 @@ import sys
 import os
 import threading
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger('schedulatore')
 
 # Verifica versione Python — richiesto 3.10+ per sintassi Union types (dict | None)
 if sys.version_info < (3, 10):
@@ -43,7 +51,7 @@ def _loop_backup():
             integrity_check()
             backup(motivo='schedulato')
         except Exception as e:
-            print(f'[BACKUP] Errore nel thread schedulato: {e}')
+            logger.error(f'Errore nel thread backup schedulato: {e}')
         time.sleep(BACKUP_INTERVALLO)
 
 
@@ -54,7 +62,7 @@ def _loop_export_json():
         try:
             _esegui_export_json()
         except Exception as e:
-            print(f'[EXPORT] Errore nel thread export JSON: {e}')
+            logger.error(f'Errore nel thread export JSON: {e}')
         time.sleep(EXPORT_INTERVALLO)
 
 
@@ -75,7 +83,7 @@ def _esegui_export_json():
         json.dump(ordini, f, ensure_ascii=False, indent=2, default=str)
 
     size_kb = export_path.stat().st_size // 1024
-    print(f'[EXPORT] JSON salvato: {export_path.name} ({size_kb} KB, {len(ordini)} ordini)')
+    logger.info(f'JSON salvato: {export_path.name} ({size_kb} KB, {len(ordini)} ordini)')
 
     # Mantieni solo gli ultimi 30 export
     import glob
@@ -91,18 +99,18 @@ if __name__ == '__main__':
     # Avvia thread backup orario (daemon: si chiude con il processo principale)
     t_backup = threading.Thread(target=_loop_backup, daemon=True, name='backup-scheduler')
     t_backup.start()
-    print(f'[START] Thread backup schedulato ogni {BACKUP_INTERVALLO//60} minuti')
+    logger.info(f'Thread backup schedulato ogni {BACKUP_INTERVALLO//60} minuti')
 
     # Avvia thread export JSON giornaliero
     t_export = threading.Thread(target=_loop_export_json, daemon=True, name='export-scheduler')
     t_export.start()
-    print(f'[START] Thread export JSON schedulato ogni {EXPORT_INTERVALLO//3600} ore')
+    logger.info(f'Thread export JSON schedulato ogni {EXPORT_INTERVALLO//3600} ore')
 
     # Beta: debug=False per stabilità
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
     # Avvia Flask
-    print("[START] Avvio SCHEDULATORE LASER su porta 5000")
-    print("[INFO] Accedi via browser: http://localhost:5000")
-    print(f"[INFO] Debug mode: {'ON' if debug_mode else 'OFF'}")
+    logger.info("Avvio SCHEDULATORE LASER su porta 5000")
+    logger.info("Accedi via browser: http://localhost:5000")
+    logger.info(f"Debug mode: {'ON' if debug_mode else 'OFF'}")
     app.run(host='0.0.0.0', port=5000, debug=debug_mode)

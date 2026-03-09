@@ -3,8 +3,11 @@ from sqlalchemy import create_engine, Column, String, DateTime, Integer, Float, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import enum
+import logging
 import os
 import uuid
+
+logger = logging.getLogger(__name__)
 
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), '..', 'database', 'scheduler.db')
 DATABASE_URL = f'sqlite:///{DATABASE_PATH.replace(chr(92), "/")}'
@@ -257,10 +260,10 @@ def seed_users():
                 session.add(user)
 
         session.commit()
-        print("[OK] Seed users completato — 5 utenti reali")
+        logger.info("Seed users completato — 5 utenti reali")
     except Exception as e:
         session.rollback()
-        print(f"[WARN] Seed users error: {e}")
+        logger.warning("Seed users error: %s", e)
     finally:
         session.close()
 
@@ -275,7 +278,7 @@ def _backup_db_before_migration():
     ts = time.strftime("%Y%m%d_%H%M%S")
     dst = os.path.join(backup_dir, f'scheduler_pre_migration_{ts}.db')
     shutil.copy2(db_path, dst)
-    print(f'[BACKUP] Snapshot pre-migrazione: {dst}')
+    logger.info('Snapshot pre-migrazione: %s', dst)
 
 
 def initialize_database():
@@ -298,7 +301,7 @@ def initialize_database():
             for col, col_type in new_cols.items():
                 if col not in existing:
                     conn.execute(text(f'ALTER TABLE phase_delegations ADD COLUMN {col} {col_type}'))
-                    print(f'[MIGRATION] Aggiunta colonna {col} a phase_delegations')
+                    logger.info('Aggiunta colonna %s a phase_delegations', col)
             conn.commit()
 
     # Migrazione: popola phase_sessions per ProcessingSteps esistenti
@@ -324,7 +327,7 @@ def initialize_database():
                     })
                 conn.commit()
                 if existing_steps:
-                    print(f'[MIGRATION] Create {len(existing_steps)} phase_sessions retroattive')
+                    logger.info('Create %d phase_sessions retroattive', len(existing_steps))
 
     # Migrazione: aggiunge notification_category a notifications se mancante
     if 'notifications' in insp.get_table_names():
@@ -333,7 +336,7 @@ def initialize_database():
             with engine.connect() as conn:
                 conn.execute(text("ALTER TABLE notifications ADD COLUMN notification_category VARCHAR DEFAULT 'informativa'"))
                 conn.commit()
-                print('[MIGRATION] Aggiunta colonna notification_category a notifications')
+                logger.info('Aggiunta colonna notification_category a notifications')
 
     # Migrazione: aggiunge is_deleted a orders se mancante
     if 'orders' in insp.get_table_names():
@@ -342,6 +345,6 @@ def initialize_database():
             with engine.connect() as conn:
                 conn.execute(text('ALTER TABLE orders ADD COLUMN is_deleted BOOLEAN DEFAULT 0'))
                 conn.commit()
-                print('[MIGRATION] Aggiunta colonna is_deleted a orders')
+                logger.info('Aggiunta colonna is_deleted a orders')
 
     seed_users()

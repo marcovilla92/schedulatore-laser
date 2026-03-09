@@ -1,7 +1,40 @@
 node_modules/
 package.json
 package-lock.json
+
+# Test artifacts
 test-*.png
+test_*.png
 test-*.xlsx
 test-*.js
+test_*.py
+debug_*.py
+analyze_*.py
+*.log
 test-results/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Database & uploads (auto-created)
+app/database/
+app/uploads/pdfs/
+app/uploads/drawings/
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+
+# Temp files
+.claude/skills/*/.temp-*
+.claude/skills/*/mockup_*.png

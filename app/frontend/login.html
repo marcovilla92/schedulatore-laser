@@ -2098,7 +2098,7 @@ async function saveNewOrderNotification(orderId, cliente, articoli) {
     });
 
     if (response.ok) {
-      console.log('[NOTIFICATION] Saved: ' + message);
+      // Notification saved
     } else {
       console.error('[NOTIFICATION] Failed to save:', response.status);
     }
@@ -2375,7 +2375,7 @@ async function checkNewOrders() {
       return;
     }
 
-    console.log('[POLLING] checkNewOrders called, fetching RICEVUTO orders...');
+    // Polling for new orders
     const response = await fetch(`${API_BASE}/api/orders?status=RICEVUTO`);
     if (!response.ok) {
       console.error('[POLLING] Fetch failed:', response.status);

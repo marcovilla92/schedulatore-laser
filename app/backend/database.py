@@ -11,6 +11,8 @@ import uuid
 import json
 import logging
 
+logger = logging.getLogger(__name__)
+
 class OrderManager:
     """Gestore operazioni su ordini con articoli"""
 
@@ -1877,7 +1879,7 @@ class NotificationManager:
             }
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] create_notification: {e}")
+            logger.error(f"create_notification: {e}")
             return None
         finally:
             session.close()
@@ -1913,7 +1915,7 @@ class NotificationManager:
                 })
             return result
         except Exception as e:
-            print(f"[ERROR] get_notifications: {e}")
+            logger.error(f"get_notifications: {e}")
             return []
         finally:
             session.close()
@@ -1934,7 +1936,7 @@ class NotificationManager:
             return False
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] delete_notification: {e}")
+            logger.error(f"delete_notification: {e}")
             return False
         finally:
             session.close()
@@ -1956,7 +1958,7 @@ class NotificationManager:
             return True
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] delete_all_notifications: {e}")
+            logger.error(f"delete_all_notifications: {e}")
             return False
         finally:
             session.close()
@@ -1977,7 +1979,7 @@ class NotificationManager:
             return False
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] mark_as_read: {e}")
+            logger.error(f"mark_as_read: {e}")
             return False
         finally:
             session.close()
@@ -1994,7 +1996,7 @@ class NotificationManager:
             ).count()
             return count
         except Exception as e:
-            print(f"[ERROR] get_unread_count: {e}")
+            logger.error(f"get_unread_count: {e}")
             return 0
         finally:
             session.close()
@@ -2196,7 +2198,7 @@ class AlertManager:
             return alerts
 
         except Exception as e:
-            print(f"[ERROR] check_alerts: {e}")
+            logger.error(f"check_alerts: {e}")
             return []
         finally:
             session.close()
@@ -2389,7 +2391,7 @@ class KPIManager:
             }
 
         except Exception as e:
-            print(f"[ERROR] get_dashboard_kpi: {e}")
+            logger.error(f"get_dashboard_kpi: {e}")
             return {'success': False, 'error': str(e)}
         finally:
             session.close()
@@ -2769,7 +2771,7 @@ class DelegationManager:
             delegations = query.order_by(PhaseDelegation.data_delega.desc()).all()
             return [DelegationManager._serialize_delegation(d, session) for d in delegations]
         except Exception as e:
-            print(f"[ERROR] get_delegations: {e}")
+            logger.error(f"get_delegations: {e}")
             return []
         finally:
             session.close()
@@ -2784,7 +2786,7 @@ class DelegationManager:
             ).order_by(PhaseDelegation.data_delega.desc()).all()
             return [DelegationManager._serialize_delegation(d, session) for d in delegations]
         except Exception as e:
-            print(f"[ERROR] get_all_active_delegations: {e}")
+            logger.error(f"get_all_active_delegations: {e}")
             return []
         finally:
             session.close()
@@ -2860,12 +2862,12 @@ class SupportManager:
                 try:
                     OrderManager.start_phase(order_id, order.fase_corrente, nome_s)
                 except Exception as e:
-                    print(f"[WARN] auto-start phase for forced supporter: {e}")
+                    logger.warning(f"auto-start phase for forced supporter: {e}")
 
             return {'success': True, 'support_request_id': req_id}
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] create_support_request: {e}")
+            logger.error(f"create_support_request: {e}")
             return {'success': False, 'error': str(e)}
         finally:
             session.close()
@@ -2907,12 +2909,12 @@ class SupportManager:
                 try:
                     OrderManager.start_phase(sr.order_id, order.fase_corrente, nome_s)
                 except Exception as e:
-                    print(f"[WARN] auto-start phase for supporter failed: {e}")
+                    logger.warning(f"auto-start phase for supporter failed: {e}")
 
             return {'success': True}
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] accept_support_request: {e}")
+            logger.error(f"accept_support_request: {e}")
             return {'success': False, 'error': str(e)}
         finally:
             session.close()
@@ -2951,7 +2953,7 @@ class SupportManager:
             return {'success': True}
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] reject_support_request: {e}")
+            logger.error(f"reject_support_request: {e}")
             return {'success': False, 'error': str(e)}
         finally:
             session.close()
@@ -2987,7 +2989,7 @@ class SupportManager:
             return {'success': True}
         except Exception as e:
             session.rollback()
-            print(f"[ERROR] revoke_support_request: {e}")
+            logger.error(f"revoke_support_request: {e}")
             return {'success': False, 'error': str(e)}
         finally:
             session.close()
@@ -3014,7 +3016,7 @@ class SupportManager:
             requests = query.order_by(SupportRequest.data_richiesta.desc()).all()
             return [SupportManager._serialize_support_request(sr, session) for sr in requests]
         except Exception as e:
-            print(f"[ERROR] get_support_requests: {e}")
+            logger.error(f"get_support_requests: {e}")
             return []
         finally:
             session.close()
@@ -3030,7 +3032,7 @@ class SupportManager:
             ).all()
             return [r[0] for r in requests]
         except Exception as e:
-            print(f"[ERROR] get_supported_order_ids: {e}")
+            logger.error(f"get_supported_order_ids: {e}")
             return []
         finally:
             session.close()
