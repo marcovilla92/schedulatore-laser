@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import os
 import sys
 import uuid
+import logging
 from pathlib import Path
 
 # Importa moduli locali
@@ -23,6 +24,16 @@ FRONTEND_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 
 os.makedirs(DRAWINGS_FOLDER, exist_ok=True)
 os.makedirs(PDFS_FOLDER, exist_ok=True)
+
+# Error handler globale — no stack trace nelle risposte
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    logging.error(f"Errore non gestito: {e}", exc_info=True)
+    return jsonify({'error': 'Errore interno del server'}), 500
+
+@app.errorhandler(413)
+def handle_file_too_large(e):
+    return jsonify({'error': 'File troppo grande (max 50MB)'}), 413
 
 # Inizializza database
 initialize_database()
@@ -286,9 +297,17 @@ def create_order():
         if not numero_ordine:
             return jsonify({'success': False, 'error': 'Numero ordine obbligatorio'}), 400
 
+        cliente = (data.get('cliente') or '').strip()
+        if not cliente:
+            return jsonify({'success': False, 'error': 'Cliente obbligatorio'}), 400
+
+        data_consegna = data.get('data_consegna')
+        if not data_consegna:
+            return jsonify({'success': False, 'error': 'Data consegna obbligatoria'}), 400
+
         order = OrderManager.create_order(
-            cliente=data.get('cliente'),
-            data_consegna=data.get('data_consegna'),
+            cliente=cliente,
+            data_consegna=data_consegna,
             destinazione=data.get('destinazione', 'LASER'),
             numero_ordine=numero_ordine,
             note=data.get('note', '')
@@ -299,6 +318,7 @@ def create_order():
         try:
             pdf_filename = data.get('pdf_filename')
             if pdf_filename:
+                pdf_filename = os.path.basename(pdf_filename)
                 pdfs_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'pdfs')
                 pdf_path = os.path.join(pdfs_folder, pdf_filename)
                 if os.path.exists(pdf_path):
@@ -895,8 +915,11 @@ def move_phase(order_id):
         new_phase = data.get('new_phase')
         capo_id = data.get('capo_id')
 
+        VALID_PHASES = {'LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO', 'PARZIALE'}
         if not new_phase:
             return jsonify({'success': False, 'error': 'new_phase obbligatorio'}), 400
+        if new_phase not in VALID_PHASES:
+            return jsonify({'success': False, 'error': f'Fase non valida: {new_phase}'}), 400
         if not _require_capo(capo_id):
             return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
 
@@ -1035,7 +1058,7 @@ def get_admin_audit_log():
         if not _require_capo(requester_id):
             return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
 
-        limit = request.args.get('limit', 100, type=int)
+        limit = min(request.args.get('limit', 100, type=int), 500)
         user_id = request.args.get('user_id', None)
 
         audit_logs = AuditManager.get_recent(limit=limit, user_id=user_id)
@@ -1056,9 +1079,12 @@ def get_archive_orders():
     """Recupera ordini completati con paginazione e filtri"""
     try:
         # Parametri paginazione
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 10, type=int)
+        page = max(1, request.args.get('page', 1, type=int))
+        limit = min(request.args.get('limit', 10, type=int), 100)
+        ALLOWED_SORT = {'data_consegna', 'cliente', 'numero_ordine', 'status'}
         sort_by = request.args.get('sort_by', 'data_consegna')
+        if sort_by not in ALLOWED_SORT:
+            sort_by = 'data_consegna'
         sort_dir = request.args.get('sort_dir', 'desc')
 
         # Parametri filtri
@@ -1297,6 +1323,10 @@ def upload_drawing():
         safe_name = secure_filename(file.filename)
         if not safe_name:
             return jsonify({'error': 'Nome file non valido'}), 400
+        ALLOWED_EXTENSIONS = {'.dxf', '.dwg', '.png', '.jpg', '.jpeg', '.pdf', '.step', '.stp'}
+        ext = os.path.splitext(safe_name)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            return jsonify({'error': f'Tipo file non supportato: {ext}'}), 400
         filename = f"{order_id}_{safe_name}"
         filepath = os.path.join(DRAWINGS_FOLDER, filename)
         file.save(filepath)
