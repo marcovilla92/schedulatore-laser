@@ -90,6 +90,22 @@ body {
 
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 
+/* TAB BAR — second row below topbar */
+.capo-tab-bar {
+  position: fixed;
+  top: 72px;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 48px;
+  gap: 8px;
+  z-index: 999;
+}
+
 .tab-btn {
   background: white;
   border: 1px solid var(--border);
@@ -130,18 +146,46 @@ body {
 }
 .logout-btn:hover { background: var(--bg-light); }
 
+/* USER PILL */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px 5px 5px;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  cursor: default;
+  transition: all 0.25s var(--ease-apple);
+}
+.user-pill-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.user-pill-info { display: flex; flex-direction: column; gap: 0; }
+.user-pill-name { font-size: 13px; font-weight: 600; color: var(--black); line-height: 1.2; }
+.user-pill-role { font-size: 10px; font-weight: 500; color: var(--gray-muted); line-height: 1.2; }
+
 /* === MAIN LAYOUT: 3 colonne === */
 .main {
-  margin-top: 72px;
-  height: calc(100vh - 72px);
+  margin-top: 124px;
+  height: calc(100vh - 124px);
   display: grid;
   grid-template-columns: 300px 1fr 400px;
 }
 
 /* === VIEW GESTIONE CLIENTI (full width, nascosto di default) === */
 .main-clienti {
-  margin-top: 72px;
-  height: calc(100vh - 72px);
+  margin-top: 124px;
+  height: calc(100vh - 124px);
   padding: 24px 48px;
   overflow-y: auto;
   display: none;
@@ -149,8 +193,8 @@ body {
 
 /* === KPI TAB === */
 .main-kpi {
-  margin-top: 72px;
-  height: calc(100vh - 72px);
+  margin-top: 124px;
+  height: calc(100vh - 124px);
   padding: 32px 48px;
   overflow-y: auto;
   display: none;
@@ -959,17 +1003,16 @@ h1 {
 /* === TABLET LANDSCAPE (1200px) === */
 @media (max-width: 1200px) {
   .main { grid-template-columns: 240px 1fr 320px; }
-  .topbar { padding: 0 16px; height: auto; min-height: 72px; flex-wrap: wrap; gap: 8px; padding-top: 12px; padding-bottom: 12px; }
+  .topbar { padding: 0 16px; }
+  .capo-tab-bar { padding: 0 16px; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .capo-tab-bar::-webkit-scrollbar { display: none; }
   .capo-nav { margin-left: 12px; }
   .capo-nav-item { padding: 6px 12px; font-size: 12px; }
-  .topbar-actions { gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-    mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%); }
-  .topbar-actions::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 6px 10px; font-size: 11px; }
   .home-btn { padding: 6px 12px; font-size: 12px; }
   .logout-btn { padding: 6px 12px; font-size: 12px; }
-  .tab-bar { padding: 0 24px; }
+  .user-pill-info { display: none; }
+  .user-pill { padding: 4px; }
   .deleghe-view { padding: 24px; }
   .main-kpi { padding: 24px; }
   .main-clienti { padding: 24px; }
@@ -977,32 +1020,29 @@ h1 {
 
 /* === TABLET PORTRAIT (1024px) === */
 @media (max-width: 1024px) {
-  .topbar { flex-wrap: wrap; height: auto; min-height: 60px; padding: 10px 12px; gap: 6px; }
+  .topbar { padding: 10px 12px; gap: 6px; }
   .logo-section { gap: 8px; }
   .logo-icon { width: 32px; height: 32px; font-size: 14px; }
   .logo-main { font-size: 14px; }
   .logo-sub { font-size: 9px; }
   .capo-nav { margin-left: 8px; gap: 2px; }
   .capo-nav-item { padding: 5px 10px; font-size: 11px; }
-  .topbar-actions { width: 100%; order: 3; gap: 6px; flex-wrap: nowrap;
-    border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-    mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%);
-    padding-left: 12px; padding-right: 12px; }
-  .topbar-actions::-webkit-scrollbar { display: none; }
+  .capo-tab-bar { padding: 0 12px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .capo-tab-bar::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 6px 10px; font-size: 11px; }
   .home-btn { padding: 6px 10px; font-size: 11px; }
   .logout-btn { padding: 6px 10px; font-size: 11px; }
-  .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; margin-top: 110px; height: calc(100vh - 110px); }
+  .user-pill-info { display: none; }
+  .user-pill { padding: 4px; }
+  .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; margin-top: 124px; height: calc(100vh - 124px); }
   .col-orders { grid-row: 1; grid-column: 1; border-right: 1px solid var(--border); overflow-y: auto; }
   .col-pdf { display: none; }
   .col-details { grid-row: 1; grid-column: 2; border-left: none; overflow-y: auto; }
   .btn-show-pdf { display: inline-flex !important; }
-  .main-kpi { margin-top: 110px; height: calc(100vh - 110px); padding: 20px 16px; }
-  .main-clienti { margin-top: 110px; height: calc(100vh - 110px); padding: 20px 16px; }
-  .main-archivio { margin-top: 110px !important; height: calc(100vh - 110px) !important; padding: 20px 16px !important; }
-  .deleghe-view { margin-top: 110px !important; height: calc(100vh - 110px) !important; padding: 20px 16px !important; }
+  .main-kpi { margin-top: 124px; height: calc(100vh - 124px); padding: 20px 16px; }
+  .main-clienti { margin-top: 124px; height: calc(100vh - 124px); padding: 20px 16px; }
+  .main-archivio { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 20px 16px !important; }
+  .deleghe-view { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 20px 16px !important; }
   .kpi-summary { grid-template-columns: repeat(2, 1fr); }
   .kpi-phases { grid-template-columns: repeat(2, 1fr); }
   .kpi-card-value { font-size: 24px; }
@@ -1027,19 +1067,22 @@ h1 {
   .logo-icon { width: 28px; height: 28px; font-size: 12px; }
   .logo-main { font-size: 13px; }
   .capo-nav-item { padding: 4px 8px; font-size: 10px; }
-  .topbar-actions { gap: 4px; padding-left: 8px; padding-right: 8px; }
+  .capo-tab-bar { padding: 0 10px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .capo-tab-bar::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 6px 10px; font-size: 11px; }
   .home-btn { padding: 5px 8px; font-size: 10px; }
   .logout-btn { padding: 5px 8px; font-size: 10px; }
-  .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; margin-top: 120px; height: calc(100vh - 120px); }
+  .user-pill-info { display: none; }
+  .user-pill { padding: 4px; }
+  .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; margin-top: 124px; height: calc(100vh - 124px); }
   .col-orders { grid-row: 1; grid-column: 1; max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
   .col-details { grid-row: 2; grid-column: 1; border-left: none; border-top: 1px solid var(--border); max-height: 50vh; overflow-y: auto; }
   .col-pdf { display: none; }
   .btn-show-pdf { display: inline-flex !important; }
-  .main-kpi { margin-top: 120px; height: calc(100vh - 120px); padding: 12px; }
-  .main-clienti { margin-top: 120px; height: calc(100vh - 120px); padding: 12px; }
-  .main-archivio { margin-top: 120px !important; height: calc(100vh - 120px) !important; padding: 12px !important; }
-  .deleghe-view { margin-top: 120px !important; height: calc(100vh - 120px) !important; padding: 12px !important; }
+  .main-kpi { margin-top: 124px; height: calc(100vh - 124px); padding: 12px; }
+  .main-clienti { margin-top: 124px; height: calc(100vh - 124px); padding: 12px; }
+  .main-archivio { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 12px !important; }
+  .deleghe-view { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 12px !important; }
   .detail-content { padding: 12px 14px; }
   .action-row { flex-direction: column; }
   .action-select { width: 100%; }
@@ -1124,7 +1167,7 @@ h1 {
 .notif-badge-capo:empty { display:none; }
 
 /* === DELEGHE CAPO === */
-.deleghe-view { padding:32px 48px; margin-top:64px; display:none; }
+.deleghe-view { padding:32px 48px; margin-top:124px; display:none; }
 .deleghe-title { font-family:'Geist',sans-serif; font-size:22px; font-weight:900; margin-bottom:24px; }
 .deleghe-table { width:100%; border-collapse:collapse; background:var(--white); border-radius:12px; overflow:hidden; border:1px solid var(--border); }
 .deleghe-table th { text-align:left; padding:12px 16px; font-size:11px; font-weight:700; color:var(--gray-text); text-transform:uppercase; letter-spacing:0.5px; background:var(--bg); border-bottom:1px solid var(--border); }
@@ -1781,13 +1824,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
     <a class="capo-nav-item active" href="/approva-ordine.html">Gestione officina</a>
   </div>
   <div class="topbar-actions">
-    <button class="tab-btn active" id="tab-ordini" onclick="switchTab('ordini')">Ordini</button>
-    <button class="tab-btn" id="tab-clienti" onclick="switchTab('clienti')">Gestione Clienti</button>
-    <button class="tab-btn" id="tab-deleghe" onclick="switchTab('deleghe')">Deleghe <span class="notif-badge-capo" id="deleghe-badge-capo"></span></button>
-    <button class="tab-btn" id="tab-kpi" onclick="switchTab('kpi')">KPI</button>
-    <button class="tab-btn" id="tab-archivio" onclick="switchTab('archivio')">Archivio</button>
-    <button class="tab-btn" id="tab-operai" onclick="switchTab('operai')">Operai</button>
-    <button class="tab-btn" id="tab-attivita" onclick="switchTab('attivita')">Attivit&agrave;</button>
     <div class="notif-bell-capo" style="position:relative;display:inline-flex;align-items:center;">
       <button onclick="toggleNotifPanelCapo()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:18px;cursor:pointer;line-height:1;" title="Notifiche">&#128276;</button>
       <div id="notif-badge-capo" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 4px;">0</div>
@@ -1804,20 +1840,39 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
         </div>
       </div>
     </div>
+    <div class="user-pill" id="user-pill">
+      <div class="user-pill-avatar" id="user-pill-avatar">--</div>
+      <div class="user-pill-info">
+        <div class="user-pill-name" id="user-pill-name">Caricamento...</div>
+        <div class="user-pill-role" id="user-pill-role"></div>
+      </div>
+    </div>
     <button class="home-btn" onclick="goHome()">Home</button>
     <button class="logout-btn" onclick="logout()">Esci</button>
   </div>
+</div>
+
+<!-- === TAB BAR (sotto topbar) === -->
+<div class="capo-tab-bar">
+  <button class="tab-btn active" id="tab-ordini" onclick="switchTab('ordini')">Ordini</button>
+  <button class="tab-btn" id="tab-clienti" onclick="switchTab('clienti')">Gestione Clienti</button>
+  <button class="tab-btn" id="tab-deleghe" onclick="switchTab('deleghe')">Deleghe <span class="notif-badge-capo" id="deleghe-badge-capo"></span></button>
+  <button class="tab-btn" id="tab-kpi" onclick="switchTab('kpi')">KPI</button>
+  <button class="tab-btn" id="tab-archivio" onclick="switchTab('archivio')">Archivio</button>
+  <button class="tab-btn" id="tab-operai" onclick="switchTab('operai')">Operai</button>
+  <button class="tab-btn" id="tab-attivita" onclick="switchTab('attivita')">Attivit&agrave;</button>
 </div>
 
 <!-- === TAB ORDINI: Layout 3 colonne === -->
 <div class="main" id="view-ordini">
   <!-- COL 1: Lista ordini con filtri -->
   <div class="col-orders">
-    <h1>Dashboard Capo <span id="alerts-badge"></span></h1>
+    <h1>Dashboard <span id="capo-name-h1"></span> <span id="alerts-badge"></span></h1>
     <div class="alerts-banner" id="alerts-banner"></div>
     <div class="filters">
       <div class="filter-row">
         <select class="filter-select" id="filter-fase" onchange="applyFilters()">
+          <option value="IN_LAVORAZIONE" selected>In lavorazione</option>
           <option value="">Tutte le fasi</option>
           <option value="LASER">LASER</option>
           <option value="PIEGA">PIEGA</option>
@@ -2025,7 +2080,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 </div>
 
 <!-- === TAB ARCHIVIO === -->
-<div class="main-archivio" id="view-archivio" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
+<div class="main-archivio" id="view-archivio" style="display:none;margin-top:124px;height:calc(100vh - 124px);padding:32px 48px;overflow-y:auto;">
   <div style="max-width:1400px;margin:0 auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h1 style="font-size:24px;font-weight:700;">Archivio Ordini Completati</h1>
@@ -2081,7 +2136,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 </div>
 
 <!-- === TAB OPERAI === -->
-<div class="deleghe-view" id="view-operai" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
+<div class="deleghe-view" id="view-operai" style="display:none;margin-top:124px;height:calc(100vh - 124px);padding:32px 48px;overflow-y:auto;">
   <div style="max-width:900px;margin:0 auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h1 style="font-size:24px;font-weight:700;">Gestione Operai</h1>
@@ -2096,7 +2151,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   </div>
 </div>
 
-<div class="deleghe-view" id="view-attivita" style="display:none;margin-top:72px;height:calc(100vh - 72px);padding:32px 48px;overflow-y:auto;">
+<div class="deleghe-view" id="view-attivita" style="display:none;margin-top:124px;height:calc(100vh - 124px);padding:32px 48px;overflow-y:auto;">
   <div style="max-width:900px;margin:0 auto;">
     <h1 style="font-size:24px;font-weight:700;margin-bottom:16px;">Log Attivit&agrave;</h1>
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
@@ -2189,12 +2244,25 @@ let filteredOrders = [];
 let allUsers = [];
 let operatorClients = [];
 
+// === USER PILL ===
+function updateUserPill() {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user) return;
+  const initials = (user.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+  document.getElementById('user-pill-avatar').textContent = initials;
+  document.getElementById('user-pill-name').textContent = user.name || 'Capo';
+  document.getElementById('user-pill-role').textContent = 'Capo Officina';
+  const h1Name = document.getElementById('capo-name-h1');
+  if (h1Name) h1Name.textContent = user.name?.split(' ')[0] || 'Capo';
+}
+
 // === SESSION CHECK ===
 window.addEventListener('load', () => {
   const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
   if (!user.id || (!user.is_capo && user.role !== 'Amministratore' && user.role !== 'Capo Officina')) {
     window.location.href = '/login.html';
   }
+  updateUserPill();
   loadInitialData();
 });
 
@@ -2269,7 +2337,11 @@ function applyFilters() {
   const clienteSearch = document.getElementById('filter-cliente').value.toLowerCase().trim();
 
   filteredOrders = allOrders.filter(o => {
-    if (fase && o.fase_corrente !== fase) return false;
+    if (fase === 'IN_LAVORAZIONE') {
+      if (o.fase_corrente === 'COMPLETATO') return false;
+    } else if (fase) {
+      if (o.fase_corrente !== fase) return false;
+    }
     if (operatore && o.operatore_assegnato !== operatore) return false;
     if (clienteSearch && !o.cliente.toLowerCase().includes(clienteSearch) && !(o.numero_ordine || '').toLowerCase().includes(clienteSearch)) return false;
     return true;

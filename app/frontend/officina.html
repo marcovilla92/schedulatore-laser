@@ -114,6 +114,34 @@ body {
 }
 .btn-logout:hover { background: var(--bg); }
 
+/* USER PILL */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px 5px 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  cursor: default;
+  transition: all 0.25s var(--ease-apple);
+}
+.user-pill-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.user-pill-info { display: flex; flex-direction: column; gap: 0; }
+.user-pill-name { font-size: 13px; font-weight: 600; color: var(--black); line-height: 1.2; }
+.user-pill-role { font-size: 10px; font-weight: 500; color: var(--gray-muted); line-height: 1.2; }
+
 /* BODY */
 .body-content {
   margin-top: 64px;
@@ -153,16 +181,16 @@ body {
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 28px;
-  padding-top: 8px;
+  gap: 6px;
+  margin-bottom: 32px;
+  padding-top: 20px;
 }
 
 /* STORICO COMPLETATI */
 .storico-section {
-  margin-top: 32px;
+  margin-top: 40px;
   border-top: 1px solid var(--border);
-  padding-top: 16px;
+  padding-top: 20px;
 }
 .storico-header {
   display: flex;
@@ -199,20 +227,21 @@ body {
 .accordion-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--white);
-  box-shadow: var(--shadow-sm);
+  gap: 6px;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
 }
 .accordion-item {
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--white);
-  transition: background 0.25s var(--ease-apple);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.25s var(--ease-apple), box-shadow 0.25s var(--ease-apple);
 }
-.accordion-item[class*="color-"]:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-.accordion-item:last-child { border-bottom: none; }
+.accordion-item:hover { box-shadow: var(--shadow-md); }
+.accordion-item[class*="color-"]:hover { transform: translateY(-1px); }
 
 /* Color-coded left border for active orders */
 .accordion-item.color-green { border-left: 5px solid #1a7a48; background: #f2fdf6; }
@@ -223,11 +252,11 @@ body {
 
 /* SEARCH BAR */
 .search-bar-wrap {
-  padding: 0 0 12px;
+  padding: 0 0 20px;
 }
 .search-bar {
   width: 100%;
-  padding: 10px 14px 10px 36px;
+  padding: 12px 16px 12px 38px;
   border: 1px solid var(--border);
   border-radius: 12px;
   font-size: 14px;
@@ -242,12 +271,13 @@ body {
 .accordion-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
+  gap: 14px;
+  padding: 18px 22px;
   cursor: pointer;
   user-select: none;
-  min-height: 56px;
+  min-height: 60px;
   transition: background 0.15s;
+  border-radius: 14px;
 }
 .accordion-header:hover { background: rgba(0,0,0,0.02); }
 .accordion-header:active { background: rgba(0,0,0,0.04); }
@@ -290,13 +320,13 @@ body {
 .accordion-body {
   max-height: 0;
   overflow: hidden;
-  padding: 0 20px;
+  padding: 0 22px;
   border-top: 1px solid transparent;
   transition: max-height 0.3s var(--ease-apple), padding 0.3s var(--ease-apple), border-color 0.25s var(--ease-apple);
 }
 .accordion-item.expanded .accordion-body {
   max-height: 1200px;
-  padding: 0 20px 16px;
+  padding: 4px 22px 20px;
   border-top-color: var(--border);
 }
 .accordion-body .card-actions { padding: 10px 0; border-top: none; }
@@ -854,12 +884,14 @@ body {
   .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
   .notif-panel { width: calc(100vw - 32px); max-width: 380px; right: 0; }
   /* Touch-friendly accordion on tablet */
-  .accordion-header { padding: 14px 16px; gap: 8px; }
+  .accordion-header { padding: 16px 16px; gap: 10px; }
   .acc-client { max-width: 140px; font-size: 14px; }
-  .accordion-body { padding: 0 16px 12px; }
+  .accordion-body { padding: 0 16px 14px; }
   .accordion-body .action-btn { min-height: 48px; padding: 12px 16px; font-size: 14px; }
   .action-btn { padding: 12px 16px; font-size: 14px; }
   .btn-home { padding: 10px 16px; font-size: 13px; }
+  .user-pill-info { display: none; }
+  .user-pill { padding: 4px; }
 }
 /* === OLD CSS BLOCK (kept for modals, selects, etc.) === */
 
@@ -1559,6 +1591,8 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .topbar, .tab-bar { padding: 0 16px; }
   .ordini-container { padding: 16px; }
   .tab-item { padding: 12px 14px; font-size: 12px; }
+  .user-pill-info { display: none; }
+  .user-pill { padding: 4px; }
 }
 
 /* === TAB BAR === */
@@ -1609,7 +1643,7 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 
 .body-content {
   margin-top: 0 !important;
-  padding: 32px 48px;
+  padding: 36px 48px 48px;
   max-width: 1440px;
   margin-left: auto;
   margin-right: auto;
@@ -1880,6 +1914,13 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
         </div>
       </div>
     </div>
+    <div class="user-pill" id="user-pill">
+      <div class="user-pill-avatar" id="user-pill-avatar">--</div>
+      <div class="user-pill-info">
+        <div class="user-pill-name" id="user-pill-name">Caricamento...</div>
+        <div class="user-pill-role" id="user-pill-role"></div>
+      </div>
+    </div>
     <button class="btn-home" onclick="goHome()">Home</button>
     <button class="btn-logout" onclick="logout()">Esci</button>
   </div>
@@ -1896,9 +1937,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 <div class="tab-panel active" id="panel-ordini" style="padding:0; margin-top:0;">
   <div class="body-content">
     <div class="page-header">
-      <span class="page-badge">OFFICINA</span>
       <div class="page-title">I Miei Ordini</div>
-      <div class="page-sub" id="page-sub">Caricamento...</div>
     </div>
 
     <div class="search-bar-wrap">
@@ -2086,12 +2125,23 @@ let expandedOrders = new Set();
 let activeColorMap = {};
 let manuallyCollapsed = new Set();
 
+// === USER PILL ===
+function updateUserPill() {
+  if (!currentUser) return;
+  const initials = (currentUser.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+  const roleMap = { 'Impiegata': 'Ufficio', 'Capo Officina': 'Capo', 'Operaio Laser': 'Laser', 'Operaio Officina': 'Officina' };
+  document.getElementById('user-pill-avatar').textContent = initials;
+  document.getElementById('user-pill-name').textContent = currentUser.name || 'Operatore';
+  document.getElementById('user-pill-role').textContent = roleMap[currentUser.role] || currentUser.role || '';
+}
+
 // === SESSION ===
 window.addEventListener('load', () => {
   const saved = localStorage.getItem('currentUser');
   if (!saved) { window.location.href = '/login.html'; return; }
   currentUser = JSON.parse(saved);
   if (!currentUser.id) { window.location.href = '/login.html'; return; }
+  updateUserPill();
 
   // === NAV MENU ===
   const topbar = document.querySelector('.topbar');
@@ -2249,8 +2299,9 @@ function renderCards() {
   const activeOrders = visibleOrders.filter(o => o.status !== 'COMPLETATO');
   const completedOrders = visibleOrders.filter(o => o.status === 'COMPLETATO');
 
-  document.getElementById('page-sub').textContent =
-    `${currentUser.name || 'Operatore'} \u2014 ${activeOrders.length === 1 ? '1 ordine attivo' : activeOrders.length + ' ordini attivi'}`;
+  // Conteggio ordini attivi (mostrato nel titolo sezione)
+  const countText = activeOrders.length === 1 ? '1 ordine attivo' : activeOrders.length + ' ordini attivi';
+  document.querySelector('.page-title').textContent = `I Miei Ordini \u2014 ${countText}`;
 
   function getOrderPhase(order) {
     return isOfficina ? (order.fase_corrente || 'PIEGA') : userPhase;

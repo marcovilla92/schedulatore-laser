@@ -121,6 +121,34 @@ body {
 }
 .btn-logout:hover { background: var(--bg); border-color: var(--gray-text); }
 
+/* USER PILL */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px 5px 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  cursor: default;
+  transition: all 0.25s var(--ease-apple);
+}
+.user-pill-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.user-pill-info { display: flex; flex-direction: column; gap: 0; }
+.user-pill-name { font-size: 13px; font-weight: 600; color: var(--black); line-height: 1.2; }
+.user-pill-role { font-size: 10px; font-weight: 500; color: var(--gray-muted); line-height: 1.2; }
+
 /* === TAB BAR === */
 .tab-bar {
   position: fixed;
@@ -507,6 +535,35 @@ body {
 
 /* COMPLETE ORDER MODAL */
 .co-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; animation: fadeIn 0.2s ease; }
+/* CONFIRM DIALOG (custom, replaces native confirm()) */
+.confirm-overlay {
+  position: fixed; top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; animation: fadeIn 0.2s ease;
+}
+.confirm-dialog {
+  background: white; border-radius: 16px; padding: 28px; max-width: 380px; width: 90%;
+  box-shadow: var(--shadow-lg); animation: slideUp 0.2s ease; text-align: center;
+}
+.confirm-icon { font-size: 36px; margin-bottom: 12px; }
+.confirm-title { font-size: 16px; font-weight: 700; color: var(--black); margin-bottom: 6px; }
+.confirm-msg { font-size: 13px; color: var(--gray-text); margin-bottom: 24px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: center; }
+.confirm-btn {
+  padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer; transition: all 0.25s var(--ease-apple);
+  font-family: 'Inter', sans-serif;
+}
+.confirm-btn.primary {
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  color: white; box-shadow: 0 1px 3px rgba(26,122,72,0.3);
+}
+.confirm-btn.primary:hover { filter: brightness(1.08); }
+.confirm-btn.cancel {
+  background: var(--bg); color: var(--gray-text); border: 1px solid var(--border);
+}
+.confirm-btn.cancel:hover { background: #ebebeb; }
 .co-modal { background:white; border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
 .co-modal h3 { margin:0 0 4px; font-size:16px; font-weight:700; }
 .co-modal .co-subtitle { font-size:13px; color:var(--gray-text); margin-bottom:16px; }
@@ -1068,58 +1125,42 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
 .modal-body iframe { width: 100%; height: 100%; border: none; }
 
 /* === STATO ORDINI === */
-.stato-card {
+/* === STATO ORDINI — Sezioni per fase === */
+.stato-section { margin-bottom: 20px; }
+.stato-section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 10px;
+  border-left: 4px solid; margin-bottom: 2px;
+}
+.stato-section-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.stato-section-count {
+  font-size: 11px; font-weight: 700; color: white;
+  padding: 2px 8px; border-radius: 100px; min-width: 22px; text-align: center;
+}
+.stato-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px 12px 24px;
+  border-bottom: 1px solid var(--border);
   background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition: box-shadow 0.2s;
+  transition: background 0.15s;
 }
-.stato-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.stato-card-info { flex: 1; min-width: 0; }
-.stato-card-client { font-size: 15px; font-weight: 700; color: var(--black); }
-.stato-card-meta { font-size: 12px; color: var(--gray-text); margin-top: 2px; }
-.stato-card-progress { width: 200px; flex-shrink: 0; }
-.stato-fase-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-.stato-fase-badge.laser { background: var(--blue-bg, #e0f2fe); color: var(--blue, #1e40af); }
-.stato-fase-badge.piega { background: #fef3c7; color: #92400e; }
-.stato-fase-badge.saldatura { background: #fce7f3; color: #9d174d; }
-.stato-fase-badge.pulizia { background: #e0e7ff; color: #3730a3; }
-.stato-fase-badge.completato { background: var(--green-badge-bg, #d1fae5); color: var(--green-badge, #065f46); }
-.stato-empty { text-align: center; padding: 48px 16px; color: var(--gray-text); font-size: 14px; }
-.stato-group-header { font-size: 13px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-.stato-group-header:first-child { padding-top: 0; }
-.stato-card-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.stato-row:last-child { border-bottom: none; }
+.stato-row:hover { background: #f8f8fa; }
+.stato-row-client { font-size: 14px; font-weight: 700; color: var(--black); min-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stato-row-num { font-size: 13px; font-weight: 600; color: var(--gray-text); min-width: 80px; }
+.stato-row-consegna { font-size: 13px; font-weight: 600; color: var(--gray-text); min-width: 80px; }
+.stato-row-consegna.overdue { color: var(--red); font-weight: 700; }
+.stato-row-consegna.soon { color: #f59e0b; font-weight: 700; }
+.stato-row-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
 .stato-action-btn {
-  padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
   border: 1px solid var(--border); background: var(--white); color: var(--black);
-  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  cursor: pointer; transition: all 0.25s var(--ease-apple); white-space: nowrap;
 }
 .stato-action-btn.green { background: var(--green); color: white; border-color: var(--green); }
 .stato-action-btn.green:hover { background: var(--green-light); }
-.stato-action-btn.orange { background: #f59e0b; color: white; border-color: #f59e0b; }
-.stato-action-btn.orange:hover { background: #d97706; }
 .stato-action-btn.outline:hover { background: var(--bg); }
-.stato-timeline { display: flex; align-items: center; gap: 0; margin-top: 8px; }
-.stato-phase-dot {
-  font-size: 9px; font-weight: 700; padding: 3px 6px; border-radius: 4px;
-  background: #f3f4f6; color: var(--gray-text); white-space: nowrap;
-}
-.stato-phase-dot.done { background: var(--green-badge-bg, #d1fae5); color: var(--green-badge, #065f46); }
-.stato-phase-dot.active { background: #fef3c7; color: #92400e; }
-.stato-phase-line { width: 12px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
+.stato-empty { text-align: center; padding: 48px 16px; color: var(--gray-text); font-size: 14px; }
 
 /* === RESPONSIVE === */
 @media (max-width: 1400px) {
@@ -1169,8 +1210,9 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .view-toggle-btn { padding: 8px 14px; font-size: 12px; }
   .detail-btn { padding: 12px 16px; font-size: 14px; }
   #panel-stato { padding: 16px !important; }
-  .stato-card { flex-direction: column; align-items: stretch; gap: 10px; }
-  .stato-card-progress { width: 100%; }
+  .stato-row { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .stato-row-client { min-width: 100px; }
+  .stato-row-actions { width: 100%; justify-content: flex-start; }
 }
 
 /* === KPI CARDS === */
@@ -1305,6 +1347,13 @@ button:active {
         </div>
       </div>
     </div>
+    <div class="user-pill" id="user-pill">
+      <div class="user-pill-avatar" id="user-pill-avatar">--</div>
+      <div class="user-pill-info">
+        <div class="user-pill-name" id="user-pill-name">Caricamento...</div>
+        <div class="user-pill-role" id="user-pill-role"></div>
+      </div>
+    </div>
     <button class="btn-logout" onclick="logout()">Esci</button>
   </div>
 </div>
@@ -1359,15 +1408,15 @@ button:active {
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
     <h2 style="font-size:18px; font-weight:700; color:var(--black);">Stato Ordini</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <select id="stato-filtro-fase" onchange="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
-        <option value="">Tutte le fasi</option>
-        <option value="LASER">Laser</option>
-        <option value="PIEGA">Piega</option>
-        <option value="SALDATURA">Saldatura</option>
-        <option value="PULIZIA">Pulizia</option>
-        <option value="COMPLETATO">Completato</option>
+      <select id="stato-filtro-fase" onchange="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; background:#f8f8fa;">
+        <option value="">In lavorazione</option>
+        <option value="LASER">Solo Laser</option>
+        <option value="PIEGA">Solo Piega</option>
+        <option value="SALDATURA">Solo Saldatura</option>
+        <option value="PULIZIA">Solo Pulizia</option>
+        <option value="COMPLETATO">Completati</option>
       </select>
-      <input type="text" id="stato-search" placeholder="Cerca cliente..." oninput="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; width:180px;">
+      <input type="text" id="stato-search" placeholder="Cerca cliente..." oninput="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; width:180px; background:#f8f8fa;">
     </div>
   </div>
   <div id="stato-ordini-list"></div>
@@ -1433,12 +1482,23 @@ let allOrders = [];
 let selectedOrderId = null;
 let laserViewMode = 'scadenza'; // 'scadenza' | 'cliente'
 
+// === USER PILL ===
+function updateUserPill() {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  if (!user) return;
+  const initials = (user.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+  document.getElementById('user-pill-avatar').textContent = initials;
+  document.getElementById('user-pill-name').textContent = user.name || 'Operatore';
+  document.getElementById('user-pill-role').textContent = 'Laser';
+}
+
 // === SESSION CHECK ===
 window.addEventListener('load', () => {
   const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
   if (!user.id) {
     window.location.href = '/login.html';
   }
+  updateUserPill();
   loadOrders();
   setInterval(loadOrders, 5000);  // Refresh every 5s
 });
@@ -1800,7 +1860,8 @@ async function startPhase(orderId) {
 // === COMPLETE PHASE ===
 async function completePhase(orderId) {
   const user = JSON.parse(localStorage.getItem('currentUser'));
-  if (!confirm('Confermi di voler completare la fase LASER per questo ordine?')) return;
+  const ok = await showConfirm('Completa fase LASER', 'Confermi di voler completare la fase LASER per questo ordine?', { icon: '&#x2705;', okText: 'Completa' });
+  if (!ok) return;
 
   try {
     const response = await fetch(`${API_URL}/api/orders/${orderId}/phase/${PHASE}/complete`, {
@@ -1906,53 +1967,63 @@ function renderStatoOrdini() {
   const search = (document.getElementById('stato-search').value || '').toLowerCase().trim();
 
   let filtered = allOrdiniStato.filter(o => {
-    if (filtroFase && o.fase_corrente !== filtroFase && !(filtroFase === 'COMPLETATO' && o.status === 'COMPLETATO')) return false;
+    // Default (vuoto) = nascondi completati
+    if (!filtroFase && (o.status === 'COMPLETATO' || o.status === 'PARZIALE')) return false;
+    if (filtroFase === 'COMPLETATO' && o.status !== 'COMPLETATO' && o.status !== 'PARZIALE') return false;
+    if (filtroFase && filtroFase !== 'COMPLETATO' && o.fase_corrente !== filtroFase) return false;
     if (search && !o.cliente.toLowerCase().includes(search) && !(o.numero_ordine || '').toLowerCase().includes(search)) return false;
     return true;
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="stato-empty">&#x1F4CB; Nessun ordine trovato</div>';
+    container.innerHTML = '<div class="stato-empty">Nessun ordine trovato</div>';
     return;
   }
 
-  // Raggruppa per cliente
+  // Raggruppa per fase (ordine pipeline)
+  const phaseOrder = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO'];
+  const phaseLabels = { LASER: 'Laser', PIEGA: 'Piega', SALDATURA: 'Saldatura', PULIZIA: 'Pulizia', COMPLETATO: 'Completati' };
+  const phaseColors = { LASER: 'var(--blue)', PIEGA: '#92400e', SALDATURA: '#9d174d', PULIZIA: '#3730a3', COMPLETATO: 'var(--green-badge)' };
+  const phaseBgs = { LASER: 'var(--blue-bg)', PIEGA: '#fff4d6', SALDATURA: '#fce7f3', PULIZIA: '#e0e7ff', COMPLETATO: 'var(--green-badge-bg)' };
+
   const groups = {};
   filtered.forEach(o => {
-    const c = o.cliente || 'Sconosciuto';
-    if (!groups[c]) groups[c] = [];
-    groups[c].push(o);
+    const fase = (o.status === 'COMPLETATO' || o.status === 'PARZIALE') ? 'COMPLETATO' : (o.fase_corrente || 'LASER');
+    if (!groups[fase]) groups[fase] = [];
+    groups[fase].push(o);
   });
 
-  const sortedClients = Object.keys(groups).sort();
   let html = '';
-  sortedClients.forEach(client => {
-    const orders = groups[client].sort((a, b) => {
+  phaseOrder.forEach(fase => {
+    const orders = groups[fase];
+    if (!orders || orders.length === 0) return;
+    // Ordina per data consegna
+    orders.sort((a, b) => {
       if (!a.data_consegna) return 1;
       if (!b.data_consegna) return -1;
       return new Date(a.data_consegna) - new Date(b.data_consegna);
     });
-    html += `<div class="stato-group-header">${escapeHtml(client)} (${orders.length})</div>`;
+
+    html += `<div class="stato-section">
+      <div class="stato-section-header" style="border-left-color:${phaseColors[fase]}; background:${phaseBgs[fase]};">
+        <span class="stato-section-title" style="color:${phaseColors[fase]};">${phaseLabels[fase]}</span>
+        <span class="stato-section-count" style="background:${phaseColors[fase]};">${orders.length}</span>
+      </div>`;
+
     orders.forEach(o => {
-      const pct = statoCalcProgress(o);
-      const color = statoProgressColor(pct);
-      const fase = o.status === 'COMPLETATO' ? 'COMPLETATO' : (o.fase_corrente || 'N/A');
-      const faseClass = fase.toLowerCase();
-      const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+      const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : '—';
       const numero = o.numero_ordine || o.id.substring(0, 8);
-
-      // Timeline fasi
-      const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
       const steps = o.processing_steps || [];
-      const timelineHtml = allPhases.map(p => {
-        const step = steps.filter(s => s.fase === p).pop();
-        const done = step?.timestamp_fine;
-        const active = step?.timestamp_inizio && !step?.timestamp_fine;
-        const cls = done ? 'done' : active ? 'active' : '';
-        return `<span class="stato-phase-dot ${cls}" title="${p}">${p.substring(0,3)}</span>`;
-      }).join('<span class="stato-phase-line"></span>');
 
-      // Azioni per ordini
+      // Urgenza consegna
+      let urgClass = '';
+      if (o.data_consegna) {
+        const diff = (new Date(o.data_consegna) - new Date()) / (1000*60*60*24);
+        if (diff < 0) urgClass = 'overdue';
+        else if (diff <= 3) urgClass = 'soon';
+      }
+
+      // Azioni
       let actionsHtml = '';
       const laserStep = steps.filter(s => s.fase === 'LASER').pop();
       if (fase === 'LASER') {
@@ -1961,38 +2032,23 @@ function renderStatoOrdini() {
         if (!done && !started) {
           actionsHtml = `<button class="stato-action-btn green" onclick="startPhase('${o.id}')">Inizia Taglio</button>`;
         } else if (started) {
-          actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa → Officina</button>`;
-          actionsHtml += `<button class="stato-action-btn orange" onclick="openCompleteOrderModal('${o.id}')">Solo Taglio ✓</button>`;
+          actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa</button>`;
         }
-      } else if (fase !== 'COMPLETATO' && laserStep?.timestamp_fine) {
-        // Ordine passato in officina ma era solo taglio — permetti chiusura
-        actionsHtml = `<button class="stato-action-btn orange" onclick="openCompleteOrderModal('${o.id}')">Solo Taglio ✓</button>`;
       }
-      // PDF per tutti
       actionsHtml += `<button class="stato-action-btn outline" onclick="statoViewPdf('${o.id}')">PDF</button>`;
-      // Vai al lavoro se è LASER
       if (fase === 'LASER') {
         actionsHtml += `<button class="stato-action-btn outline" onclick="statoGoToOrder('${o.id}')">Apri</button>`;
       }
 
-      html += `<div class="stato-card">
-        <div class="stato-card-info">
-          <div class="stato-card-client">#${escapeHtml(numero)}</div>
-          <div class="stato-card-meta">Consegna: ${consegna}</div>
-          <div class="stato-timeline">${timelineHtml}</div>
-        </div>
-        <div class="stato-card-progress">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <div style="flex:1; height:8px; background:#f3f4f6; border-radius:4px; overflow:hidden;">
-              <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.3s;"></div>
-            </div>
-            <span style="font-size:12px; font-weight:700; color:var(--black); min-width:32px;">${pct}%</span>
-          </div>
-        </div>
-        <span class="stato-fase-badge ${faseClass}">${fase}</span>
-        <div class="stato-card-actions">${actionsHtml}</div>
+      html += `<div class="stato-row">
+        <div class="stato-row-client">${escapeHtml(o.cliente)}</div>
+        <div class="stato-row-num">#${escapeHtml(numero)}</div>
+        <div class="stato-row-consegna ${urgClass}">${consegna}</div>
+        <div class="stato-row-actions">${actionsHtml}</div>
       </div>`;
     });
+
+    html += `</div>`;
   });
 
   container.innerHTML = html;
@@ -2414,6 +2470,23 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// === CUSTOM CONFIRM DIALOG ===
+let _confirmResolve = null;
+function showConfirm(title, message, { icon = '', okText = 'Conferma' } = {}) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirm-icon').innerHTML = icon;
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = message;
+    document.getElementById('confirm-ok-btn').textContent = okText;
+    document.getElementById('confirm-overlay').style.display = 'flex';
+  });
+}
+function resolveConfirm(value) {
+  document.getElementById('confirm-overlay').style.display = 'none';
+  if (_confirmResolve) { _confirmResolve(value); _confirmResolve = null; }
+}
+
 function showToast(message, type = 'success') {
   let toast = document.getElementById('cal-toast');
   if (!toast) {
@@ -2733,6 +2806,19 @@ async function rejectSupport(requestId) {
   } catch (err) { showToast('Errore di connessione', 'error'); }
 }
 </script>
+
+<!-- CONFIRM DIALOG (replaces native confirm()) -->
+<div class="confirm-overlay" id="confirm-overlay" style="display:none;" onclick="resolveConfirm(false)">
+  <div class="confirm-dialog" onclick="event.stopPropagation()">
+    <div class="confirm-icon" id="confirm-icon"></div>
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="confirm-btn cancel" onclick="resolveConfirm(false)">Annulla</button>
+      <button class="confirm-btn primary" id="confirm-ok-btn" onclick="resolveConfirm(true)">Conferma</button>
+    </div>
+  </div>
+</div>
 
 <!-- COMPLETE ORDER MODAL -->
 <div class="co-overlay" id="co-overlay" style="display:none;" onclick="closeCompleteOrderModal()">
