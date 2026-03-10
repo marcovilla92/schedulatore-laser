@@ -55,6 +55,16 @@ def index():
     """Serve login page"""
     return send_from_directory(FRONTEND_FOLDER, 'login.html')
 
+@app.route('/download-cert')
+def download_cert():
+    """Scarica il certificato SSL per installazione su tablet Android."""
+    cert_dir = os.path.join(os.path.dirname(__file__), '..', 'certs')
+    cert_path = os.path.join(cert_dir, 'cert.pem')
+    if os.path.exists(cert_path):
+        return send_file(cert_path, as_attachment=True, download_name='ferrotrack-cert.crt',
+                        mimetype='application/x-x509-ca-cert')
+    return jsonify({'error': 'Certificato non trovato'}), 404
+
 @app.route('/<path:filename>')
 def serve_frontend(filename):
     """Serve frontend files"""
@@ -85,7 +95,8 @@ def login():
             'phase': user['phase'],
             'permissions': user['permissions'],
             'machines': user['machines'],
-            'is_capo': user.get('is_capo', False)
+            'is_capo': user.get('is_capo', False),
+            'assigned_clients': user.get('assigned_clients', [])
         }), 200
 
     except Exception as e:
@@ -684,6 +695,89 @@ def complete_order_early(order_id):
         logger.error(f"Phase operation error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/orders/<order_id>/split', methods=['POST'])
+def split_order(order_id):
+    """Divide un ordine in lotti — crea un nuovo lotto che avanza alla fase successiva"""
+    try:
+        data = request.get_json() or {}
+        operatore_id = data.get('operatore_id')
+
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+
+        lotto_nome = data.get('lotto_nome', '').strip() or None
+        result = OrderManager.split_order(order_id, operatore_id, lotto_nome=lotto_nome)
+
+        if result.get('success'):
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+            AuditManager.log(
+                user_id=operatore_id,
+                user_name=operatore_name,
+                action='SPLIT_ORDER',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f"Ordine diviso — creato lotto L{result['new_lotto_numero']}",
+                ip_address=request.remote_addr
+            )
+            return jsonify(result), 200
+        return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Split order error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders/<order_id>/confirm-lotti-completion', methods=['POST'])
+def confirm_lotti_completion(order_id):
+    """Conferma completamento ordine con lotti — richiede tutti i lotti COMPLETATO"""
+    try:
+        data = request.get_json() or {}
+        operatore_id = data.get('operatore_id')
+
+        if not operatore_id:
+            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
+
+        result = OrderManager.confirm_lotti_completion(order_id, operatore_id)
+
+        if result.get('success'):
+            user = UserManager.get_user(operatore_id)
+            operatore_name = user.get('name', operatore_id) if user else operatore_id
+            details = OrderManager.get_order_details(order_id)
+            cliente = details.get('cliente', '')
+            numero_display = details.get('numero_ordine', order_id[:8])
+
+            AuditManager.log(
+                user_id=operatore_id,
+                user_name=operatore_name,
+                action='CONFIRM_LOTTI_COMPLETION',
+                entity_type='order',
+                entity_id=order_id,
+                detail=f"Completamento ordine con lotti confermato",
+                ip_address=request.remote_addr
+            )
+
+            # Notifiche
+            notif_targets = set(['elena-impiegata'])
+            op_id = details.get('operatore_assegnato')
+            if op_id:
+                notif_targets.add(op_id)
+            for uid in notif_targets:
+                NotificationManager.create_notification(
+                    user_id=uid,
+                    order_id=order_id,
+                    title='Ordine completato (tutti i lotti)',
+                    message=f'Ordine #{numero_display} ({cliente}) — tutti i lotti completati',
+                    notification_type='completion',
+                    notification_category='attiva'
+                )
+
+            return jsonify(result), 200
+        return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Confirm lotti completion error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/phase/<phase>/orders', methods=['GET'])
 def get_orders_by_phase(phase):
     """Recupera ordini per fase corrente"""
@@ -825,19 +919,35 @@ def correct_time(order_id):
 
 @app.route('/api/orders/<order_id>/move-phase', methods=['POST'])
 def move_phase(order_id):
-    """Capo officina: sposta ordine a qualsiasi fase"""
+    """Sposta ordine a qualsiasi fase - permesso a capo o operatore assegnato al cliente"""
     try:
         data = request.get_json() or {}
         new_phase = data.get('new_phase')
-        capo_id = data.get('capo_id')
+        operator_id = data.get('capo_id') or data.get('operator_id')
 
         VALID_PHASES = {'LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO', 'PARZIALE'}
         if not new_phase:
             return jsonify({'success': False, 'error': 'new_phase obbligatorio'}), 400
         if new_phase not in VALID_PHASES:
             return jsonify({'success': False, 'error': f'Fase non valida: {new_phase}'}), 400
-        if not _require_capo(capo_id):
-            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
+
+        # Permesso: capo officina OPPURE operatore assegnato al cliente dell'ordine
+        has_permission = _require_capo(operator_id)
+        if not has_permission and operator_id:
+            assigned = OperatorClientManager.get_by_operator(operator_id)
+            if assigned:
+                session = get_session()
+                try:
+                    order = session.query(Order).filter(Order.id == order_id).first()
+                    if order:
+                        assigned_names = [a['client_name'].lower() for a in assigned]
+                        if (order.cliente or '').lower() in assigned_names:
+                            has_permission = True
+                finally:
+                    session.close()
+
+        if not has_permission:
+            return jsonify({'success': False, 'error': 'Non hai i permessi per spostare questo ordine'}), 403
 
         result = OrderManager.move_phase(order_id, new_phase)
         if result.get('success'):

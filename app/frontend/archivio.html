@@ -1093,8 +1093,36 @@ function renderTable(orders) {
 
     const numArticles = o.articles_count || o.num_articles || '\u2014';
 
+    const hasLotti = o.lotti_detail && o.lotti_detail.length > 0;
+    const lottiTag = hasLotti ? `<span style="font-size:10px; color:#0369a1; cursor:pointer;" onclick="toggleLottiRows('${o.id}')"> &#9660; ${o.lotti_detail.length + 1} lotti</span>` : '';
+
+    let lottiRows = '';
+    if (hasLotti) {
+      // Riga padre (L1)
+      const p1Phases = o.phase_times || {};
+      lottiRows += `<tr class="lotti-row lotti-${o.id}" style="display:none; background:#f0f9ff;">
+        <td style="padding-left:24px; font-size:12px; color:#0369a1; font-weight:600;">L${o.lotto_numero || 1}</td>
+        <td colspan="2" style="font-size:12px;"></td>
+        <td style="font-size:12px;">${p1Phases.PIEGA || '\u2014'}</td>
+        <td style="font-size:12px;">${p1Phases.SALDATURA || '\u2014'}</td>
+        <td style="font-size:12px;">${p1Phases.PULIZIA || '\u2014'}</td>
+        <td colspan="4" style="font-size:12px;"></td>
+      </tr>`;
+      o.lotti_detail.forEach(l => {
+        const lp = l.phase_times || {};
+        lottiRows += `<tr class="lotti-row lotti-${o.id}" style="display:none; background:#f0f9ff;">
+          <td style="padding-left:24px; font-size:12px; color:#0369a1; font-weight:600;">L${l.lotto_numero}</td>
+          <td colspan="2" style="font-size:12px;"></td>
+          <td style="font-size:12px;">${lp.PIEGA || '\u2014'}</td>
+          <td style="font-size:12px;">${lp.SALDATURA || '\u2014'}</td>
+          <td style="font-size:12px;">${lp.PULIZIA || '\u2014'}</td>
+          <td colspan="4" style="font-size:12px;"></td>
+        </tr>`;
+      });
+    }
+
     return `<tr>
-      <td class="order-id">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}</td>
+      <td class="order-id">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}${lottiTag}</td>
       <td>${escapeHtml(o.cliente)}</td>
       <td>${numArticles}</td>
       <td>${piega}</td>
@@ -1104,8 +1132,13 @@ function renderTable(orders) {
       <td>${quotato}</td>
       <td>${costoStr}</td>
       <td><span class="margin-badge ${marginClass}">${marginStr}</span></td>
-    </tr>`;
+    </tr>${lottiRows}`;
   }).join('');
+}
+
+function toggleLottiRows(orderId) {
+  const rows = document.querySelectorAll(`.lotti-${orderId}`);
+  rows.forEach(r => r.style.display = r.style.display === 'none' ? '' : 'none');
 }
 
 // === AVERAGE MARGIN ===

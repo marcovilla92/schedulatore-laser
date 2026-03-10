@@ -10,7 +10,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-html,body { height:100%; overflow:hidden; }
+html,body { height:100%; overflow:hidden; -webkit-overflow-scrolling: touch; }
+@media (max-width: 1024px) {
+  html,body { height:auto; overflow:auto; }
+}
 body { animation: pageIn 0.3s ease-out; }
 @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -984,10 +987,14 @@ body {
 }
 
 @media (max-width: 768px) {
-  .login-container { flex-direction: column; }
-  .login-left { padding: 40px 24px; min-height: 50vh; }
-  .login-right { padding: 40px 24px; min-height: 50vh; }
-  .login-title { font-size: 32px; }
+  .login-container { flex-direction: column; min-height: auto; }
+  .login-left { padding: 30px 24px; min-height: auto; }
+  .login-right { padding: 30px 24px; min-height: auto; }
+  .login-title { font-size: 28px; }
+  .login-subtitle { margin-bottom: 24px; }
+  .login-logo { margin-bottom: 24px; }
+  .login-form h2 { font-size: 24px; }
+  .login-form p { margin-bottom: 20px; }
 }
 
 /* ── TOAST NOTIFICATIONS ── */
@@ -1425,6 +1432,15 @@ async function loadUsers() {
 }
 
 async function loginUser(userId) {
+  // Entra in fullscreen solo su tablet/mobile (non su PC)
+  const isTouch = 'ontouchstart' in window && window.innerWidth <= 1024;
+  if (isTouch) {
+    try {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch(e) {}
+  }
   try {
     const errorEl = document.getElementById('loginError');
     errorEl.classList.remove('show');

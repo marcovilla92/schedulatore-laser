@@ -37,9 +37,13 @@ class Order(Base):
 
     note = Column(Text)
     is_deleted = Column(Boolean, default=False)  # Soft delete — mai cancellare fisicamente
+    parent_order_id = Column(String, ForeignKey('orders.id'), nullable=True)  # ID ordine padre (per lotti)
+    lotto_numero = Column(Integer, default=0)  # 0 = ordine normale, 1+ = lotto
+    lotto_nome = Column(String, nullable=True)  # Nome personalizzato del lotto (es. "Pezzi grandi")
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
     processing_steps = relationship('ProcessingStep', back_populates='order', cascade='all, delete-orphan')
     notifications = relationship('OrderNotification', back_populates='order', cascade='all, delete-orphan')
+    # lotti: query manuale con Order.parent_order_id == self.id
 
 class OrderFile(Base):
     __tablename__ = 'order_files'
@@ -346,5 +350,20 @@ def initialize_database():
                 conn.execute(text('ALTER TABLE orders ADD COLUMN is_deleted BOOLEAN DEFAULT 0'))
                 conn.commit()
                 logger.info('Aggiunta colonna is_deleted a orders')
+
+    # Migrazione: aggiunge parent_order_id e lotto_numero a orders per sistema lotti
+    if 'orders' in insp.get_table_names():
+        existing_orders = [c['name'] for c in insp.get_columns('orders')]
+        with engine.connect() as conn:
+            if 'parent_order_id' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN parent_order_id TEXT REFERENCES orders(id)'))
+                logger.info('Aggiunta colonna parent_order_id a orders')
+            if 'lotto_numero' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN lotto_numero INTEGER DEFAULT 0'))
+                logger.info('Aggiunta colonna lotto_numero a orders')
+            if 'lotto_nome' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN lotto_nome TEXT'))
+                logger.info('Aggiunta colonna lotto_nome a orders')
+            conn.commit()
 
     seed_users()

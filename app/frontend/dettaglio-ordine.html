@@ -1361,6 +1361,28 @@ function renderRight() {
     </div>
     ` : ''}
 
+    <!-- Lotti -->
+    ${order.lotti_count > 0 ? `
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-label">Lotti (${order.lotti_count})</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div class="storico-item" style="background:${order.fase_corrente === 'COMPLETATO' ? '#dcfce7' : '#e0f2fe'};">
+          <span style="font-weight:700; color:#0369a1; min-width:28px;">L${order.lotto_numero || 1}</span>
+          <span class="fase-badge" style="font-size:11px; padding:2px 8px;">${order.fase_corrente}</span>
+          <span style="font-size:11px; color:var(--gray-text);">(questo ordine)</span>
+        </div>
+        ${(order.lotti || []).map(l => `
+          <a href="/dettaglio-ordine.html?id=${l.id}" class="storico-item" style="text-decoration:none; color:inherit; cursor:pointer; background:${l.fase_corrente === 'COMPLETATO' ? '#dcfce7' : '#f1f5f9'};">
+            <span style="font-weight:700; color:#0369a1; min-width:28px;">L${l.lotto_numero}</span>
+            <span class="fase-badge" style="font-size:11px; padding:2px 8px;">${l.fase_corrente}</span>
+            <span style="font-size:11px; color:var(--gray-text);">${l.status}</span>
+          </a>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
+
     <!-- History -->
     <div class="section">
       <div class="section-label">Storico fasi</div>

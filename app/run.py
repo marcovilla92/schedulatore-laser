@@ -109,7 +109,12 @@ if __name__ == '__main__':
     # Beta: debug=False per stabilità
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
-    # Avvia Flask
+    # Controlla se esistono certificati SSL per HTTPS (necessario per PWA su tablet)
+    cert_file = os.path.join(os.path.dirname(__file__), 'certs', 'cert.pem')
+    key_file = os.path.join(os.path.dirname(__file__), 'certs', 'key.pem')
+    has_ssl = os.path.exists(cert_file) and os.path.exists(key_file)
+
+    # Avvia Flask HTTP
     logger.info("Avvio SCHEDULATORE LASER su porta 5000")
     logger.info("Accedi via browser: http://localhost:5000")
     logger.info(f"Debug mode: {'ON' if debug_mode else 'OFF'}")

@@ -290,6 +290,27 @@ class OrderManager:
                         'forzata': sr.forzata
                     })
 
+                # Info lotti figli (pre-caricati)
+                lotti_data = []
+                lotti_count = 0
+                all_lotti_completed = False
+                if order.lotto_numero and order.lotto_numero > 0:
+                    child_lotti = session.query(Order).filter(
+                        Order.parent_order_id == order.id,
+                        Order.is_deleted == False
+                    ).order_by(Order.lotto_numero.asc()).all()
+                    for l in child_lotti:
+                        lotti_data.append({
+                            'id': l.id,
+                            'lotto_numero': l.lotto_numero,
+                            'lotto_nome': l.lotto_nome or '',
+                            'fase_corrente': l.fase_corrente,
+                            'status': l.status
+                        })
+                    lotti_count = len(child_lotti) + 1
+                    all_phases = [l.fase_corrente for l in child_lotti] + [order.fase_corrente]
+                    all_lotti_completed = all(f == 'COMPLETATO' for f in all_phases)
+
                 result.append({
                     'id': order.id,
                     'cliente': order.cliente,
@@ -305,7 +326,13 @@ class OrderManager:
                     'dxf_files': dxf_files,
                     'note': order.note,
                     'processing_steps': steps_data,
-                    'support_requests': support_data
+                    'support_requests': support_data,
+                    'parent_order_id': order.parent_order_id,
+                    'lotto_numero': order.lotto_numero or 0,
+                    'lotto_nome': order.lotto_nome or '',
+                    'lotti': lotti_data,
+                    'lotti_count': lotti_count,
+                    'all_lotti_completed': all_lotti_completed
                 })
 
             return result
@@ -759,6 +786,202 @@ class OrderManager:
             session.close()
     
     @staticmethod
+    def split_order(order_id: str, operatore_id: str, lotto_nome: str = None) -> dict:
+        """
+        Divide un ordine in lotti: il padre resta nella fase corrente (L1),
+        viene creato un figlio (L2+) che avanza alla fase successiva.
+        """
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+
+            if order.fase_corrente in ("COMPLETATO", "PARZIALE"):
+                return {"success": False, "error": "Non puoi dividere un ordine completato"}
+
+            # Verifica permessi: operatore assegnato al cliente o capo
+            user = session.query(User).filter(User.id == operatore_id).first()
+            if not user:
+                return {"success": False, "error": "Utente non trovato"}
+            if not user.is_capo:
+                is_assigned = session.query(OperatorClient).filter(
+                    func.lower(OperatorClient.client_name) == func.lower(order.cliente),
+                    OperatorClient.operator_id == operatore_id
+                ).first()
+                if not is_assigned:
+                    return {"success": False, "error": "Non hai i permessi per dividere questo ordine"}
+
+            # Determina il padre reale (se si splitta un lotto, il padre è il root)
+            root_id = order.parent_order_id if order.parent_order_id else order.id
+
+            # Se il padre non è ancora un lotto, diventa L1
+            root_order = session.query(Order).filter(Order.id == root_id).first()
+            if root_order and root_order.lotto_numero == 0:
+                root_order.lotto_numero = 1
+
+            # Se anche l'ordine corrente non è ancora un lotto (primo split), diventa L1
+            if order.lotto_numero == 0:
+                order.lotto_numero = 1
+
+            # Calcola prossimo numero lotto
+            max_lotto = session.query(func.max(Order.lotto_numero)).filter(
+                ((Order.id == root_id) | (Order.parent_order_id == root_id))
+            ).scalar() or 1
+            nuovo_lotto_num = max_lotto + 1
+
+            # Fase successiva per il nuovo lotto
+            phase_flow = {
+                'LASER': 'PIEGA',
+                'PIEGA': 'SALDATURA',
+                'SALDATURA': 'PULIZIA',
+                'PULIZIA': 'COMPLETATO'
+            }
+            fase_succ = phase_flow.get(order.fase_corrente, 'COMPLETATO')
+            if fase_succ == 'COMPLETATO':
+                return {"success": False, "error": "Non puoi dividere un ordine nell'ultima fase"}
+
+            # Copia i file PDF dell'ordine originale
+            original_files = session.query(OrderFile).filter(
+                OrderFile.order_id == order.id,
+                OrderFile.file_type == 'PDF'
+            ).all()
+
+            # Auto-assign operatore per il nuovo lotto (se esce da LASER)
+            new_operatore = order.operatore_assegnato
+            if order.fase_corrente == 'LASER' and not new_operatore:
+                assignments = session.query(OperatorClient).filter(
+                    func.lower(OperatorClient.client_name) == func.lower(order.cliente)
+                ).all()
+                for assignment in assignments:
+                    op_user = session.query(User).filter(User.id == assignment.operator_id).first()
+                    if op_user and op_user.phase != 'LASER':
+                        new_operatore = assignment.operator_id
+                        break
+                if not new_operatore:
+                    capo = session.query(User).filter(User.is_capo == True).first()
+                    if capo:
+                        new_operatore = capo.id
+
+            # Crea il nuovo lotto
+            new_order = Order(
+                id=str(uuid.uuid4()),
+                cliente=order.cliente,
+                numero_ordine=order.numero_ordine,
+                data_ricezione=order.data_ricezione,
+                data_consegna=order.data_consegna,
+                status="RICEVUTO",
+                fase_corrente=fase_succ,
+                operatore_assegnato=new_operatore,
+                prezzo_quotato=None,  # Il prezzo resta solo sul padre
+                note=f"Lotto {nuovo_lotto_num} — creato da split",
+                parent_order_id=root_id,
+                lotto_numero=nuovo_lotto_num,
+                lotto_nome=lotto_nome or None
+            )
+            session.add(new_order)
+
+            # Copia riferimenti file PDF al nuovo lotto
+            for f in original_files:
+                new_file = OrderFile(
+                    id=str(uuid.uuid4()),
+                    order_id=new_order.id,
+                    filename=f.filename,
+                    filepath=f.filepath,
+                    file_type=f.file_type
+                )
+                session.add(new_file)
+
+            session.commit()
+
+            return {
+                "success": True,
+                "parent_order_id": root_id,
+                "new_lotto_id": new_order.id,
+                "new_lotto_numero": nuovo_lotto_num,
+                "new_lotto_nome": new_order.lotto_nome or f"Lotto {nuovo_lotto_num}",
+                "fase_corrente_padre": order.fase_corrente,
+                "fase_corrente_lotto": fase_succ
+            }
+
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def confirm_lotti_completion(order_id: str, operatore_id: str) -> dict:
+        """
+        Conferma manuale completamento ordine quando tutti i lotti sono COMPLETATO.
+        Solo l'operatore assegnato al cliente o un capo può confermare.
+        """
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+
+            # Verifica permessi
+            user = session.query(User).filter(User.id == operatore_id).first()
+            if not user:
+                return {"success": False, "error": "Utente non trovato"}
+            if not user.is_capo:
+                is_assigned = session.query(OperatorClient).filter(
+                    func.lower(OperatorClient.client_name) == func.lower(order.cliente),
+                    OperatorClient.operator_id == operatore_id
+                ).first()
+                if not is_assigned:
+                    return {"success": False, "error": "Non hai i permessi"}
+
+            # Verifica che il padre (L1) sia COMPLETATO
+            if order.fase_corrente != "COMPLETATO":
+                return {"success": False, "error": "L'ordine padre non è ancora completato"}
+
+            # Verifica che TUTTI i lotti figli siano COMPLETATO
+            lotti = session.query(Order).filter(
+                Order.parent_order_id == order_id
+            ).all()
+            non_completati = [l for l in lotti if l.fase_corrente != "COMPLETATO"]
+            if non_completati:
+                nomi = [f"L{l.lotto_numero}" for l in non_completati]
+                return {"success": False, "error": f"Lotti non completati: {', '.join(nomi)}"}
+
+            # Calcola tempo totale (padre + tutti i lotti)
+            all_order_ids = [order_id] + [l.id for l in lotti]
+            total_seconds = 0
+            for oid in all_order_ids:
+                steps = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == oid,
+                    ProcessingStep.timestamp_inizio.isnot(None),
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).all()
+                for step in steps:
+                    total_seconds += int((step.timestamp_fine - step.timestamp_inizio).total_seconds())
+
+            total_time = OrderManager._format_duration(timedelta(seconds=total_seconds))
+
+            # Crea notifica di completamento
+            notification = OrderNotification(
+                id=str(uuid.uuid4()),
+                order_id=order_id,
+                tempi_totali=total_time
+            )
+            session.add(notification)
+
+            # Marca ordine come completato definitivamente (status speciale)
+            order.status = "COMPLETATO"
+            session.commit()
+
+            return {"success": True, "tempi_totali": total_time}
+
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
     def complete_order(order_id: str, current_phase: str, note: str = "", operatore: str = "") -> dict:
         """
         Completa un ordine anticipatamente dalla fase corrente.
@@ -1091,6 +1314,30 @@ class OrderManager:
                     'forzata': sr.forzata
                 })
 
+            # Info lotti
+            lotti_data = []
+            lotti_count = 0
+            all_lotti_completed = False
+            root_id = order.parent_order_id or order.id
+            if order.lotto_numero > 0 or order.parent_order_id:
+                # Questo ordine fa parte di un sistema di lotti
+                lotti_query = session.query(Order).filter(
+                    ((Order.id == root_id) | (Order.parent_order_id == root_id)),
+                    Order.id != order.id
+                ).order_by(Order.lotto_numero.asc()).all()
+                for l in lotti_query:
+                    lotti_data.append({
+                        'id': l.id,
+                        'lotto_numero': l.lotto_numero,
+                        'lotto_nome': l.lotto_nome or '',
+                        'fase_corrente': l.fase_corrente,
+                        'status': l.status
+                    })
+                lotti_count = len(lotti_query) + 1  # +1 per l'ordine corrente
+                # Controlla se tutti i lotti (compreso questo) sono completati
+                all_phases = [l.fase_corrente for l in lotti_query] + [order.fase_corrente]
+                all_lotti_completed = all(f == 'COMPLETATO' for f in all_phases)
+
             return {
                 "id": order.id,
                 "cliente": order.cliente,
@@ -1106,7 +1353,13 @@ class OrderManager:
                 "dxf_files": dxf_files,
                 "note": order.note,
                 "processing_steps": [_step_session_data(s) for s in processing_steps],
-                "support_requests": support_data
+                "support_requests": support_data,
+                "parent_order_id": order.parent_order_id,
+                "lotto_numero": order.lotto_numero,
+                "lotto_nome": order.lotto_nome or '',
+                "lotti": lotti_data,
+                "lotti_count": lotti_count,
+                "all_lotti_completed": all_lotti_completed
             }
         finally:
             session.close()
@@ -1118,6 +1371,18 @@ class UserManager:
     @staticmethod
     def _serialize_user(user) -> dict:
         """Serializza un utente in dict"""
+        # Recupera clienti assegnati da operator_clients
+        session = get_session()
+        try:
+            assigned = session.query(OperatorClient.client_name).filter(
+                OperatorClient.operator_id == user.id
+            ).all()
+            assigned_clients = [a.client_name for a in assigned]
+        except Exception:
+            assigned_clients = []
+        finally:
+            session.close()
+
         return {
             'id': user.id,
             'name': user.name,
@@ -1128,6 +1393,7 @@ class UserManager:
             'machines': user.machines,
             'is_capo': user.is_capo,
             'is_active': user.is_active,
+            'assigned_clients': assigned_clients,
             'last_login': user.last_login.isoformat() if user.last_login else None,
             'created_at': user.created_at.isoformat() if user.created_at else None
         }
@@ -1482,7 +1748,8 @@ class ArchiveManager:
             from sqlalchemy import func
 
             query = session.query(Order).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"])
+                Order.status.in_(["COMPLETATO", "PARZIALE"]),
+                Order.parent_order_id.is_(None)  # Escludi lotti figli
             )
 
             query = ArchiveManager._apply_archive_filters(query, filters, session)
@@ -1523,6 +1790,35 @@ class ArchiveManager:
                     margine = order.prezzo_quotato - costo_manodopera
                     margine_pct = round((margine / order.prezzo_quotato) * 100, 1)
 
+                # Info lotti per archivio (tempi aggregati)
+                lotti_detail = []
+                if order.lotto_numero and order.lotto_numero > 0:
+                    child_lotti = session.query(Order).filter(
+                        Order.parent_order_id == order.id,
+                        Order.is_deleted == False
+                    ).order_by(Order.lotto_numero.asc()).all()
+                    # Aggiungi tempi dei lotti figli ai tempi fase del padre
+                    for l in child_lotti:
+                        l_phase_times = ArchiveManager._calculate_phase_times(l.id, session)
+                        l_total_hours = OrderManager._calculate_total_hours(l.id, session)
+                        lotti_detail.append({
+                            'lotto_numero': l.lotto_numero,
+                            'lotto_nome': l.lotto_nome or '',
+                            'phase_times': l_phase_times,
+                            'total_hours': round(l_total_hours, 2)
+                        })
+                        # Somma ai tempi totali
+                        for fase_key, tempo in l_phase_times.items():
+                            if fase_key in phase_times:
+                                # Somma secondi
+                                phase_times[fase_key] = (phase_times.get(fase_key, 0) or 0) + (tempo or 0) if isinstance(tempo, (int, float)) else phase_times[fase_key]
+                        total_hours += l_total_hours
+                    # Ricalcola costo e margine con lotti inclusi
+                    costo_manodopera = total_hours * costo_orario
+                    if order.prezzo_quotato and order.prezzo_quotato > 0:
+                        margine = order.prezzo_quotato - costo_manodopera
+                        margine_pct = round((margine / order.prezzo_quotato) * 100, 1)
+
                 orders_data.append({
                     'id': order.id,
                     'numero_ordine': order.numero_ordine or order.id[:8],
@@ -1535,7 +1831,10 @@ class ArchiveManager:
                     'margine': round(margine, 2) if margine is not None else None,
                     'margine_pct': margine_pct,
                     'phase_times': phase_times,
-                    'status': order.status
+                    'status': order.status,
+                    'lotto_numero': order.lotto_numero or 0,
+                    'lotto_nome': order.lotto_nome or '',
+                    'lotti_detail': lotti_detail
                 })
 
             total_pages = (total + limit - 1) // limit
@@ -1704,7 +2003,8 @@ class ArchiveManager:
         session = get_session()
         try:
             query = session.query(Order).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"])
+                Order.status.in_(["COMPLETATO", "PARZIALE"]),
+                Order.parent_order_id.is_(None)  # Solo ordini padre/normali
             )
             query = ArchiveManager._apply_archive_filters(query, filters, session)
             orders = query.order_by(Order.data_consegna.desc()).all()
@@ -1713,132 +2013,132 @@ class ArchiveManager:
             summary_indices = []  # indici righe riepilogo
 
             for order in orders:
-                notification = session.query(OrderNotification).filter(
-                    OrderNotification.order_id == order.id
-                ).first()
-
-                last_step = session.query(ProcessingStep).filter(
-                    ProcessingStep.order_id == order.id,
-                    ProcessingStep.timestamp_fine.isnot(None)
-                ).order_by(ProcessingStep.timestamp_fine.desc()).first()
-                completion_date = last_step.timestamp_fine if last_step else None
-
-                steps = session.query(ProcessingStep).filter(
-                    ProcessingStep.order_id == order.id
-                ).order_by(ProcessingStep.timestamp_inizio).all()
-
-                base_info = {
-                    'Cliente': order.cliente,
-                    'Numero Ordine': order.numero_ordine or order.id[:8],
-                    'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
-                    'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
-                }
-
-                # Se nessuna fase, aggiungi solo riga riepilogo
-                if not steps:
-                    rows.append({
-                        **base_info,
-                        'Fase': '',
-                        'Operatore': '',
-                        'Ruolo': '',
-                        'Inizio': '',
-                        'Fine': '',
-                        'Tempo Lavorato': '',
-                        'Sessioni': '',
-                    })
-                    continue
-
+                # Raccoglie tutti gli ordini da processare (padre + eventuali lotti figli)
+                all_order_objs = [order]
+                if order.lotto_numero and order.lotto_numero > 0:
+                    child_lotti = session.query(Order).filter(
+                        Order.parent_order_id == order.id,
+                        Order.is_deleted == False
+                    ).order_by(Order.lotto_numero.asc()).all()
+                    all_order_objs.extend(child_lotti)
                 order_total_sec = 0
 
-                for step in steps:
-                    sessions_list = session.query(PhaseSession).filter(
-                        PhaseSession.step_id == step.id
-                    ).order_by(PhaseSession.timestamp_inizio).all()
+                for current_order in all_order_objs:
+                    lotto_label = f" (L{current_order.lotto_numero})" if current_order.lotto_numero and current_order.lotto_numero > 0 else ""
+                    lotto_col = (current_order.lotto_nome or f'L{current_order.lotto_numero}') if current_order.lotto_numero and current_order.lotto_numero > 0 else ''
 
-                    # Raggruppa sessioni per operatore
-                    op_sessions = {}
-                    for s in sessions_list:
-                        op_name = s.operatore or 'Sconosciuto'
-                        op_sessions.setdefault(op_name, []).append(s)
+                    notification = session.query(OrderNotification).filter(
+                        OrderNotification.order_id == current_order.id
+                    ).first()
 
-                    main_op = step.operatore or ''
-                    fase_inizio = step.timestamp_inizio.strftime('%d/%m/%Y %H:%M') if step.timestamp_inizio else ''
-                    fase_fine = step.timestamp_fine.strftime('%d/%m/%Y %H:%M') if step.timestamp_fine else ''
+                    last_step = session.query(ProcessingStep).filter(
+                        ProcessingStep.order_id == current_order.id,
+                        ProcessingStep.timestamp_fine.isnot(None)
+                    ).order_by(ProcessingStep.timestamp_fine.desc()).first()
+                    completion_date = last_step.timestamp_fine if last_step else None
 
-                    if op_sessions:
-                        # Una riga per ogni operatore che ha lavorato
-                        for op_name, op_ss in op_sessions.items():
-                            op_sec = sum(
-                                int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
-                                for s in op_ss if s.timestamp_fine
-                            )
-                            order_total_sec += op_sec
-                            ruolo = 'Principale' if op_name == main_op else 'Supporto'
+                    steps = session.query(ProcessingStep).filter(
+                        ProcessingStep.order_id == current_order.id
+                    ).order_by(ProcessingStep.timestamp_inizio).all()
 
+                    base_info = {
+                        'Cliente': order.cliente,
+                        'Numero Ordine': (order.numero_ordine or order.id[:8]) + lotto_label,
+                        'Lotto': lotto_col,
+                        'Data Caricamento': order.data_ricezione.strftime('%d/%m/%Y %H:%M') if order.data_ricezione else '',
+                        'Data Completamento': completion_date.strftime('%d/%m/%Y %H:%M') if completion_date else '',
+                    }
+
+                    if not steps:
+                        continue
+
+                    for step in steps:
+                        sessions_list = session.query(PhaseSession).filter(
+                            PhaseSession.step_id == step.id
+                        ).order_by(PhaseSession.timestamp_inizio).all()
+
+                        # Raggruppa sessioni per operatore
+                        op_sessions = {}
+                        for s in sessions_list:
+                            op_name = s.operatore or 'Sconosciuto'
+                            op_sessions.setdefault(op_name, []).append(s)
+
+                        main_op = step.operatore or ''
+                        fase_inizio = step.timestamp_inizio.strftime('%d/%m/%Y %H:%M') if step.timestamp_inizio else ''
+                        fase_fine = step.timestamp_fine.strftime('%d/%m/%Y %H:%M') if step.timestamp_fine else ''
+
+                        if op_sessions:
+                            for op_name, op_ss in op_sessions.items():
+                                op_sec = sum(
+                                    int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                                    for s in op_ss if s.timestamp_fine
+                                )
+                                order_total_sec += op_sec
+                                ruolo = 'Principale' if op_name == main_op else 'Supporto'
+
+                                rows.append({
+                                    **base_info,
+                                    'Fase': step.fase + lotto_label,
+                                    'Operatore': op_name,
+                                    'Ruolo': ruolo,
+                                    'Inizio': fase_inizio,
+                                    'Fine': fase_fine,
+                                    'Tempo Lavorato': ArchiveManager._format_seconds(op_sec),
+                                    'Sessioni': str(len(op_ss)),
+                                })
+                        elif step.timestamp_inizio and step.timestamp_fine:
+                            dur_sec = int((step.timestamp_fine - step.timestamp_inizio).total_seconds())
+                            order_total_sec += dur_sec
                             rows.append({
                                 **base_info,
-                                'Fase': step.fase,
-                                'Operatore': op_name,
-                                'Ruolo': ruolo,
+                                'Fase': step.fase + lotto_label,
+                                'Operatore': main_op,
+                                'Ruolo': 'Principale',
                                 'Inizio': fase_inizio,
                                 'Fine': fase_fine,
-                                'Tempo Lavorato': ArchiveManager._format_seconds(op_sec),
-                                'Sessioni': str(len(op_ss)),
+                                'Tempo Lavorato': ArchiveManager._format_seconds(dur_sec),
+                                'Sessioni': '1',
                             })
-                    elif step.timestamp_inizio and step.timestamp_fine:
-                        # Nessuna sessione, usa timestamp step
-                        dur_sec = int((step.timestamp_fine - step.timestamp_inizio).total_seconds())
-                        order_total_sec += dur_sec
-                        rows.append({
-                            **base_info,
-                            'Fase': step.fase,
-                            'Operatore': main_op,
-                            'Ruolo': 'Principale',
-                            'Inizio': fase_inizio,
-                            'Fine': fase_fine,
-                            'Tempo Lavorato': ArchiveManager._format_seconds(dur_sec),
-                            'Sessioni': '1',
-                        })
-                    else:
-                        # Fase senza tempi
-                        rows.append({
-                            **base_info,
-                            'Fase': step.fase,
-                            'Operatore': main_op,
-                            'Ruolo': 'Principale',
-                            'Inizio': fase_inizio,
-                            'Fine': fase_fine,
-                            'Tempo Lavorato': '',
-                            'Sessioni': '',
-                        })
+                        else:
+                            rows.append({
+                                **base_info,
+                                'Fase': step.fase + lotto_label,
+                                'Operatore': main_op,
+                                'Ruolo': 'Principale',
+                                'Inizio': fase_inizio,
+                                'Fine': fase_fine,
+                                'Tempo Lavorato': '',
+                                'Sessioni': '',
+                            })
 
-                    # Riga delegato se presente
-                    delega = session.query(PhaseDelegation).filter(
-                        PhaseDelegation.order_id == order.id,
-                        PhaseDelegation.fase == step.fase,
-                        PhaseDelegation.stato == 'completed'
-                    ).first()
-                    if delega:
-                        delegato_user = session.query(User).filter(User.id == delega.operatore_delegato).first()
-                        del_name = delegato_user.name if delegato_user else delega.operatore_delegato
-                        del_sec = delega.durata_effettiva or 0
-                        order_total_sec += del_sec
-                        rows.append({
-                            **base_info,
-                            'Fase': step.fase,
-                            'Operatore': del_name,
-                            'Ruolo': 'Delegato',
-                            'Inizio': '',
-                            'Fine': '',
-                            'Tempo Lavorato': ArchiveManager._format_seconds(del_sec) if del_sec else '',
-                            'Sessioni': '',
-                        })
+                        # Riga delegato se presente
+                        delega = session.query(PhaseDelegation).filter(
+                            PhaseDelegation.order_id == current_order.id,
+                            PhaseDelegation.fase == step.fase,
+                            PhaseDelegation.stato == 'completed'
+                        ).first()
+                        if delega:
+                            delegato_user = session.query(User).filter(User.id == delega.operatore_delegato).first()
+                            del_name = delegato_user.name if delegato_user else delega.operatore_delegato
+                            del_sec = delega.durata_effettiva or 0
+                            order_total_sec += del_sec
+                            rows.append({
+                                **base_info,
+                                'Fase': step.fase + lotto_label,
+                                'Operatore': del_name,
+                                'Ruolo': 'Delegato',
+                                'Inizio': '',
+                                'Fine': '',
+                                'Tempo Lavorato': ArchiveManager._format_seconds(del_sec) if del_sec else '',
+                                'Sessioni': '',
+                            })
 
-                # Riga riepilogativa ordine
+                # Riga riepilogativa ordine (totale di tutti i lotti)
                 summary_indices.append(len(rows))
                 rows.append({
                     'Cliente': '',
                     'Numero Ordine': '',
+                    'Lotto': '',
                     'Data Caricamento': '',
                     'Data Completamento': '',
                     'Fase': 'RIEPILOGO',

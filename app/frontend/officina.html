@@ -333,7 +333,7 @@ body {
   border-top-color: var(--border);
 }
 .accordion-body .card-actions { padding: 10px 0; border-top: none; }
-.accordion-body .card-actions-secondary { padding: 0 0 4px; }
+.accordion-body .card-actions-secondary { padding: 8px 0 4px; margin-top: 8px; }
 .accordion-body .card-phases { border-top: 1px solid var(--border); padding: 10px 0 0; }
 .accordion-body .support-badge { margin-bottom: 8px; }
 .accordion-body .timer-section { margin: 8px 0; }
@@ -971,7 +971,8 @@ body {
   /* Touch-friendly accordion on tablet */
   .accordion-header { padding: 16px 16px; gap: 10px; }
   .acc-client { max-width: 140px; font-size: 14px; }
-  .accordion-body { padding: 0 16px 14px; }
+  .accordion-body { padding: 0 16px; }
+  .accordion-item.expanded .accordion-body { padding: 4px 16px 14px; }
   .accordion-body .action-btn { min-height: 48px; padding: 12px 16px; font-size: 14px; }
   .action-btn { padding: 12px 16px; font-size: 14px; }
   .btn-home { padding: 10px 16px; font-size: 13px; }
@@ -1668,11 +1669,27 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
   .form-card { width: 95vw; }
 }
 @media (max-width: 900px) {
-  .topbar, .tab-bar { padding: 0 16px; }
+  .topbar, .tab-bar { padding: 0 12px; }
   .ordini-container { padding: 16px; }
   .tab-item { padding: 12px 14px; font-size: 12px; }
   .user-pill-info { display: none; }
   .user-pill { padding: 4px; }
+  /* Topbar tablet: riduci spazio nav e bottoni */
+  .capo-nav { margin-left: 8px; gap: 2px; }
+  .capo-nav-item { padding: 6px 10px; font-size: 12px; }
+  .btn-home { padding: 6px 12px; font-size: 12px; }
+  .btn-logout { padding: 6px 10px; font-size: 12px; }
+  .topbar-actions { gap: 8px; }
+  .logo-icon { width: 32px; height: 32px; }
+  .logo-icon img { width: 32px; height: 32px; }
+  .logo-text { gap: 0; }
+  .logo-main { font-size: 14px; }
+  .logo-section { gap: 8px; }
+  /* Accordion: assicura che il body collassato non mostri contenuto */
+  .accordion-body { padding: 0 16px !important; }
+  .accordion-item.expanded .accordion-body { padding: 4px 16px 16px !important; }
+  /* Card clienti: adatta a tablet */
+  .form-card { width: 100% !important; max-width: 100% !important; padding: 16px !important; gap: 10px !important; }
 }
 
 /* === TAB BAR === */
@@ -2633,8 +2650,12 @@ function renderAccordionItem(order, step, phase, myInfo, flags) {
 
   const colorClass = activeColorMap[orderId] || '';
 
+  const lottoLabel = order.lotto_nome || `L${order.lotto_numero}`;
+  const lottoTag = order.lotto_numero > 0 ? `<span style="font-size:11px; font-weight:700; color:#0369a1; background:#e0f2fe; padding:1px 6px; border-radius:4px; margin-left:4px;">${escapeHtml(lottoLabel)}</span>` : '';
+  const lottiCountTag = (order.lotti_count > 0 && !order.parent_order_id) ? `<span style="font-size:10px; color:#6b7280; margin-left:2px;">(${order.lotti_count} lotti)</span>` : '';
+
   const headerHtml = `<div class="accordion-header" onclick="toggleAccordion('${orderId}')">
-    <span class="acc-client">${cliente}</span>
+    <span class="acc-client">${cliente}${lottoTag}${lottiCountTag}</span>
     <span class="acc-order-num">#${numOrdine}</span>
     <span class="acc-consegna ${consegnaClass}">${consegna}</span>
     <span class="acc-status-badge card-status ${statusBadgeClass}">${statusText}</span>
@@ -2673,9 +2694,14 @@ function buildActiveBody(order, step, phase, consegna) {
   if (!isSupport) sec += `<button class="sec-action" onclick="openSupportModal('${order.id}')">&#129309; Aiuto</button>`;
   if (!isSupport) sec += `<button class="sec-action danger" onclick="openCompleteOrderModal('${order.id}')">&#10004; Completato</button>`;
   if (canModify) sec += `<button class="sec-action" onclick="openEditModal('${order.id}')">&#9998; Modifica</button>`;
+  const canSplit = !isSupport && phase !== 'PULIZIA' && (currentUser.is_capo || (currentUser.assigned_clients || []).some(c => c.toLowerCase() === (order.cliente || '').toLowerCase()));
+  if (canSplit) sec += `<button class="sec-action" onclick="splitOrder('${order.id}')">&#9986; Dividi</button>`;
+
+  const lottiHtml = buildLottiInfo(order);
 
   return `${supportBadgeHtml}
     <div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
+    ${lottiHtml}
     ${timerHtml}
     <div class="card-actions">
       <button class="action-btn green" onclick="completePhase('${order.id}')">&#10004; Completa Fase</button>
@@ -2707,9 +2733,14 @@ function buildPausedBody(order, step, phase, consegna) {
   if (!isSupport) sec += `<button class="sec-action" onclick="openSupportModal('${order.id}')">&#129309; Aiuto</button>`;
   if (!isSupport) sec += `<button class="sec-action danger" onclick="openCompleteOrderModal('${order.id}')">&#10004; Completato</button>`;
   if (canModify) sec += `<button class="sec-action" onclick="openEditModal('${order.id}')">&#9998; Modifica</button>`;
+  const canSplit = !isSupport && phase !== 'PULIZIA' && (currentUser.is_capo || (currentUser.assigned_clients || []).some(c => c.toLowerCase() === (order.cliente || '').toLowerCase()));
+  if (canSplit) sec += `<button class="sec-action" onclick="splitOrder('${order.id}')">&#9986; Dividi</button>`;
+
+  const lottiHtml = buildLottiInfo(order);
 
   return `${supportBadgeHtml}
     <div class="card-fase"><span class="card-fase-label">Fase:</span><span class="fase-badge ${faseBadgeClass}">${phase}</span></div>
+    ${lottiHtml}
     ${pausedInfoHtml}
     <div class="card-actions">
       <button class="action-btn green" onclick="resumePhase('${order.id}','${phase}',this)">&#9654; Riprendi</button>
@@ -2793,8 +2824,13 @@ function buildWaitingBody(order, phase, consegna) {
   if (!isSupport) sec += `<button class="sec-action" onclick="openSupportModal('${order.id}')">&#129309; Aiuto</button>`;
   if (!isSupport && hasCompletedPhases) sec += `<button class="sec-action danger" onclick="openCompleteOrderModal('${order.id}')">&#10004; Completato</button>`;
   if (canModify) sec += `<button class="sec-action" onclick="openEditModal('${order.id}')">&#9998; Modifica</button>`;
+  const canSplit = !isSupport && phase !== 'PULIZIA' && (currentUser.is_capo || (currentUser.assigned_clients || []).some(c => c.toLowerCase() === (order.cliente || '').toLowerCase()));
+  if (canSplit) sec += `<button class="sec-action" onclick="splitOrder('${order.id}')">&#9986; Dividi</button>`;
+
+  const lottiHtml = buildLottiInfo(order);
 
   return `${supportBadgeHtml}
+    ${lottiHtml}
     <div style="display:flex; align-items:center; gap:10px; padding:8px 0;">
       <div class="progress-bar-bg" style="flex:1; height:8px;"><div class="progress-bar-fill" style="width:${calculateProgress(order)}%; background:${getProgressColor(calculateProgress(order))};"></div></div>
       <span style="font-size:13px; font-weight:700; color:var(--black); min-width:36px;">${calculateProgress(order)}%</span>
@@ -2809,12 +2845,15 @@ function buildLaserReadOnlyBody(order, consegna) {
   const laserStarted = laserStep?.timestamp_inizio;
   const statusMsg = laserStarted ? 'In lavorazione al laser' : 'In attesa di taglio laser';
   const statusIcon = laserStarted ? '&#9889;' : '&#9203;';
+  const canSplit = currentUser.is_capo || (currentUser.assigned_clients || []).some(c => c.toLowerCase() === (order.cliente || '').toLowerCase());
+  const lottiHtml = buildLottiInfo(order);
+  let secActions = `<button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button>`;
+  if (canSplit) secActions += `<button class="sec-action" onclick="splitOrder('${order.id}')">&#9986; Dividi</button>`;
   return `<div class="waiting-note" style="background: #eff6ff; color: #1e40af;">
       <span>${statusIcon}</span><span>${statusMsg}</span>
     </div>
-    <div class="card-actions-secondary">
-      <button class="sec-action" onclick="openPdfModal('${order.id}', '${escapeHtml(order.cliente)}')">&#128196; PDF</button>
-    </div>`;
+    ${lottiHtml}
+    <div class="card-actions-secondary">${secActions}</div>`;
 }
 
 function buildCompletedBody(order, consegna) {
@@ -2881,7 +2920,7 @@ async function skipToPhase(orderId, targetPhase) {
     const resp = await fetch(`${API_URL}/api/orders/${orderId}/move-phase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ new_phase: targetPhase })
+      body: JSON.stringify({ new_phase: targetPhase, operator_id: currentUser.id })
     });
     const result = await resp.json();
     if (result.success) {
@@ -2911,7 +2950,7 @@ async function startPhaseChoice(orderId, targetPhase, btnEl) {
       const moveResp = await fetch(`${API_URL}/api/orders/${orderId}/move-phase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_phase: targetPhase })
+        body: JSON.stringify({ new_phase: targetPhase, operator_id: currentUser.id })
       });
       const moveResult = await moveResp.json();
       if (!moveResult.success) {
@@ -3002,6 +3041,106 @@ async function startAndWork(orderId, btnEl) {
   actionInProgress = false;
   _lastOrdersFingerprint = '';
   await loadOrders();
+}
+
+// === LOTTI: visualizzazione e split ===
+
+function buildLottiInfo(order) {
+  if (!order.lotti || order.lotti.length === 0) return '';
+  const faseBadgeMap = { LASER: 'laser', PIEGA: 'piega', SALDATURA: 'saldatura', PULIZIA: 'pulizia', COMPLETATO: 'completato' };
+  const parentLabel = order.lotto_nome || `L${order.lotto_numero || 1}`;
+  let badges = `<span class="fase-badge ${faseBadgeMap[order.fase_corrente] || ''}" style="font-size:11px; padding:2px 8px;">${escapeHtml(parentLabel)} ${order.fase_corrente}</span>`;
+  order.lotti.forEach(l => {
+    const lLabel = l.lotto_nome || `L${l.lotto_numero}`;
+    badges += ` <span class="fase-badge ${faseBadgeMap[l.fase_corrente] || ''}" style="font-size:11px; padding:2px 8px;">${escapeHtml(lLabel)} ${l.fase_corrente}</span>`;
+  });
+  let confirmBtn = '';
+  if (order.all_lotti_completed) {
+    confirmBtn = `<button class="action-btn green" style="margin-top:6px; font-size:12px; padding:6px 16px;" onclick="confirmLottiCompletion('${order.id}')">&#10004; Conferma completamento ordine</button>`;
+  }
+  return `<div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:8px 12px; margin:6px 0;">
+    <div style="font-size:12px; font-weight:600; color:#0369a1; margin-bottom:4px;">Lotti (${order.lotti_count})</div>
+    <div style="display:flex; flex-wrap:wrap; gap:4px;">${badges}</div>
+    ${confirmBtn}
+  </div>`;
+}
+
+async function splitOrder(orderId) {
+  const order = allOrders.find(o => o.id === orderId);
+  if (!order) return;
+  const phase = order.fase_corrente;
+  const phaseFlow = { LASER: 'PIEGA', PIEGA: 'SALDATURA', SALDATURA: 'PULIZIA' };
+  const nextPhase = phaseFlow[phase];
+  if (!nextPhase) { showMessage('Non puoi dividere un ordine nell\'ultima fase', 'error'); return; }
+
+  // Dialog custom con input nome lotto
+  const msgEl = document.getElementById('app-modal-msg');
+  const confirmed = await new Promise(resolve => {
+    _appModalResolve = resolve;
+    document.getElementById('app-modal-icon').className = 'app-modal-icon warning';
+    document.getElementById('app-modal-icon').textContent = '\u2702\uFE0F';
+    document.getElementById('app-modal-title').textContent = 'Dividi Ordine';
+    msgEl.innerHTML = `<p style="margin:0 0 12px">Una parte dell'ordine di <b>${escapeHtml(order.cliente)}</b> avanzer\u00E0 a <b>${nextPhase}</b> mentre il resto rester\u00E0 in <b>${phase}</b>.</p>
+      <label style="font-size:13px;font-weight:600;color:#374151;">Nome lotto (opzionale)</label>
+      <input id="split-lotto-nome" type="text" placeholder="es. Pezzi grandi, Pannelli laterali..." style="width:100%;padding:8px 12px;margin-top:4px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">`;
+    const actions = document.getElementById('app-modal-actions');
+    actions.innerHTML = `<button class="app-modal-btn cancel" onclick="resolveAppModal(false)">Annulla</button>
+      <button class="app-modal-btn confirm-green" onclick="resolveAppModal(true)">Dividi</button>`;
+    document.getElementById('app-modal').classList.add('active');
+    setTimeout(() => { const inp = document.getElementById('split-lotto-nome'); if (inp) inp.focus(); }, 100);
+  });
+  if (!confirmed) return;
+
+  const lottoNome = (document.getElementById('split-lotto-nome')?.value || '').trim();
+
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/split`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id, lotto_nome: lottoNome || null })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      const nome = result.new_lotto_nome || `Lotto ${result.new_lotto_numero}`;
+      showMessage(`Ordine diviso! "${nome}" creato in ${result.fase_corrente_lotto}`, 'success');
+      _lastOrdersFingerprint = '';
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile dividere'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function confirmLottiCompletion(orderId) {
+  const confirmed = await showAppModal({
+    title: 'Conferma Completamento',
+    message: 'Tutti i lotti sono completati. Confermi il completamento dell\'ordine intero?',
+    type: 'warning',
+    confirmText: 'Conferma',
+    cancelText: 'Annulla',
+    confirmColor: 'confirm-green'
+  });
+  if (!confirmed) return;
+
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${orderId}/confirm-lotti-completion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: currentUser.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showMessage('Ordine completato! Tempo totale: ' + result.tempi_totali, 'success');
+      _lastOrdersFingerprint = '';
+      await loadOrders();
+    } else {
+      showMessage('Errore: ' + (result.error || 'Impossibile confermare'), 'error');
+    }
+  } catch (err) {
+    showMessage('Errore di connessione', 'error');
+  }
 }
 
 async function completePhase(orderId) {
@@ -3590,7 +3729,7 @@ function renderClientCards(clients) {
         <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:10px; background:var(--blue-bg); color:var(--blue);">${activeOrders.length} attivi</span>
       </div>
       <div style="font-size:12px; color:var(--gray-text);">${ordersForClient.length} ordini totali</div>
-      <button class="action-btn green" style="width:200px; height:56px; font-size:16px; font-weight:700; border-radius:12px; margin-top:8px; flex:none;" onclick="filterOrdersByClient('${escapeHtml(c.client_name)}')">Vedi Ordini →</button>
+      <button class="action-btn green" style="width:auto; padding:10px 20px; font-size:14px; font-weight:700; border-radius:10px; margin-top:4px; flex:none;" onclick="filterOrdersByClient('${escapeHtml(c.client_name)}')">Vedi Ordini →</button>
     </div>`;
   }).join('');
 }
@@ -4369,6 +4508,10 @@ function updateConnBadge(online) {
   b.className = 'conn-badge ' + (online ? 'online' : 'offline');
   b.querySelector('.conn-label').textContent = online ? 'Connesso' : 'Offline';
 }
+</script>
+<script>
+document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement)sessionStorage.setItem('wantsFs','1');});
+if(sessionStorage.getItem('wantsFs')==='1'){document.addEventListener('click',function f(){try{var e=document.documentElement;if(e.requestFullscreen)e.requestFullscreen();else if(e.webkitRequestFullscreen)e.webkitRequestFullscreen();}catch(x){}document.removeEventListener('click',f);},{once:true});}
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>

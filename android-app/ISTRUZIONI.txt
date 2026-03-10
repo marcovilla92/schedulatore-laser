@@ -1,0 +1,34 @@
+FerroTrack LS — App Android per tablet officina
+================================================
+
+COSA FA:
+- Apre http://192.168.1.241:5000 in fullscreen (no barra browser)
+- Schermo sempre acceso
+- Tasto Back naviga indietro nella pagina (non esce dall'app)
+- localStorage funziona (login persistente)
+
+COME COMPILARE:
+
+1. Installa Android Studio: https://developer.android.com/studio
+   (download ~1 GB, installazione ~10 min)
+
+2. Apri Android Studio → "Open" → seleziona la cartella "android-app"
+
+3. Aspetta che Gradle scarichi le dipendenze (prima volta: 2-3 min)
+
+4. Menù: Build → Build Bundle(s) / APK(s) → Build APK(s)
+
+5. L'APK si trova in: android-app/app/build/outputs/apk/debug/app-debug.apk
+
+COME INSTALLARE SUL TABLET:
+
+1. Copia app-debug.apk sul tablet (via USB, email, o Google Drive)
+2. Apri il file sul tablet
+3. Se dice "origini sconosciute", vai in Impostazioni → Sicurezza → abilita
+4. Installa
+5. L'app appare come "FerroTrack LS" con l'icona verde
+
+CAMBIARE IP SERVER:
+Se l'IP del PC cambia, modifica SERVER_URL in:
+  app/src/main/java/it/lscarpenteria/ferrotrack/MainActivity.java
+e ricompila.
