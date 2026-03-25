@@ -644,7 +644,7 @@ class OrderManager:
 
             if fase_successiva == "COMPLETATO":
                 order.fase_corrente = "COMPLETATO"
-                order.status = "COMPLETATO"
+                order.status = "DA_FATTURARE"
                 total_time = OrderManager._calculate_order_total_time(order_id, session)
                 notification = OrderNotification(
                     id=str(uuid.uuid4()),
@@ -969,8 +969,8 @@ class OrderManager:
             )
             session.add(notification)
 
-            # Marca ordine come completato definitivamente (status speciale)
-            order.status = "COMPLETATO"
+            # Marca ordine come da fatturare (chiusura amministrativa necessaria)
+            order.status = "DA_FATTURARE"
             session.commit()
 
             return {"success": True, "tempi_totali": total_time}
@@ -994,7 +994,7 @@ class OrderManager:
             if not order:
                 return {"success": False, "error": "Ordine non trovato"}
 
-            if order.status == "COMPLETATO":
+            if order.status in ("COMPLETATO", "DA_FATTURARE", "CHIUSO"):
                 return {"success": False, "error": "Ordine già completato"}
 
             now = datetime.utcnow()
@@ -1023,9 +1023,9 @@ class OrderManager:
                 if note:
                     step.note = note
 
-            # Marca ordine come completato
+            # Marca ordine come da fatturare (chiusura amministrativa necessaria)
             order.fase_corrente = "COMPLETATO"
-            order.status = "COMPLETATO"
+            order.status = "DA_FATTURARE"
 
             # Crea OrderNotification con tempo totale
             total_time = OrderManager._calculate_order_total_time(order_id, session)
@@ -1175,7 +1175,7 @@ class OrderManager:
 
             order.fase_corrente = new_phase
             if new_phase == "COMPLETATO":
-                order.status = "COMPLETATO"
+                order.status = "DA_FATTURARE"
             elif new_phase == "PARZIALE":
                 order.status = "PARZIALE"
             else:
@@ -1790,7 +1790,7 @@ class ArchiveManager:
             from sqlalchemy import func
 
             query = session.query(Order).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"]),
+                Order.status.in_(["CHIUSO", "PARZIALE"]),
                 Order.parent_order_id.is_(None)  # Escludi lotti figli
             )
 
@@ -1876,7 +1876,14 @@ class ArchiveManager:
                     'status': order.status,
                     'lotto_numero': order.lotto_numero or 0,
                     'lotto_nome': order.lotto_nome or '',
-                    'lotti_detail': lotti_detail
+                    'lotti_detail': lotti_detail,
+                    # Dati chiusura amministrativa
+                    'numero_ddt': order.numero_ddt or '',
+                    'data_ddt': order.data_ddt.isoformat() if order.data_ddt else '',
+                    'numero_fattura': order.numero_fattura or '',
+                    'data_fattura': order.data_fattura.isoformat() if order.data_fattura else '',
+                    'note_chiusura': order.note_chiusura or '',
+                    'data_chiusura_amministrativa': order.data_chiusura_amministrativa.isoformat() if order.data_chiusura_amministrativa else '',
                 })
 
             total_pages = (total + limit - 1) // limit
@@ -1968,6 +1975,13 @@ class ArchiveManager:
                     for step in steps
                 ],
                 'status': order.status,
+                # Dati chiusura amministrativa
+                'numero_ddt': order.numero_ddt or '',
+                'data_ddt': order.data_ddt.isoformat() if order.data_ddt else '',
+                'numero_fattura': order.numero_fattura or '',
+                'data_fattura': order.data_fattura.isoformat() if order.data_fattura else '',
+                'note_chiusura': order.note_chiusura or '',
+                'data_chiusura_amministrativa': order.data_chiusura_amministrativa.isoformat() if order.data_chiusura_amministrativa else '',
                 'support_requests': [{
                     'id': sr.id,
                     'operatore_principale': sr.operatore_principale,
@@ -1989,7 +2003,7 @@ class ArchiveManager:
         session = get_session()
         try:
             query = session.query(Order).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"])
+                Order.status.in_(["CHIUSO", "PARZIALE"])
             )
             query = ArchiveManager._apply_archive_filters(query, filters, session)
             orders = query.order_by(Order.data_consegna.desc()).all()
@@ -2045,7 +2059,7 @@ class ArchiveManager:
         session = get_session()
         try:
             query = session.query(Order).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"]),
+                Order.status.in_(["CHIUSO", "PARZIALE"]),
                 Order.parent_order_id.is_(None)  # Solo ordini padre/normali
             )
             query = ArchiveManager._apply_archive_filters(query, filters, session)
@@ -2215,7 +2229,7 @@ class ArchiveManager:
             operators = session.query(ProcessingStep.operatore).join(
                 Order, Order.id == ProcessingStep.order_id
             ).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"]),
+                Order.status.in_(["CHIUSO", "PARZIALE"]),
                 ProcessingStep.operatore.isnot(None)
             ).distinct().all()
             return sorted([op[0] for op in operators if op[0]])
@@ -2228,9 +2242,231 @@ class ArchiveManager:
         session = get_session()
         try:
             clients = session.query(Order.cliente).filter(
-                Order.status.in_(["COMPLETATO", "PARZIALE"])
+                Order.status.in_(["CHIUSO", "PARZIALE"])
             ).distinct().all()
             return sorted([c[0] for c in clients if c[0]])
+        finally:
+            session.close()
+
+
+class FatturazioneManager:
+    """Gestore ordini da fatturare — chiusura amministrativa (DDT/Fattura)"""
+
+    @staticmethod
+    def get_ordini_da_fatturare(filters: dict = None, page: int = 1, limit: int = 20,
+                                 sort_by: str = 'data_consegna', sort_dir: str = 'asc') -> dict:
+        """Recupera ordini in stato DA_FATTURARE con paginazione e filtri"""
+        session = get_session()
+        try:
+            query = session.query(Order).filter(
+                Order.status == "DA_FATTURARE",
+                Order.is_deleted == False,
+                Order.parent_order_id.is_(None)
+            )
+
+            # Filtri
+            if filters:
+                if filters.get('cliente'):
+                    query = query.filter(Order.cliente.ilike(f"%{filters['cliente']}%"))
+                if filters.get('numero_ordine'):
+                    query = query.filter(Order.numero_ordine.ilike(f"%{filters['numero_ordine']}%"))
+                if filters.get('date_from'):
+                    date_from = datetime.fromisoformat(filters['date_from'])
+                    query = query.filter(Order.data_consegna >= date_from)
+                if filters.get('date_to'):
+                    date_to = datetime.fromisoformat(filters['date_to'])
+                    date_to = date_to.replace(hour=23, minute=59, second=59)
+                    query = query.filter(Order.data_consegna <= date_to)
+
+            total = query.count()
+
+            # Ordinamento
+            ALLOWED_SORT = {'data_consegna', 'cliente', 'numero_ordine', 'data_ricezione'}
+            if sort_by not in ALLOWED_SORT:
+                sort_by = 'data_consegna'
+            if sort_dir.lower() == 'desc':
+                query = query.order_by(getattr(Order, sort_by).desc())
+            else:
+                query = query.order_by(getattr(Order, sort_by).asc())
+
+            offset = (page - 1) * limit
+            orders = query.offset(offset).limit(limit).all()
+
+            orders_data = []
+            for order in orders:
+                notification = session.query(OrderNotification).filter(
+                    OrderNotification.order_id == order.id
+                ).first()
+                total_time = notification.tempi_totali if notification else "N/A"
+
+                last_step = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order.id,
+                    ProcessingStep.timestamp_fine.isnot(None)
+                ).order_by(ProcessingStep.timestamp_fine.desc()).first()
+                completion_date = last_step.timestamp_fine if last_step else None
+
+                phase_times = ArchiveManager._calculate_phase_times(order.id, session)
+                total_hours = OrderManager._calculate_total_hours(order.id, session)
+                costo_orario = 25.0
+                costo_manodopera = total_hours * costo_orario
+                margine = None
+                margine_pct = None
+                if order.prezzo_quotato and order.prezzo_quotato > 0:
+                    margine = order.prezzo_quotato - costo_manodopera
+                    margine_pct = round((margine / order.prezzo_quotato) * 100, 1)
+
+                # File PDF allegato
+                pdf_file = session.query(OrderFile).filter(
+                    OrderFile.order_id == order.id,
+                    OrderFile.file_type == 'PDF'
+                ).first()
+
+                orders_data.append({
+                    'id': order.id,
+                    'numero_ordine': order.numero_ordine or order.id[:8],
+                    'cliente': order.cliente,
+                    'data_consegna': order.data_consegna.isoformat() if order.data_consegna else None,
+                    'data_ricezione': order.data_ricezione.isoformat() if order.data_ricezione else None,
+                    'data_completamento': completion_date.isoformat() if completion_date else None,
+                    'tempo_totale': total_time,
+                    'prezzo_quotato': order.prezzo_quotato,
+                    'costo_manodopera': round(costo_manodopera, 2),
+                    'margine': round(margine, 2) if margine is not None else None,
+                    'margine_pct': margine_pct,
+                    'phase_times': phase_times,
+                    'note': order.note or '',
+                    'has_pdf': pdf_file is not None,
+                    # Dati bozza DDT/fattura (se salvati in precedenza)
+                    'numero_ddt': order.numero_ddt or '',
+                    'data_ddt': order.data_ddt.isoformat() if order.data_ddt else '',
+                    'numero_fattura': order.numero_fattura or '',
+                    'data_fattura': order.data_fattura.isoformat() if order.data_fattura else '',
+                    'note_chiusura': order.note_chiusura or '',
+                })
+
+            total_pages = (total + limit - 1) // limit if total > 0 else 1
+
+            return {
+                'orders': orders_data,
+                'total': total,
+                'page': page,
+                'pages': total_pages
+            }
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_count() -> int:
+        """Ritorna il conteggio ordini DA_FATTURARE (per badge)"""
+        session = get_session()
+        try:
+            return session.query(Order).filter(
+                Order.status == "DA_FATTURARE",
+                Order.is_deleted == False,
+                Order.parent_order_id.is_(None)
+            ).count()
+        finally:
+            session.close()
+
+    @staticmethod
+    def salva_bozza(order_id: str, data: dict) -> dict:
+        """Salva dati DDT/fattura come bozza senza chiudere l'ordine"""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+            if order.status not in ("DA_FATTURARE",):
+                return {"success": False, "error": "Ordine non in stato DA_FATTURARE"}
+
+            if 'numero_ddt' in data:
+                order.numero_ddt = data['numero_ddt'] or None
+            if 'data_ddt' in data and data['data_ddt']:
+                order.data_ddt = datetime.fromisoformat(data['data_ddt'])
+            elif 'data_ddt' in data:
+                order.data_ddt = None
+            if 'numero_fattura' in data:
+                order.numero_fattura = data['numero_fattura'] or None
+            if 'data_fattura' in data and data['data_fattura']:
+                order.data_fattura = datetime.fromisoformat(data['data_fattura'])
+            elif 'data_fattura' in data:
+                order.data_fattura = None
+            if 'note_chiusura' in data:
+                order.note_chiusura = data['note_chiusura'] or None
+
+            session.commit()
+            return {"success": True, "order_id": order_id}
+
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def chiudi_ordine(order_id: str, data: dict, user_id: str) -> dict:
+        """Chiude ordine amministrativamente — DDT/fattura + status → CHIUSO"""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+            if order.status not in ("DA_FATTURARE",):
+                return {"success": False, "error": "Ordine non in stato DA_FATTURARE"}
+
+            now = datetime.utcnow()
+
+            # Salva dati amministrativi
+            if data.get('numero_ddt'):
+                order.numero_ddt = data['numero_ddt']
+            if data.get('data_ddt'):
+                order.data_ddt = datetime.fromisoformat(data['data_ddt'])
+            if data.get('numero_fattura'):
+                order.numero_fattura = data['numero_fattura']
+            if data.get('data_fattura'):
+                order.data_fattura = datetime.fromisoformat(data['data_fattura'])
+            if data.get('note_chiusura'):
+                order.note_chiusura = data['note_chiusura']
+
+            order.data_chiusura_amministrativa = now
+            order.chiuso_da = user_id
+            order.status = "CHIUSO"
+
+            session.commit()
+            return {
+                "success": True,
+                "order_id": order_id,
+                "status": "CHIUSO",
+                "data_chiusura": now.isoformat()
+            }
+
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def riapri_ordine(order_id: str) -> dict:
+        """Riapre un ordine CHIUSO riportandolo a DA_FATTURARE"""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+            if order.status != "CHIUSO":
+                return {"success": False, "error": "Solo ordini CHIUSO possono essere riaperti"}
+
+            order.status = "DA_FATTURARE"
+            order.data_chiusura_amministrativa = None
+            order.chiuso_da = None
+
+            session.commit()
+            return {"success": True, "order_id": order_id, "status": "DA_FATTURARE"}
+
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
         finally:
             session.close()
 
@@ -2629,12 +2865,13 @@ class KPIManager:
                 sessions_by_operator.setdefault(op_name, []).append(ps)
 
             # === RIEPILOGO ===
-            ordini_attivi = sum(1 for o in all_orders if o.status not in ('COMPLETATO', 'SPEDITO'))
+            _STATI_FINALI = ('COMPLETATO', 'DA_FATTURARE', 'CHIUSO', 'SPEDITO')
+            ordini_attivi = sum(1 for o in all_orders if o.status not in _STATI_FINALI)
 
-            # Completati oggi: ordine COMPLETATO con ultimo step finito oggi
+            # Completati oggi: ordine finale con ultimo step finito oggi
             completati_oggi = 0
             for o in all_orders:
-                if o.status != 'COMPLETATO':
+                if o.status not in _STATI_FINALI:
                     continue
                 order_steps = steps_by_order.get(o.id, [])
                 finished = [s.timestamp_fine for s in order_steps if s.timestamp_fine]
@@ -2643,13 +2880,13 @@ class KPIManager:
 
             in_ritardo = sum(1 for o in all_orders
                 if o.data_consegna and o.data_consegna < now
-                and o.status not in ('COMPLETATO', 'SPEDITO'))
+                and o.status not in _STATI_FINALI)
 
             # Efficienza puntualita: ordini dove ULTIMO step completato <= data_consegna
             completati_totali = 0
             completati_in_tempo = 0
             for o in all_orders:
-                if o.status != 'COMPLETATO':
+                if o.status not in _STATI_FINALI:
                     continue
                 completati_totali += 1
                 if not o.data_consegna:
@@ -2768,7 +3005,7 @@ class KPIManager:
             for fase_nome in ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA']:
                 in_coda_orders = session.query(Order).filter(
                     Order.fase_corrente == fase_nome,
-                    Order.status.notin_(['COMPLETATO', 'SPEDITO'])
+                    Order.status.notin_(['COMPLETATO', 'DA_FATTURARE', 'CHIUSO', 'SPEDITO'])
                 ).all()
                 active_in_fase = session.query(ProcessingStep).filter(
                     ProcessingStep.fase == fase_nome,
@@ -3220,7 +3457,7 @@ class SupportManager:
             order = session.query(Order).filter(Order.id == order_id).first()
             if not order:
                 return {'success': False, 'error': 'Ordine non trovato'}
-            if order.status == 'COMPLETATO':
+            if order.status in ('COMPLETATO', 'DA_FATTURARE', 'CHIUSO'):
                 return {'success': False, 'error': 'Ordine già completato'}
 
             # Verifica duplicati attivi

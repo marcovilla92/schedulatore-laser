@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Importa moduli locali
 from .models import initialize_database, Order, OrderFile, get_session, SupportRequest as SRModel
-from .database import OrderManager, UserManager, AuditManager, ArchiveManager, NotificationManager, OperatorClientManager, AlertManager, KPIManager, DelegationManager, SupportManager
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, OperatorClientManager, AlertManager, KPIManager, DelegationManager, SupportManager
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
@@ -1105,6 +1105,111 @@ def get_admin_audit_log():
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
+
+# ============ API FATTURAZIONE (Chiusura Amministrativa) ============
+
+@app.route('/api/ordini-da-fatturare', methods=['GET'])
+def get_ordini_da_fatturare():
+    """Recupera ordini in attesa di chiusura amministrativa"""
+    try:
+        page = max(1, request.args.get('page', 1, type=int))
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        sort_by = request.args.get('sort_by', 'data_consegna')
+        sort_dir = request.args.get('sort_dir', 'asc')
+
+        filters = {}
+        if request.args.get('cliente'):
+            filters['cliente'] = request.args.get('cliente')
+        if request.args.get('numero_ordine'):
+            filters['numero_ordine'] = request.args.get('numero_ordine')
+        if request.args.get('date_from'):
+            filters['date_from'] = request.args.get('date_from')
+        if request.args.get('date_to'):
+            filters['date_to'] = request.args.get('date_to')
+
+        result = FatturazioneManager.get_ordini_da_fatturare(
+            filters=filters if filters else None,
+            page=page, limit=limit,
+            sort_by=sort_by, sort_dir=sort_dir
+        )
+
+        return jsonify({'success': True, 'data': result}), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/ordini-da-fatturare/count', methods=['GET'])
+def get_ordini_da_fatturare_count():
+    """Conteggio ordini da fatturare (per badge)"""
+    try:
+        count = FatturazioneManager.get_count()
+        return jsonify({'success': True, 'count': count}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/orders/<order_id>/salva-bozza-fattura', methods=['PUT'])
+def salva_bozza_fattura(order_id):
+    """Salva dati DDT/fattura come bozza senza chiudere l'ordine"""
+    try:
+        data = request.get_json() or {}
+        result = FatturazioneManager.salva_bozza(order_id, data)
+        if not result['success']:
+            return jsonify(result), 400
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/orders/<order_id>/chiudi-amministrativo', methods=['POST'])
+def chiudi_ordine_amministrativo(order_id):
+    """Chiude ordine amministrativamente — status → CHIUSO"""
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id', '')
+        result = FatturazioneManager.chiudi_ordine(order_id, data, user_id)
+        if not result['success']:
+            return jsonify(result), 400
+
+        # Log audit
+        AuditManager.log(
+            user_id=user_id,
+            action='CHIUSURA_AMMINISTRATIVA',
+            entity_type='order',
+            entity_id=order_id,
+            detail=f"DDT: {data.get('numero_ddt', '-')}, Fattura: {data.get('numero_fattura', '-')}",
+            ip_address=request.remote_addr
+        )
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/orders/<order_id>/riapri', methods=['POST'])
+def riapri_ordine(order_id):
+    """Riapre ordine CHIUSO riportandolo a DA_FATTURARE"""
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id', '')
+        result = FatturazioneManager.riapri_ordine(order_id)
+        if not result['success']:
+            return jsonify(result), 400
+
+        AuditManager.log(
+            user_id=user_id,
+            action='RIAPERTURA_ORDINE',
+            entity_type='order',
+            entity_id=order_id,
+            detail='Ordine riaperto da CHIUSO a DA_FATTURARE',
+            ip_address=request.remote_addr
+        )
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 
 # ============ API ARCHIVE ============
 

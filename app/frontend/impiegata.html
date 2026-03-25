@@ -1171,6 +1171,117 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   animation: spin 0.6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* === FATTURARE TAB === */
+.fatt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.fatt-container { max-width: 1200px; margin: 0 auto; padding: 20px 0; }
+.fatt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.fatt-header h2 { font-size: 20px; font-weight: 800; }
+.fatt-filters {
+  display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+  margin-bottom: 20px; padding: 16px; background: var(--white);
+  border: 1px solid var(--border); border-radius: 12px;
+}
+.fatt-filters .filter-group { display: flex; flex-direction: column; gap: 4px; }
+.fatt-filters label { font-size: 11px; font-weight: 600; color: var(--gray-text); text-transform: uppercase; }
+.fatt-filters input, .fatt-filters select {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: inherit; min-width: 140px;
+}
+.fatt-stats { display: flex; gap: 16px; margin-bottom: 16px; }
+.fatt-stat { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; display: flex; flex-direction: column; gap: 2px; }
+.fatt-stat-label { font-size: 11px; color: var(--gray-text); text-transform: uppercase; font-weight: 600; }
+.fatt-stat-value { font-size: 18px; font-weight: 700; color: var(--black); }
+.fatt-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+}
+.fatt-table thead { background: #f1f5f9; }
+.fatt-table th {
+  text-align: left; padding: 12px 14px; font-size: 11px; font-weight: 700;
+  color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px;
+  cursor: pointer; user-select: none; white-space: nowrap;
+}
+.fatt-table th:hover { color: var(--green); }
+.fatt-table td { padding: 10px 14px; border-top: 1px solid var(--border); }
+.fatt-table tbody tr { transition: background 0.15s; cursor: pointer; }
+.fatt-table tbody tr:hover { background: rgba(26,122,72,0.06); }
+.fatt-table tbody tr.expanded { background: rgba(26,122,72,0.04); }
+.fatt-expand-row { display: none; }
+.fatt-expand-row.active { display: table-row; }
+.fatt-expand-cell { padding: 0 !important; border-top: none !important; }
+.fatt-expand-content {
+  padding: 20px 24px; background: #f9fafb; border-top: 1px solid var(--border);
+}
+.fatt-detail-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;
+}
+.fatt-detail-section h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--black); }
+.fatt-detail-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.fatt-detail-row .label { color: var(--gray-text); }
+.fatt-detail-row .value { font-weight: 600; }
+.fatt-form-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;
+}
+.fatt-form-group { display: flex; flex-direction: column; gap: 4px; }
+.fatt-form-group label { font-size: 11px; font-weight: 600; color: var(--gray-text); text-transform: uppercase; }
+.fatt-form-group input, .fatt-form-group textarea {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: inherit;
+}
+.fatt-form-group textarea { resize: vertical; min-height: 60px; }
+.fatt-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.fatt-btn {
+  padding: 8px 20px; border: none; border-radius: 8px; font-size: 13px;
+  font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.fatt-btn-save { background: #e2e8f0; color: #334155; }
+.fatt-btn-save:hover { background: #cbd5e1; }
+.fatt-btn-close { background: var(--green); color: white; }
+.fatt-btn-close:hover { background: var(--green-light); }
+.fatt-btn-pdf { background: #dbeafe; color: #1e40af; }
+.fatt-btn-pdf:hover { background: #bfdbfe; }
+.fatt-pagination {
+  display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px;
+}
+.fatt-pagination button {
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--white); cursor: pointer; font-size: 13px; transition: all 0.25s;
+}
+.fatt-pagination button:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+.fatt-pagination button:disabled { opacity: 0.4; cursor: default; }
+.fatt-pagination span { font-size: 13px; color: var(--gray-text); }
+.fatt-fase-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 100px;
+  font-size: 10px; font-weight: 700; color: white; letter-spacing: 0.3px;
+}
+/* Confirm overlay */
+.fatt-confirm-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 3000; align-items: center; justify-content: center;
+}
+.fatt-confirm-overlay.active { display: flex; }
+.fatt-confirm-box {
+  background: white; border-radius: 16px; padding: 32px; max-width: 420px; width: 90%;
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.fatt-confirm-box h3 { margin-bottom: 12px; font-size: 18px; }
+.fatt-confirm-box p { color: var(--gray-text); font-size: 14px; margin-bottom: 24px; }
+.fatt-confirm-btns { display: flex; gap: 12px; justify-content: center; }
 </style>
 </head>
 <body>
@@ -1218,6 +1329,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   <div class="tab-item active" data-tab="carica" onclick="switchTab('carica')">Carica Ordine</div>
   <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
   <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
+  <div class="tab-item" data-tab="fatturare" onclick="switchTab('fatturare')">Ordini da Fatturare <span class="fatt-badge" id="fatt-badge" style="display:none;">0</span></div>
   <div class="tab-item" data-tab="archivio" onclick="switchTab('archivio')">Archivio</div>
   <div class="tab-item" data-tab="clienti" onclick="switchTab('clienti')">Clienti</div>
   <div class="tab-item" data-tab="backup" onclick="switchTab('backup')">Backup</div>
@@ -1323,7 +1435,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
       <button class="chip active" data-filter="status" data-value="" onclick="setFilter(this,'status')">Tutti</button>
       <button class="chip" data-filter="status" data-value="RICEVUTO" onclick="setFilter(this,'status')">Ricevuto</button>
       <button class="chip" data-filter="status" data-value="IN_LAVORAZIONE" onclick="setFilter(this,'status')">In Lavorazione</button>
-      <button class="chip" data-filter="status" data-value="COMPLETATO" onclick="setFilter(this,'status')">Completato</button>
+      <button class="chip" data-filter="status" data-value="DA_FATTURARE" onclick="setFilter(this,'status')">Da Fatturare</button>
+      <button class="chip" data-filter="status" data-value="CHIUSO" onclick="setFilter(this,'status')">Chiuso</button>
       <button class="chip" data-filter="status" data-value="PARZIALE" onclick="setFilter(this,'status')">Parziale</button>
     </div>
     <div class="filter-row">
@@ -1367,6 +1480,66 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 </div>
 
 <!-- ===================== TAB 4: ARCHIVIO ===================== -->
+<!-- ===================== TAB: ORDINI DA FATTURARE ===================== -->
+<div class="tab-panel" id="panel-fatturare">
+  <div class="fatt-container">
+    <div class="fatt-header">
+      <h2>Ordini da Fatturare</h2>
+    </div>
+
+    <div class="fatt-filters">
+      <div class="filter-group">
+        <label>Cliente</label>
+        <input type="text" id="fatt-filter-cliente" placeholder="Cerca cliente..." oninput="debounceFattLoad()">
+      </div>
+      <div class="filter-group">
+        <label>N. Ordine</label>
+        <input type="text" id="fatt-filter-ordine" placeholder="Cerca ordine..." oninput="debounceFattLoad()">
+      </div>
+      <div class="filter-group">
+        <label>Data da</label>
+        <input type="date" id="fatt-filter-from" onchange="loadFatturare()">
+      </div>
+      <div class="filter-group">
+        <label>Data a</label>
+        <input type="date" id="fatt-filter-to" onchange="loadFatturare()">
+      </div>
+      <button class="btn-filter" onclick="resetFattFilters()">Reset filtri</button>
+    </div>
+
+    <div class="fatt-stats" id="fatt-stats"></div>
+
+    <table class="fatt-table">
+      <thead>
+        <tr>
+          <th onclick="sortFatt('numero_ordine')">Ordine &#8597;</th>
+          <th onclick="sortFatt('cliente')">Cliente &#8597;</th>
+          <th onclick="sortFatt('data_consegna')">Consegna &#8597;</th>
+          <th>Tempo Prod.</th>
+          <th>Fasi</th>
+          <th>Stato DDT</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="fatt-tbody"></tbody>
+    </table>
+
+    <div class="fatt-pagination" id="fatt-pagination"></div>
+  </div>
+</div>
+
+<!-- CONFERMA CHIUSURA MODALE -->
+<div class="fatt-confirm-overlay" id="fatt-confirm-modal" onclick="if(event.target===this)closeFattConfirm()">
+  <div class="fatt-confirm-box">
+    <h3>Conferma Chiusura Ordine</h3>
+    <p id="fatt-confirm-text">Sei sicura di voler chiudere questo ordine?</p>
+    <div class="fatt-confirm-btns">
+      <button class="fatt-btn fatt-btn-save" onclick="closeFattConfirm()">Annulla</button>
+      <button class="fatt-btn fatt-btn-close" id="fatt-confirm-btn" onclick="confirmChiudiOrdine()">Chiudi Ordine</button>
+    </div>
+  </div>
+</div>
+
 <div class="tab-panel" id="panel-archivio">
   <div class="archivio-container">
     <div class="archivio-header">
@@ -1410,7 +1583,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
           <th onclick="sortArchive('cliente')">Cliente &#8597;</th>
           <th onclick="sortArchive('data_consegna')">Consegna &#8597;</th>
           <th>Tempo Totale</th>
-          <th>Fasi</th>
+          <th>DDT</th>
+          <th>Fattura</th>
           <th>Stato</th>
         </tr>
       </thead>
@@ -1608,10 +1782,12 @@ function getOrderCompletionDate(order) {
 // ===========================
 const faseColors = {
   LASER: '#3b82f6', PIEGA: '#f59e0b', SALDATURA: '#ef4444',
-  PULIZIA: '#8b5cf6', COMPLETATO: '#22c55e', PARZIALE: '#f97316'
+  PULIZIA: '#8b5cf6', COMPLETATO: '#22c55e', DA_FATTURARE: '#0ea5e9', CHIUSO: '#22c55e', PARZIALE: '#f97316'
 };
 
 function getStatusColor(order) {
+  if (order.status === 'CHIUSO') return '#22c55e';
+  if (order.status === 'DA_FATTURARE') return '#0ea5e9';
   if (order.status === 'COMPLETATO') return '#22c55e';
   if (order.status === 'PARZIALE') return '#f97316';
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1623,7 +1799,7 @@ function getStatusColor(order) {
 }
 
 function calculateProgress(order) {
-  if (order.status === 'COMPLETATO') return 100;
+  if (order.status === 'CHIUSO' || order.status === 'DA_FATTURARE' || order.status === 'COMPLETATO') return 100;
   if (order.status === 'PARZIALE') return 85;
   const steps = order.processing_steps || [];
   const anyStarted = steps.some(s => s.timestamp_inizio);
@@ -1688,6 +1864,7 @@ function switchTab(tabId) {
   panel.style.animation = 'tabFadeIn 0.2s ease-out';
   if (tabId === 'calendario') loadCalendar();
   if (tabId === 'ordini') loadOrdersList();
+  if (tabId === 'fatturare') loadFatturare();
   if (tabId === 'archivio') { loadArchiveFilters(); loadArchive(); }
   if (tabId === 'clienti') loadClienti();
   if (tabId === 'backup') { loadBackupSettings(); loadBackupList(); }
@@ -2049,7 +2226,7 @@ function renderOrdersTable() {
     const now = Date.now();
     const msLimit = giorniMax * 24 * 60 * 60 * 1000;
     filtered = filtered.filter(o => {
-      if (o.status !== 'COMPLETATO' && o.status !== 'PARZIALE') return true;
+      if (!['COMPLETATO','DA_FATTURARE','CHIUSO','PARZIALE'].includes(o.status)) return true;
       const completedAt = getOrderCompletionDate(o);
       if (!completedAt) return true; // nessuna data = mostra
       return (now - completedAt.getTime()) <= msLimit;
@@ -2432,6 +2609,307 @@ async function logout() {
 }
 
 // ===========================
+// ===========================
+// TAB: ORDINI DA FATTURARE
+// ===========================
+let fattPage = 1;
+let fattSortBy = 'data_consegna';
+let fattSortDir = 'asc';
+let fattExpandedId = null;
+let fattConfirmOrderId = null;
+let fattDebounceTimer = null;
+const fattFaseColors = { LASER: '#ef4444', PIEGA: '#f59e0b', SALDATURA: '#3b82f6', PULIZIA: '#8b5cf6' };
+
+function debounceFattLoad() {
+  clearTimeout(fattDebounceTimer);
+  fattDebounceTimer = setTimeout(() => loadFatturare(), 300);
+}
+
+async function loadFatturare() {
+  fattPage = 1;
+  await fetchFattPage();
+  updateFattBadge();
+}
+
+async function updateFattBadge() {
+  try {
+    const res = await fetch(`${API_URL}/api/ordini-da-fatturare/count`);
+    const data = await res.json();
+    const badge = document.getElementById('fatt-badge');
+    if (data.success && data.count > 0) {
+      badge.textContent = data.count;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (e) { console.error('updateFattBadge error:', e); }
+}
+
+function getFattFilterParams() {
+  const params = new URLSearchParams();
+  const cliente = document.getElementById('fatt-filter-cliente').value.trim();
+  const ordine = document.getElementById('fatt-filter-ordine').value.trim();
+  const dateFrom = document.getElementById('fatt-filter-from').value;
+  const dateTo = document.getElementById('fatt-filter-to').value;
+  if (cliente) params.set('cliente', cliente);
+  if (ordine) params.set('numero_ordine', ordine);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  return params;
+}
+
+async function fetchFattPage() {
+  try {
+    const params = getFattFilterParams();
+    params.set('page', fattPage);
+    params.set('limit', 20);
+    params.set('sort_by', fattSortBy);
+    params.set('sort_dir', fattSortDir);
+
+    const res = await fetch(`${API_URL}/api/ordini-da-fatturare?${params}`);
+    const data = await res.json();
+    if (!data.success) { showMessage('Errore caricamento ordini da fatturare', 'error'); return; }
+
+    const result = data.data;
+    document.getElementById('fatt-stats').innerHTML = `
+      <div class="fatt-stat">
+        <span class="fatt-stat-label">Ordini da fatturare</span>
+        <span class="fatt-stat-value">${result.total}</span>
+      </div>
+    `;
+    renderFattTable(result.orders);
+    renderFattPagination(result);
+  } catch (e) {
+    console.error('fetchFattPage error:', e);
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+function renderFattTable(orders) {
+  const tbody = document.getElementById('fatt-tbody');
+  if (!orders || orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#9989;</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine da fatturare</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = orders.map(o => {
+    const phases = o.phase_times || {};
+    const phaseChips = Object.entries(phases).map(([fase, tempo]) =>
+      `<span class="fatt-fase-badge" style="background:${fattFaseColors[fase] || '#888'}" title="${tempo}">${fase}</span>`
+    ).join(' ');
+    const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : '';
+    const hasDdt = o.numero_ddt ? 'Bozza' : '-';
+    const ddtStyle = o.numero_ddt ? 'color:#f59e0b;font-weight:600;' : 'color:var(--gray-muted);';
+    const isExpanded = fattExpandedId === o.id;
+
+    return `<tr class="${isExpanded ? 'expanded' : ''}" onclick="toggleFattExpand('${o.id}')">
+      <td style="font-weight:600;">${escapeHtml(o.numero_ordine || o.id.substring(0,8))}</td>
+      <td>${escapeHtml(o.cliente)}</td>
+      <td>${consegna}</td>
+      <td style="font-weight:500;color:var(--green);">${o.tempo_totale || 'N/A'}</td>
+      <td>${phaseChips || '-'}</td>
+      <td style="${ddtStyle}">${hasDdt}</td>
+      <td style="text-align:center;">&#9660;</td>
+    </tr>
+    <tr class="fatt-expand-row ${isExpanded ? 'active' : ''}" id="fatt-expand-${o.id}">
+      <td colspan="7" class="fatt-expand-cell">
+        <div class="fatt-expand-content">
+          <div class="fatt-detail-grid">
+            <div class="fatt-detail-section">
+              <h4>Dettagli Ordine</h4>
+              <div class="fatt-detail-row"><span class="label">Cliente</span><span class="value">${escapeHtml(o.cliente)}</span></div>
+              <div class="fatt-detail-row"><span class="label">N. Ordine</span><span class="value">${escapeHtml(o.numero_ordine || '-')}</span></div>
+              <div class="fatt-detail-row"><span class="label">Data Consegna</span><span class="value">${consegna}</span></div>
+              <div class="fatt-detail-row"><span class="label">Data Completamento</span><span class="value">${o.data_completamento ? new Date(o.data_completamento).toLocaleDateString('it-IT') : '-'}</span></div>
+              <div class="fatt-detail-row"><span class="label">Tempo Produzione</span><span class="value">${o.tempo_totale || 'N/A'}</span></div>
+              ${o.note ? `<div class="fatt-detail-row"><span class="label">Note</span><span class="value">${escapeHtml(o.note)}</span></div>` : ''}
+            </div>
+            <div class="fatt-detail-section">
+              <h4>Costi e Margini</h4>
+              <div class="fatt-detail-row"><span class="label">Prezzo Quotato</span><span class="value">${o.prezzo_quotato ? '€ ' + o.prezzo_quotato.toFixed(2) : '-'}</span></div>
+              <div class="fatt-detail-row"><span class="label">Costo Manodopera</span><span class="value">€ ${o.costo_manodopera.toFixed(2)}</span></div>
+              <div class="fatt-detail-row"><span class="label">Margine</span><span class="value" style="color:${o.margine && o.margine >= 0 ? 'var(--green)' : '#ef4444'}">${o.margine !== null ? '€ ' + o.margine.toFixed(2) + (o.margine_pct !== null ? ' (' + o.margine_pct + '%)' : '') : '-'}</span></div>
+              <div class="fatt-detail-row"><span class="label">Fasi</span><span class="value">${phaseChips || '-'}</span></div>
+              ${o.has_pdf ? `<div style="margin-top:8px;"><button class="fatt-btn fatt-btn-pdf" onclick="event.stopPropagation(); window.open(API_URL+'/api/orders/${o.id}/pdf','_blank')">Vedi PDF Ordine</button></div>` : ''}
+            </div>
+          </div>
+
+          <h4 style="margin-bottom:10px;">Dati Chiusura Amministrativa</h4>
+          <div class="fatt-form-grid">
+            <div class="fatt-form-group">
+              <label>Numero DDT</label>
+              <input type="text" id="fatt-ddt-${o.id}" value="${escapeHtml(o.numero_ddt)}" placeholder="Es: DDT-2026/001" onclick="event.stopPropagation()">
+            </div>
+            <div class="fatt-form-group">
+              <label>Data DDT</label>
+              <input type="date" id="fatt-ddt-date-${o.id}" value="${o.data_ddt ? o.data_ddt.substring(0,10) : ''}" onclick="event.stopPropagation()">
+            </div>
+            <div class="fatt-form-group">
+              <label>Numero Fattura</label>
+              <input type="text" id="fatt-fattura-${o.id}" value="${escapeHtml(o.numero_fattura)}" placeholder="Es: FT-2026/001" onclick="event.stopPropagation()">
+            </div>
+            <div class="fatt-form-group">
+              <label>Data Fattura</label>
+              <input type="date" id="fatt-fattura-date-${o.id}" value="${o.data_fattura ? o.data_fattura.substring(0,10) : ''}" onclick="event.stopPropagation()">
+            </div>
+          </div>
+          <div class="fatt-form-group" style="margin-bottom:0;">
+            <label>Note Chiusura</label>
+            <textarea id="fatt-note-${o.id}" placeholder="Note sulla chiusura amministrativa..." onclick="event.stopPropagation()">${escapeHtml(o.note_chiusura)}</textarea>
+          </div>
+
+          <div class="fatt-actions">
+            <button class="fatt-btn fatt-btn-save" onclick="event.stopPropagation(); salvaBozzaFattura('${o.id}')">Salva Bozza</button>
+            <button class="fatt-btn fatt-btn-close" onclick="event.stopPropagation(); openFattConfirm('${o.id}', '${escapeHtml(o.cliente)}', '${escapeHtml(o.numero_ordine || '')}')">Chiudi Ordine</button>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleFattExpand(orderId) {
+  if (fattExpandedId === orderId) {
+    fattExpandedId = null;
+  } else {
+    fattExpandedId = orderId;
+  }
+  // Re-render to toggle expansion
+  fetchFattPage();
+}
+
+function renderFattPagination(result) {
+  const div = document.getElementById('fatt-pagination');
+  if (result.pages <= 1) { div.innerHTML = ''; return; }
+  div.innerHTML = `
+    <button onclick="fattGoPage(${result.page - 1})" ${result.page <= 1 ? 'disabled' : ''}>&#8592; Prec</button>
+    <span>Pagina ${result.page} di ${result.pages}</span>
+    <button onclick="fattGoPage(${result.page + 1})" ${result.page >= result.pages ? 'disabled' : ''}>Succ &#8594;</button>
+  `;
+}
+
+function fattGoPage(page) {
+  fattPage = page;
+  fetchFattPage();
+}
+
+function sortFatt(field) {
+  if (fattSortBy === field) {
+    fattSortDir = fattSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    fattSortBy = field;
+    fattSortDir = 'asc';
+  }
+  fattPage = 1;
+  fetchFattPage();
+}
+
+function resetFattFilters() {
+  document.getElementById('fatt-filter-cliente').value = '';
+  document.getElementById('fatt-filter-ordine').value = '';
+  document.getElementById('fatt-filter-from').value = '';
+  document.getElementById('fatt-filter-to').value = '';
+  loadFatturare();
+}
+
+function getFattFormData(orderId) {
+  return {
+    numero_ddt: document.getElementById(`fatt-ddt-${orderId}`).value.trim(),
+    data_ddt: document.getElementById(`fatt-ddt-date-${orderId}`).value || '',
+    numero_fattura: document.getElementById(`fatt-fattura-${orderId}`).value.trim(),
+    data_fattura: document.getElementById(`fatt-fattura-date-${orderId}`).value || '',
+    note_chiusura: document.getElementById(`fatt-note-${orderId}`).value.trim(),
+  };
+}
+
+async function salvaBozzaFattura(orderId) {
+  try {
+    const data = getFattFormData(orderId);
+    const res = await fetch(`${API_URL}/api/orders/${orderId}/salva-bozza-fattura`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.success) {
+      showMessage('Bozza salvata con successo', 'success');
+    } else {
+      showMessage(result.error || 'Errore salvataggio bozza', 'error');
+    }
+  } catch (e) {
+    console.error('salvaBozzaFattura error:', e);
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+function openFattConfirm(orderId, cliente, numOrdine) {
+  fattConfirmOrderId = orderId;
+  document.getElementById('fatt-confirm-text').textContent =
+    `Sei sicura di voler chiudere l'ordine ${numOrdine || orderId.substring(0,8)} di ${cliente}? L'ordine verrà spostato in archivio.`;
+  document.getElementById('fatt-confirm-modal').classList.add('active');
+}
+
+function closeFattConfirm() {
+  fattConfirmOrderId = null;
+  document.getElementById('fatt-confirm-modal').classList.remove('active');
+}
+
+async function confirmChiudiOrdine() {
+  if (!fattConfirmOrderId) return;
+  const orderId = fattConfirmOrderId;
+  closeFattConfirm();
+
+  try {
+    const data = getFattFormData(orderId);
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    data.user_id = currentUser.id || '';
+
+    const res = await fetch(`${API_URL}/api/orders/${orderId}/chiudi-amministrativo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.success) {
+      showMessage('Ordine chiuso con successo', 'success');
+      fattExpandedId = null;
+      loadFatturare();
+    } else {
+      showMessage(result.error || 'Errore chiusura ordine', 'error');
+    }
+  } catch (e) {
+    console.error('confirmChiudiOrdine error:', e);
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+async function riapriFattOrdine(orderId) {
+  if (!confirm('Sei sicura di voler riaprire questo ordine? Tornerà negli ordini da fatturare.')) return;
+  try {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const res = await fetch(`${API_URL}/api/orders/${orderId}/riapri`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id || '' })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showMessage('Ordine riaperto — spostato in "Ordini da Fatturare"', 'success');
+      closeArchDetail();
+      loadArchive();
+      updateFattBadge();
+    } else {
+      showMessage(result.error || 'Errore riapertura', 'error');
+    }
+  } catch (e) {
+    console.error('riapriFattOrdine error:', e);
+    showMessage('Errore di connessione', 'error');
+  }
+}
+
+// Carica badge al boot
+updateFattBadge();
+
 // TAB 4: ARCHIVIO ORDINI
 // ===========================
 let archPage = 1;
@@ -2518,25 +2996,23 @@ const archFaseColors = { LASER: '#ef4444', PIEGA: '#f59e0b', SALDATURA: '#3b82f6
 function renderArchiveTable(orders) {
   const tbody = document.getElementById('arch-tbody');
   if (!orders || orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📋</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine completato trovato</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#128203;</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine in archivio</div></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = orders.map(o => {
-    const phases = o.phase_times || {};
-    const phaseChips = Object.entries(phases).map(([fase, tempo]) =>
-      `<span class="arch-fase-badge" style="background:${archFaseColors[fase] || '#888'}" title="${tempo}">${fase}</span>`
-    ).join(' ');
-
     const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : '';
+    const ddtInfo = o.numero_ddt || '-';
+    const fattInfo = o.numero_fattura || '-';
 
     return `<tr onclick="openArchDetail('${o.id}')">
       <td style="font-weight:600;">${o.numero_ordine || o.id.substring(0,8)}</td>
       <td>${o.cliente}</td>
       <td>${consegna}</td>
       <td style="font-weight:500;color:var(--green);">${o.tempo_totale || 'N/A'}</td>
-      <td>${phaseChips || '-'}</td>
-      <td><span class="arch-fase-badge" style="background:${o.status === 'COMPLETATO' ? '#22c55e' : '#f59e0b'}">${o.status}</span></td>
+      <td style="font-size:12px;">${ddtInfo}</td>
+      <td style="font-size:12px;">${fattInfo}</td>
+      <td><span class="arch-fase-badge" style="background:${o.status === 'CHIUSO' ? '#22c55e' : '#f59e0b'}">${o.status === 'CHIUSO' ? 'CHIUSO' : o.status}</span></td>
     </tr>`;
   }).join('');
 }
@@ -2670,7 +3146,7 @@ function renderArchDetail(order) {
     }).join('');
 
     // Aggiungi fasi non necessarie per ordini completati anticipatamente
-    if (order.status === 'COMPLETATO') {
+    if (order.status === 'CHIUSO' || order.status === 'COMPLETATO') {
       const executedFasi = new Set(order.fasi.map(f => f.fase));
       ['LASER','PIEGA','SALDATURA','PULIZIA'].forEach(f => {
         if (!executedFasi.has(f)) {
@@ -2695,6 +3171,17 @@ function renderArchDetail(order) {
       <div class="arch-info-item"><label>Stato</label><span>${order.status}</span></div>
     </div>
     ${order.note ? `<div style="margin-bottom:20px;"><label style="font-size:11px;color:var(--gray-text);text-transform:uppercase;font-weight:600;">Note</label><p style="font-size:13px;margin-top:4px;">${order.note}</p></div>` : ''}
+
+    <div class="arch-phases-title">Chiusura Amministrativa</div>
+    <div class="arch-info-grid" style="margin-bottom:20px;">
+      <div class="arch-info-item"><label>N. DDT</label><span>${order.numero_ddt || '-'}</span></div>
+      <div class="arch-info-item"><label>Data DDT</label><span>${order.data_ddt ? archFormatDate(order.data_ddt) : '-'}</span></div>
+      <div class="arch-info-item"><label>N. Fattura</label><span>${order.numero_fattura || '-'}</span></div>
+      <div class="arch-info-item"><label>Data Fattura</label><span>${order.data_fattura ? archFormatDate(order.data_fattura) : '-'}</span></div>
+      <div class="arch-info-item"><label>Data Chiusura</label><span>${order.data_chiusura_amministrativa ? archFormatDate(order.data_chiusura_amministrativa) : '-'}</span></div>
+      <div class="arch-info-item"><label>Note Chiusura</label><span>${order.note_chiusura || '-'}</span></div>
+    </div>
+
     <div class="arch-phases-title">Dettaglio Fasi</div>
     ${phasesHtml || '<div class="archivio-empty">Nessuna fase registrata</div>'}
     ${(order.support_requests || []).filter(sr => sr.stato === 'accepted').length > 0 ? `
@@ -2705,6 +3192,12 @@ function renderArchDetail(order) {
           <span style="font-size:11px; color:#6b7280;">in supporto a ${escapeHtml(sr.nome_principale)}</span>
         </div>
       `).join('')}
+    ` : ''}
+
+    ${order.status === 'CHIUSO' ? `
+      <div style="margin-top:20px;text-align:right;">
+        <button class="fatt-btn" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;" onclick="riapriFattOrdine('${order.id}')">Riapri Ordine</button>
+      </div>
     ` : ''}
   `;
 }

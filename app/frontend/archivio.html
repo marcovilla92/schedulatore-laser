@@ -992,10 +992,12 @@ textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; he
           <th>Quotato</th>
           <th>Costo</th>
           <th>Margine</th>
+          <th>DDT</th>
+          <th>Fattura</th>
         </tr>
       </thead>
       <tbody id="table-body">
-        <tr class="empty-row"><td colspan="10">Caricamento...</td></tr>
+        <tr class="empty-row"><td colspan="12">Caricamento...</td></tr>
       </tbody>
     </table>
   </div>
@@ -1065,7 +1067,7 @@ function renderTable(orders) {
   const tbody = document.getElementById('table-body');
 
   if (orders.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Nessun ordine trovato</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="12">Nessun ordine trovato</td></tr>';
     return;
   }
 
@@ -1121,6 +1123,9 @@ function renderTable(orders) {
       });
     }
 
+    const ddtStr = o.numero_ddt || '\u2014';
+    const fattStr = o.numero_fattura || '\u2014';
+
     return `<tr>
       <td class="order-id">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}${lottiTag}</td>
       <td>${escapeHtml(o.cliente)}</td>
@@ -1132,6 +1137,8 @@ function renderTable(orders) {
       <td>${quotato}</td>
       <td>${costoStr}</td>
       <td><span class="margin-badge ${marginClass}">${marginStr}</span></td>
+      <td style="font-size:12px;">${ddtStr}</td>
+      <td style="font-size:12px;">${fattStr}</td>
     </tr>${lottiRows}`;
   }).join('');
 }

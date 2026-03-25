@@ -1996,7 +1996,7 @@ async function loadStatoOrdini() {
 }
 
 function statoCalcProgress(order) {
-  if (order.status === 'COMPLETATO') return 100;
+  if (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(order.status)) return 100;
   if (order.status === 'PARZIALE') return 85;
   const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
   const base = map[order.fase_corrente] || 0;
@@ -2018,8 +2018,8 @@ function renderStatoOrdini() {
 
   let filtered = allOrdiniStato.filter(o => {
     // Default (vuoto) = nascondi completati
-    if (!filtroFase && (o.status === 'COMPLETATO' || o.status === 'PARZIALE')) return false;
-    if (filtroFase === 'COMPLETATO' && o.status !== 'COMPLETATO' && o.status !== 'PARZIALE') return false;
+    if (!filtroFase && (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.status) || o.status === 'PARZIALE')) return false;
+    if (filtroFase === 'COMPLETATO' && !['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.status) && o.status !== 'PARZIALE') return false;
     if (filtroFase && filtroFase !== 'COMPLETATO' && o.fase_corrente !== filtroFase) return false;
     if (search && !o.cliente.toLowerCase().includes(search) && !(o.numero_ordine || '').toLowerCase().includes(search)) return false;
     return true;
@@ -2038,7 +2038,7 @@ function renderStatoOrdini() {
 
   const groups = {};
   filtered.forEach(o => {
-    const fase = (o.status === 'COMPLETATO' || o.status === 'PARZIALE') ? 'COMPLETATO' : (o.fase_corrente || 'LASER');
+    const fase = (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.status) || o.status === 'PARZIALE') ? 'COMPLETATO' : (o.fase_corrente || 'LASER');
     if (!groups[fase]) groups[fase] = [];
     groups[fase].push(o);
   });

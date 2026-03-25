@@ -2283,7 +2283,7 @@ function selectCalendarDay(dateStr) {
   ordersOnDay.forEach(order => {
     const status = order.status || 'RICEVUTO';
     const statusColor = status === 'SPEDITO' ? '#22c55e' : '#f59e0b';
-    const statusText = status === 'COMPLETATO' ? '✓ Completato' : status === 'PARZIALE' ? '⚠ Parziale' : '⏳ In Lavorazione';
+    const statusText = ['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(status) ? '✓ Completato' : status === 'PARZIALE' ? '⚠ Parziale' : '⏳ In Lavorazione';
     const cliente = order.cliente || 'Cliente N/A';
 
     html += `
