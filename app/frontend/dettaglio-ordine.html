@@ -1210,7 +1210,7 @@ function renderRight() {
   let statusText = 'Ricevuto';
   let statusClass = 'waiting';
   if (activeStep) { statusText = `In lavorazione: ${activeStep.fase}`; statusClass = 'active'; }
-  else if (order.status === 'COMPLETATO') { statusText = 'Completato'; statusClass = 'done'; }
+  else if (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(order.status)) { statusText = order.status === 'CHIUSO' ? 'Chiuso' : order.status === 'DA_FATTURARE' ? 'Da Fatturare' : 'Completato'; statusClass = 'done'; }
   else if (phase && phase !== 'COMPLETATO') { statusText = `In attesa fase: ${phase}`; statusClass = 'waiting'; }
 
   let html = `
@@ -1236,7 +1236,7 @@ function renderRight() {
       <div class="action-title">Cosa vuoi fare?</div>
       <div class="action-subtitle">Scegli la prossima azione per questo ordine</div>
       <div class="action-btns">
-        ${!activeStep && order.status !== 'COMPLETATO' ? `
+        ${!activeStep && !['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(order.status) ? `
           <button class="phase-btn laser" onclick="moveToPhase('LASER')">
             <span>&#9889;</span>
             <span class="phase-btn-label">Manda al Laser</span>

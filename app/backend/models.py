@@ -37,6 +37,15 @@ class Order(Base):
 
     note = Column(Text)
     is_deleted = Column(Boolean, default=False)  # Soft delete — mai cancellare fisicamente
+
+    # Chiusura amministrativa (DDT / Fattura)
+    numero_ddt = Column(String, nullable=True)
+    data_ddt = Column(DateTime, nullable=True)
+    numero_fattura = Column(String, nullable=True)
+    data_fattura = Column(DateTime, nullable=True)
+    note_chiusura = Column(Text, nullable=True)
+    data_chiusura_amministrativa = Column(DateTime, nullable=True)
+    chiuso_da = Column(String, nullable=True)  # user_id di chi ha chiuso
     parent_order_id = Column(String, ForeignKey('orders.id'), nullable=True)  # ID ordine padre (per lotti)
     lotto_numero = Column(Integer, default=0)  # 0 = ordine normale, 1+ = lotto
     lotto_nome = Column(String, nullable=True)  # Nome personalizzato del lotto (es. "Pezzi grandi")
@@ -365,5 +374,35 @@ def initialize_database():
                 conn.execute(text('ALTER TABLE orders ADD COLUMN lotto_nome TEXT'))
                 logger.info('Aggiunta colonna lotto_nome a orders')
             conn.commit()
+
+    # Migrazione: aggiunge colonne chiusura amministrativa a orders
+    if 'orders' in insp.get_table_names():
+        existing_orders = [c['name'] for c in insp.get_columns('orders')]
+        new_order_cols = {
+            'numero_ddt': 'TEXT',
+            'data_ddt': 'DATETIME',
+            'numero_fattura': 'TEXT',
+            'data_fattura': 'DATETIME',
+            'note_chiusura': 'TEXT',
+            'data_chiusura_amministrativa': 'DATETIME',
+            'chiuso_da': 'TEXT',
+        }
+        with engine.connect() as conn:
+            for col, col_type in new_order_cols.items():
+                if col not in existing_orders:
+                    conn.execute(text(f'ALTER TABLE orders ADD COLUMN {col} {col_type}'))
+                    logger.info('Aggiunta colonna %s a orders', col)
+            conn.commit()
+
+    # Migrazione: ordini COMPLETATO esistenti → DA_FATTURARE
+    if 'orders' in insp.get_table_names():
+        with engine.connect() as conn:
+            migrated = conn.execute(text(
+                "UPDATE orders SET status = 'DA_FATTURARE' "
+                "WHERE status = 'COMPLETATO' AND data_chiusura_amministrativa IS NULL"
+            )).rowcount
+            conn.commit()
+            if migrated:
+                logger.info('Migrati %d ordini COMPLETATO → DA_FATTURARE', migrated)
 
     seed_users()
