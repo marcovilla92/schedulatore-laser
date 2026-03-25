@@ -1620,69 +1620,111 @@ class AuditManager:
     @staticmethod
     def get_kpi_operai() -> list[dict]:
         """
-        Calcola KPI per ogni operaio da processing_steps:
-        - ordini completati (count WHERE timestamp_fine IS NOT NULL)
-        - tempo medio per ordine
-        - ultimo accesso (da users.last_login)
+        Calcola KPI reali per ogni operaio:
+        - ordini completati (count distinct order_id)
+        - tempo medio per ordine (da PhaseSession o fallback ProcessingStep)
+        - puntualita: % ordini completati entro data_consegna
+        - ritardi: ordini attivi scaduti assegnati all'operatore
+        - saturazione: ore lavorate oggi / 8h turno
         """
         session = get_session()
         try:
             from sqlalchemy import func, and_
+            now = datetime.utcnow()
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            TURNO_ORE = 8
 
-            # Query: JOIN processing_steps on operatore = user.name
-            # WHERE timestamp_fine IS NOT NULL GROUP BY operatore
-            query = session.query(
-                User.name,
-                User.id,
-                User.role,
-                User.initials,
-                User.last_login,
-                func.count(ProcessingStep.id).label('completed_phases_count')
-            ).outerjoin(
-                ProcessingStep,
-                and_(
-                    ProcessingStep.operatore == User.name,
-                    ProcessingStep.timestamp_fine.isnot(None)
-                )
-            ).filter(
-                User.is_active == True
-            ).group_by(
-                User.id
+            # Pre-carica dati per evitare N+1
+            all_orders = {o.id: o for o in session.query(Order).all()}
+            all_steps = session.query(ProcessingStep).all()
+            steps_by_order = {}
+            for s in all_steps:
+                steps_by_order.setdefault(s.order_id, []).append(s)
+            steps_by_operator = {}
+            for s in all_steps:
+                if s.operatore:
+                    steps_by_operator.setdefault(s.operatore, []).append(s)
+
+            # Sessioni chiuse per tempo reale
+            all_closed_sessions = session.query(PhaseSession).filter(
+                PhaseSession.timestamp_fine != None
             ).all()
+            sessions_by_step = {}
+            for ps in all_closed_sessions:
+                sessions_by_step.setdefault(ps.step_id, []).append(ps)
+            sessions_by_operator = {}
+            for ps in all_closed_sessions:
+                op_name = ps.operatore or 'unknown'
+                sessions_by_operator.setdefault(op_name, []).append(ps)
+
+            users = session.query(User).filter(User.is_active == True).all()
 
             kpi_list = []
-            for row in query:
-                name, user_id, role, initials, last_login, completed_count = row
+            for user in users:
+                name = user.name
+                op_steps = steps_by_operator.get(name, [])
+                completed_steps = [s for s in op_steps if s.timestamp_fine]
 
-                # Calcola tempo medio per operaio
-                avg_time = session.query(
-                    func.avg(ProcessingStep.timestamp_fine - ProcessingStep.timestamp_inizio)
-                ).filter(
-                    ProcessingStep.operatore == name,
-                    ProcessingStep.timestamp_fine.isnot(None)
-                ).scalar()
+                # Ordini unici completati
+                ordini_completati = len(set(s.order_id for s in completed_steps))
 
-                tempo_medio = OrderManager._format_duration(avg_time) if avg_time else "N/A"
+                # Tempo medio reale per step (da sessioni)
+                step_durations = []
+                for s in completed_steps:
+                    step_ss = sessions_by_step.get(s.id, [])
+                    op_ss = [x for x in step_ss if x.operatore == name]
+                    if op_ss:
+                        secs = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in op_ss)
+                        step_durations.append(secs)
+                    elif s.timestamp_inizio and s.timestamp_fine:
+                        step_durations.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
+                if step_durations:
+                    avg_secs = sum(step_durations) / len(step_durations)
+                    tempo_medio = OrderManager._format_duration(timedelta(seconds=avg_secs))
+                else:
+                    tempo_medio = "N/A"
 
-                # Conteggio ordini unici completati (non fasi, ma ordini)
-                ordini_completati = session.query(
-                    func.count(func.distinct(ProcessingStep.order_id))
-                ).filter(
-                    ProcessingStep.operatore == name,
-                    ProcessingStep.timestamp_fine.isnot(None)
-                ).scalar() or 0
+                # Puntualita: % ordini COMPLETATI in tempo
+                op_order_ids = set(s.order_id for s in completed_steps)
+                tot_completati = 0
+                in_tempo = 0
+                for oid in op_order_ids:
+                    order = all_orders.get(oid)
+                    if not order or order.status != 'COMPLETATO':
+                        continue
+                    tot_completati += 1
+                    if not order.data_consegna:
+                        continue
+                    order_steps = steps_by_order.get(oid, [])
+                    finished = [st.timestamp_fine for st in order_steps if st.timestamp_fine]
+                    if finished and max(finished) <= order.data_consegna:
+                        in_tempo += 1
+                puntualita = round((in_tempo / tot_completati * 100) if tot_completati > 0 else 100)
+
+                # Ritardi: ordini attivi scaduti dove l'operatore ha step non completato
+                active_steps = [s for s in op_steps if s.timestamp_inizio and not s.timestamp_fine]
+                ritardi = 0
+                for s in active_steps:
+                    order = all_orders.get(s.order_id)
+                    if order and order.data_consegna and order.data_consegna < now and order.status not in ('COMPLETATO', 'SPEDITO'):
+                        ritardi += 1
+
+                # Saturazione oggi: ore lavorate / 8h turno
+                op_sessions_oggi = [x for x in sessions_by_operator.get(name, []) if x.timestamp_fine >= today_start]
+                tempo_oggi_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in op_sessions_oggi)
+                saturazione = min(100, round(tempo_oggi_sec / (TURNO_ORE * 3600) * 100)) if tempo_oggi_sec > 0 else 0
 
                 kpi_list.append({
                     'operaio': name,
-                    'user_id': user_id,
-                    'role': role,
-                    'initials': initials,
+                    'user_id': user.id,
+                    'role': user.role,
+                    'initials': user.initials,
                     'ordini_completati': ordini_completati,
                     'tempo_medio': tempo_medio,
-                    'ultimo_accesso': last_login.isoformat() if last_login else 'Mai',
-                    'efficienza': 85 + (ordini_completati % 15),  # Mock: 85-99%
-                    'ritardi': max(0, 5 - (ordini_completati // 10)),  # Mock
-                    'rating': min(5.0, 3.5 + (ordini_completati / 20))  # Mock: 3.5-5.0
+                    'ultimo_accesso': user.last_login.isoformat() if user.last_login else 'Mai',
+                    'puntualita': puntualita,
+                    'ritardi': ritardi,
+                    'saturazione': saturazione
                 })
 
             return kpi_list
@@ -2563,24 +2605,59 @@ class KPIManager:
         try:
             now = datetime.utcnow()
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            TURNO_ORE = 8  # Durata turno standard in ore
+
+            # === PRE-CARICAMENTO DATI (eliminare N+1) ===
+            all_orders = session.query(Order).all()
+            all_steps = session.query(ProcessingStep).all()
+
+            # Mappa order_id -> lista steps
+            steps_by_order = {}
+            for s in all_steps:
+                steps_by_order.setdefault(s.order_id, []).append(s)
+
+            # Pre-carica tutte le sessioni chiuse
+            all_closed_sessions = session.query(PhaseSession).filter(
+                PhaseSession.timestamp_fine != None
+            ).all()
+            sessions_by_step = {}
+            for ps in all_closed_sessions:
+                sessions_by_step.setdefault(ps.step_id, []).append(ps)
+            sessions_by_operator = {}
+            for ps in all_closed_sessions:
+                op_name = ps.operatore or 'unknown'
+                sessions_by_operator.setdefault(op_name, []).append(ps)
 
             # === RIEPILOGO ===
-            all_orders = session.query(Order).all()
             ordini_attivi = sum(1 for o in all_orders if o.status not in ('COMPLETATO', 'SPEDITO'))
-            completati_oggi = sum(1 for o in all_orders if o.status == 'COMPLETATO' and
-                session.query(ProcessingStep).filter(
-                    ProcessingStep.order_id == o.id,
-                    ProcessingStep.timestamp_fine != None,
-                    ProcessingStep.timestamp_fine >= today_start
-                ).first() is not None)
+
+            # Completati oggi: ordine COMPLETATO con ultimo step finito oggi
+            completati_oggi = 0
+            for o in all_orders:
+                if o.status != 'COMPLETATO':
+                    continue
+                order_steps = steps_by_order.get(o.id, [])
+                finished = [s.timestamp_fine for s in order_steps if s.timestamp_fine]
+                if finished and max(finished) >= today_start:
+                    completati_oggi += 1
+
             in_ritardo = sum(1 for o in all_orders
                 if o.data_consegna and o.data_consegna < now
                 and o.status not in ('COMPLETATO', 'SPEDITO'))
-            completati_totali = sum(1 for o in all_orders if o.status == 'COMPLETATO')
-            completati_in_tempo = sum(1 for o in all_orders
-                if o.status == 'COMPLETATO' and o.data_consegna
-                and any(s.timestamp_fine and s.timestamp_fine <= o.data_consegna
-                    for s in session.query(ProcessingStep).filter(ProcessingStep.order_id == o.id).all()))
+
+            # Efficienza puntualita: ordini dove ULTIMO step completato <= data_consegna
+            completati_totali = 0
+            completati_in_tempo = 0
+            for o in all_orders:
+                if o.status != 'COMPLETATO':
+                    continue
+                completati_totali += 1
+                if not o.data_consegna:
+                    continue
+                order_steps = steps_by_order.get(o.id, [])
+                finished = [s.timestamp_fine for s in order_steps if s.timestamp_fine]
+                if finished and max(finished) <= o.data_consegna:
+                    completati_in_tempo += 1
             efficienza = round((completati_in_tempo / completati_totali * 100) if completati_totali > 0 else 100)
 
             riepilogo = {
@@ -2591,50 +2668,35 @@ class KPIManager:
             }
 
             # === KPI OPERATORI ===
-            # Pre-carica tutte le sessioni chiuse per calcolo tempo reale
-            all_closed_sessions = session.query(PhaseSession).filter(
-                PhaseSession.timestamp_fine != None
-            ).all()
-            # Mappa step_id -> lista sessioni chiuse
-            sessions_by_step = {}
-            for ps in all_closed_sessions:
-                sessions_by_step.setdefault(ps.step_id, []).append(ps)
-            # Mappa operatore_nome -> lista sessioni chiuse
-            sessions_by_operator = {}
-            for ps in all_closed_sessions:
-                op_name = ps.operatore or 'unknown'
-                sessions_by_operator.setdefault(op_name, []).append(ps)
-
             operatori_kpi = []
             operators = session.query(User).filter(
                 User.role.in_(['Operaio Officina', 'Operaio Laser', 'Capo Officina']),
                 User.is_active == True
             ).all()
 
+            # Pre-carica steps completati per operatore (evita query nel loop)
+            all_completed_steps_by_op = {}
+            for s in all_steps:
+                if s.operatore and s.timestamp_fine:
+                    all_completed_steps_by_op.setdefault(s.operatore, []).append(s)
+
+            # Mappa order_id -> Order per lookup puntualita
+            orders_by_id = {o.id: o for o in all_orders}
+
             for op in operators:
-                # Sessioni chiuse di questo operatore (tempo reale lavorato)
                 op_sessions = sessions_by_operator.get(op.name, [])
-
-                # Steps completati da questo operatore
-                completed_steps = session.query(ProcessingStep).filter(
-                    ProcessingStep.operatore == op.name,
-                    ProcessingStep.timestamp_fine != None
-                ).all()
-
-                # Steps completati oggi
+                completed_steps = all_completed_steps_by_op.get(op.name, [])
                 steps_oggi = [s for s in completed_steps if s.timestamp_fine >= today_start]
 
                 # Tempo medio per step: somma sessioni reali / numero step
                 step_real_times = []
                 for s in completed_steps:
                     step_ss = sessions_by_step.get(s.id, [])
-                    # Filtra solo sessioni di questo operatore
                     op_step_ss = [x for x in step_ss if x.operatore == op.name]
                     if op_step_ss:
                         real_secs = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in op_step_ss)
                         step_real_times.append(real_secs)
                     elif s.timestamp_inizio and s.timestamp_fine:
-                        # Fallback: nessuna sessione trovata, usa durata step
                         step_real_times.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
                 tempo_medio_min = round(sum(step_real_times) / len(step_real_times) / 60) if step_real_times else None
 
@@ -2642,10 +2704,9 @@ class KPIManager:
                 sessioni_oggi = [x for x in op_sessions if x.timestamp_fine >= today_start]
                 tempo_oggi_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_oggi)
 
-                # Ordini unici completati
                 ordini_unici = len(set(s.order_id for s in completed_steps))
 
-                # Step attivo (in corso) — cerca sessione attiva, non solo step
+                # Step attivo (in corso)
                 active_session = session.query(PhaseSession).filter(
                     PhaseSession.operatore == op.name,
                     PhaseSession.timestamp_fine == None
@@ -2656,23 +2717,33 @@ class KPIManager:
                         ProcessingStep.id == active_session.step_id
                     ).first()
 
-                # Clienti assegnati
                 clienti = session.query(OperatorClient).filter(
                     OperatorClient.operator_id == op.id
                 ).count()
 
-                # Online = last_login oggi
                 is_online = op.last_login and op.last_login >= today_start
 
-                # Efficienza: ore lavorate effettive / ore di turno (8h) * 100
-                # Se ha lavorato oggi, calcola quanto del turno ha usato
-                total_real_secs = sum(step_real_times) if step_real_times else 0
-                if total_real_secs > 0 and ordini_unici > 0:
-                    # Media ordini/ora: ordini completati / ore lavorate totali
-                    ore_lavorate = total_real_secs / 3600
-                    eff = min(100, round((ordini_unici / max(ore_lavorate, 0.5)) * 10))
-                else:
-                    eff = 0
+                # SATURAZIONE: ore lavorate oggi / turno 8h * 100
+                saturazione = min(100, round(tempo_oggi_sec / (TURNO_ORE * 3600) * 100)) if tempo_oggi_sec > 0 else 0
+
+                # PUNTUALITA: % ordini completati in tempo dall'operatore
+                # Per ogni ordine unico dell'operatore che e' COMPLETATO,
+                # verifica se l'ultimo step globale e' entro data_consegna
+                ordini_completati_op = set(s.order_id for s in completed_steps)
+                op_totale_completati = 0
+                op_in_tempo = 0
+                for oid in ordini_completati_op:
+                    order = orders_by_id.get(oid)
+                    if not order or order.status != 'COMPLETATO':
+                        continue
+                    op_totale_completati += 1
+                    if not order.data_consegna:
+                        continue
+                    order_steps = steps_by_order.get(oid, [])
+                    finished = [st.timestamp_fine for st in order_steps if st.timestamp_fine]
+                    if finished and max(finished) <= order.data_consegna:
+                        op_in_tempo += 1
+                puntualita = round((op_in_tempo / op_totale_completati * 100) if op_totale_completati > 0 else 100)
 
                 operatori_kpi.append({
                     'id': op.id,
@@ -2688,13 +2759,13 @@ class KPIManager:
                     'clienti_assegnati': clienti,
                     'fase_attiva': active_step.fase if active_step else None,
                     'ordine_attivo': active_step.order_id if active_step else None,
-                    'efficienza': eff
+                    'saturazione': saturazione,
+                    'puntualita': puntualita
                 })
 
             # === KPI FASI/MACCHINARI ===
             fasi_kpi = []
             for fase_nome in ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA']:
-                # In coda: ordini con fase_corrente = questa fase, senza step attivo
                 in_coda_orders = session.query(Order).filter(
                     Order.fase_corrente == fase_nome,
                     Order.status.notin_(['COMPLETATO', 'SPEDITO'])
@@ -2706,14 +2777,9 @@ class KPIManager:
                 ).count()
                 in_coda = max(0, len(in_coda_orders) - active_in_fase)
 
-                # Completati
-                completed_in_fase = session.query(ProcessingStep).filter(
-                    ProcessingStep.fase == fase_nome,
-                    ProcessingStep.timestamp_fine != None
-                ).all()
+                completed_in_fase = [s for s in all_steps if s.fase == fase_nome and s.timestamp_fine]
                 completati_oggi_fase = sum(1 for s in completed_in_fase if s.timestamp_fine >= today_start)
 
-                # Tempo medio reale: somma sessioni per step / numero step
                 durations_fase = []
                 for s in completed_in_fase:
                     step_ss = sessions_by_step.get(s.id, [])
