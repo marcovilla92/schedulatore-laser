@@ -595,60 +595,40 @@ body {
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Operai Online</div>
-          <div class="kpi-value">4</div>
-          <div class="kpi-unit">di 6 disponibili</div>
-          <div class="kpi-trend">↑ Tutti operativi</div>
+          <div class="kpi-value" id="kpi-operai-online">—</div>
+          <div class="kpi-unit" id="kpi-operai-totale">caricamento...</div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-label">Ordini Attivi</div>
-          <div class="kpi-value">18</div>
+          <div class="kpi-value" id="kpi-ordini-attivi">—</div>
           <div class="kpi-unit">in lavorazione</div>
-          <div class="kpi-trend">↑ +3 da ieri</div>
         </div>
 
         <div class="kpi-card">
-          <div class="kpi-label">Efficienza Sistema</div>
-          <div class="kpi-value">83%</div>
-          <div class="kpi-unit">media globale</div>
-          <div class="kpi-trend">↑ +2% questa settimana</div>
+          <div class="kpi-label">Puntualit&agrave; Consegne</div>
+          <div class="kpi-value" id="kpi-efficienza">—</div>
+          <div class="kpi-unit">ordini consegnati in tempo</div>
         </div>
 
         <div class="kpi-card">
-          <div class="kpi-label">Ritardi Critici</div>
-          <div class="kpi-value">4</div>
-          <div class="kpi-unit">ordini</div>
-          <div class="kpi-trend">↓ -1 da ieri</div>
+          <div class="kpi-label">Ordini in Ritardo</div>
+          <div class="kpi-value" id="kpi-ritardi">—</div>
+          <div class="kpi-unit">scaduti non completati</div>
         </div>
       </div>
 
       <div class="kpi-grid">
         <div class="kpi-card">
-          <div class="kpi-label">Macchine Attive</div>
-          <div class="kpi-value">5</div>
-          <div class="kpi-unit">di 6</div>
-          <div class="kpi-trend">CNC 02 in manutenzione</div>
-        </div>
-
-        <div class="kpi-card">
           <div class="kpi-label">Login Oggi</div>
-          <div class="kpi-value">12</div>
+          <div class="kpi-value" id="kpi-login-oggi">—</div>
           <div class="kpi-unit">accessi registrati</div>
-          <div class="kpi-trend">Ultimi 24 ore</div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-label">Tempo Medio</div>
-          <div class="kpi-value">3h</div>
-          <div class="kpi-unit">24min per ordine</div>
-          <div class="kpi-trend">→ Stabile</div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-label">Completati Oggi</div>
-          <div class="kpi-value">8</div>
+          <div class="kpi-value" id="kpi-completati-oggi">—</div>
           <div class="kpi-unit">ordini</div>
-          <div class="kpi-trend">↑ +2 del solito</div>
         </div>
       </div>
     </div>
@@ -664,162 +644,14 @@ body {
             <th>Operaio</th>
             <th>Ordini Completati</th>
             <th>Tempo Medio</th>
-            <th>Efficienza</th>
+            <th>Puntualit&agrave;</th>
+            <th>Saturazione Oggi</th>
             <th>Ritardi</th>
-            <th>Rating</th>
-            <th>Ultimoaccesso</th>
+            <th>Ultimo Accesso</th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>
-              <div class="operator-name">Mirko Sandionigi</div>
-              <div class="operator-role">Reparto Laser</div>
-            </td>
-            <td>
-              <div class="metric-value">42</div>
-              <div class="metric-label">questa settimana</div>
-            </td>
-            <td>
-              <div class="metric-value">2h 45m</div>
-              <div class="metric-label">per ordine</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #22c55e;">88%</div>
-              <div class="metric-label">eccellente</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #22c55e;">0</div>
-              <div class="metric-label">nessun ritardo</div>
-            </td>
-            <td>
-              <div class="metric-value">⭐⭐⭐⭐⭐</div>
-              <div class="metric-label">5.0/5.0</div>
-            </td>
-            <td>
-              <div class="metric-label">Oggi 09:30</div>
-            </td>
-          </tr>
-
-          <tr>
-            <td>
-              <div class="operator-name">Enzo Masciari</div>
-              <div class="operator-role">Officina</div>
-            </td>
-            <td>
-              <div class="metric-value">38</div>
-              <div class="metric-label">questa settimana</div>
-            </td>
-            <td>
-              <div class="metric-value">3h 12m</div>
-              <div class="metric-label">per ordine</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #ffa502;">81%</div>
-              <div class="metric-label">buono</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #ffa502;">1</div>
-              <div class="metric-label">1 ritardo minore</div>
-            </td>
-            <td>
-              <div class="metric-value">⭐⭐⭐⭐</div>
-              <div class="metric-label">4.5/5.0</div>
-            </td>
-            <td>
-              <div class="metric-label">Oggi 11:15</div>
-            </td>
-          </tr>
-
-          <tr>
-            <td>
-              <div class="operator-name">Elena Colombo</div>
-              <div class="operator-role">Impiegata</div>
-            </td>
-            <td>
-              <div class="metric-value">45</div>
-              <div class="metric-label">questa settimana</div>
-            </td>
-            <td>
-              <div class="metric-value">2h 30m</div>
-              <div class="metric-label">per ordine</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #22c55e;">91%</div>
-              <div class="metric-label">eccellente</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #22c55e;">0</div>
-              <div class="metric-label">nessun ritardo</div>
-            </td>
-            <td>
-              <div class="metric-value">⭐⭐⭐⭐⭐</div>
-              <div class="metric-label">5.0/5.0</div>
-            </td>
-            <td>
-              <div class="metric-label">Oggi 08:45</div>
-            </td>
-          </tr>
-
-          <tr>
-            <td>
-              <div class="operator-name">Paolo Scola</div>
-              <div class="operator-role">Responsabile</div>
-            </td>
-            <td>
-              <div class="metric-value">12</div>
-              <div class="metric-label">ordini supervisione</div>
-            </td>
-            <td>
-              <div class="metric-value">45m</div>
-              <div class="metric-label">per supervisione</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #22c55e;">95%</div>
-              <div class="metric-label">perfetto</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #22c55e;">0</div>
-              <div class="metric-label">nessun ritardo</div>
-            </td>
-            <td>
-              <div class="metric-value">⭐⭐⭐⭐⭐</div>
-              <div class="metric-label">5.0/5.0</div>
-            </td>
-            <td>
-              <div class="metric-label">Oggi 07:30</div>
-            </td>
-          </tr>
-
-          <tr>
-            <td>
-              <div class="operator-name">Stefano Villa</div>
-              <div class="operator-role">Capo Officina</div>
-            </td>
-            <td>
-              <div class="metric-value">36</div>
-              <div class="metric-label">questa settimana</div>
-            </td>
-            <td>
-              <div class="metric-value">3h 25m</div>
-              <div class="metric-label">per ordine</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #ffa502;">75%</div>
-              <div class="metric-label">discreto</div>
-            </td>
-            <td>
-              <div class="metric-value" style="color: #ef4444;">2</div>
-              <div class="metric-label">2 ritardi</div>
-            </td>
-            <td>
-              <div class="metric-value">⭐⭐⭐</div>
-              <div class="metric-label">3.5/5.0</div>
-            </td>
-            <td>
-              <div class="metric-label">Ieri 17:30</div>
-            </td>
-          </tr>
+        <tbody id="kpi-operai-tbody">
+          <tr><td colspan="7" style="text-align:center; padding:32px; color: var(--text-secondary);">Caricamento KPI...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1399,13 +1231,68 @@ async function loadKPI() {
   try {
     const resp = await fetch(`${API_BASE}/api/admin/kpi`);
     if (!resp.ok) throw new Error('Failed to load KPI');
-    const data = resp.json();
+    const data = await resp.json();
+    if (!data.success) return;
 
-    // Populate KPI cards (basic implementation)
-    // KPI data loaded
+    const g = data.kpi_globali;
+
+    // Overview cards
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setVal('kpi-operai-online', g.operai_online || 0);
+    setVal('kpi-operai-totale', 'di ' + (g.totale_operai || 0) + ' registrati');
+    setVal('kpi-ordini-attivi', g.ordini_attivi || 0);
+    setVal('kpi-efficienza', (g.efficienza || 0) + '%');
+    setVal('kpi-ritardi', g.ritardi || 0);
+    setVal('kpi-login-oggi', g.login_oggi || 0);
+    setVal('kpi-completati-oggi', g.completati_oggi || 0);
+
+    // KPI Operai table
+    const tbody = document.getElementById('kpi-operai-tbody');
+    if (tbody && data.kpi_operai && data.kpi_operai.length > 0) {
+      tbody.innerHTML = data.kpi_operai.map(op => {
+        const puntColor = op.puntualita >= 80 ? '#22c55e' : op.puntualita >= 50 ? '#ffa502' : '#ef4444';
+        const puntLabel = op.puntualita >= 80 ? 'eccellente' : op.puntualita >= 50 ? 'buono' : 'da migliorare';
+        const satColor = op.saturazione >= 60 ? '#22c55e' : op.saturazione >= 30 ? '#ffa502' : '#94a3b8';
+        const ritColor = op.ritardi === 0 ? '#22c55e' : op.ritardi <= 2 ? '#ffa502' : '#ef4444';
+        const ritLabel = op.ritardi === 0 ? 'nessun ritardo' : op.ritardi + ' ordini scaduti';
+        const accesso = op.ultimo_accesso === 'Mai' ? 'Mai' : formatAccesso(op.ultimo_accesso);
+
+        return '<tr>' +
+          '<td><div class="operator-name">' + escapeHtml(op.operaio) + '</div><div class="operator-role">' + escapeHtml(op.role || '') + '</div></td>' +
+          '<td><div class="metric-value">' + op.ordini_completati + '</div><div class="metric-label">totali</div></td>' +
+          '<td><div class="metric-value">' + escapeHtml(op.tempo_medio) + '</div><div class="metric-label">per fase</div></td>' +
+          '<td><div class="metric-value" style="color:' + puntColor + ';">' + op.puntualita + '%</div><div class="metric-label">' + puntLabel + '</div></td>' +
+          '<td><div class="metric-value" style="color:' + satColor + ';">' + op.saturazione + '%</div>' +
+            '<div style="background:#e5e7eb;border-radius:4px;height:6px;margin-top:4px;"><div style="background:' + satColor + ';height:100%;border-radius:4px;width:' + op.saturazione + '%;"></div></div></td>' +
+          '<td><div class="metric-value" style="color:' + ritColor + ';">' + op.ritardi + '</div><div class="metric-label">' + ritLabel + '</div></td>' +
+          '<td><div class="metric-label">' + escapeHtml(accesso) + '</div></td>' +
+        '</tr>';
+      }).join('');
+    } else if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary);">Nessun operaio trovato</td></tr>';
+    }
   } catch (e) {
     console.error('Error loading KPI:', e);
   }
+}
+
+function formatAccesso(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    const oggi = new Date();
+    const isToday = d.toDateString() === oggi.toDateString();
+    const ieri = new Date(oggi); ieri.setDate(ieri.getDate() - 1);
+    const isYesterday = d.toDateString() === ieri.toDateString();
+    const time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return 'Oggi ' + time;
+    if (isYesterday) return 'Ieri ' + time;
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + time;
+  } catch(e) { return isoStr; }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── LOAD AUDIT LOG ──
@@ -1432,7 +1319,7 @@ function switchScreen(screenId) {
   }
 
   // Load data based on screen
-  if (screenId === 'overview') {
+  if (screenId === 'overview' || screenId === 'kpi-operai') {
     loadKPI();
   } else if (screenId === 'audit') {
     loadAuditLog();

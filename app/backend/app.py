@@ -1034,16 +1034,16 @@ def get_kpi_dashboard():
 def get_admin_kpi():
     """Recupera KPI sistema per admin dashboard"""
     try:
-        # Ordini attivi (non SPEDITO)
+        from datetime import datetime as dt, timedelta
+
         all_orders = OrderManager.get_all_orders_dict()
-        active_orders = [o for o in all_orders if o.get('status') not in ('COMPLETATO', 'PARZIALE')]
+        active_orders = [o for o in all_orders if o.get('status') not in ('COMPLETATO', 'PARZIALE', 'SPEDITO')]
         ordini_attivi = len(active_orders)
 
-        # KPI operai
+        # KPI operai (calcoli reali, nessun mock)
         kpi_operai = AuditManager.get_kpi_operai()
 
-        # Calcola login oggi
-        from datetime import datetime as dt
+        # Login oggi
         today = dt.now().date()
         audit_logs = AuditManager.get_recent(limit=1000)
         login_oggi = len([
@@ -1051,16 +1051,21 @@ def get_admin_kpi():
             if log['action'] == 'LOGIN' and dt.fromisoformat(log['timestamp']).date() == today
         ])
 
-        # Calcola efficienza: ordini completati on-time vs totali
-        completed_orders = [o for o in all_orders if o.get('status') in ('COMPLETATO', 'PARZIALE')]
-        if completed_orders:
-            on_time = sum(1 for o in completed_orders if o.get('data_consegna') and dt.fromisoformat(o['data_consegna']).date() >= today)
-            efficienza = int((on_time / len(completed_orders)) * 100)
-        else:
-            efficienza = 0
+        # Efficienza: per ordini COMPLETATI, verifica se ultimo step <= data_consegna
+        # Usa il KPI dashboard che ha gia' il calcolo corretto
+        kpi_dashboard = KPIManager.get_dashboard_kpi()
+        efficienza = kpi_dashboard.get('riepilogo', {}).get('efficienza_puntualita', 0) if kpi_dashboard.get('success') else 0
 
         # Ritardi: ordini scaduti non completati
         ritardi = sum(1 for o in active_orders if o.get('data_consegna') and dt.fromisoformat(o['data_consegna']).date() < today)
+
+        # Completati oggi (dal KPI dashboard)
+        completati_oggi = kpi_dashboard.get('riepilogo', {}).get('completati_oggi', 0) if kpi_dashboard.get('success') else 0
+
+        # Operai online
+        operai_online = sum(1 for op in kpi_operai if op.get('saturazione', 0) > 0 or
+            (op.get('ultimo_accesso') and op['ultimo_accesso'] != 'Mai' and
+             dt.fromisoformat(op['ultimo_accesso']).date() == today))
 
         return jsonify({
             'success': True,
@@ -1068,7 +1073,10 @@ def get_admin_kpi():
                 'ordini_attivi': ordini_attivi,
                 'login_oggi': login_oggi,
                 'efficienza': efficienza,
-                'ritardi': ritardi
+                'ritardi': ritardi,
+                'completati_oggi': completati_oggi,
+                'operai_online': operai_online,
+                'totale_operai': len(kpi_operai)
             },
             'kpi_operai': kpi_operai
         }), 200
