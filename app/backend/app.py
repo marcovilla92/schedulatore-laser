@@ -366,6 +366,53 @@ def delete_order(order_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/orders/<order_id>/replace-pdf', methods=['POST'])
+def replace_order_pdf(order_id):
+    """Sostituisce il PDF di un ordine esistente"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'Nessun file inviato'}), 400
+        file = request.files['file']
+        if not file.filename or not file.filename.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'error': 'Il file deve essere un PDF'}), 400
+
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return jsonify({'success': False, 'error': 'Ordine non trovato'}), 404
+
+            # Salva il nuovo file
+            pdf_filename = f"{order_id}_{os.path.basename(file.filename)}"
+            pdf_path = os.path.join(PDFS_FOLDER, pdf_filename)
+            file.save(pdf_path)
+
+            # Aggiorna o crea il record file
+            existing_pdf = session.query(OrderFile).filter(
+                OrderFile.order_id == order_id,
+                OrderFile.file_type == 'PDF'
+            ).first()
+            if existing_pdf:
+                existing_pdf.filename = pdf_filename
+                existing_pdf.filepath = pdf_path
+            else:
+                new_file = OrderFile(
+                    id=str(uuid.uuid4()),
+                    order_id=order_id,
+                    filename=pdf_filename,
+                    filepath=pdf_path,
+                    file_type='PDF'
+                )
+                session.add(new_file)
+
+            session.commit()
+            return jsonify({'success': True, 'filename': pdf_filename}), 200
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"replace_order_pdf: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/orders/<order_id>/pdf', methods=['GET'])
 def get_order_pdf(order_id):
     """Serve il PDF dell'ordine inline (per iframe viewer)"""
@@ -960,6 +1007,17 @@ def move_phase(order_id):
             )
         return jsonify(result), 200 if result.get('success') else 400
 
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ API MARK ORDER SEEN ============
+
+@app.route('/api/orders/<order_id>/mark-seen', methods=['POST'])
+def mark_order_seen(order_id):
+    """Marca un ordine come visto dall'operatore"""
+    try:
+        result = OrderManager.mark_order_seen(order_id)
+        return jsonify(result), 200 if result.get('success') else 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

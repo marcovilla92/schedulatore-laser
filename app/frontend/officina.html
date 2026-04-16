@@ -2003,6 +2003,76 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* === BADGE "NUOVO" per ordini non visti === */
+.badge-nuovo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #dc2626;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: badgeNuovoPulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes badgeNuovoPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.08); }
+}
+
+.accordion-item.is-new {
+  border-left: 4px solid #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2), 0 2px 8px rgba(220, 38, 38, 0.1);
+}
+
+/* === BANNER ordini nuovi === */
+.new-orders-banner {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: bannerSlideIn 0.3s ease-out;
+}
+.new-orders-banner:hover { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
+.new-orders-banner-icon {
+  width: 36px; height: 36px;
+  background: #dc2626;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  animation: badgeNuovoPulse 1.5s ease-in-out infinite;
+}
+.new-orders-banner-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #991b1b;
+  line-height: 1.3;
+}
+.new-orders-banner-count {
+  font-size: 20px;
+  font-weight: 800;
+  color: #dc2626;
+  font-family: 'Geist', sans-serif;
+}
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 </style>
 </head>
 <body>
@@ -2058,6 +2128,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
       <div class="page-title">I Miei Ordini</div>
     </div>
 
+    <div id="new-orders-banner"></div>
     <div class="search-bar-wrap">
       <input type="text" id="search-bar" class="search-bar" placeholder="Cerca cliente o numero ordine..." oninput="filterSearchOrders()">
     </div>
@@ -2190,15 +2261,23 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   </div>
 </div>
 
+<!-- PDF.js per rendering PDF su WebView/tablet -->
+<script src="/lib/pdf.min.js"></script>
+
 <!-- PDF Modal -->
 <div class="modal-overlay" id="pdf-modal">
   <div class="modal-content">
     <div class="modal-header">
       <h3 id="modal-title">PDF Ordine</h3>
-      <button class="modal-close" onclick="closePdfModal()">&times;</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span id="pdf-page-info" style="font-size:12px; color:var(--gray-text);"></span>
+        <button onclick="pdfPrevPage()" style="padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:16px;">&#9664;</button>
+        <button onclick="pdfNextPage()" style="padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:16px;">&#9654;</button>
+        <button class="modal-close" onclick="closePdfModal()">&times;</button>
+      </div>
     </div>
-    <div class="modal-body">
-      <iframe id="modal-pdf-iframe"></iframe>
+    <div class="modal-body" style="overflow:auto; display:flex; justify-content:center; align-items:flex-start; background:#525659;">
+      <canvas id="modal-pdf-canvas" style="max-width:100%; background:white;"></canvas>
     </div>
   </div>
 </div>
@@ -2394,6 +2473,7 @@ async function loadOrders() {
       return;
     }
     _lastOrdersFingerprint = newFp;
+    checkNewOrderSound(newOrders);
     allOrders = newOrders;
     renderCards();
     updateConnBadge(true);
@@ -2401,6 +2481,77 @@ async function loadOrders() {
     console.error('Errore caricamento ordini:', err);
     updateConnBadge(false);
   }
+}
+
+// === NOTIFICA SONORA PER ORDINI NUOVI ===
+let _prevUnseenIds = new Set();
+let _audioUnlocked = false;
+const _audioCtx = typeof AudioContext !== 'undefined' ? new AudioContext() : (typeof webkitAudioContext !== 'undefined' ? new webkitAudioContext() : null);
+
+// Sblocca AudioContext al primo tocco/click (policy autoplay browser)
+function _unlockAudio() {
+  if (_audioUnlocked || !_audioCtx) return;
+  _audioCtx.resume().then(() => {
+    _audioUnlocked = true;
+    // Beep silenzioso per sbloccare il canale audio
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    gain.gain.value = 0.001; // praticamente muto
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.start();
+    osc.stop(_audioCtx.currentTime + 0.01);
+    console.log('[Audio] Sbloccato');
+  });
+}
+document.addEventListener('click', _unlockAudio, { once: false });
+document.addEventListener('touchstart', _unlockAudio, { once: false });
+
+function playNewOrderSound() {
+  console.log('[Audio] playNewOrderSound chiamato, audioCtx:', _audioCtx ? _audioCtx.state : 'null');
+  if (!_audioCtx) { console.warn('[Audio] AudioContext non disponibile'); return; }
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume().then(() => { _doPlaySound(); });
+  } else {
+    _doPlaySound();
+  }
+}
+
+function _doPlaySound() {
+  try {
+    const now = _audioCtx.currentTime;
+    // Doppio beep: DO-MI (notifica amichevole, non allarmante)
+    [523.25, 659.25].forEach((freq, i) => {
+      const osc = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, now + i * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.35);
+      osc.connect(gain);
+      gain.connect(_audioCtx.destination);
+      osc.start(now + i * 0.18);
+      osc.stop(now + i * 0.18 + 0.35);
+    });
+    console.log('[Audio] Beep riprodotto!');
+  } catch(e) {
+    console.error('[Audio] Errore riproduzione:', e);
+  }
+}
+
+function checkNewOrderSound(orders) {
+  const unseenIds = new Set(
+    orders.filter(o => !o.visto_da_operatore && !['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.fase_corrente))
+          .map(o => o.id)
+  );
+  const brandNew = [...unseenIds].filter(id => !_prevUnseenIds.has(id));
+  console.log(`[Audio] Check: ${unseenIds.size} non visti, ${brandNew.length} nuovi, prev: ${_prevUnseenIds.size}`);
+  // Suona solo se ci sono NUOVI ordini non visti rispetto al check precedente
+  if (brandNew.length > 0 && _prevUnseenIds.size >= 0 && _lastOrdersFingerprint !== null) {
+    // Suona se non è il primissimo caricamento (fingerprint era null)
+    playNewOrderSound();
+  }
+  _prevUnseenIds = unseenIds;
 }
 
 // === ACCORDION UTILITIES ===
@@ -2415,6 +2566,59 @@ function toggleAccordion(orderId) {
     item.classList.add('expanded');
     expandedOrders.add(orderId);
     manuallyCollapsed.delete(orderId);
+    // Marca come visto quando l'operatore apre l'ordine
+    if (item.classList.contains('is-new')) {
+      markOrderSeen(orderId);
+    }
+  }
+}
+
+async function markOrderSeen(orderId) {
+  try {
+    await fetch(`${API_URL}/api/orders/${orderId}/mark-seen`, { method: 'POST' });
+    // Aggiorna localmente per rimuovere il badge senza aspettare il polling
+    const order = allOrders.find(o => o.id === orderId);
+    if (order) order.visto_da_operatore = true;
+    const item = document.querySelector('.accordion-item[data-order-id="' + orderId + '"]');
+    if (item) {
+      item.classList.remove('is-new');
+      const badge = item.querySelector('.badge-nuovo');
+      if (badge) badge.remove();
+    }
+    updateNewOrdersBanner();
+  } catch (err) {
+    console.error('Errore mark-seen:', err);
+  }
+}
+
+function updateNewOrdersBanner() {
+  const newOrders = allOrders.filter(o => !o.visto_da_operatore &&
+    !['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.fase_corrente));
+  const container = document.getElementById('new-orders-banner');
+  if (!container) return;
+  if (newOrders.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <div class="new-orders-banner" onclick="scrollToFirstNew()">
+      <div class="new-orders-banner-icon">&#9888;</div>
+      <div class="new-orders-banner-text">
+        ${newOrders.length === 1
+          ? `Hai <b>1 ordine nuovo</b> da prendere in carico`
+          : `Hai <b>${newOrders.length} ordini nuovi</b> da prendere in carico`}
+      </div>
+      <div class="new-orders-banner-count">${newOrders.length}</div>
+    </div>`;
+}
+
+function scrollToFirstNew() {
+  const first = document.querySelector('.accordion-item.is-new');
+  if (first) {
+    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    first.style.transition = 'background 0.3s';
+    first.style.background = '#fef2f2';
+    setTimeout(() => { first.style.background = ''; }, 1500);
   }
 }
 
@@ -2553,6 +2757,9 @@ function renderCards() {
   } else {
     storicoSection.style.display = 'none';
   }
+
+  // Aggiorna banner ordini nuovi
+  updateNewOrdersBanner();
 }
 
 function getOperatorDisplayName(opId, order) {
@@ -2654,10 +2861,14 @@ function renderAccordionItem(order, step, phase, myInfo, flags) {
   const lottoTag = order.lotto_numero > 0 ? `<span style="font-size:11px; font-weight:700; color:#0369a1; background:#e0f2fe; padding:1px 6px; border-radius:4px; margin-left:4px;">${escapeHtml(lottoLabel)}</span>` : '';
   const lottiCountTag = (order.lotti_count > 0 && !order.parent_order_id) ? `<span style="font-size:10px; color:#6b7280; margin-left:2px;">(${order.lotti_count} lotti)</span>` : '';
 
+  const isNew = !order.visto_da_operatore && !isCompleted;
+  const nuovoBadge = isNew ? '<span class="badge-nuovo">NUOVO</span>' : '';
+
   const headerHtml = `<div class="accordion-header" onclick="toggleAccordion('${orderId}')">
     <span class="acc-client">${cliente}${lottoTag}${lottiCountTag}</span>
     <span class="acc-order-num">#${numOrdine}</span>
     <span class="acc-consegna ${consegnaClass}">${consegna}</span>
+    ${nuovoBadge}
     <span class="acc-status-badge card-status ${statusBadgeClass}">${statusText}</span>
     <span class="acc-chevron">&#9660;</span>
   </div>`;
@@ -2673,7 +2884,8 @@ function renderAccordionItem(order, step, phase, myInfo, flags) {
   else if (isCompleted) bodyHtml = buildCompletedBody(order, consegnaFull);
   else bodyHtml = buildWaitingBody(order, phase, consegnaFull);
 
-  return `<div class="accordion-item ${colorClass}" data-order-id="${orderId}" data-cliente="${cliente}" data-order-num="${numOrdine}">
+  const newClass = isNew ? 'is-new' : '';
+  return `<div class="accordion-item ${colorClass} ${newClass}" data-order-id="${orderId}" data-cliente="${cliente}" data-order-num="${numOrdine}">
     ${headerHtml}
     <div class="accordion-body">${bodyHtml}</div>
   </div>`;
@@ -3661,15 +3873,62 @@ function startMultiTimer(orderId, operatoriInfo) {
 }
 
 // === PDF MODAL ===
-function openPdfModal(orderId, cliente) {
+// === PDF.js VIEWER ===
+let _pdfDoc = null;
+let _pdfPageNum = 1;
+let _pdfTotalPages = 0;
+
+async function openPdfModal(orderId, cliente) {
+  const pdfUrl = `${API_URL}/api/orders/${orderId}/pdf`;
   document.getElementById('modal-title').textContent = `PDF \u2014 ${cliente || orderId}`;
-  document.getElementById('modal-pdf-iframe').src = `${API_URL}/api/orders/${orderId}/pdf`;
   document.getElementById('pdf-modal').classList.add('active');
+  document.getElementById('pdf-page-info').textContent = 'Caricamento...';
+
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/lib/pdf.worker.min.js';
+    _pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+    _pdfTotalPages = _pdfDoc.numPages;
+    _pdfPageNum = 1;
+    renderPdfPage(_pdfPageNum);
+  } catch (err) {
+    console.error('Errore PDF.js:', err);
+    document.getElementById('pdf-page-info').textContent = 'PDF non disponibile';
+    const canvas = document.getElementById('modal-pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 400; canvas.height = 200;
+    ctx.fillStyle = '#525659'; ctx.fillRect(0,0,400,200);
+    ctx.fillStyle = '#fff'; ctx.font = '16px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('PDF non disponibile', 200, 100);
+  }
+}
+
+async function renderPdfPage(num) {
+  if (!_pdfDoc) return;
+  const page = await _pdfDoc.getPage(num);
+  const canvas = document.getElementById('modal-pdf-canvas');
+  const ctx = canvas.getContext('2d');
+  // Scala per riempire bene lo schermo
+  const containerWidth = canvas.parentElement.clientWidth - 16;
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = Math.min(2.5, containerWidth / baseViewport.width);
+  const viewport = page.getViewport({ scale });
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  document.getElementById('pdf-page-info').textContent = `${num} / ${_pdfTotalPages}`;
+}
+
+function pdfNextPage() {
+  if (_pdfPageNum < _pdfTotalPages) { _pdfPageNum++; renderPdfPage(_pdfPageNum); }
+}
+function pdfPrevPage() {
+  if (_pdfPageNum > 1) { _pdfPageNum--; renderPdfPage(_pdfPageNum); }
 }
 
 function closePdfModal() {
   document.getElementById('pdf-modal').classList.remove('active');
-  document.getElementById('modal-pdf-iframe').src = '';
+  _pdfDoc = null;
+  _pdfPageNum = 1;
 }
 
 document.getElementById('pdf-modal').addEventListener('click', function(e) {

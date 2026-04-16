@@ -332,7 +332,9 @@ class OrderManager:
                     'lotto_nome': order.lotto_nome or '',
                     'lotti': lotti_data,
                     'lotti_count': lotti_count,
-                    'all_lotti_completed': all_lotti_completed
+                    'all_lotti_completed': all_lotti_completed,
+                    'visto_da_operatore': bool(order.visto_da_operatore),
+                    'data_presa_visione': order.data_presa_visione.isoformat() if order.data_presa_visione else None
                 })
 
             return result
@@ -412,7 +414,8 @@ class OrderManager:
 
     @staticmethod
     def start_phase(order_id: str, phase: str, operatore: str = "") -> bool:
-        """Inizia una fase di lavorazione — crea/riprende ProcessingStep + crea PhaseSession"""
+        """Inizia una fase di lavorazione — crea/riprende ProcessingStep + crea PhaseSession.
+        LASER: nessun time tracking (gestito da Lantek), solo ProcessingStep senza timestamp."""
         session = get_session()
         try:
             now = datetime.utcnow()
@@ -423,6 +426,29 @@ class OrderManager:
                 return False
             if order.fase_corrente != phase:
                 raise ValueError(f"Fase '{phase}' non corrisponde alla fase corrente '{order.fase_corrente}' dell'ordine")
+
+            # LASER: niente time tracking — Lantek gestisce i tempi
+            if phase == 'LASER':
+                existing_step = session.query(ProcessingStep).filter(
+                    ProcessingStep.order_id == order_id,
+                    ProcessingStep.fase == 'LASER',
+                    ProcessingStep.timestamp_fine.is_(None)
+                ).first()
+                if not existing_step:
+                    step = ProcessingStep(
+                        id=str(uuid.uuid4()),
+                        order_id=order_id,
+                        fase='LASER',
+                        timestamp_inizio=None,  # Nessun timestamp per LASER
+                        operatore=operatore
+                    )
+                    session.add(step)
+                # Nessuna PhaseSession per LASER
+                order.fase_corrente = phase
+                if order.status in ("RICEVUTO", "PARZIALE"):
+                    order.status = "IN_LAVORAZIONE"
+                session.commit()
+                return True
 
             # Cerca ProcessingStep aperto per questa fase (potrebbe essere in pausa)
             existing_step = session.query(ProcessingStep).filter(
@@ -454,7 +480,7 @@ class OrderManager:
                 session.add(step)
                 session.flush()
 
-            # Crea nuova PhaseSession
+            # Crea nuova PhaseSession (solo per fasi NON-LASER)
             new_sess = PhaseSession(
                 id=str(uuid.uuid4()),
                 step_id=step.id,
@@ -499,6 +525,67 @@ class OrderManager:
                 return {"success": False, "error": "Fase non trovata o già completata"}
 
             now = datetime.utcnow()
+
+            # LASER: niente time tracking — Lantek gestisce i tempi
+            # Completa lo step senza toccare PhaseSession
+            if phase == 'LASER':
+                processing_step.timestamp_fine = now
+                processing_step.note = note
+                processing_step.fase_successiva = fase_successiva
+                processing_step.completamento_parziale = False
+                if operatore and not processing_step.operatore:
+                    processing_step.operatore = operatore
+
+                order = session.query(Order).filter(Order.id == order_id).first()
+                if not order:
+                    return {"success": False, "error": "Ordine non trovato"}
+
+                if not fase_successiva:
+                    fase_successiva = 'PIEGA'
+                    processing_step.fase_successiva = fase_successiva
+
+                if fase_successiva == "COMPLETATO":
+                    order.fase_corrente = "COMPLETATO"
+                    order.status = "DA_FATTURARE"
+                else:
+                    order.fase_corrente = fase_successiva
+                    order.status = "IN_LAVORAZIONE"
+
+                order.visto_da_operatore = False
+                order.data_presa_visione = None
+
+                # Auto-assegna operatore quando ordine esce dal laser
+                if fase_successiva not in ('LASER', 'COMPLETATO') and not order.operatore_assegnato:
+                    from sqlalchemy import func
+                    assignments = session.query(OperatorClient).filter(
+                        func.lower(OperatorClient.client_name) == func.lower(order.cliente)
+                    ).all()
+                    for assignment in assignments:
+                        op_user = session.query(User).filter(User.id == assignment.operator_id).first()
+                        if op_user and op_user.phase != 'LASER':
+                            order.operatore_assegnato = assignment.operator_id
+                            break
+
+                session.commit()
+
+                numero_display = order.numero_ordine or order.id[:8]
+                cliente = order.cliente
+                op_id = order.operatore_assegnato
+                if op_id and fase_successiva not in ('COMPLETATO', 'LASER'):
+                    NotificationManager.create_notification(
+                        user_id=op_id, order_id=order_id,
+                        title='Ordine pronto',
+                        message=f'Ordine #{numero_display} ({cliente}): LASER completato → {fase_successiva}',
+                        notification_type='phase_ready',
+                        notification_category='attiva'
+                    )
+
+                return {
+                    "success": True,
+                    "order_id": order_id,
+                    "phase": "LASER",
+                    "next_phase": fase_successiva
+                }
 
             # Trova la sessione attiva di QUESTO operatore (per supporto parallelo)
             active_sess = None
@@ -658,6 +745,11 @@ class OrderManager:
             elif fase_successiva:
                 order.fase_corrente = fase_successiva
                 order.status = "IN_LAVORAZIONE"
+
+            # Reset "visto" quando ordine cambia fase — il prossimo operatore lo vedrà come NUOVO
+            if fase_successiva and fase_successiva != phase:
+                order.visto_da_operatore = False
+                order.data_presa_visione = None
 
             # Auto-assegna operatore quando ordine esce dal laser e non ha operatore
             if phase == 'LASER' and fase_successiva not in ('LASER', 'COMPLETATO') and not order.operatore_assegnato:
@@ -1173,6 +1265,7 @@ class OrderManager:
             if not order:
                 return {"success": False, "error": "Ordine non trovato"}
 
+            old_phase = order.fase_corrente
             order.fase_corrente = new_phase
             if new_phase == "COMPLETATO":
                 order.status = "DA_FATTURARE"
@@ -1180,6 +1273,10 @@ class OrderManager:
                 order.status = "PARZIALE"
             else:
                 order.status = "IN_LAVORAZIONE"
+            # Reset "visto" quando fase cambia
+            if new_phase != old_phase:
+                order.visto_da_operatore = False
+                order.data_presa_visione = None
 
             session.commit()
             return {"success": True, "order_id": order_id, "new_phase": new_phase}
@@ -1359,8 +1456,29 @@ class OrderManager:
                 "lotto_nome": order.lotto_nome or '',
                 "lotti": lotti_data,
                 "lotti_count": lotti_count,
-                "all_lotti_completed": all_lotti_completed
+                "all_lotti_completed": all_lotti_completed,
+                "visto_da_operatore": bool(order.visto_da_operatore),
+                "data_presa_visione": order.data_presa_visione.isoformat() if order.data_presa_visione else None
             }
+        finally:
+            session.close()
+
+    @staticmethod
+    def mark_order_seen(order_id: str) -> dict:
+        """Marca un ordine come visto dall'operatore"""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {"success": False, "error": "Ordine non trovato"}
+            if not order.visto_da_operatore:
+                order.visto_da_operatore = True
+                order.data_presa_visione = datetime.utcnow()
+                session.commit()
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
         finally:
             session.close()
 
@@ -2982,6 +3100,34 @@ class KPIManager:
                         op_in_tempo += 1
                 puntualita = round((op_in_tempo / op_totale_completati * 100) if op_totale_completati > 0 else 100)
 
+                # === KPI MENSILI ===
+                CAPACITA_MENSILE_ORE = 160  # 8h * 20 giorni lavorativi
+                month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                week_start = today_start - timedelta(days=today_start.weekday())  # Lunedi
+
+                sessioni_mese = [x for x in op_sessions if x.timestamp_fine >= month_start]
+                ore_mese_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_mese)
+                ore_mese = round(ore_mese_sec / 3600, 1)
+                saturazione_mensile = min(100, round(ore_mese / CAPACITA_MENSILE_ORE * 100))
+
+                # Giorni lavorativi trascorsi nel mese (lun-ven)
+                giorni_lavorativi_passati = sum(
+                    1 for d in range((now - month_start).days + 1)
+                    if (month_start + timedelta(days=d)).weekday() < 5
+                )
+                media_giornaliera_ore = round(ore_mese / max(giorni_lavorativi_passati, 1), 1)
+
+                # Ore settimana corrente
+                sessioni_settimana = [x for x in op_sessions if x.timestamp_fine >= week_start]
+                ore_settimana_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_settimana)
+                ore_settimana = round(ore_settimana_sec / 3600, 1)
+
+                # Ordini completati nel mese
+                ordini_mese = len(set(
+                    s.order_id for s in completed_steps
+                    if s.timestamp_fine and s.timestamp_fine >= month_start
+                ))
+
                 operatori_kpi.append({
                     'id': op.id,
                     'name': op.name,
@@ -2997,7 +3143,14 @@ class KPIManager:
                     'fase_attiva': active_step.fase if active_step else None,
                     'ordine_attivo': active_step.order_id if active_step else None,
                     'saturazione': saturazione,
-                    'puntualita': puntualita
+                    'puntualita': puntualita,
+                    # KPI mensili
+                    'ore_mese': ore_mese,
+                    'ore_settimana': ore_settimana,
+                    'saturazione_mensile': saturazione_mensile,
+                    'media_giornaliera_ore': media_giornaliera_ore,
+                    'ordini_mese': ordini_mese,
+                    'capacita_mensile': CAPACITA_MENSILE_ORE
                 })
 
             # === KPI FASI/MACCHINARI ===

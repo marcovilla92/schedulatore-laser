@@ -49,6 +49,8 @@ class Order(Base):
     parent_order_id = Column(String, ForeignKey('orders.id'), nullable=True)  # ID ordine padre (per lotti)
     lotto_numero = Column(Integer, default=0)  # 0 = ordine normale, 1+ = lotto
     lotto_nome = Column(String, nullable=True)  # Nome personalizzato del lotto (es. "Pezzi grandi")
+    visto_da_operatore = Column(Boolean, default=False)  # True = operatore ha aperto/preso visione dell'ordine
+    data_presa_visione = Column(DateTime, nullable=True)  # Quando l'operatore ha visto l'ordine
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
     processing_steps = relationship('ProcessingStep', back_populates='order', cascade='all, delete-orphan')
     notifications = relationship('OrderNotification', back_populates='order', cascade='all, delete-orphan')
@@ -392,6 +394,20 @@ def initialize_database():
                 if col not in existing_orders:
                     conn.execute(text(f'ALTER TABLE orders ADD COLUMN {col} {col_type}'))
                     logger.info('Aggiunta colonna %s a orders', col)
+            conn.commit()
+
+    # Migrazione: aggiunge visto_da_operatore e data_presa_visione a orders
+    if 'orders' in insp.get_table_names():
+        existing_orders = [c['name'] for c in insp.get_columns('orders')]
+        with engine.connect() as conn:
+            if 'visto_da_operatore' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN visto_da_operatore BOOLEAN DEFAULT 0'))
+                # Segna tutti gli ordini esistenti come già visti (non generare falsi "NUOVO")
+                conn.execute(text('UPDATE orders SET visto_da_operatore = 1'))
+                logger.info('Aggiunta colonna visto_da_operatore a orders (esistenti segnati come visti)')
+            if 'data_presa_visione' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN data_presa_visione DATETIME'))
+                logger.info('Aggiunta colonna data_presa_visione a orders')
             conn.commit()
 
     # Migrazione: ordini COMPLETATO esistenti → DA_FATTURARE

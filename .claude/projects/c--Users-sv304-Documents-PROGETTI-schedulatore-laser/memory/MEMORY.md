@@ -1,0 +1,1 @@
+- [Deploy produzione](project_deploy_production.md) — IP, percorsi, problemi deploy patch v1.1 su PC impiegata

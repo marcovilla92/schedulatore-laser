@@ -1023,83 +1023,136 @@ h1 {
   .main-clienti { padding: 24px; }
 }
 
-/* === TABLET PORTRAIT (1024px) === */
+/* === TABLET (1024px) — layout compatto ottimizzato per touch === */
 @media (max-width: 1024px) {
-  .topbar { padding: 10px 12px; gap: 6px; }
-  .logo-section { gap: 8px; }
-  .logo-icon { width: 32px; height: 32px; }
-  .logo-icon img { width: 32px; height: 32px; }
-  .logo-main { font-size: 14px; }
-  .logo-sub { font-size: 9px; }
+  /* -- Header compatto: topbar + tab bar unificati visivamente -- */
+  .topbar { height: 52px; padding: 0 12px; gap: 6px; }
+  .logo-section { gap: 6px; }
+  .logo-icon { width: 28px; height: 28px; }
+  .logo-icon img { width: 28px; height: 28px; }
+  .logo-main { font-size: 13px; }
+  .logo-sub { font-size: 8px; letter-spacing: 0.5px; }
   .capo-nav { margin-left: 8px; gap: 2px; }
-  .capo-nav-item { padding: 5px 10px; font-size: 11px; }
-  .capo-tab-bar { padding: 0 12px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .capo-nav-item { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+
+  .capo-tab-bar {
+    top: 52px; height: 40px;
+    padding: 0 12px; gap: 4px;
+    overflow-x: auto; scrollbar-width: none;
+    border-bottom: 1px solid var(--border);
+  }
   .capo-tab-bar::-webkit-scrollbar { display: none; }
-  .tab-btn { padding: 6px 10px; font-size: 11px; }
-  .home-btn { padding: 6px 10px; font-size: 11px; }
-  .logout-btn { padding: 6px 10px; font-size: 11px; }
+  .tab-btn { padding: 6px 12px; font-size: 12px; min-height: 32px; border-radius: 8px; }
+  .home-btn { padding: 6px 12px; font-size: 12px; }
+  .logout-btn { padding: 6px 12px; font-size: 12px; }
   .user-pill-info { display: none; }
-  .user-pill { padding: 4px; }
-  .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; margin-top: 124px; height: calc(100vh - 124px); }
+  .user-pill { padding: 3px; }
+  .user-pill-avatar { width: 28px; height: 28px; font-size: 11px; }
+
+  /* -- Main: header totale 92px invece di 124px -- */
+  .main { grid-template-columns: 55fr 45fr; grid-template-rows: 1fr; margin-top: 92px; height: calc(100vh - 92px); }
   .col-orders { grid-row: 1; grid-column: 1; border-right: 1px solid var(--border); overflow-y: auto; }
   .col-pdf { display: none; }
   .col-details { grid-row: 1; grid-column: 2; border-left: none; overflow-y: auto; }
   .btn-show-pdf { display: inline-flex !important; }
-  .main-kpi { margin-top: 124px; height: calc(100vh - 124px); padding: 20px 16px; }
-  .main-clienti { margin-top: 124px; height: calc(100vh - 124px); padding: 20px 16px; }
-  .main-archivio { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 20px 16px !important; }
-  .deleghe-view { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 20px 16px !important; }
+
+  /* -- Titolo e alert compatti -- */
+  h1 { font-size: 15px; padding: 10px 12px 8px; }
+  .alerts-banner { max-height: 80px; }
+  .alert-item { padding: 5px 10px; font-size: 10px; gap: 6px; }
+  .alert-icon { font-size: 12px; }
+
+  /* -- Filtri compatti: tutto su una riga -- */
+  .filters { padding: 8px 10px; gap: 6px; }
+  .filter-row { gap: 4px; }
+  .filter-select { padding: 6px 8px; font-size: 12px; border-radius: 8px; }
+  .filter-search { padding: 6px 8px; font-size: 12px; border-radius: 8px; }
+  .orders-count { padding: 4px 10px; font-size: 10px; }
+
+  /* -- Order card ottimizzate per touch (min 44px tap target) -- */
+  .orders-list { padding: 6px; gap: 4px; }
+  .order-item { padding: 10px; border-radius: 8px; min-height: 44px; border-width: 1.5px; }
+  .order-client { font-size: 13px; }
+  .order-fase-badge { font-size: 10px; padding: 2px 8px; }
+  .order-meta { font-size: 11px; }
+  .order-operator { font-size: 11px; }
+
+  /* -- Dettagli colonna destra -- */
+  .detail-header { padding: 12px 14px; }
+  .detail-header h2 { font-size: 14px; }
+  .detail-content { padding: 12px 14px; }
+  .detail-empty { font-size: 13px; }
+  .section-title { font-size: 10px; margin-bottom: 8px; }
+  .action-btn { min-height: 40px; font-size: 13px; }
+
+  /* -- Tutte le view: margin-top allineato a 92px -- */
+  .main-kpi { margin-top: 92px; height: calc(100vh - 92px); padding: 16px; }
+  .main-clienti { margin-top: 92px; height: calc(100vh - 92px); padding: 16px; }
+  .main-archivio { margin-top: 92px !important; height: calc(100vh - 92px) !important; padding: 16px !important; }
+  .deleghe-view { margin-top: 92px !important; height: calc(100vh - 92px) !important; padding: 16px !important; }
+
   .kpi-summary { grid-template-columns: repeat(2, 1fr); }
   .kpi-phases { grid-template-columns: repeat(2, 1fr); }
   .kpi-card-value { font-size: 24px; }
   .kpi-card-label { font-size: 12px; }
   .kpi-phase-card { padding: 14px; }
   .kpi-phase-name { font-size: 14px; }
-  .tab-bar { padding: 0 16px; }
-  .tab-item { padding: 12px 16px; font-size: 13px; }
+  .tab-bar { padding: 0 12px; }
+  .tab-item { padding: 10px 14px; font-size: 13px; }
   .form-row { flex-direction: column; }
   .form-card { width: 95vw; }
-  .deleghe-table { font-size: 12px; }
-  .deleghe-table th, .deleghe-table td { padding: 10px 10px; font-size: 12px; }
-  .operai-table th, .operai-table td { padding: 10px 10px; font-size: 13px; }
-  .deleghe-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .deleghe-table { font-size: 12px; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .deleghe-table th, .deleghe-table td { padding: 8px 8px; font-size: 12px; }
+  .deleghe-title { font-size: 18px; margin-bottom: 16px; }
+  .operai-table th, .operai-table td { padding: 8px 8px; font-size: 12px; }
   .operai-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   #notif-panel-capo { width: calc(100vw - 24px) !important; max-width: 360px !important; }
 }
 
 /* === MOBILE / SMALL TABLET (768px) === */
 @media (max-width: 768px) {
-  .topbar { padding: 8px 10px; gap: 4px; }
-  .logo-icon { width: 28px; height: 28px; }
-  .logo-icon img { width: 28px; height: 28px; }
-  .logo-main { font-size: 13px; }
-  .capo-nav-item { padding: 4px 8px; font-size: 10px; }
-  .capo-tab-bar { padding: 0 10px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .topbar { height: 48px; padding: 0 10px; gap: 4px; }
+  .logo-icon { width: 24px; height: 24px; }
+  .logo-icon img { width: 24px; height: 24px; }
+  .logo-main { font-size: 12px; }
+  .logo-sub { display: none; }
+  .capo-nav-item { padding: 5px 8px; font-size: 11px; }
+  .capo-tab-bar { top: 48px; height: 38px; padding: 0 8px; gap: 3px; overflow-x: auto; scrollbar-width: none; }
   .capo-tab-bar::-webkit-scrollbar { display: none; }
-  .tab-btn { padding: 6px 10px; font-size: 11px; }
-  .home-btn { padding: 5px 8px; font-size: 10px; }
-  .logout-btn { padding: 5px 8px; font-size: 10px; }
+  .tab-btn { padding: 5px 8px; font-size: 11px; }
+  .home-btn { padding: 5px 8px; font-size: 11px; }
+  .logout-btn { padding: 5px 8px; font-size: 11px; }
   .user-pill-info { display: none; }
-  .user-pill { padding: 4px; }
-  .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; margin-top: 124px; height: calc(100vh - 124px); }
+  .user-pill { padding: 3px; }
+  .user-pill-avatar { width: 26px; height: 26px; font-size: 10px; }
+  .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; margin-top: 86px; height: calc(100vh - 86px); }
   .col-orders { grid-row: 1; grid-column: 1; max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
   .col-details { grid-row: 2; grid-column: 1; border-left: none; border-top: 1px solid var(--border); max-height: 50vh; overflow-y: auto; }
   .col-pdf { display: none; }
   .btn-show-pdf { display: inline-flex !important; }
-  .main-kpi { margin-top: 124px; height: calc(100vh - 124px); padding: 12px; }
-  .main-clienti { margin-top: 124px; height: calc(100vh - 124px); padding: 12px; }
-  .main-archivio { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 12px !important; }
-  .deleghe-view { margin-top: 124px !important; height: calc(100vh - 124px) !important; padding: 12px !important; }
-  .detail-content { padding: 12px 14px; }
+  .main-kpi { margin-top: 86px; height: calc(100vh - 86px); padding: 10px; }
+  .main-clienti { margin-top: 86px; height: calc(100vh - 86px); padding: 10px; }
+  .main-archivio { margin-top: 86px !important; height: calc(100vh - 86px) !important; padding: 10px !important; }
+  .deleghe-view { margin-top: 86px !important; height: calc(100vh - 86px) !important; padding: 10px !important; }
+  .detail-content { padding: 10px 12px; }
   .action-row { flex-direction: column; }
   .action-select { width: 100%; }
-  .kpi-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .kpi-phases { grid-template-columns: 1fr; gap: 10px; }
+  .kpi-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi-phases { grid-template-columns: 1fr; gap: 8px; }
   .kpi-card-value { font-size: 20px; }
-  .deleghe-table th, .deleghe-table td { padding: 8px 6px; font-size: 11px; }
-  .operai-table th, .operai-table td { padding: 8px 6px; font-size: 11px; }
+  .deleghe-table th, .deleghe-table td { padding: 6px 5px; font-size: 11px; }
+  .operai-table th, .operai-table td { padding: 6px 5px; font-size: 11px; }
   .deleg-btn { padding: 8px 12px; font-size: 12px; }
   #notif-panel-capo { width: calc(100vw - 16px) !important; max-width: 340px !important; }
+  h1 { font-size: 14px; padding: 8px 10px 6px; }
+  .alerts-banner { max-height: 60px; }
+  .alert-item { padding: 4px 8px; font-size: 10px; }
+  .filters { padding: 6px 8px; gap: 4px; }
+  .filter-select { padding: 5px 6px; font-size: 11px; }
+  .filter-search { padding: 5px 6px; font-size: 11px; }
+  .orders-count { padding: 3px 8px; font-size: 10px; }
+  .orders-list { padding: 4px; gap: 3px; }
+  .order-item { padding: 8px; }
 }
 
 /* === CAPO NAV MENU === */
@@ -2419,12 +2472,15 @@ async function selectOrder(orderId) {
 }
 
 // === RENDER PDF VIEWER ===
+let _currentPdfUrl = null;
+
 function renderPdfViewer(order) {
+  _currentPdfUrl = `${API_URL}/api/orders/${order.id}/pdf`;
   const col = document.getElementById('col-pdf');
   col.innerHTML = `
     <div class="pdf-header">PDF Ordine &mdash; ${escapeHtml(order.cliente)}</div>
     <div class="pdf-viewer">
-      <iframe src="${API_URL}/api/orders/${order.id}/pdf"></iframe>
+      <iframe src="${_currentPdfUrl}"></iframe>
     </div>
   `;
 }
@@ -3111,9 +3167,40 @@ function renderKPIOperators(ops) {
           <div class="kpi-op-stat-label">Lavorato oggi</div>
         </div>
       </div>
+      <!-- KPI Mensili -->
+      <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px;">Mese corrente</div>
+        <div class="kpi-op-stats">
+          <div class="kpi-op-stat">
+            <div class="kpi-op-stat-val">${op.ore_mese != null ? op.ore_mese + 'h' : 'N/A'}</div>
+            <div class="kpi-op-stat-label">Ore mese / ${op.capacita_mensile || 160}h</div>
+          </div>
+          <div class="kpi-op-stat">
+            <div class="kpi-op-stat-val">${op.ore_settimana != null ? op.ore_settimana + 'h' : 'N/A'}</div>
+            <div class="kpi-op-stat-label">Ore settimana</div>
+          </div>
+          <div class="kpi-op-stat">
+            <div class="kpi-op-stat-val">${op.media_giornaliera_ore != null ? op.media_giornaliera_ore + 'h' : 'N/A'}</div>
+            <div class="kpi-op-stat-label">Media / giorno</div>
+          </div>
+          <div class="kpi-op-stat">
+            <div class="kpi-op-stat-val">${op.ordini_mese != null ? op.ordini_mese : 'N/A'}</div>
+            <div class="kpi-op-stat-label">Ordini mese</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 8px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+          <span style="color: var(--text-secondary);">Saturazione mese (${op.ore_mese || 0}h / ${op.capacita_mensile || 160}h)</span>
+          <span style="font-weight: 700; color: ${(() => { const sm = op.saturazione_mensile || 0; return sm >= 60 ? '#22c55e' : sm >= 30 ? '#f59e0b' : '#94a3b8'; })()};">${op.saturazione_mensile || 0}%</span>
+        </div>
+        <div class="kpi-op-bar-bg">
+          <div class="kpi-op-bar-fill" style="width: ${op.saturazione_mensile || 0}%; background: ${(() => { const sm = op.saturazione_mensile || 0; return sm >= 60 ? '#22c55e' : sm >= 30 ? '#f59e0b' : '#94a3b8'; })()};"></div>
+        </div>
+      </div>
       <div style="margin-bottom: 6px;">
         <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-          <span style="color: var(--text-secondary);">Saturazione turno</span>
+          <span style="color: var(--text-secondary);">Saturazione turno oggi</span>
           <span style="font-weight: 700; color: ${satColor};">${op.saturazione}%</span>
         </div>
         <div class="kpi-op-bar-bg">
@@ -3989,11 +4076,11 @@ async function loadAuditLog() {
 
 // === PDF OVERLAY (tablet) ===
 function openPdfOverlay() {
-  const iframe = document.querySelector('.col-pdf .pdf-viewer iframe');
   const overlay = document.getElementById('pdf-overlay');
   const overlayIframe = document.getElementById('pdf-overlay-iframe');
-  if (iframe && iframe.src && iframe.src !== 'about:blank') {
-    overlayIframe.src = iframe.src;
+  // Usa l'URL salvato direttamente (funziona anche quando .col-pdf e' nascosta su tablet)
+  if (_currentPdfUrl) {
+    overlayIframe.src = _currentPdfUrl;
     overlay.classList.add('active');
   }
 }

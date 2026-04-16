@@ -16,7 +16,7 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
 
     // IP del PC server sulla rete LAN officina
-    private static final String SERVER_URL = "http://192.168.1.241:5000";
+    private static final String SERVER_URL = "http://192.168.1.241:5000";  // IP statico server LAN
 
     private WebView webView;
 
