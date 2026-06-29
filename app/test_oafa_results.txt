@@ -1,7 +1,0 @@
-📋 OAFA202600125 TEST RESULTS
-======================================================================
-
-⏳ Attendo che il server sia pronto...
-📁 File trovato: uploads/pdfs/OAFA202600125.pdf
-📤 Invio PDF al server...
-❌ Errore di connessione: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/extract-pdf-data (Caused by NewConnectionError("HTTPConnection(host='localhost', port=5000): Failed to establish a new connection: [WinError 10061] Impossibile stabilire la connessione. Rifiuto persistente del computer di destinazione"))

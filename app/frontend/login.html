@@ -1461,29 +1461,28 @@ async function loginUser(userId) {
     currentUser = { id: userId, ...userData };
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
-    // Redirect impiegata alla pagina dedicata PRIMA di mostrare la dashboard
+    // Redirect impiegata alla sua pagina
     if (currentUser.role === 'Impiegata') {
       window.location.href = '/impiegata.html';
       return;
     }
 
-    // Redirect operatore laser alla pagina laser
-    if (currentUser.phase === 'LASER' && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
-      window.location.href = '/laser-v2.html';
+    // Capi officina / Amministratore → Pannello Capo (KPI, ordini, calendario, pistole)
+    if (currentUser.is_capo || currentUser.role === 'Capo Officina' || currentUser.role === 'Amministratore') {
+      window.location.href = '/capo-officina.html';
       return;
     }
 
-    // Redirect operatori officina alla pagina officina
-    if (['OFFICINA', 'PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
-      window.location.href = '/officina.html';
+    // Operaio Laser → pagina laser dedicata (marca "taglio fatto")
+    if (currentUser.role === 'Operaio Laser') {
+      window.location.href = '/laser.html';
       return;
     }
 
-    // Redirect capo officina alla vista operativa (con nav verso gestione)
-    if (currentUser.role === 'Capo Officina' || (currentUser.is_capo && currentUser.role !== 'Amministratore')) {
-      window.location.href = '/officina.html';
-      return;
-    }
+    // Operai officina (PIEGA/SALDATURA/PULIZIA): non hanno più UI
+    // — lavorano con la pistola WiFi. Pagina informativa.
+    window.location.href = '/operaio-info.html';
+    return;
 
     // Hide login, show dashboard
     document.getElementById('loginPage').style.display = 'none';
@@ -1571,7 +1570,7 @@ async function updatePermissions() {
     }
     // Bottone "Dashboard Capo" per capo officina/admin
     if (currentUser.is_capo || currentUser.role === 'Capo Officina' || currentUser.role === 'Amministratore') {
-      supervisionContent += `<a href="/approva-ordine.html" style="display: inline-block; margin-top: 24px; margin-left: 12px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">Dashboard Capo Officina</a>`;
+      supervisionContent += `<a href="/capo-officina.html" style="display: inline-block; margin-top: 24px; margin-left: 12px; padding: 12px 24px; background: var(--ls-green); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">Pannello Capo</a>`;
     }
     document.getElementById('supervisioneContent').innerHTML = supervisionContent;
   } else {
@@ -2135,27 +2134,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       const userData = JSON.parse(saved);
       currentUser = userData;
 
-      // Redirect to the correct page based on role/phase
+      // Redirect to the correct page based on role
       if (currentUser.role === 'Impiegata') {
         window.location.href = '/impiegata.html';
-        return;
-      }
-      if (currentUser.phase === 'LASER' && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
-        window.location.href = '/laser-v2.html';
-        return;
-      }
-      if (['OFFICINA', 'PIEGA', 'SALDATURA', 'PULIZIA'].includes(currentUser.phase) && currentUser.role !== 'Capo Officina' && currentUser.role !== 'Amministratore') {
-        window.location.href = '/officina.html';
-        return;
-      }
-      if (currentUser.role === 'Capo Officina' || (currentUser.is_capo && currentUser.role !== 'Amministratore')) {
-        window.location.href = '/officina.html';
         return;
       }
       if (currentUser.role === 'Amministratore') {
         window.location.href = '/admin.html';
         return;
       }
+      if (currentUser.is_capo || currentUser.role === 'Capo Officina') {
+        window.location.href = '/capo-officina.html';
+        return;
+      }
+      if (currentUser.role === 'Operaio Laser') {
+        window.location.href = '/laser.html';
+        return;
+      }
+      // Operai officina: pagina informativa (lavorano con pistola WiFi)
+      window.location.href = '/operaio-info.html';
+      return;
 
       // Fallback: show built-in dashboard
       document.getElementById('loginPage').style.display = 'none';

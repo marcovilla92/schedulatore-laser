@@ -40,6 +40,9 @@ from backend.models import initialize_database
 BACKUP_INTERVALLO = int(os.environ.get('BACKUP_INTERVALLO_SECONDI', 3600))
 # Intervallo export JSON in secondi (default: 24 ore)
 EXPORT_INTERVALLO = int(os.environ.get('EXPORT_INTERVALLO_SECONDI', 86400))
+# Orario fine turno (HH:MM) — chiusura automatica scan officina rimaste aperte
+# Default 17:30 = orario di fine turno aziendale. Configurabile via env var.
+FINE_TURNO_HHMM = os.environ.get('FINE_TURNO_HHMM', '17:30')
 
 
 def _loop_backup():
@@ -64,6 +67,41 @@ def _loop_export_json():
         except Exception as e:
             logger.error(f'Errore nel thread export JSON: {e}')
         time.sleep(EXPORT_INTERVALLO)
+
+
+def _loop_fine_turno():
+    """Thread daemon: ogni minuto controlla se è l'ora di fine turno.
+    Orario letto dinamicamente da app_config.json (chiave `fine_turno_hhmm`, default 17:30),
+    con fallback su env var FINE_TURNO_HHMM. La modifica via admin diventa effettiva al
+    prossimo controllo (entro 30s) senza riavviare il server.
+    """
+    import datetime as _dt
+    from backend.database import BarcodeManager
+
+    def _get_target_hhmm():
+        try:
+            cfg = BarcodeManager.load_config()
+            v = (cfg.get('fine_turno_hhmm') or FINE_TURNO_HHMM).strip()
+            hh, mm = (int(x) for x in v.split(':'))
+            if 0 <= hh <= 23 and 0 <= mm <= 59:
+                return hh, mm
+        except Exception:
+            pass
+        return 17, 30
+
+    logger.info('Cron fine turno attivo (orario letto da app_config.json)')
+    last_run_date = None
+    while True:
+        try:
+            hh, mm = _get_target_hhmm()
+            now = _dt.datetime.now()
+            if now.hour == hh and now.minute == mm and last_run_date != now.date():
+                n = BarcodeManager.close_residual_scans(motivo='fine_turno')
+                logger.info(f'Cron fine turno {hh:02d}:{mm:02d}: chiuse {n} scan rimaste aperte')
+                last_run_date = now.date()
+        except Exception as e:
+            logger.error(f'Errore nel thread fine turno: {e}')
+        time.sleep(30)
 
 
 def _esegui_export_json():
@@ -105,6 +143,10 @@ if __name__ == '__main__':
     t_export = threading.Thread(target=_loop_export_json, daemon=True, name='export-scheduler')
     t_export.start()
     logger.info(f'Thread export JSON schedulato ogni {EXPORT_INTERVALLO//3600} ore')
+
+    # Avvia thread chiusura scan a fine turno
+    t_eot = threading.Thread(target=_loop_fine_turno, daemon=True, name='eot-scheduler')
+    t_eot.start()
 
     # Beta: debug=False per stabilità
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'

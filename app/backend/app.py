@@ -1,5 +1,5 @@
 """Flask Backend per Schedulatore Laser"""
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, redirect
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
@@ -10,8 +10,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Importa moduli locali
-from .models import initialize_database, Order, OrderFile, get_session, SupportRequest as SRModel
-from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, OperatorClientManager, AlertManager, KPIManager, DelegationManager, SupportManager
+from .models import initialize_database, Order, OrderFile, get_session
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, AlertManager, KPIManager, BarcodeManager
+from .pdf_cartellino import genera_cartellino_pdf
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
@@ -65,9 +66,20 @@ def download_cert():
                         mimetype='application/x-x509-ca-cert')
     return jsonify({'error': 'Certificato non trovato'}), 404
 
+# Pagine legacy rimosse — redirect verso le nuove
+_LEGACY_REDIRECTS = {
+    'officina.html': '/capo-officina.html',
+    'laser-v2.html': '/capo-officina.html',
+    'approva-ordine.html': '/capo-officina.html',
+    'dettaglio-ordine.html': '/capo-officina.html',
+}
+
+
 @app.route('/<path:filename>')
 def serve_frontend(filename):
-    """Serve frontend files"""
+    """Serve frontend files. Redirect su pagine legacy demolite."""
+    if filename in _LEGACY_REDIRECTS:
+        return redirect(_LEGACY_REDIRECTS[filename], code=302)
     return send_from_directory(FRONTEND_FOLDER, filename)
 
 # ============ API AUTH ============
@@ -251,7 +263,6 @@ def create_order():
         order = OrderManager.create_order(
             cliente=cliente,
             data_consegna=data_consegna,
-            destinazione=data.get('destinazione', 'LASER'),
             numero_ordine=numero_ordine,
             note=data.get('note', '')
         )
@@ -278,27 +289,27 @@ def create_order():
         finally:
             session.close()
 
-        # Notifica solo al gestore del cliente (operatore assegnato)
-        destinazione = data.get('destinazione', 'LASER')
+        # Notifica a tutti i capi officina ("Nuovo ordine")
         numero_display = order.numero_ordine or order.id[:8]
-        op_id = OperatorClientManager.find_operator_for_client(order.cliente)
-        if op_id:
-            NotificationManager.create_notification(
-                user_id=op_id,
-                order_id=order.id,
-                title='Nuovo ordine',
-                message=f'Ordine #{numero_display} ({order.cliente}) inviato a {destinazione}',
-                notification_type='order',
-                notification_category='informativa'
-            )
+        try:
+            for u in UserManager.get_all_users() or []:
+                if u.get('is_capo') and u.get('is_active', True):
+                    NotificationManager.create_notification(
+                        user_id=u['id'],
+                        order_id=order.id,
+                        title='Nuovo ordine',
+                        message=f'Ordine #{numero_display} ({order.cliente})',
+                        notification_type='order',
+                        notification_category='informativa'
+                    )
+        except Exception as exc:
+            logger.warning('notifica nuovo ordine ai capi fallita: %s', exc)
 
         return jsonify({
             'success': True,
             'order_id': order.id,
             'cliente': order.cliente,
             'data_consegna': order.data_consegna.isoformat(),
-            'fase_corrente': order.fase_corrente,
-            'operatore_assegnato': order.operatore_assegnato
         }), 201
 
     except Exception as e:
@@ -364,6 +375,131 @@ def delete_order(order_id):
         finally:
             session.close()
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/orders/<order_id>/mark-laser-done', methods=['POST'])
+def mark_laser_done(order_id):
+    """Marca il taglio laser come completato — chiama il LASER (Mirko).
+    Da questo momento gli operai officina possono scansionare il cartellino.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = (data.get('user_id') or '').strip()
+        if not user_id:
+            return jsonify({'error': 'user_id obbligatorio'}), 400
+        user = UserManager.get_user(user_id)
+        if not user:
+            return jsonify({'error': 'utente non trovato'}), 403
+        # Solo ruolo Laser (o capo) può marcare il taglio completato
+        is_laser = (user.get('role') == 'Operaio Laser') or user.get('is_capo')
+        if not is_laser:
+            return jsonify({'error': 'Solo operatore Laser o capo può marcare il taglio'}), 403
+        result = OrderManager.mark_laser_done(order_id, user_id=user_id)
+        return jsonify(result), (200 if result.get('success') else 400)
+    except Exception as e:
+        logger.exception('mark_laser_done endpoint failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/orders/<order_id>/mark-laser-undone', methods=['POST'])
+def mark_laser_undone(order_id):
+    """Rollback marcatura taglio completato (errore, va re-tagliato)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = (data.get('user_id') or '').strip()
+        if not user_id:
+            return jsonify({'error': 'user_id obbligatorio'}), 400
+        user = UserManager.get_user(user_id)
+        if not user:
+            return jsonify({'error': 'utente non trovato'}), 403
+        is_laser = (user.get('role') == 'Operaio Laser') or user.get('is_capo')
+        if not is_laser:
+            return jsonify({'error': 'Solo operatore Laser o capo può annullare il taglio'}), 403
+        result = OrderManager.mark_laser_undone(order_id, user_id=user_id)
+        return jsonify(result), (200 if result.get('success') else 400)
+    except Exception as e:
+        logger.exception('mark_laser_undone endpoint failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/orders/<order_id>/close', methods=['POST'])
+def close_order(order_id):
+    """Marca un ordine come 'lavoro finito' → status=DA_FATTURARE.
+
+    Permesso: capi officina E impiegata (Elena fa da backup quando i capi
+    si dimenticano o accumulano).
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = (data.get('user_id') or '').strip()
+        if not user_id:
+            return jsonify({'error': 'user_id obbligatorio'}), 400
+        user = UserManager.get_user(user_id)
+        if not user:
+            return jsonify({'error': 'utente non trovato'}), 403
+        is_allowed = user.get('is_capo') or (user.get('role') in ('Impiegata', 'Capo Officina', 'Amministratore'))
+        if not is_allowed:
+            return jsonify({'error': 'Permesso negato'}), 403
+        result = OrderManager.close_order(order_id, user_id=user_id)
+        return jsonify(result), (200 if result.get('success') else 400)
+    except Exception as e:
+        logger.exception('close_order endpoint failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/orders/sospetti-finiti', methods=['GET'])
+def api_ordini_sospetti_finiti():
+    """Ordini che probabilmente sono finiti ma nessuno li ha chiusi.
+
+    Usato da Elena (sezione dedicata) e dal Pannello Capo (badge rosso).
+    Soglie configurabili via /api/admin/config.
+    """
+    try:
+        items = BarcodeManager.get_ordini_sospetti_finiti()
+        return jsonify({
+            'success': True,
+            'count': len(items),
+            'orders': items,
+            'config': BarcodeManager.load_config(),
+        }), 200
+    except Exception as e:
+        logger.exception('sospetti-finiti endpoint failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/config', methods=['GET'])
+def api_admin_config_get():
+    """Config app (soglie sospetto, ecc.). Lettura aperta."""
+    try:
+        return jsonify({'success': True, 'config': BarcodeManager.load_config()}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/config', methods=['PUT'])
+def api_admin_config_update():
+    """Modifica config app (solo capi/admin)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = (data.get('admin_id') or '').strip()
+        if not _require_capo(user_id):
+            return jsonify({'error': 'Permesso negato'}), 403
+        updates = {k: v for k, v in data.items() if k != 'admin_id'}
+        new_cfg = BarcodeManager.save_config(updates)
+        if 'error' in new_cfg:
+            return jsonify({'success': False, 'error': new_cfg['error']}), 500
+        try:
+            AuditManager.log(
+                user_id=user_id, action='UPDATE_CONFIG',
+                entity_type='config', entity_id='app_config',
+                detail=str(updates),
+            )
+        except Exception:
+            pass
+        return jsonify({'success': True, 'config': new_cfg}), 200
+    except Exception as e:
+        logger.exception('config update failed')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/orders/<order_id>/replace-pdf', methods=['POST'])
@@ -501,515 +637,6 @@ def get_orders():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ============ API FASI ============
-
-@app.route('/api/orders/<order_id>/phase/<phase>/start', methods=['POST'])
-def start_phase(order_id, phase):
-    """Inizia una fase di lavorazione"""
-    try:
-        data = request.get_json() or {}
-        operatore = data.get('operatore', '')
-        operatore_id = data.get('operatore_id')
-
-        # Se operatore_id è fornito ma operatore non lo è, recupera il nome dal database
-        if operatore_id and not operatore:
-            user = UserManager.get_user(operatore_id)
-            if user:
-                operatore = user.get('name', operatore_id)
-
-        success = OrderManager.start_phase(order_id, phase, operatore)
-        if success:
-            # Registra azione nel audit log
-            if operatore_id:
-                operatore_user = UserManager.get_user(operatore_id)
-                operatore_name = operatore_user.get('name') if operatore_user else operatore_id
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=operatore_name,
-                    action='START_PHASE',
-                    entity_type='phase',
-                    entity_id=order_id,
-                    detail=f"Phase: {phase}",
-                    ip_address=request.remote_addr
-                )
-
-            return jsonify({'success': True, 'phase': phase}), 200
-        return jsonify({'success': False, 'error': 'Fase non trovata o già iniziata'}), 404
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/orders/<order_id>/phase/<phase>/complete', methods=['POST'])
-def complete_phase(order_id, phase):
-    """Completa una fase con routing dinamico"""
-    try:
-        data = request.get_json() or {}
-        note = data.get('note', '')
-        fase_successiva = data.get('fase_successiva')
-        completamento_parziale = data.get('completamento_parziale', False)
-        operatore_id = data.get('operatore_id')
-
-        # Whitelist fase_successiva
-        _VALID_PHASES = {'LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO'}
-        if fase_successiva and fase_successiva not in _VALID_PHASES:
-            return jsonify({'success': False, 'error': f"fase_successiva '{fase_successiva}' non valida"}), 400
-
-        operatore_name = ''
-        if operatore_id:
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
-
-        result = OrderManager.complete_phase(
-            order_id, phase,
-            fase_successiva=fase_successiva,
-            completamento_parziale=completamento_parziale,
-            note=note,
-            operatore=operatore_name
-        )
-
-        if result.get('success'):
-            if operatore_id:
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=operatore_name,
-                    action='COMPLETE_PHASE',
-                    entity_type='phase',
-                    entity_id=order_id,
-                    detail=f"Phase: {phase} -> {fase_successiva}",
-                    ip_address=request.remote_addr
-                )
-
-            # Se parziale (paused), ritorna direttamente senza notifiche
-            if result.get('paused'):
-                return jsonify(result), 200
-
-            # Usa fase_successiva dal result (auto-routing nel DB la calcola se mancante)
-            fase_successiva = result.get('fase_successiva', fase_successiva)
-            details = OrderManager.get_order_details(order_id)
-            cliente = details.get('cliente', '')
-            numero_display = details.get('numero_ordine', order_id[:8])
-
-            # Trova gestore del cliente
-            op_id = details.get('operatore_assegnato')
-            if not op_id:
-                op_id = OperatorClientManager.find_operator_for_client(cliente)
-
-            # Notifica ordine completato definitivamente
-            if result.get('all_completed'):
-                # Notifica impiegata + gestore cliente
-                notif_targets = set(['elena-impiegata'])
-                if op_id:
-                    notif_targets.add(op_id)
-                for uid in notif_targets:
-                    NotificationManager.create_notification(
-                        user_id=uid,
-                        order_id=order_id,
-                        title='Ordine completato',
-                        message=f'Ordine #{numero_display} ({cliente}) - completato',
-                        notification_type='completion',
-                        notification_category='attiva'
-                    )
-
-            # Notifica attiva all'operatore assegnato quando fase completata
-            if fase_successiva and fase_successiva not in ('COMPLETATO', 'LASER'):
-                if op_id:
-                    NotificationManager.create_notification(
-                        user_id=op_id,
-                        order_id=order_id,
-                        title='Ordine pronto',
-                        message=f'Ordine #{numero_display} ({cliente}): {phase} completata → {fase_successiva}',
-                        notification_type='phase_ready',
-                        notification_category='attiva'
-                    )
-
-            return jsonify({
-                'success': True,
-                'phase': phase,
-                'fase_successiva': fase_successiva,
-                'order_details': details,
-                'operatori_tempi': result.get('operatori_tempi', [])
-            }), 200
-
-        return jsonify(result), 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/phase/<phase>/save-partial', methods=['POST'])
-def save_partial(order_id, phase):
-    """Salva parziale: chiude la sessione corrente, mantiene la fase aperta"""
-    try:
-        data = request.get_json() or {}
-        note = data.get('note', '')
-        operatore_id = data.get('operatore_id')
-
-        operatore_name = ''
-        if operatore_id:
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
-
-        result = OrderManager.save_partial(order_id, phase, note=note, operatore=operatore_name)
-
-        if result.get('success'):
-            if operatore_id:
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=operatore_name,
-                    action='SAVE_PARTIAL',
-                    entity_type='phase',
-                    entity_id=order_id,
-                    detail=f"Phase: {phase}, Sessions: {result.get('sessioni_count')}",
-                    ip_address=request.remote_addr
-                )
-            return jsonify(result), 200
-        return jsonify(result), 400
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/complete-order', methods=['POST'])
-def complete_order_early(order_id):
-    """Completa un ordine anticipatamente dalla fase corrente"""
-    try:
-        data = request.get_json() or {}
-        note = data.get('note', '')
-        operatore_id = data.get('operatore_id')
-
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-
-        user = UserManager.get_user(operatore_id)
-        operatore_name = user.get('name', operatore_id) if user else operatore_id
-
-        # Determina fase corrente
-        order = OrderManager.get_order(order_id)
-        if not order:
-            return jsonify({'success': False, 'error': 'Ordine non trovato'}), 404
-        current_phase = order.fase_corrente
-
-        # Solo operatore principale o capo può chiudere l'ordine
-        is_capo = user.get('is_capo', False) if user else False
-        if not is_capo:
-            sr_session = get_session()
-            try:
-                is_support = sr_session.query(SRModel).filter(
-                    SRModel.order_id == order_id,
-                    SRModel.operatore_supporto == operatore_id,
-                    SRModel.stato == 'accepted'
-                ).first()
-                if is_support:
-                    return jsonify({'success': False, 'error': "Solo l'operatore principale può chiudere l'ordine"}), 403
-            finally:
-                sr_session.close()
-
-        result = OrderManager.complete_order(order_id, current_phase, note=note, operatore=operatore_name)
-
-        if result.get('success'):
-            AuditManager.log(
-                user_id=operatore_id,
-                user_name=operatore_name,
-                action='COMPLETE_ORDER',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f"Ordine completato anticipatamente da fase {current_phase}",
-                ip_address=request.remote_addr
-            )
-
-            # Notifiche completamento ordine — solo impiegata + gestore cliente
-            details = OrderManager.get_order_details(order_id)
-            cliente = details.get('cliente', '')
-            numero_display = details.get('numero_ordine', order_id[:8])
-
-            notif_targets = set(['elena-impiegata'])
-            op_id = details.get('operatore_assegnato')
-            if not op_id:
-                op_id = OperatorClientManager.find_operator_for_client(cliente)
-            if op_id:
-                notif_targets.add(op_id)
-            for uid in notif_targets:
-                NotificationManager.create_notification(
-                    user_id=uid,
-                    order_id=order_id,
-                    title='Ordine completato',
-                    message=f'Ordine #{numero_display} ({cliente}) - completato',
-                    notification_type='completion',
-                    notification_category='attiva'
-                )
-
-            return jsonify(result), 200
-        return jsonify(result), 400
-
-    except Exception as e:
-        logger.error(f"Phase operation error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/split', methods=['POST'])
-def split_order(order_id):
-    """Divide un ordine in lotti — crea un nuovo lotto che avanza alla fase successiva"""
-    try:
-        data = request.get_json() or {}
-        operatore_id = data.get('operatore_id')
-
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-
-        lotto_nome = data.get('lotto_nome', '').strip() or None
-        result = OrderManager.split_order(order_id, operatore_id, lotto_nome=lotto_nome)
-
-        if result.get('success'):
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
-            AuditManager.log(
-                user_id=operatore_id,
-                user_name=operatore_name,
-                action='SPLIT_ORDER',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f"Ordine diviso — creato lotto L{result['new_lotto_numero']}",
-                ip_address=request.remote_addr
-            )
-            return jsonify(result), 200
-        return jsonify(result), 400
-
-    except Exception as e:
-        logger.error(f"Split order error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/confirm-lotti-completion', methods=['POST'])
-def confirm_lotti_completion(order_id):
-    """Conferma completamento ordine con lotti — richiede tutti i lotti COMPLETATO"""
-    try:
-        data = request.get_json() or {}
-        operatore_id = data.get('operatore_id')
-
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-
-        result = OrderManager.confirm_lotti_completion(order_id, operatore_id)
-
-        if result.get('success'):
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
-            details = OrderManager.get_order_details(order_id)
-            cliente = details.get('cliente', '')
-            numero_display = details.get('numero_ordine', order_id[:8])
-
-            AuditManager.log(
-                user_id=operatore_id,
-                user_name=operatore_name,
-                action='CONFIRM_LOTTI_COMPLETION',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f"Completamento ordine con lotti confermato",
-                ip_address=request.remote_addr
-            )
-
-            # Notifiche
-            notif_targets = set(['elena-impiegata'])
-            op_id = details.get('operatore_assegnato')
-            if op_id:
-                notif_targets.add(op_id)
-            for uid in notif_targets:
-                NotificationManager.create_notification(
-                    user_id=uid,
-                    order_id=order_id,
-                    title='Ordine completato (tutti i lotti)',
-                    message=f'Ordine #{numero_display} ({cliente}) — tutti i lotti completati',
-                    notification_type='completion',
-                    notification_category='attiva'
-                )
-
-            return jsonify(result), 200
-        return jsonify(result), 400
-
-    except Exception as e:
-        logger.error(f"Confirm lotti completion error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/phase/<phase>/orders', methods=['GET'])
-def get_orders_by_phase(phase):
-    """Recupera ordini per fase corrente"""
-    try:
-        operatore_id = request.args.get('operatore')
-        orders = OrderManager.get_orders_by_phase(phase, operatore_id)
-
-        result = []
-        existing_ids = set()
-        for order in orders:
-            details = OrderManager.get_order_details(order.id)
-            result.append(details)
-            existing_ids.add(order.id)
-
-        # Includi ordini in supporto per l'operatore
-        if operatore_id:
-            supported_ids = SupportManager.get_supported_order_ids(operatore_id)
-            for sid in supported_ids:
-                if sid not in existing_ids:
-                    details = OrderManager.get_order_details(sid)
-                    if details and not details.get('error') and details.get('fase_corrente') == phase:
-                        result.append(details)
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# ============ API NUOVE: WORKFLOW DINAMICO ============
-
-@app.route('/api/orders/<order_id>/complete-laser', methods=['POST'])
-def complete_laser(order_id):
-    """Operatore laser: segna taglio completato"""
-    try:
-        data = request.get_json() or {}
-        operatore_id = data.get('operatore_id')
-
-        operatore_name = ''
-        if operatore_id:
-            user = UserManager.get_user(operatore_id)
-            operatore_name = user.get('name', operatore_id) if user else operatore_id
-
-        result = OrderManager.complete_laser(order_id, operatore_name)
-        if result.get('success'):
-            if operatore_id:
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=operatore_name,
-                    action='COMPLETE_LASER',
-                    entity_type='phase',
-                    entity_id=order_id,
-                    detail='Taglio laser completato'
-                )
-            return jsonify(result), 200
-        return jsonify(result), 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/send-to-laser', methods=['POST'])
-def send_to_laser(order_id):
-    """Operatore officina rimanda ordine al laser"""
-    try:
-        data = request.get_json() or {}
-        operatore_id = data.get('operatore_id')
-
-        result = OrderManager.send_to_laser(order_id, operatore_id or '')
-        if result.get('success'):
-            if operatore_id:
-                user = UserManager.get_user(operatore_id)
-                AuditManager.log(
-                    user_id=operatore_id,
-                    user_name=user.get('name') if user else operatore_id,
-                    action='SEND_TO_LASER',
-                    entity_type='order',
-                    entity_id=order_id
-                )
-            return jsonify(result), 200
-        return jsonify(result), 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/reassign', methods=['POST'])
-def reassign_order(order_id):
-    """Capo officina: riassegna ordine a un altro operatore"""
-    try:
-        data = request.get_json() or {}
-        new_operator_id = data.get('new_operator_id')
-        capo_id = data.get('capo_id')
-
-        if not new_operator_id:
-            return jsonify({'success': False, 'error': 'new_operator_id obbligatorio'}), 400
-        if not _require_capo(capo_id):
-            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
-
-        result = OrderManager.reassign_order(order_id, new_operator_id)
-        if result.get('success'):
-            AuditManager.log(
-                user_id=data.get('capo_id', 'admin'),
-                action='REASSIGN_ORDER',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f'Riassegnato a {new_operator_id}'
-            )
-        return jsonify(result), 200 if result.get('success') else 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/correct-time', methods=['PUT'])
-def correct_time(order_id):
-    """Capo officina: corregge timestamp di una fase"""
-    try:
-        data = request.get_json() or {}
-        step_id = data.get('step_id')
-        new_start = data.get('timestamp_inizio')
-        new_end = data.get('timestamp_fine')
-        capo_id = data.get('capo_id')
-
-        if not step_id:
-            return jsonify({'success': False, 'error': 'step_id obbligatorio'}), 400
-        if not _require_capo(capo_id):
-            return jsonify({'success': False, 'error': 'Operazione riservata al Capo Officina'}), 403
-
-        result = OrderManager.correct_time(step_id, new_start, new_end)
-        if result.get('success'):
-            AuditManager.log(
-                user_id=data.get('capo_id', 'admin'),
-                action='CORRECT_TIME',
-                entity_type='phase',
-                entity_id=order_id,
-                detail=f'Step {step_id}: start={new_start}, end={new_end}'
-            )
-        return jsonify(result), 200 if result.get('success') else 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/orders/<order_id>/move-phase', methods=['POST'])
-def move_phase(order_id):
-    """Sposta ordine a qualsiasi fase - permesso a capo o operatore assegnato al cliente"""
-    try:
-        data = request.get_json() or {}
-        new_phase = data.get('new_phase')
-        operator_id = data.get('capo_id') or data.get('operator_id')
-
-        VALID_PHASES = {'LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO', 'PARZIALE'}
-        if not new_phase:
-            return jsonify({'success': False, 'error': 'new_phase obbligatorio'}), 400
-        if new_phase not in VALID_PHASES:
-            return jsonify({'success': False, 'error': f'Fase non valida: {new_phase}'}), 400
-
-        # Permesso: capo officina OPPURE operatore assegnato al cliente dell'ordine
-        has_permission = _require_capo(operator_id)
-        if not has_permission and operator_id:
-            assigned = OperatorClientManager.get_by_operator(operator_id)
-            if assigned:
-                session = get_session()
-                try:
-                    order = session.query(Order).filter(Order.id == order_id).first()
-                    if order:
-                        assigned_names = [a['client_name'].lower() for a in assigned]
-                        if (order.cliente or '').lower() in assigned_names:
-                            has_permission = True
-                finally:
-                    session.close()
-
-        if not has_permission:
-            return jsonify({'success': False, 'error': 'Non hai i permessi per spostare questo ordine'}), 403
-
-        result = OrderManager.move_phase(order_id, new_phase)
-        if result.get('success'):
-            AuditManager.log(
-                user_id=data.get('capo_id', 'admin'),
-                action='MOVE_PHASE',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f'Spostato a {new_phase}'
-            )
-        return jsonify(result), 200 if result.get('success') else 400
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 # ============ API MARK ORDER SEEN ============
 
 @app.route('/api/orders/<order_id>/mark-seen', methods=['POST'])
@@ -1020,49 +647,6 @@ def mark_order_seen(order_id):
         return jsonify(result), 200 if result.get('success') else 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-# ============ API OPERATOR-CLIENTS ============
-
-@app.route('/api/operator-clients', methods=['GET'])
-def get_operator_clients():
-    """Lista assegnazioni operatore-cliente"""
-    try:
-        operator_id = request.args.get('operator_id')
-        if operator_id:
-            assignments = OperatorClientManager.get_by_operator(operator_id)
-        else:
-            assignments = OperatorClientManager.get_all()
-        return jsonify({'success': True, 'assignments': assignments}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/operator-clients', methods=['POST'])
-def create_operator_client():
-    """Crea nuova assegnazione operatore-cliente"""
-    try:
-        data = request.get_json() or {}
-        operator_id = data.get('operator_id')
-        client_name = data.get('client_name')
-
-        if not operator_id or not client_name:
-            return jsonify({'success': False, 'error': 'operator_id e client_name obbligatori'}), 400
-
-        result = OperatorClientManager.create(operator_id, client_name)
-        return jsonify({'success': True, 'assignment': result}), 201
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/operator-clients/<assignment_id>', methods=['DELETE'])
-def delete_operator_client(assignment_id):
-    """Rimuovi assegnazione operatore-cliente"""
-    try:
-        success = OperatorClientManager.delete(assignment_id)
-        if success:
-            return jsonify({'success': True}), 200
-        return jsonify({'success': False, 'error': 'Assegnazione non trovata'}), 404
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
 
 # ============ API ALERTS ============
 
@@ -1734,257 +1318,237 @@ def clear_all_notifications():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
-# ============ DELEGHE FASE ============
+# ============================================================================
+#  BARCODE / OFFICINA SCAN — endpoint per pistole WiFi e UI dedicate
+# ============================================================================
 
-@app.route('/api/delegations', methods=['POST'])
-def create_delegation():
-    """Crea una nuova delega di fase"""
+@app.route('/api/scan', methods=['POST'])
+def api_scan():
+    """Endpoint chiamato dalle pistole WiFi a ogni scansione.
+
+    Body: { "pistola_id": "<id hw configurato>", "codice": "<numero ordine>" }
+    Risposta 200 = beep ok sulla pistola; 4xx = beep errore.
+    """
     try:
-        data = request.json
-        required = ['order_id', 'fase', 'operatore_principale', 'operatore_delegato', 'delegata_da']
-        for field in required:
-            if field not in data:
-                return jsonify({'success': False, 'error': f'{field} obbligatorio'}), 400
+        data = request.get_json(silent=True) or {}
+        pistola_id = data.get('pistola_id') or ''
+        codice = data.get('codice') or ''
+        result = BarcodeManager.process_scan(pistola_id, codice)
+        status = result.pop('status_code', 200 if result.get('ok') else 500)
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception('api_scan failed')
+        return jsonify({'error': str(e)}), 500
 
-        result = DelegationManager.create_delegation(
-            order_id=data['order_id'],
-            fase=data['fase'],
-            op_principale=data['operatore_principale'],
-            op_delegato=data['operatore_delegato'],
-            delegata_da=data['delegata_da'],
-            forzata=data.get('forzata', False),
-            note=data.get('note', '')
+
+@app.route('/api/orders/<order_id>/cartellino', methods=['GET'])
+def api_cartellino(order_id):
+    """Ritorna il PDF A6 col cartellino barcode dell'ordine."""
+    try:
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return jsonify({'error': 'Ordine non trovato'}), 404
+            codice = order.numero_ordine or order.id[:8]
+            cliente = order.cliente or ''
+            data_consegna = order.data_consegna
+            note = ''
+            if order.lotto_numero and order.lotto_numero > 0:
+                note = f'Lotto {order.lotto_numero}'
+                if order.lotto_nome:
+                    note += f' — {order.lotto_nome}'
+        finally:
+            session.close()
+
+        pdf_bytes = genera_cartellino_pdf(
+            codice=codice,
+            cliente=cliente,
+            data_consegna=data_consegna,
+            note=note,
         )
-        status = 201 if result.get('success') else 400
-        return jsonify(result), status
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/delegations/<delegation_id>/accept', methods=['POST'])
-def accept_delegation(delegation_id):
-    """Accetta una delega"""
-    try:
-        data = request.json
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-        result = DelegationManager.accept_delegation(delegation_id, operatore_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/delegations/<delegation_id>/reject', methods=['POST'])
-def reject_delegation(delegation_id):
-    """Rifiuta una delega"""
-    try:
-        data = request.json
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-        result = DelegationManager.reject_delegation(delegation_id, operatore_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/delegations/<delegation_id>/start', methods=['POST'])
-def start_delegated_phase(delegation_id):
-    """Inizia la fase delegata"""
-    try:
-        data = request.json
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-        result = DelegationManager.start_delegated_phase(delegation_id, operatore_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-@app.route('/api/delegations/<delegation_id>/complete', methods=['POST'])
-def complete_delegated_phase(delegation_id):
-    """Completa la fase delegata"""
-    try:
-        data = request.json
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-        result = DelegationManager.complete_delegated_phase(
-            delegation_id, operatore_id, note=data.get('note', '')
+        import io as _io
+        return send_file(
+            _io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f'cartellino_{codice}.pdf',
         )
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+        logger.exception('api_cartellino failed for %s', order_id)
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/delegations/<delegation_id>/save-partial', methods=['POST'])
-def save_partial_delegated(delegation_id):
-    """Salva parziale su fase delegata"""
+
+@app.route('/api/orders/<order_id>/tempo-officina', methods=['GET'])
+def api_tempo_officina(order_id):
+    """Ritorna il dettaglio delle sessioni officina per un ordine."""
     try:
-        data = request.json
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-        result = DelegationManager.save_partial_delegated_phase(
-            delegation_id, operatore_id, note=data.get('note', '')
-        )
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
+        data = BarcodeManager.get_tempo_officina(order_id)
+        return jsonify(data), 200
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+        logger.exception('api_tempo_officina failed')
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/delegations/<delegation_id>/resume', methods=['POST'])
-def resume_delegated_phase_endpoint(delegation_id):
-    """Riprende una fase delegata in pausa"""
+
+@app.route('/api/officina/live-status', methods=['GET'])
+def api_officina_live_status():
+    """Feed live per la pagina 'Stato officina' dell'impiegata."""
     try:
-        data = request.json
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-        result = DelegationManager.resume_delegated_phase(delegation_id, operatore_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
+        return jsonify(BarcodeManager.get_live_status()), 200
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+        logger.exception('api_officina_live_status failed')
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/delegations/<delegation_id>/revoke', methods=['POST'])
-def revoke_delegation(delegation_id):
-    """Revoca una delega (solo capo o op_principale)"""
+
+@app.route('/api/capo/kpi-operai', methods=['GET'])
+def api_capo_kpi_operai():
+    """KPI ore per operaio (oggi/settimana/mese) — pagina capo officina."""
     try:
-        data = request.json
-        revocata_da = data.get('revocata_da')
-        if not revocata_da:
-            return jsonify({'success': False, 'error': 'revocata_da obbligatorio'}), 400
-        result = DelegationManager.revoke_delegation(delegation_id, revocata_da)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
+        return jsonify(BarcodeManager.get_kpi_operai()), 200
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+        logger.exception('api_capo_kpi_operai failed')
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/delegations', methods=['GET'])
-def get_delegations():
-    """Recupera deleghe con filtri opzionali"""
+
+@app.route('/api/capo/calendario-ordini', methods=['GET'])
+def api_capo_calendario():
+    """Ordini per data consegna nel mese (param ?mese=YYYY-MM)."""
     try:
-        order_id = request.args.get('order_id')
-        op_principale = request.args.get('op_principale')
-        op_delegato = request.args.get('op_delegato')
-        stato = request.args.get('stato')
-
-        # Se richieste tutte le attive (per capo)
-        if request.args.get('active_only') == 'true':
-            delegations = DelegationManager.get_all_active_delegations()
+        mese = (request.args.get('mese') or '').strip()
+        if not mese:
+            now = datetime.utcnow()
+            year, month = now.year, now.month
         else:
-            delegations = DelegationManager.get_delegations(
-                order_id=order_id,
-                op_principale=op_principale,
-                op_delegato=op_delegato,
-                stato=stato
-            )
-        return jsonify({'success': True, 'delegations': delegations}), 200
+            try:
+                year, month = mese.split('-')
+                year = int(year); month = int(month)
+                if not (1 <= month <= 12):
+                    raise ValueError
+            except Exception:
+                return jsonify({'error': 'Formato mese non valido (usa YYYY-MM)'}), 400
+        return jsonify({
+            'mese': f'{year:04d}-{month:02d}',
+            'giorni': BarcodeManager.get_calendario_ordini(year, month),
+        }), 200
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+        logger.exception('api_capo_calendario failed')
+        return jsonify({'error': str(e)}), 500
 
 
-# ============ API SUPPORTO ============
+@app.route('/api/admin/close-residual', methods=['POST'])
+def api_admin_close_residual():
+    """Chiude tutte le scan ancora aperte (fine turno).
 
-@app.route('/api/support-requests', methods=['POST'])
-def create_support_request():
-    """Crea una richiesta di supporto per un ordine"""
+    Richiede capo/admin: passa user_id nel body per audit.
+    """
     try:
-        data = request.get_json() or {}
-        order_id = data.get('order_id')
-        op_principale = data.get('operatore_principale')
-        op_supporto = data.get('operatore_supporto')
-        forzata = data.get('forzata', False)
-        note = data.get('note', '')
-
-        if not order_id or not op_principale or not op_supporto:
-            return jsonify({'success': False, 'error': 'order_id, operatore_principale e operatore_supporto obbligatori'}), 400
-
-        result = SupportManager.create_support_request(
-            order_id=order_id, op_principale=op_principale,
-            op_supporto=op_supporto, forzata=forzata, note=note
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id') or ''
+        if not _require_capo(user_id):
+            return jsonify({'error': 'Permesso negato'}), 403
+        motivo = data.get('motivo') or 'fine_turno'
+        n = BarcodeManager.close_residual_scans(motivo=motivo)
+        AuditManager.log(
+            user_id=user_id,
+            action='CLOSE_RESIDUAL_SCANS',
+            entity_type='officina_scans',
+            entity_id='*',
+            detail=f'Chiuse {n} scan, motivo={motivo}',
         )
-
-        if result.get('success'):
-            # Audit log
-            principale = UserManager.get_user(op_principale)
-            supporto = UserManager.get_user(op_supporto)
-            nome_p = principale.get('name') if principale else op_principale
-            nome_s = supporto.get('name') if supporto else op_supporto
-            AuditManager.log(
-                user_id=op_principale,
-                user_name=nome_p,
-                action='CREATE_SUPPORT',
-                entity_type='order',
-                entity_id=order_id,
-                detail=f"Richiesta supporto a {nome_s}" + (" (forzata)" if forzata else ""),
-                ip_address=request.remote_addr
-            )
-
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
+        return jsonify({'ok': True, 'chiuse': n}), 200
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.exception('api_admin_close_residual failed')
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/support-requests/<request_id>/accept', methods=['POST'])
-def accept_support_request(request_id):
-    """Accetta una richiesta di supporto"""
+
+@app.route('/api/admin/pistole', methods=['GET'])
+def api_admin_pistole_list():
+    """Lista pistole registrate."""
     try:
-        data = request.get_json() or {}
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-
-        result = SupportManager.accept_support_request(request_id, operatore_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
+        return jsonify(BarcodeManager.list_pistole(include_inactive=True)), 200
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.exception('api_admin_pistole_list failed')
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/support-requests/<request_id>/reject', methods=['POST'])
-def reject_support_request(request_id):
-    """Rifiuta una richiesta di supporto"""
+
+@app.route('/api/admin/pistole', methods=['POST'])
+def api_admin_pistole_create():
+    """Registra una nuova pistola."""
     try:
-        data = request.get_json() or {}
-        operatore_id = data.get('operatore_id')
-        if not operatore_id:
-            return jsonify({'success': False, 'error': 'operatore_id obbligatorio'}), 400
-
-        result = SupportManager.reject_support_request(request_id, operatore_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/support-requests/<request_id>/revoke', methods=['POST'])
-def revoke_support_request(request_id):
-    """Revoca una richiesta di supporto"""
-    try:
-        result = SupportManager.revoke_support_request(request_id)
-        status = 200 if result.get('success') else 400
-        return jsonify(result), status
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/support-requests', methods=['GET'])
-def get_support_requests():
-    """Recupera richieste di supporto con filtri"""
-    try:
-        order_id = request.args.get('order_id')
-        op_principale = request.args.get('op_principale')
-        op_supporto = request.args.get('op_supporto')
-        stato = request.args.get('stato')
-        active_only = request.args.get('active_only') == 'true'
-
-        requests_data = SupportManager.get_support_requests(
-            order_id=order_id, op_principale=op_principale,
-            op_supporto=op_supporto, stato=stato, active_only=active_only
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('admin_id') or ''
+        if not _require_capo(user_id):
+            return jsonify({'error': 'Permesso negato'}), 403
+        result = BarcodeManager.create_pistola(
+            pistola_id=data.get('pistola_id') or '',
+            operatore_id=data.get('operatore_id') or '',
+            note=data.get('note') or '',
         )
-        return jsonify({'success': True, 'data': requests_data}), 200
+        if result.get('error'):
+            return jsonify(result), 400
+        AuditManager.log(
+            user_id=user_id,
+            action='CREATE_PISTOLA',
+            entity_type='pistole',
+            entity_id=result.get('id'),
+            detail=f'pistola_id={data.get("pistola_id")} → {data.get("operatore_id")}',
+        )
+        return jsonify(result), 201
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.exception('api_admin_pistole_create failed')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/pistole/<pistola_uuid>', methods=['PUT'])
+def api_admin_pistole_update(pistola_uuid):
+    """Aggiorna pistola (operatore, attiva, note)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('admin_id') or ''
+        if not _require_capo(user_id):
+            return jsonify({'error': 'Permesso negato'}), 403
+        result = BarcodeManager.update_pistola(
+            pistola_uuid=pistola_uuid,
+            operatore_id=data.get('operatore_id'),
+            attiva=data.get('attiva'),
+            note=data.get('note'),
+        )
+        if result.get('error'):
+            return jsonify(result), 400
+        AuditManager.log(
+            user_id=user_id,
+            action='UPDATE_PISTOLA',
+            entity_type='pistole',
+            entity_id=pistola_uuid,
+            detail=str(data),
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        logger.exception('api_admin_pistole_update failed')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/pistole/<pistola_uuid>', methods=['DELETE'])
+def api_admin_pistole_delete(pistola_uuid):
+    """Elimina pistola."""
+    try:
+        admin_id = request.args.get('admin_id') or ''
+        if not _require_capo(admin_id):
+            return jsonify({'error': 'Permesso negato'}), 403
+        result = BarcodeManager.delete_pistola(pistola_uuid)
+        if result.get('error'):
+            return jsonify(result), 400
+        AuditManager.log(
+            user_id=admin_id,
+            action='DELETE_PISTOLA',
+            entity_type='pistole',
+            entity_id=pistola_uuid,
+            detail='',
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        logger.exception('api_admin_pistole_delete failed')
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -1,0 +1,2954 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a7a48">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>LS FerroTrack — Stazione LASER</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+body.page-exit { animation: pageOut 0.15s ease-in forwards; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pageOut { from { opacity: 1; } to { opacity: 0; } }
+
+:root {
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --green: #1a7a48;
+  --green-light: #22a060;
+  --gray-text: #666666;
+  --gray-muted: #999999;
+  --border: #e5e5e5;
+  --blue: #1e40af;
+  --blue-bg: #e0eaff;
+  --red: #991b1b;
+  --red-bg: #ffe4e4;
+  --orange: #92400e;
+  --orange-bg: #fff4d6;
+  --green-badge: #166534;
+  --green-badge-bg: #e2fce9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 16px 48px rgba(0,0,0,0.12);
+  --ease-apple: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--black);
+}
+
+/* === TOPBAR === */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 1000;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.logo-icon {
+  width: 40px; height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-icon img {
+  width: 40px; height: 40px;
+  object-fit: contain;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+.logo-main { font-family: 'Geist', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: -0.5px; color: var(--black); }
+.logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--green); }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-home {
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%);
+  box-shadow: 0 1px 3px rgba(26,122,72,0.3);
+  color: var(--white);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-apple);
+}
+.btn-home:hover { filter: brightness(1.08); box-shadow: 0 2px 8px rgba(26,122,72,0.35); }
+
+.laser-nav { display:flex; align-items:center; gap:4px; margin-left:32px; }
+.laser-nav-item { padding:8px 16px; border-radius:10px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.25s var(--ease-apple); text-decoration:none; color:var(--gray-text); border:1px solid transparent; }
+.laser-nav-item:hover { color:var(--black); background:var(--bg); }
+.laser-nav-item.active { background:linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%); color:white; border-color:var(--green); }
+
+.btn-logout {
+  background: var(--white);
+  color: var(--black);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-apple);
+}
+.btn-logout:hover { background: var(--bg); border-color: var(--gray-text); }
+
+/* USER PILL */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px 5px 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  cursor: default;
+  transition: all 0.25s var(--ease-apple);
+}
+.user-pill-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.user-pill-info { display: flex; flex-direction: column; gap: 0; }
+.user-pill-name { font-size: 13px; font-weight: 600; color: var(--black); line-height: 1.2; }
+.user-pill-role { font-size: 10px; font-weight: 500; color: var(--gray-muted); line-height: 1.2; }
+
+/* === TAB BAR === */
+.tab-bar {
+  position: fixed;
+  top: 64px;
+  left: 0; right: 0;
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--white);
+  padding: 0 48px;
+  z-index: 999;
+}
+
+.tab-item {
+  padding: 16px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-text);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+  user-select: none;
+}
+.tab-item.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-item:hover:not(.active) { color: var(--black); background: rgba(26,122,72,0.03); }
+
+/* === TAB PANELS === */
+.tab-panel { display: none; margin-top: 120px; }
+.tab-panel.active { display: block; animation: tabFadeIn 0.2s ease-out; }
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === MAIN 3-COLUMN LAYOUT === */
+.main {
+  display: grid;
+  grid-template-columns: 340px 1fr 380px;
+  height: calc(100vh - 120px);
+  gap: 1px;
+  background: var(--border);
+}
+
+.calendar, .pdf-viewer, .details {
+  background: white;
+  overflow-y: auto;
+}
+
+.calendar {
+  padding: 24px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.calendar-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--black);
+}
+
+.calendar-list { display: flex; flex-direction: column; gap: 8px; }
+
+.date-group { margin-bottom: 16px; }
+.date-group-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gray-text);
+  margin-bottom: 8px;
+  padding: 0 8px;
+  letter-spacing: 0.5px;
+}
+
+.date-group-header.urgent-red { color: var(--red); }
+.date-group-header.urgent-yellow { color: var(--orange); }
+.date-group-header.urgent-green { color: var(--green); }
+
+.order-item {
+  padding: 10px 12px;
+  background: #f8f8fa;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-apple);
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-item:hover { background: #f3f4f6; transform: translateY(-1px); }
+.order-item.selected { background: var(--green); color: white; border-color: var(--green); }
+
+.order-client { font-weight: 600; }
+.order-date-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 100px;
+  background: var(--orange-bg);
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-yellow { background: var(--orange-bg); color: var(--orange); }
+.badge-green { background: var(--green-badge-bg); color: var(--green-badge); }
+
+/* === VIEW TOGGLE === */
+.view-toggle {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.view-toggle-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--gray-text);
+  cursor: pointer;
+  transition: all 0.25s var(--ease-apple);
+  white-space: nowrap;
+}
+.view-toggle-btn.active {
+  background: var(--green);
+  color: white;
+}
+.view-toggle-btn:hover:not(.active) {
+  background: #e5e7eb;
+}
+
+/* === CLIENT GROUP === */
+.client-group {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: var(--white);
+}
+.client-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.25s var(--ease-apple);
+  gap: 8px;
+}
+.client-group-header:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+}
+.client-group-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.client-group-name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.client-group-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 100px;
+  background: var(--green-badge-bg);
+  color: var(--green-badge);
+  flex-shrink: 0;
+}
+.client-group-urgency {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+.client-group-chevron {
+  font-size: 11px;
+  color: var(--gray-muted);
+  transition: transform 0.25s var(--ease-apple);
+  flex-shrink: 0;
+}
+.client-group.open .client-group-chevron {
+  transform: rotate(90deg);
+}
+.client-group-body {
+  display: none;
+  padding: 0 8px 8px;
+}
+.client-group.open .client-group-body {
+  display: block;
+}
+.client-group-body .order-item {
+  margin-bottom: 4px;
+}
+.client-group-body .order-item:last-child {
+  margin-bottom: 0;
+}
+.client-order-numero {
+  font-size: 10px;
+  color: var(--gray-muted);
+  font-weight: 500;
+}
+.order-item.selected .client-order-numero {
+  color: rgba(255,255,255,0.8);
+}
+.order-item.nearest-deadline {
+  border-left: 3px solid var(--red);
+}
+.order-item.selected.nearest-deadline {
+  border-left: 3px solid white;
+}
+
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.pdf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pdf-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--black);
+}
+
+.pdf-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--gray-text);
+  transition: color 0.2s;
+}
+
+.pdf-close:hover { color: var(--black); }
+
+.pdf-frame {
+  flex: 1;
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+.pdf-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--gray-text);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.details-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.details-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--black);
+  margin-bottom: 4px;
+}
+
+.details-meta {
+  font-size: 12px;
+  color: var(--gray-text);
+}
+
+.details-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.details-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--gray-text);
+  font-size: 14px;
+}
+
+.detail-section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-section:last-child { border-bottom: none; }
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gray-text);
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.info-text {
+  font-size: 13px;
+  color: var(--black);
+  word-break: break-word;
+}
+
+/* timer rimosso — Lantek gestisce il tempo */
+
+.btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-primary {
+  background: var(--green);
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:active, .btn-secondary:active, .stato-action-btn:active { transform: scale(0.94); transition: transform 0.08s; }
+.btn.loading, .stato-action-btn.loading { pointer-events: none; opacity: 0.6; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-secondary:hover { background: var(--bg); }
+.btn-danger-outline { background:transparent; color:#991b1b; border:1px solid #991b1b; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
+.btn-danger-outline:hover { background:#991b1b; color:white; }
+.btn-support { background:#dbeafe; color:#1e40af; border:1px solid #1e40af; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
+.btn-support:hover { background:#1e40af; color:white; }
+.support-badge { display:inline-flex; align-items:center; gap:4px; background:#dbeafe; color:#1e40af; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; margin-bottom:6px; }
+#support-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+#support-modal.active { display:flex; }
+.support-modal-content { background:white; border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+.support-request-card { background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px; margin-bottom:8px; }
+.support-request-card .sr-header { font-weight:700; font-size:14px; margin-bottom:4px; }
+.support-request-card .sr-detail { font-size:12px; color:var(--gray-text); }
+.support-request-card .sr-actions { display:flex; gap:8px; margin-top:12px; }
+
+/* COMPLETE ORDER MODAL */
+.co-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; animation: fadeIn 0.2s ease; }
+/* CONFIRM DIALOG (custom, replaces native confirm()) */
+.confirm-overlay {
+  position: fixed; top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; animation: fadeIn 0.2s ease;
+}
+.confirm-dialog {
+  background: white; border-radius: 16px; padding: 28px; max-width: 380px; width: 90%;
+  box-shadow: var(--shadow-lg); animation: slideUp 0.2s ease; text-align: center;
+}
+.confirm-icon { font-size: 36px; margin-bottom: 12px; }
+.confirm-title { font-size: 16px; font-weight: 700; color: var(--black); margin-bottom: 6px; }
+.confirm-msg { font-size: 13px; color: var(--gray-text); margin-bottom: 24px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: center; }
+.confirm-btn {
+  padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer; transition: all 0.25s var(--ease-apple);
+  font-family: 'Inter', sans-serif;
+}
+.confirm-btn.primary {
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  color: white; box-shadow: 0 1px 3px rgba(26,122,72,0.3);
+}
+.confirm-btn.primary:hover { filter: brightness(1.08); }
+.confirm-btn.cancel {
+  background: var(--bg); color: var(--gray-text); border: 1px solid var(--border);
+}
+.confirm-btn.cancel:hover { background: #ebebeb; }
+.co-modal { background:white; border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+.co-modal h3 { margin:0 0 4px; font-size:16px; font-weight:700; }
+.co-modal .co-subtitle { font-size:13px; color:var(--gray-text); margin-bottom:16px; }
+.co-phase-list { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.co-phase-done { font-size:13px; font-weight:600; color:var(--green); padding:6px 8px; background:var(--green-badge-bg); border-radius:6px; }
+.co-phase-skip { font-size:13px; color:#9ca3af; text-decoration:line-through; padding:6px 8px; background:#f9fafb; border-radius:6px; }
+.co-note { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical; min-height:50px; margin-bottom:12px; font-family:inherit; box-sizing:border-box; }
+.co-actions { display:flex; gap:8px; }
+.co-actions .btn-danger { background:#991b1b; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
+.co-actions .btn-danger:hover { background:#7f1d1d; }
+.co-actions .btn-cancel { background:transparent; color:var(--gray-text); border:1px solid var(--border); padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
+.co-actions .btn-cancel:hover { background:var(--bg); }
+
+.status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status.active { background: var(--green-badge-bg); color: var(--green-badge); }
+.status.success { background: var(--green-badge-bg); color: var(--green-badge); }
+.status.error { background: var(--red-bg); color: var(--red); }
+
+/* === CARICA ORDINE TAB === */
+.carica-body {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+  min-height: calc(100vh - 120px);
+}
+
+.form-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px;
+  width: 700px;
+  max-width: 95vw;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.form-title {
+  font-family: 'Geist', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--black);
+}
+
+.form-sub {
+  font-size: 14px;
+  color: var(--gray-text);
+  margin-top: -16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  border: 1px solid var(--border);
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: var(--black);
+  background: #f8f8fa;
+  transition: border 0.2s;
+}
+.form-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); background: var(--white); }
+textarea.form-input { resize: vertical; min-height: 80px; padding: 10px 12px; height: auto; font-size: 13px; line-height: 1.5; }
+
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg);
+  flex: 1;
+}
+.upload-area:hover { border-color: var(--green); background: rgba(26,122,72,0.02); }
+.upload-area.active { border-color: var(--green); background: rgba(26,122,72,0.05); }
+
+/* ===== MODERN UPLOAD BUTTONS ===== */
+.upload-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-button {
+  padding: 16px 24px;
+  border: 2px solid;
+  border-radius: 8px;
+  background: var(--white);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* PDF BUTTON */
+.upload-button-pdf {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.upload-button-pdf:hover {
+  background: var(--green);
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(26, 122, 72, 0.2);
+}
+
+.upload-button-pdf:active {
+  transform: scale(0.98);
+}
+
+.upload-button-pdf:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* DXF BUTTON */
+.upload-button-dxf {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.upload-button-dxf:hover {
+  background: #3b82f6;
+  color: var(--white);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.upload-button-dxf:active {
+  transform: scale(0.98);
+}
+
+.upload-button-dxf:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* UPLOAD STATUS MESSAGE */
+.upload-status {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.upload-status.success {
+  display: flex;
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.upload-status.error {
+  display: flex;
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.upload-status::before {
+  content: '✓';
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.upload-status.error::before {
+  content: '⚠';
+}
+
+/* UPLOAD PROGRESS BAR */
+.upload-progress {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.upload-progress.active {
+  display: flex;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #e5e5e5;
+  border-radius: 3px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  width: 0%;
+  transition: width 0.2s ease;
+  border-radius: 3px;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--gray-muted);
+  text-align: center;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#pdf-input, #dxf-input { display: none; }
+
+.pdf-preview { border: 1px solid var(--border); border-radius: 8px; height: 200px; background: white; overflow: hidden; display: none; margin-top: 8px; }
+.pdf-preview.active { display: block; }
+.pdf-preview iframe { width: 100%; height: 100%; border: none; }
+
+.dxf-files-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 120px; overflow-y: auto; }
+.dxf-item { background: var(--bg); padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.dxf-remove-btn { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+
+.dest-section { display: flex; flex-direction: column; gap: 8px; }
+.dest-label { font-size: 11px; font-weight: 600; color: var(--gray-text); }
+.dest-row { display: flex; gap: 12px; }
+
+.dest-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 56px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--white);
+}
+.dest-option input[type="radio"] { display: none; }
+.dest-option .dest-text { font-size: 14px; font-weight: 700; }
+.dest-option.selected-laser {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+}
+.dest-option.selected-laser .dest-text { color: var(--blue); }
+.dest-option.selected-officina {
+  border-color: var(--gray-text);
+  background: var(--bg);
+}
+
+.btn-submit {
+  width: 100%;
+  height: 48px;
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: 0.9; }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.message { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
+.message.active { display: block; }
+.message.success { background: rgba(34,197,94,0.1); color: #15803d; }
+.message.error { background: rgba(239,68,68,0.1); color: #991b1b; }
+
+/* === CALENDARIO TAB === */
+.cal-container { display: flex; height: calc(100vh - 120px); }
+
+.cal-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 32px;
+  gap: 16px;
+}
+
+.cal-right {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--white);
+  border-left: 1px solid var(--border);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cal-nav-btns { display: flex; gap: 8px; }
+
+.cal-nav-btn {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+.cal-nav-btn:hover { background: var(--bg); border-color: var(--green); }
+
+.cal-today-btn {
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+.cal-today-btn:hover { opacity: 0.9; }
+
+.cal-nav-title { font-size: 20px; font-weight: 700; }
+
+.cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.cal-header-row {
+  display: flex;
+  gap: 6px;
+}
+
+.cal-header {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.cal-week-row {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.cal-day {
+  flex: 1;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 70px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.cal-day:hover { border-color: var(--green); box-shadow: 0 2px 6px rgba(26,122,72,0.1); }
+.cal-day.today { border: 2px solid var(--green); background: rgba(26,122,72,0.06); }
+.cal-day.selected { border: 2px solid var(--green); background: rgba(26,122,72,0.08); }
+.cal-day.other-month { opacity: 0.35; }
+
+.cal-day-num { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.cal-day-count { font-size: 10px; font-weight: 700; color: var(--green); }
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: auto; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.cal-detail-title { font-size: 18px; font-weight: 700; }
+.cal-detail-sub { font-size: 13px; color: var(--gray-text); }
+
+.cal-order-card {
+  padding: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-order-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); transform: translateY(-1px); }
+
+.progress-bar-bg { height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+/* === ORDINI TAB === */
+.ordini-container { padding: 32px 48px; max-width: 1400px; margin: 0 auto; }
+.page-title { font-family: 'Geist', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 24px; }
+
+.search-wrap { position: relative; margin-bottom: 16px; }
+.search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--gray-text); }
+.search-box {
+  width: 100%;
+  padding: 14px 16px 14px 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--white);
+  transition: border 0.2s;
+}
+.search-box:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1); }
+
+.filter-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+.filter-label { font-size: 12px; font-weight: 700; color: var(--gray-text); margin-right: 4px; text-transform: uppercase; }
+
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+.chip.active { background: var(--green); color: white; border-color: var(--green); }
+.chip:hover:not(.active) { background: var(--bg); border-color: var(--green); }
+
+.ordini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ordini-table thead { background: #f1f5f9; }
+.ordini-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.ordini-table th:hover { color: var(--green); }
+.ordini-table td { padding: 12px 14px; border-top: 1px solid var(--border); }
+.ordini-table tbody tr { transition: background 0.15s; }
+.ordini-table tbody tr:hover { background: rgba(26,122,72,0.02); }
+
+.fase-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+
+.pdf-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.pdf-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* === PDF MODALE === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
+.modal-content {
+  background: var(--white);
+  width: 80%;
+  height: 85%;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s ease;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-text); }
+.modal-body { flex: 1; }
+.modal-body iframe { width: 100%; height: 100%; border: none; }
+
+/* === STATO ORDINI === */
+/* === STATO ORDINI — Sezioni per fase === */
+.stato-section { margin-bottom: 20px; }
+.stato-section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 10px;
+  border-left: 4px solid; margin-bottom: 2px;
+}
+.stato-section-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.stato-section-count {
+  font-size: 11px; font-weight: 700; color: white;
+  padding: 2px 8px; border-radius: 100px; min-width: 22px; text-align: center;
+}
+.stato-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
+  transition: background 0.15s;
+}
+.stato-row:last-child { border-bottom: none; }
+.stato-row:hover { background: #f8f8fa; }
+.stato-row-client { font-size: 14px; font-weight: 700; color: var(--black); min-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stato-row-num { font-size: 13px; font-weight: 600; color: var(--gray-text); min-width: 80px; }
+.stato-row-consegna { font-size: 13px; font-weight: 600; color: var(--gray-text); min-width: 80px; }
+.stato-row-consegna.overdue { color: var(--red); font-weight: 700; }
+.stato-row-consegna.soon { color: #f59e0b; font-weight: 700; }
+.stato-row-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+.stato-action-btn {
+  padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--white); color: var(--black);
+  cursor: pointer; transition: all 0.25s var(--ease-apple); white-space: nowrap;
+}
+.stato-action-btn.green { background: var(--green); color: white; border-color: var(--green); }
+.stato-action-btn.green:hover { background: var(--green-light); }
+.stato-action-btn.outline:hover { background: var(--bg); }
+.stato-empty { text-align: center; padding: 48px 16px; color: var(--gray-text); font-size: 14px; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1400px) {
+  .main { grid-template-columns: 300px 1fr 340px; }
+}
+
+@media (max-width: 1024px) {
+  .main { grid-template-columns: 260px 1fr 300px; }
+  .cal-container { flex-direction: column; height: auto; }
+  .cal-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  .topbar, .tab-bar { padding: 0 24px; }
+  .ordini-container { padding: 24px; }
+  .form-row { flex-direction: column; }
+  .form-card { width: 95vw; }
+}
+
+/* === TABLET 9 pollici (800px portrait) === */
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: calc(100vh - 120px);
+  }
+  .calendar {
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 12px;
+  }
+  .calendar-list { max-height: 120px; overflow-y: auto; }
+  .pdf-viewer { min-height: 300px; border-right: none; border-bottom: 1px solid var(--border); }
+  .details { max-height: 280px; }
+  .topbar { padding: 0 16px; gap: 8px; }
+  .topbar h1 { font-size: 16px; }
+  .laser-nav { margin-left: 16px; }
+  .laser-nav-item { padding: 6px 12px; font-size: 12px; }
+  .tab-bar { padding: 0 12px; }
+  .tab-item { padding: 12px 14px; font-size: 12px; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); padding: 16px; gap: 10px; }
+  .kpi-card { padding: 14px 16px; }
+  .kpi-value { font-size: 24px; }
+  .notif-panel { width: calc(100vw - 32px); right: -60px; max-width: 380px; }
+  .form-card { width: 95vw; }
+  .ordini-container { padding: 16px; }
+  /* Touch-friendly: ordini e bottoni più grandi */
+  .order-item { padding: 14px 16px; font-size: 14px; }
+  .view-toggle-btn { padding: 8px 14px; font-size: 12px; }
+  .detail-btn { padding: 12px 16px; font-size: 14px; }
+  #panel-stato { padding: 16px !important; }
+  .stato-row { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .stato-row-client { min-width: 100px; }
+  .stato-row-actions { width: 100%; justify-content: flex-start; }
+}
+
+/* === KPI CARDS === */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px 32px 0; }
+.kpi-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; display: flex; flex-direction: column; gap: 6px; border-left: 4px solid var(--green); }
+.kpi-card--orange { border-left-color: var(--orange); }
+.kpi-card--blue { border-left-color: var(--blue); }
+.kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-text); }
+.kpi-value { font-family: 'Geist', sans-serif; font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--black); line-height: 1; }
+.kpi-sub { font-size: 11px; color: var(--gray-muted); }
+
+/* === CAL VIEW MODE BUTTONS === */
+.cal-view-switcher { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.cal-view-btn { background: var(--white); border: none; border-right: 1px solid var(--border); padding: 7px 14px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; color: var(--gray-text); transition: all 0.15s; }
+.cal-view-btn:last-child { border-right: none; }
+.cal-view-btn.active { background: var(--green); color: var(--white); }
+.cal-view-btn:hover:not(.active) { background: var(--bg); color: var(--black); }
+
+/* === CAL EVENT CHIPS === */
+.cal-event-chip { font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 3px; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-top: 2px; cursor: grab; user-select: none; }
+.cal-event-chip.status-laser { background: var(--blue); }
+.cal-event-chip.status-completato { background: var(--green); }
+.cal-event-chip.status-scaduto { background: var(--red); }
+.cal-event-chip.status-attesa { background: var(--orange); }
+
+/* === DRAG & DROP === */
+.cal-day.drag-over { border-color: var(--blue) !important; background: rgba(30,64,175,0.08) !important; }
+
+/* === CALENDAR BADGES === */
+.cal-card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.cal-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.cal-badge--pdf { background: var(--green-badge-bg); color: var(--green-badge); }
+.cal-badge--dxf { background: var(--blue-bg); color: var(--blue); }
+.cal-badge--completato { background: var(--green-badge-bg); color: var(--green-badge); }
+.cal-badge--attesa { background: var(--orange-bg); color: var(--orange); }
+.cal-badge--laser { background: var(--blue-bg); color: var(--blue); }
+
+/* === TAB PANEL OVERRIDES === */
+#panel-lavoro.tab-panel.active { padding: 0; }
+
+@media (max-width: 1024px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+/* NOTIFICHE */
+.notif-bell { position: relative; display: inline-flex; align-items: center; }
+.notif-bell-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 18px; cursor: pointer; transition: all 0.2s; line-height: 1; }
+.notif-bell-btn:hover { background: var(--bg); border-color: var(--gray-text); }
+.notif-bell-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px; animation: notifPulse 2s ease-in-out infinite; }
+@keyframes notifPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.notif-panel { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 380px; max-height: 480px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); z-index: 2000; flex-direction: column; overflow: hidden; }
+.notif-panel.active { display: flex; animation: notifSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes notifSlideIn { from { opacity: 0; transform: translateY(-8px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.notif-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.notif-panel-header h3 { font-size: 15px; font-weight: 700; }
+.notif-panel-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-text); }
+.notif-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
+.notif-item { display: flex; gap: 10px; padding: 12px; border-radius: 8px; transition: background 0.15s, transform 0.15s ease; cursor: default; position: relative; animation: notifItemIn 0.2s ease-out both; }
+@keyframes notifItemIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+.notif-item:hover { background: var(--bg); }
+.notif-item.unread { background: rgba(26,122,72,0.04); }
+.notif-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.notif-dot.informativa { background: #3b82f6; }
+.notif-dot.attiva { background: #22c55e; }
+.notif-dot.delega { background: #f59e0b; }
+.notif-dot.urgente { background: #ef4444; }
+.notif-content { flex: 1; min-width: 0; }
+.notif-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.notif-message { font-size: 12px; color: var(--gray-text); line-height: 1.4; word-wrap: break-word; }
+.notif-time { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
+.notif-delete { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--gray-muted); cursor: pointer; font-size: 14px; opacity: 0; transition: opacity 0.15s; }
+.notif-item:hover .notif-delete { opacity: 1; }
+.notif-delete:hover { color: #ef4444; }
+.notif-panel-footer { padding: 12px 16px; border-top: 1px solid var(--border); text-align: center; }
+.notif-clear-btn { background: none; border: none; color: #ef4444; font-size: 12px; font-weight: 600; cursor: pointer; }
+.notif-clear-btn:hover { text-decoration: underline; }
+.notif-empty { text-align: center; padding: 32px 16px; color: var(--gray-muted); font-size: 13px; }
+
+/* === MODAL ANIMATIONS === */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* === FOCUS RING === */
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* === CSS SPINNER === */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* === ACTIVE BUTTON STATE === */
+button:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="logo-section" href="/laser.html">
+    <div class="logo-icon"><img src="/assets/logo.svg" alt="LS"></div>
+    <div class="logo-text">
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">LS</div>
+    </div>
+  </a>
+  <div class="laser-nav">
+    <a class="laser-nav-item active" href="/laser.html">Postazione Laser</a>
+  </div>
+  <div class="topbar-actions">
+    <div class="notif-bell">
+      <button class="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifiche">&#128276;</button>
+      <div class="notif-bell-badge" id="notif-badge">0</div>
+      <div class="notif-panel" id="notif-panel">
+        <div class="notif-panel-header">
+          <h3>Notifiche</h3>
+          <button class="notif-panel-close" onclick="toggleNotifPanel()">&times;</button>
+        </div>
+        <div class="notif-panel-body" id="notif-panel-body">
+          <div class="notif-empty">Nessuna notifica</div>
+        </div>
+        <div class="notif-panel-footer" id="notif-panel-footer" style="display:none;">
+          <button class="notif-clear-btn" onclick="clearAllNotifs()">Cancella tutto</button>
+        </div>
+      </div>
+    </div>
+    <div class="user-pill" id="user-pill">
+      <div class="user-pill-avatar" id="user-pill-avatar">--</div>
+      <div class="user-pill-info">
+        <div class="user-pill-name" id="user-pill-name">Caricamento...</div>
+        <div class="user-pill-role" id="user-pill-role"></div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="logout()">Esci</button>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-item active" onclick="switchTab('lavoro')" id="tab-lavoro">Lavoro</div>
+  <div class="tab-item" onclick="switchTab('stato')" id="tab-stato">Stato Ordini</div>
+  <div class="tab-item" onclick="switchTab('calendario')" id="tab-calendario">Calendario &amp; KPI</div>
+</div>
+
+<div class="tab-panel active" id="panel-lavoro" style="padding:0;">
+  <div class="main">
+    <!-- CALENDAR -->
+    <div class="calendar" id="calendar">
+    <div class="calendar-header">
+      <div class="calendar-title" id="calendar-view-title">Ordini per Scadenza</div>
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" id="vt-scadenza" onclick="switchLaserView('scadenza')">Per Scadenza</button>
+        <button class="view-toggle-btn" id="vt-cliente" onclick="switchLaserView('cliente')">Per Cliente</button>
+      </div>
+    </div>
+    <div class="calendar-list" id="calendar-list"></div>
+  </div>
+
+  <!-- PDF VIEWER -->
+  <div class="pdf-viewer">
+    <div class="pdf-header">
+      <div class="pdf-title" id="pdf-title">PDF Ordine</div>
+      <button class="pdf-close" onclick="deselectOrder()">✕</button>
+    </div>
+    <iframe id="pdf-frame" class="pdf-frame"></iframe>
+    <div class="pdf-empty" id="pdf-empty">Seleziona un ordine dal calendario</div>
+  </div>
+
+  <!-- DETAILS -->
+  <div class="details">
+    <div class="details-header">
+      <div class="details-title" id="details-title">Dettagli Ordine</div>
+      <div class="details-meta" id="details-meta"></div>
+    </div>
+    <div class="details-content" id="details-content">
+      <div class="empty-state">&#x1F4CB; Seleziona un ordine dal calendario</div>
+    </div>
+    <div class="details-footer" id="details-footer"></div>
+  </div>
+  </div>
+</div>
+
+<!-- TAB PANEL: STATO ORDINI -->
+<div class="tab-panel" id="panel-stato" style="padding: 24px 32px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <h2 style="font-size:18px; font-weight:700; color:var(--black);">Stato Ordini</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <select id="stato-filtro-fase" onchange="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; background:#f8f8fa;">
+        <option value="">In lavorazione</option>
+        <option value="LASER">Solo Laser</option>
+        <option value="PIEGA">Solo Piega</option>
+        <option value="SALDATURA">Solo Saldatura</option>
+        <option value="PULIZIA">Solo Pulizia</option>
+        <option value="COMPLETATO">Completati</option>
+      </select>
+      <input type="text" id="stato-search" placeholder="Cerca cliente..." oninput="renderStatoOrdini()" style="padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; width:180px; background:#f8f8fa;">
+    </div>
+  </div>
+  <div id="stato-ordini-list"></div>
+</div>
+
+<!-- TAB PANEL: CALENDARIO & KPI -->
+<div class="tab-panel" id="panel-calendario">
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi-card kpi-card--green">
+      <div class="kpi-label">Ordini Completati</div>
+      <div class="kpi-value" id="kpi-completati">—</div>
+      <div class="kpi-sub" id="kpi-completati-sub">nel periodo</div>
+    </div>
+    <div class="kpi-card kpi-card--orange">
+      <div class="kpi-label">Ordini in Attesa</div>
+      <div class="kpi-value" id="kpi-attesa">—</div>
+      <div class="kpi-sub">da lavorare</div>
+    </div>
+    <div class="kpi-card kpi-card--blue">
+      <div class="kpi-label">Tempo Medio Laser</div>
+      <div class="kpi-value" id="kpi-tempo-medio">—</div>
+      <div class="kpi-sub">per ordine completato</div>
+    </div>
+    <div class="kpi-card kpi-card--green">
+      <div class="kpi-label">Capacità Giornaliera</div>
+      <div class="kpi-value" id="kpi-capacita">—</div>
+      <div class="kpi-sub" id="kpi-capacita-sub">ordini oggi</div>
+    </div>
+  </div>
+
+  <!-- CALENDARIO -->
+  <div class="cal-container">
+    <div class="cal-left">
+      <div class="cal-nav">
+        <div class="cal-nav-title" id="cal-month-title"></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="cal-view-switcher">
+            <button class="cal-view-btn active" onclick="setCalView('month')" id="btn-month">Mese</button>
+            <button class="cal-view-btn" onclick="setCalView('week')" id="btn-week">Settimana</button>
+            <button class="cal-view-btn" onclick="setCalView('day')" id="btn-day">Giorno</button>
+          </div>
+          <div class="cal-nav-btns">
+            <button class="cal-nav-btn" onclick="calNavigate(-1)">&#8592;</button>
+            <button class="cal-today-btn" onclick="calGoToday()">Oggi</button>
+            <button class="cal-nav-btn" onclick="calNavigate(1)">&#8594;</button>
+          </div>
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-grid-dashboard"></div>
+    </div>
+    <div class="cal-right" id="cal-detail-panel">
+      <div class="cal-detail-title">Seleziona un giorno</div>
+      <div class="cal-detail-sub">Clicca su una cella per vedere gli ordini</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = '';
+const PHASE = 'LASER';  // Change to PIEGA, SALDATURA for different stations
+let allOrders = [];
+let selectedOrderId = null;
+let laserViewMode = 'scadenza'; // 'scadenza' | 'cliente'
+let actionInProgress = false;
+
+// === USER PILL ===
+function updateUserPill() {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  if (!user) return;
+  const initials = (user.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+  document.getElementById('user-pill-avatar').textContent = initials;
+  document.getElementById('user-pill-name').textContent = user.name || 'Operatore';
+  document.getElementById('user-pill-role').textContent = 'Laser';
+}
+
+// === SESSION CHECK ===
+window.addEventListener('load', () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id) {
+    window.location.href = '/login.html';
+  }
+  updateUserPill();
+  loadOrders();
+  let _pollTimer = setInterval(loadOrders, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearInterval(_pollTimer);
+      _pollTimer = null;
+    } else {
+      _lastOrdersFingerprint = '';
+      loadOrders();
+      _pollTimer = setInterval(loadOrders, 5000);
+    }
+  });
+});
+
+// === LOAD ORDERS ===
+let _lastOrdersFingerprint = '';
+
+function _ordersFingerprint(orders) {
+  const parts = orders.map(o => {
+    const steps = (o.processing_steps || []);
+    const activeStep = steps.find(s => s.sessione_attiva);
+    const pauseCount = steps.filter(s => s.in_pausa).length;
+    return `${o.id}|${o.fase_corrente}|${o.status}|${steps.length}|${pauseCount}|${activeStep ? activeStep.id + ':' + activeStep.sessione_attiva_inizio : '-'}`;
+  });
+  parts.sort();
+  return parts.join(';');
+}
+
+async function loadOrders() {
+  if (actionInProgress) return;
+  try {
+    // Nel nuovo workflow non ci sono più fasi: la pagina LASER mostra
+    // tutti gli ordini ancora da tagliare (taglio_completato=False).
+    // Per backward-compat includiamo anche quelli appena tagliati (per ~1 giorno)
+    // così Mirko può annullare se ha sbagliato.
+    const response = await fetch(`${API_URL}/api/orders`);
+    const data = await response.json();
+    const orders = (data.orders || data || []).filter(o => {
+      if (o.is_deleted) return false;
+      // Mostra solo ordini "vivi" amministrativamente
+      if (o.status === 'CHIUSO' || o.status === 'SPEDITO') return false;
+      // Ordini "da tagliare"
+      if (!o.taglio_completato) return true;
+      // Ordini tagliati di recente (24h): tienili visibili per eventuale annullo
+      if (o.data_taglio_completato) {
+        const dt = new Date(o.data_taglio_completato);
+        const hoursSince = (Date.now() - dt.getTime()) / 3600000;
+        if (hoursSince < 24) return true;
+      }
+      return false;
+    });
+    const newFp = _ordersFingerprint(orders);
+    if (newFp === _lastOrdersFingerprint) {
+      updateConnBadge(true);
+      return;
+    }
+    _lastOrdersFingerprint = newFp;
+    allOrders = orders;
+    renderCalendar();
+    if (selectedOrderId) {
+      const order = allOrders.find(o => o.id === selectedOrderId);
+      if (order) {
+        renderDetails(order);
+      } else {
+        selectedOrderId = null;
+        clearDetails();
+      }
+    }
+    updateConnBadge(true);
+  } catch (err) {
+    console.error('Errore caricamento ordini:', err);
+    updateConnBadge(false);
+  }
+}
+
+// === GROUP ORDERS BY DATE ===
+function groupOrdersByDate() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const groups = {
+    'SCADUTO': [],
+    'OGGI': [],
+    'DOMANI': [],
+    'QUESTA SETTIMANA': [],
+  };
+  const byDate = {};
+
+  allOrders.forEach(order => {
+    const delivery = new Date(order.data_consegna);
+    delivery.setHours(0, 0, 0, 0);
+    const daysLeft = Math.floor((delivery - today) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft < 0) {
+      groups['SCADUTO'].push({...order, daysLeft});
+    } else if (daysLeft === 0) {
+      groups['OGGI'].push({...order, daysLeft});
+    } else if (daysLeft === 1) {
+      groups['DOMANI'].push({...order, daysLeft});
+    } else if (daysLeft <= 6) {
+      groups['QUESTA SETTIMANA'].push({...order, daysLeft});
+    } else {
+      const key = delivery.toLocaleDateString('it-IT');
+      if (!byDate[key]) byDate[key] = [];
+      byDate[key].push({...order, daysLeft});
+    }
+  });
+
+  return { groups, byDate };
+}
+
+// === VIEW SWITCH ===
+function switchLaserView(mode) {
+  laserViewMode = mode;
+  document.getElementById('vt-scadenza').classList.toggle('active', mode === 'scadenza');
+  document.getElementById('vt-cliente').classList.toggle('active', mode === 'cliente');
+  document.getElementById('calendar-view-title').textContent = mode === 'scadenza' ? 'Ordini per Scadenza' : 'Ordini per Cliente';
+  renderCalendar();
+}
+
+// === RENDER CALENDAR (dispatch) ===
+function renderCalendar() {
+  if (laserViewMode === 'cliente') {
+    renderByClient();
+  } else {
+    renderByDeadline();
+  }
+}
+
+// === RENDER BY DEADLINE (vista originale) ===
+function renderByDeadline() {
+  const { groups, byDate } = groupOrdersByDate();
+  const container = document.getElementById('calendar-list');
+  let html = '';
+
+  // Render grouped dates
+  Object.entries(groups).forEach(([label, orders]) => {
+    if (orders.length === 0) return;
+
+    const urgency = label === 'SCADUTO' ? 'urgent-red' : label === 'OGGI' ? 'urgent-red' : label === 'DOMANI' ? 'urgent-yellow' : 'urgent-green';
+    const badgeClass = label === 'SCADUTO' ? 'badge-red' : label === 'OGGI' ? 'badge-red' : label === 'DOMANI' ? 'badge-yellow' : 'badge-green';
+
+    const curUserId = JSON.parse(localStorage.getItem('currentUser'))?.id;
+    html += `<div class="date-group">
+      <div class="date-group-header ${urgency}">${label} (${orders.length})</div>
+      ${orders.map(order => {
+        const isSup = (order.support_requests || []).some(sr => sr.operatore_supporto === curUserId && sr.stato === 'accepted');
+        const supInfo = isSup ? (order.support_requests || []).find(sr => sr.operatore_supporto === curUserId && sr.stato === 'accepted') : null;
+        return `
+        <div class="order-item ${selectedOrderId === order.id ? 'selected' : ''}"
+             onclick="selectOrder('${order.id}')">
+          <div class="order-client">${order.cliente}</div>
+          ${isSup ? `<div style="font-size:10px;color:#1e40af;font-weight:600;">&#129309; In supporto a ${escapeHtml(supInfo.nome_principale)}</div>` : ''}
+          <div style="font-size:11px;color:var(--text-secondary);">
+            ${new Date(order.data_consegna).toLocaleDateString('it-IT')}
+            <span class="order-date-badge ${badgeClass}">
+              ${order.daysLeft < 0 ? '🔴 ' + (-order.daysLeft) + 'd' : order.daysLeft + 'd'}
+            </span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+
+  // Render future dates
+  Object.entries(byDate).forEach(([date, orders]) => {
+    html += `<div class="date-group">
+      <div class="date-group-header urgent-green">${date} (${orders.length})</div>
+      ${orders.map(order => `
+        <div class="order-item ${selectedOrderId === order.id ? 'selected' : ''}"
+             onclick="selectOrder('${order.id}')">
+          <div class="order-client">${order.cliente}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${date}</div>
+        </div>
+      `).join('')}
+    </div>`;
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">&#x1F4CB; Nessun ordine</div>';
+}
+
+// === RENDER BY CLIENT ===
+function renderByClient() {
+  const container = document.getElementById('calendar-list');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Raggruppa per cliente
+  const clientMap = {};
+  allOrders.forEach(order => {
+    const key = order.cliente || 'Sconosciuto';
+    if (!clientMap[key]) clientMap[key] = [];
+    const delivery = new Date(order.data_consegna);
+    delivery.setHours(0, 0, 0, 0);
+    const daysLeft = Math.floor((delivery - today) / (1000 * 60 * 60 * 24));
+    clientMap[key].push({...order, daysLeft});
+  });
+
+  // Ordina ogni gruppo per scadenza, poi ordina i clienti per scadenza più urgente
+  Object.values(clientMap).forEach(arr => arr.sort((a, b) => a.daysLeft - b.daysLeft));
+  const sortedClients = Object.entries(clientMap).sort((a, b) => a[1][0].daysLeft - b[1][0].daysLeft);
+
+  let html = '';
+  sortedClients.forEach(([clientName, orders]) => {
+    const nearest = orders[0];
+    const nearestDays = nearest.daysLeft;
+
+    // Badge urgenza del cliente (basata sull'ordine più urgente)
+    let urgBg, urgColor;
+    if (nearestDays < 0) { urgBg = 'var(--red-bg)'; urgColor = 'var(--red)'; }
+    else if (nearestDays <= 1) { urgBg = 'var(--orange-bg)'; urgColor = 'var(--orange)'; }
+    else { urgBg = 'var(--green-badge-bg)'; urgColor = 'var(--green-badge)'; }
+
+    const urgLabel = nearestDays < 0
+      ? (-nearestDays) + 'g scaduto'
+      : nearestDays === 0 ? 'oggi'
+      : nearestDays === 1 ? 'domani'
+      : nearestDays + 'g';
+
+    // Apri automaticamente se contiene l'ordine selezionato
+    const hasSelected = orders.some(o => o.id === selectedOrderId);
+    const openClass = hasSelected ? ' open' : '';
+
+    html += `<div class="client-group${openClass}" id="cg-${nearest.id.substring(0,8)}">
+      <div class="client-group-header" onclick="toggleClientGroup(this)">
+        <div class="client-group-left">
+          <span class="client-group-name">${escapeHtml(clientName)}</span>
+          <span class="client-group-count">${orders.length}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="client-group-urgency" style="background:${urgBg};color:${urgColor};">${urgLabel}</span>
+          <span class="client-group-chevron">&#9654;</span>
+        </div>
+      </div>
+      <div class="client-group-body">
+        ${orders.map((order, idx) => {
+          const isNearest = idx === 0;
+          const badgeClass = order.daysLeft < 0 ? 'badge-red' : order.daysLeft <= 1 ? 'badge-yellow' : 'badge-green';
+          const sel = selectedOrderId === order.id ? ' selected' : '';
+          const near = isNearest ? ' nearest-deadline' : '';
+          return `<div class="order-item${sel}${near}" onclick="selectOrder('${order.id}')">
+            <div>
+              <div class="order-client">${escapeHtml(order.numero_ordine || order.id.substring(0,8))}</div>
+              <div class="client-order-numero">${new Date(order.data_consegna).toLocaleDateString('it-IT')}</div>
+            </div>
+            <span class="order-date-badge ${badgeClass}">
+              ${order.daysLeft < 0 ? (-order.daysLeft) + 'd' : order.daysLeft + 'd'}
+            </span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;color:var(--text-secondary);text-align:center;">&#x1F4CB; Nessun ordine</div>';
+}
+
+function toggleClientGroup(headerEl) {
+  headerEl.parentElement.classList.toggle('open');
+}
+
+// === SELECT ORDER ===
+function selectOrder(orderId) {
+  selectedOrderId = orderId;
+  renderCalendar();
+
+  const order = allOrders.find(o => o.id === orderId);
+  if (order) {
+    renderDetails(order);
+    // Load PDF
+    document.getElementById('pdf-frame').src = `${API_URL}/api/orders/${orderId}/pdf`;
+    document.getElementById('pdf-empty').style.display = 'none';
+  }
+}
+
+// === DESELECT ORDER ===
+function clearDetails() { deselectOrder(); }
+function deselectOrder() {
+  selectedOrderId = null;
+  renderCalendar();
+  document.getElementById('pdf-frame').src = '';
+  document.getElementById('pdf-empty').style.display = 'flex';
+  document.getElementById('details-content').innerHTML = '<div class="empty-state">&#x1F4CB; Seleziona un ordine</div>';
+  document.getElementById('details-footer').innerHTML = '';
+}
+
+// === RENDER DETAILS ===
+function renderDetails(order) {
+  document.getElementById('details-title').textContent = order.cliente;
+  document.getElementById('details-meta').textContent =
+    `#${order.id.substring(0, 8)} \u2022 ${new Date(order.data_consegna).toLocaleDateString('it-IT')}`;
+
+  const articles = order.articles_next_phase || [];
+
+  // Stato nel nuovo workflow: l'unica info che conta è "taglio completato o no"
+  const taglioFatto = !!order.taglio_completato;
+  const dataTaglio = order.data_taglio_completato
+    ? new Date(order.data_taglio_completato).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
+    : '';
+
+  let html = `
+    <div class="detail-section">
+      <div class="section-label">Stato</div>
+      <div class="info-text">${taglioFatto ? '✅ Tagliato' + (dataTaglio ? ' — ' + dataTaglio : '') : '⭕ Da tagliare'}</div>
+    </div>
+  `;
+
+  // Articoli con quantita
+  if (articles.length > 0) {
+    html += `<div class="detail-section">
+      <div class="section-label">Articoli da lavorare (${articles.length})</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${articles.map(a => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg-light);border-radius:6px;font-size:12px;">
+            <span style="font-weight:600;">${escapeHtml(a.name || 'N/A')} ${a.code ? '<span style="color:var(--text-secondary)">(' + escapeHtml(a.code) + ')</span>' : ''}</span>
+            <span style="font-weight:700;color:var(--ls-green);">${a.qty || 0} pz</span>
+          </div>
+        `).join('')}
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(26,122,72,0.08);border-radius:6px;font-size:12px;font-weight:700;">
+          <span>Totale pezzi</span>
+          <span style="color:var(--ls-green);">${articles.reduce((sum, a) => sum + (a.qty || 0), 0)} pz</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // DXF files
+  const dxfFiles = articles.filter(a => a.dxf_file).map(a => a.dxf_file);
+  if (dxfFiles.length > 0) {
+    html += `<div class="detail-section">
+      <div class="section-label">Disegni tecnici</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${dxfFiles.map(f => `
+          <a href="${API_URL}/api/orders/${order.id}/dxf/${encodeURIComponent(f.filename)}"
+             target="_blank"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-light);border-radius:6px;font-size:12px;text-decoration:none;color:var(--text-primary);border:1px solid var(--border);transition:border-color 0.2s;"
+             onmouseover="this.style.borderColor='var(--ls-green)'" onmouseout="this.style.borderColor='var(--border)'">
+            <span style="font-size:16px;">\uD83D\uDCC0</span>
+            <span style="font-weight:600;flex:1;">${escapeHtml(f.filename)}</span>
+            <span style="color:var(--ls-green);font-weight:600;">Scarica</span>
+          </a>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('details-content').innerHTML = html;
+
+  // Pulsanti laser: un solo gesto. "Taglio fatto" sblocca le scansioni officina,
+  // "Annulla taglio" è disponibile per qualche ora se l'operatore ha sbagliato.
+  let footerHtml = '';
+  if (taglioFatto) {
+    footerHtml += `<div class="status success active" style="margin-right:8px;">&#10004; Taglio completato</div>`;
+    footerHtml += `<button class="btn btn-danger-outline" onclick="undoLaserDone('${order.id}')">&#x21BA; Annulla taglio</button>`;
+  } else {
+    footerHtml += `<button class="btn btn-primary" onclick="markLaserDone('${order.id}')">&#10004; Taglio fatto</button>`;
+  }
+
+  document.getElementById('details-footer').innerHTML = footerHtml;
+}
+
+// === MARK LASER DONE ===
+// Quando l'operatore laser ha finito di tagliare, segna l'ordine come tagliato.
+// Da questo momento le pistole barcode accettano scansioni su questo ordine.
+async function markLaserDone(orderId) {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  const ok = await showConfirm('Taglio completato',
+    'Confermi che hai finito di tagliare?<br>Gli operai officina potranno scansionare il cartellino.',
+    { icon: '&#x2705;', okText: 'Sì, taglio fatto' });
+  if (!ok) return;
+  actionInProgress = true;
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/mark-laser-done`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showToast('Taglio segnato come completato');
+    } else {
+      showToast('Errore: ' + (result.error || 'Impossibile completare'), 'error');
+    }
+  } catch (err) {
+    console.error('Errore mark laser done:', err);
+    showToast('Errore di connessione', 'error');
+  }
+  actionInProgress = false;
+  await loadOrders();
+  if (currentTab === 'stato') loadStatoOrdini();
+}
+
+// === UNDO LASER DONE ===
+// Rollback nel caso di errore (es. operatore ha sbagliato ordine).
+async function undoLaserDone(orderId) {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  const ok = await showConfirm('Annullare il taglio?',
+    'L\'ordine tornerà in coda al laser. Le pistole non potranno più scansionarlo finché non lo rimarci come tagliato.',
+    { icon: '&#x21BA;', okText: 'Sì, annulla' });
+  if (!ok) return;
+  actionInProgress = true;
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/mark-laser-undone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showToast('Taglio annullato');
+    } else {
+      showToast('Errore: ' + (result.error || 'Impossibile annullare'), 'error');
+    }
+  } catch (err) {
+    console.error('Errore undo laser:', err);
+    showToast('Errore di connessione', 'error');
+  }
+  actionInProgress = false;
+  await loadOrders();
+  if (currentTab === 'stato') loadStatoOrdini();
+}
+
+// === UTILITY ===
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// === LOGOUT ===
+async function logout() {
+  try {
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (user.id) {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+    }
+  } catch (_) {}
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+
+// === CALENDAR DASHBOARD VARIABLES ===
+let calDate = new Date();
+let calSelectedDate = null;
+let calView = 'month';
+let calDragOrderId = null;
+let calDragSourceDate = null;
+let currentTab = 'lavoro';
+
+// === TAB SWITCHING ===
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(el => {
+    el.classList.remove('active');
+    el.style.animation = '';
+  });
+  const panel = document.getElementById('panel-' + tab);
+  panel.classList.add('active');
+  panel.style.animation = 'tabFadeIn 0.2s ease-out';
+  if (tab === 'calendario') {
+    renderCalendarView();
+    updateKPIs();
+  } else if (tab === 'stato') {
+    loadStatoOrdini();
+  }
+}
+
+// === STATO ORDINI ===
+let allOrdiniStato = [];
+
+async function loadStatoOrdini() {
+  try {
+    const resp = await fetch(`${API_URL}/api/orders`);
+    const data = await resp.json();
+    allOrdiniStato = data.orders || data;
+    renderStatoOrdini();
+  } catch (err) {
+    console.error('Errore caricamento stato ordini:', err);
+  }
+}
+
+function statoCalcProgress(order) {
+  if (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(order.status)) return 100;
+  if (order.status === 'PARZIALE') return 85;
+  const map = { LASER: 10, PIEGA: 35, SALDATURA: 55, PULIZIA: 80, COMPLETATO: 100 };
+  const base = map[order.fase_corrente] || 0;
+  const hasActive = (order.processing_steps || []).some(s => s.timestamp_inizio && !s.timestamp_fine);
+  return hasActive ? Math.min(base + 10, 95) : base;
+}
+
+function statoProgressColor(pct) {
+  if (pct >= 100) return '#22c55e';
+  if (pct >= 60) return '#22c55e';
+  if (pct >= 30) return '#f59e0b';
+  return '#ef4444';
+}
+
+function renderStatoOrdini() {
+  const container = document.getElementById('stato-ordini-list');
+  const filtroFase = document.getElementById('stato-filtro-fase').value;
+  const search = (document.getElementById('stato-search').value || '').toLowerCase().trim();
+
+  let filtered = allOrdiniStato.filter(o => {
+    // Default (vuoto) = nascondi completati
+    if (!filtroFase && (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.status) || o.status === 'PARZIALE')) return false;
+    if (filtroFase === 'COMPLETATO' && !['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.status) && o.status !== 'PARZIALE') return false;
+    if (filtroFase && filtroFase !== 'COMPLETATO' && o.fase_corrente !== filtroFase) return false;
+    if (search && !o.cliente.toLowerCase().includes(search) && !(o.numero_ordine || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="stato-empty">Nessun ordine trovato</div>';
+    return;
+  }
+
+  // Raggruppa per fase (ordine pipeline)
+  const phaseOrder = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA', 'COMPLETATO'];
+  const phaseLabels = { LASER: 'Laser', PIEGA: 'Piega', SALDATURA: 'Saldatura', PULIZIA: 'Pulizia', COMPLETATO: 'Completati' };
+  const phaseColors = { LASER: 'var(--blue)', PIEGA: '#92400e', SALDATURA: '#9d174d', PULIZIA: '#3730a3', COMPLETATO: 'var(--green-badge)' };
+  const phaseBgs = { LASER: 'var(--blue-bg)', PIEGA: '#fff4d6', SALDATURA: '#fce7f3', PULIZIA: '#e0e7ff', COMPLETATO: 'var(--green-badge-bg)' };
+
+  const groups = {};
+  filtered.forEach(o => {
+    const fase = (['COMPLETATO','DA_FATTURARE','CHIUSO'].includes(o.status) || o.status === 'PARZIALE') ? 'COMPLETATO' : (o.fase_corrente || 'LASER');
+    if (!groups[fase]) groups[fase] = [];
+    groups[fase].push(o);
+  });
+
+  let html = '';
+  phaseOrder.forEach(fase => {
+    const orders = groups[fase];
+    if (!orders || orders.length === 0) return;
+    // Ordina per data consegna
+    orders.sort((a, b) => {
+      if (!a.data_consegna) return 1;
+      if (!b.data_consegna) return -1;
+      return new Date(a.data_consegna) - new Date(b.data_consegna);
+    });
+
+    html += `<div class="stato-section">
+      <div class="stato-section-header" style="border-left-color:${phaseColors[fase]}; background:${phaseBgs[fase]};">
+        <span class="stato-section-title" style="color:${phaseColors[fase]};">${phaseLabels[fase]}</span>
+        <span class="stato-section-count" style="background:${phaseColors[fase]};">${orders.length}</span>
+      </div>`;
+
+    orders.forEach(o => {
+      const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : '—';
+      const numero = o.numero_ordine || o.id.substring(0, 8);
+      const steps = o.processing_steps || [];
+
+      // Urgenza consegna
+      let urgClass = '';
+      if (o.data_consegna) {
+        const diff = (new Date(o.data_consegna) - new Date()) / (1000*60*60*24);
+        if (diff < 0) urgClass = 'overdue';
+        else if (diff <= 3) urgClass = 'soon';
+      }
+
+      // Azioni
+      let actionsHtml = '';
+      const laserStep = steps.filter(s => s.fase === 'LASER').pop();
+      if (fase === 'LASER') {
+        const started = laserStep?.timestamp_inizio && !laserStep?.timestamp_fine;
+        const done = laserStep?.timestamp_fine;
+        if (!done && !started) {
+          actionsHtml = `<button class="stato-action-btn green" onclick="startPhase('${o.id}')">Inizia Taglio</button>`;
+        } else if (started) {
+          actionsHtml = `<button class="stato-action-btn green" onclick="completePhase('${o.id}')">Completa</button>`;
+        }
+      }
+      actionsHtml += `<button class="stato-action-btn outline" onclick="statoViewPdf('${o.id}')">PDF</button>`;
+      if (fase === 'LASER') {
+        actionsHtml += `<button class="stato-action-btn outline" onclick="statoGoToOrder('${o.id}')">Apri</button>`;
+      }
+
+      html += `<div class="stato-row">
+        <div class="stato-row-client">${escapeHtml(o.cliente)}</div>
+        <div class="stato-row-num">#${escapeHtml(numero)}</div>
+        <div class="stato-row-consegna ${urgClass}">${consegna}</div>
+        <div class="stato-row-actions">${actionsHtml}</div>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function statoViewPdf(orderId) {
+  const modal = document.getElementById('pdf-modal');
+  document.getElementById('pdf-modal-frame').src = `${API_URL}/api/orders/${orderId}/pdf`;
+  modal.classList.add('active');
+}
+
+function statoGoToOrder(orderId) {
+  // Passa al tab Lavoro e seleziona l'ordine
+  switchTab('lavoro');
+  setTimeout(() => selectOrder(orderId), 300);
+}
+
+// === CALENDAR ROUTING ===
+function renderCalendarView() {
+  if (calView === 'month') renderMonthView();
+  else if (calView === 'week') renderWeekView();
+  else renderDayView();
+}
+
+function setCalView(view) {
+  calView = view;
+  ['month', 'week', 'day'].forEach(v => {
+    const btn = document.getElementById('btn-' + v);
+    if (btn) btn.classList.toggle('active', v === view);
+  });
+  renderCalendarView();
+}
+
+function calNavigate(dir) {
+  if (calView === 'month') {
+    calDate.setMonth(calDate.getMonth() + dir);
+  } else if (calView === 'week') {
+    calDate.setDate(calDate.getDate() + (dir * 7));
+  } else {
+    calDate.setDate(calDate.getDate() + dir);
+  }
+  renderCalendarView();
+  updateKPIs();
+}
+
+function calGoToday() {
+  calDate = new Date();
+  renderCalendarView();
+  updateKPIs();
+}
+
+// === MONTH VIEW ===
+function renderMonthView() {
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const year = calDate.getFullYear();
+  const month = calDate.getMonth();
+  document.getElementById('cal-month-title').textContent = `${monthNames[month]} ${year}`;
+
+  const grid = document.getElementById('cal-grid-dashboard');
+  const dayHeaders = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+  let html = '<div class="cal-header-row">';
+  html += dayHeaders.map(d => `<div class="cal-header">${d}</div>`).join('');
+  html += '</div>';
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+
+  const now = new Date();
+  const todayStr = formatDateStr(now);
+  let allDays = [];
+
+  const prevLast = new Date(year, month, 0).getDate();
+  for (let i = startOffset - 1; i >= 0; i--) {
+    allDays.push({ day: prevLast - i, dateStr: formatDateStr(new Date(year, month - 1, prevLast - i)), isOther: true });
+  }
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    allDays.push({ day: d, dateStr: formatDateStr(new Date(year, month, d)), isOther: false });
+  }
+
+  const remaining = (7 - (allDays.length % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    allDays.push({ day: d, dateStr: formatDateStr(new Date(year, month + 1, d)), isOther: true });
+  }
+
+  for (let w = 0; w < allDays.length; w += 7) {
+    html += '<div class="cal-week-row">';
+    for (let i = w; i < w + 7 && i < allDays.length; i++) {
+      const {day, dateStr, isOther} = allDays[i];
+      html += renderMonthDayCell(day, dateStr, todayStr, isOther);
+    }
+    html += '</div>';
+  }
+
+  grid.innerHTML = html;
+  if (!calSelectedDate) calSelectedDate = todayStr;
+  showDayDetailPanel(calSelectedDate);
+  attachDragDropToGrid();
+}
+
+function renderMonthDayCell(day, dateStr, todayStr, isOtherMonth) {
+  const ordersOnDay = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === dateStr);
+  const isToday = dateStr === todayStr;
+  const isSelected = dateStr === calSelectedDate;
+
+  let classes = 'cal-day';
+  if (isToday) classes += ' today';
+  if (isSelected) classes += ' selected';
+  if (isOtherMonth) classes += ' other-month';
+
+  const visible = ordersOnDay.slice(0, 3);
+  const overflow = ordersOnDay.length - 3;
+
+  let chipsHtml = visible.map(o => {
+    const chipClass = getOrderChipClass(o);
+    const label = (o.cliente || '').substring(0, 12);
+    return `<div class="cal-event-chip ${chipClass}" draggable="true" data-order-id="${o.id}" data-source-date="${dateStr}" title="${escapeHtml(o.cliente || '')} — ${o.numero_ordine || ''}">${escapeHtml(label)}</div>`;
+  }).join('');
+
+  if (overflow > 0) {
+    chipsHtml += `<div class="cal-event-chip status-attesa">+${overflow} altri</div>`;
+  }
+
+  return `<div class="${classes}" onclick="selectCalDay('${dateStr}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${dateStr}')" data-date="${dateStr}"><div class="cal-day-num">${day}</div>${ordersOnDay.length > 0 ? `<div class="cal-day-count">${ordersOnDay.length} ordine${ordersOnDay.length !== 1 ? 'i' : ''}</div>` : ''}${chipsHtml}</div>`;
+}
+
+// === WEEK VIEW ===
+function renderWeekView() {
+  const monday = getMondayOfWeek(calDate);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(d);
+  }
+
+  const startStr = days[0].toLocaleDateString('it-IT', {day:'numeric', month:'short'});
+  const endStr = days[6].toLocaleDateString('it-IT', {day:'numeric', month:'short', year:'numeric'});
+  document.getElementById('cal-month-title').textContent = `${startStr} — ${endStr}`;
+
+  const todayStr = formatDateStr(new Date());
+  const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+  let html = '<div class="cal-header-row">';
+  days.forEach((d, i) => {
+    const ds = formatDateStr(d);
+    const isToday = ds === todayStr;
+    const ordCount = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === ds).length;
+    html += `<div class="cal-header ${isToday ? 'today' : ''}" onclick="selectCalDay('${ds}'); setCalView('day');" style="cursor:pointer; ${isToday ? 'color:var(--green)' : ''}">${dayNames[i]}<br><span style="font-size:16px; font-weight:800;">${d.getDate()}</span>${ordCount > 0 ? `<br><span style="color:var(--green); font-size:10px">${ordCount} ord.</span>` : ''}</div>`;
+  });
+  html += '</div>';
+
+  html += '<div class="cal-week-row" style="flex:1; min-height:300px;">';
+  days.forEach(d => {
+    const ds = formatDateStr(d);
+    const dayOrders = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === ds);
+    const isToday = ds === todayStr;
+    html += `<div class="cal-day ${isToday ? 'today' : ''} ${ds === calSelectedDate ? 'selected' : ''}" style="padding:8px; min-height:200px;" onclick="selectCalDay('${ds}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${ds}')" data-date="${ds}">${dayOrders.map(o => {
+      const chipClass = getOrderChipClass(o);
+      return `<div class="cal-event-chip ${chipClass}" draggable="true" data-order-id="${o.id}" data-source-date="${ds}" style="margin-bottom:4px; padding:4px 8px; font-size:11px; display:flex; flex-direction:column; gap:2px;" title="${escapeHtml(o.cliente || '')}">${escapeHtml(o.cliente || '—')}<br><span style="opacity:0.8">${o.numero_ordine || ''}</span></div>`;
+    }).join('')}</div>`;
+  });
+  html += '</div>';
+
+  document.getElementById('cal-grid-dashboard').innerHTML = html;
+  attachDragDropToGrid();
+  if (calSelectedDate) showDayDetailPanel(calSelectedDate);
+}
+
+// === DAY VIEW ===
+function renderDayView() {
+  const ds = formatDateStr(calDate);
+  calSelectedDate = ds;
+  const formatted = calDate.toLocaleDateString('it-IT', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+  document.getElementById('cal-month-title').textContent = formatted;
+
+  const dayOrders = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === ds);
+  let html = '';
+  if (dayOrders.length === 0) {
+    html = `<div style="padding:40px; text-align:center; color:var(--gray-text); font-size:14px;">&#x2600;&#xFE0F; Nessun ordine in consegna per questo giorno</div>`;
+  } else {
+    html = dayOrders.map(o => renderOrderCard(o, ds)).join('');
+  }
+
+  document.getElementById('cal-grid-dashboard').innerHTML = html;
+  showDayDetailPanel(ds);
+}
+
+// === DETAIL PANEL ===
+function selectCalDay(dateStr) {
+  calSelectedDate = dateStr;
+  renderCalendarView();
+}
+
+function showDayDetailPanel(dateStr) {
+  const panel = document.getElementById('cal-detail-panel');
+  if (!panel) return;
+
+  const dayOrders = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === dateStr);
+  const dt = new Date(dateStr + 'T00:00:00');
+  const formatted = dt.toLocaleDateString('it-IT', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+
+  let html = `<div class="cal-detail-title">${formatted}</div><div class="cal-detail-sub">${dayOrders.length} ordine${dayOrders.length !== 1 ? 'i' : ''} in consegna</div>`;
+
+  if (dayOrders.length === 0) {
+    html += `<div style="color:var(--gray-text); font-size:13px; padding:20px 0;">&#x2600;&#xFE0F; Nessun ordine per questo giorno.<br>Trascina un ordine qui per riprogrammarlo.</div>`;
+  } else {
+    html += dayOrders.map(o => renderOrderCard(o, dateStr)).join('');
+  }
+
+  panel.innerHTML = html;
+  panel.querySelectorAll('[draggable="true"]').forEach(attachDragListeners);
+}
+
+function renderOrderCard(order, dateStr) {
+  const progress = calculateLaserProgress(order);
+  const statusColor = getStatusColorHex(order);
+  const hasPdf = !!order.pdf_file;
+  const hasDxf = order.dxf_files && order.dxf_files.length > 0;
+  const laserStep = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+  const isCompleted = !!laserStep?.timestamp_fine;
+  const isInProgress = !!laserStep?.timestamp_inizio && !isCompleted;
+
+  const statusLabel = isCompleted ? 'Completato' : isInProgress ? 'In Lavorazione' : 'In Attesa';
+  const statusBadgeClass = isCompleted ? 'cal-badge--completato' : isInProgress ? 'cal-badge--laser' : 'cal-badge--attesa';
+
+  return `<div class="cal-order-card" draggable="true" data-order-id="${order.id}" data-source-date="${dateStr}" style="border-left-color: ${statusColor};" onclick="selectOrder('${order.id}')"><div style="display:flex; justify-content:space-between; align-items:flex-start;"><div><div style="font-size:13px; font-weight:700; color:var(--black);">${escapeHtml(order.cliente || '—')}</div><div style="font-size:11px; color:var(--gray-text); margin-top:2px;">${escapeHtml(order.numero_ordine || 'N/D')}</div></div><span class="cal-badge ${statusBadgeClass}">${statusLabel}</span></div><div class="cal-card-badges">${hasPdf ? '<span class="cal-badge cal-badge--pdf">PDF</span>' : ''}${hasDxf ? `<span class="cal-badge cal-badge--dxf">DXF ×${order.dxf_files.length}</span>` : ''}</div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%; background:${statusColor};"></div></div><div style="font-size:10px; color:var(--gray-muted); text-align:right;">${progress}% completato</div></div>`;
+}
+
+// === DRAG & DROP ===
+function attachDragListeners(el) {
+  el.addEventListener('dragstart', handleDragStart);
+  el.addEventListener('dragend', handleDragEnd);
+}
+
+function attachDragDropToGrid() {
+  document.querySelectorAll('[draggable="true"][data-order-id]').forEach(attachDragListeners);
+}
+
+function handleDragStart(e) {
+  const orderId = e.currentTarget.dataset.orderId;
+  const sourceDate = e.currentTarget.dataset.sourceDate;
+  calDragOrderId = orderId;
+  calDragSourceDate = sourceDate;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', orderId);
+  e.currentTarget.style.opacity = '0.5';
+}
+
+function handleDragEnd(e) {
+  e.currentTarget.style.opacity = '';
+  calDragOrderId = null;
+  calDragSourceDate = null;
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const cell = e.currentTarget;
+  if (!cell.classList.contains('drag-over')) {
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    cell.classList.add('drag-over');
+  }
+}
+
+function handleDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+}
+
+async function handleDrop(e, targetDate) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+
+  const orderId = e.dataTransfer.getData('text/plain') || calDragOrderId;
+  if (!orderId || !targetDate) return;
+  if (targetDate === calDragSourceDate) return;
+
+  await rescheduleOrder(orderId, targetDate);
+}
+
+async function rescheduleOrder(orderId, newDate) {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  try {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/delivery-date`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data_consegna: newDate, operatore_id: user.id })
+    });
+    const result = await response.json();
+    if (result.success) {
+      const order = allOrders.find(o => o.id === orderId);
+      if (order) order.data_consegna = newDate + 'T00:00:00';
+      renderCalendarView();
+      updateKPIs();
+      showToast(`Ordine spostato al ${formatItalianDate(newDate)}`);
+    } else {
+      showToast('Errore: ' + result.error, 'error');
+    }
+  } catch (err) {
+    console.error('Errore reschedule:', err);
+    showToast('Errore di connessione', 'error');
+  }
+}
+
+// === KPI ===
+function updateKPIs() {
+  const { startDate, endDate } = getCurrentViewRange();
+
+  const periodOrders = allOrders.filter(o => {
+    if (!o.data_consegna) return false;
+    const d = o.data_consegna.split('T')[0];
+    return d >= startDate && d <= endDate;
+  });
+
+  const completati = periodOrders.filter(o => {
+    const step = (o.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+    return step && step.timestamp_fine;
+  });
+
+  const attesa = periodOrders.filter(o => {
+    const step = (o.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+    return !step || !step.timestamp_inizio;
+  });
+
+  const durations = completati.map(o => {
+    const step = (o.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+    if (!step || !step.timestamp_inizio || !step.timestamp_fine) return null;
+    return (new Date(step.timestamp_fine) - new Date(step.timestamp_inizio)) / 60000;
+  }).filter(d => d !== null && d > 0);
+
+  const avgMinutes = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : null;
+
+  const todayStr = formatDateStr(new Date());
+  const todayOrders = allOrders.filter(o => o.data_consegna && o.data_consegna.split('T')[0] === todayStr).length;
+  const capacityPct = periodOrders.length > 0 ? Math.round((todayOrders / periodOrders.length) * 100) : 0;
+
+  document.getElementById('kpi-completati').textContent = completati.length;
+  document.getElementById('kpi-completati-sub').textContent = `nel ${calView === 'month' ? 'mese' : calView === 'week' ? 'settimana' : 'giorno'}`;
+  document.getElementById('kpi-attesa').textContent = attesa.length;
+  document.getElementById('kpi-tempo-medio').textContent = avgMinutes !== null ? (avgMinutes >= 60 ? `${Math.floor(avgMinutes / 60)}h ${avgMinutes % 60}m` : `${avgMinutes}m`) : '—';
+  document.getElementById('kpi-capacita').textContent = `${todayOrders} / ${periodOrders.length}`;
+  document.getElementById('kpi-capacita-sub').textContent = `${capacityPct}% del periodo`;
+}
+
+function getCurrentViewRange() {
+  const year = calDate.getFullYear();
+  const month = calDate.getMonth();
+
+  if (calView === 'month') {
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+    return { startDate: formatDateStr(start), endDate: formatDateStr(end) };
+  }
+  if (calView === 'week') {
+    const monday = getMondayOfWeek(calDate);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { startDate: formatDateStr(monday), endDate: formatDateStr(sunday) };
+  }
+  const ds = formatDateStr(calDate);
+  return { startDate: ds, endDate: ds };
+}
+
+// === UTILITY ===
+function formatDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatItalianDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('it-IT', {day: 'numeric', month: 'long', year: 'numeric'});
+}
+
+function getMondayOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getOrderChipClass(order) {
+  const step = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+  if (!step || !step.timestamp_inizio) return 'status-attesa';
+  if (step.timestamp_fine) return 'status-completato';
+  return 'status-laser';
+}
+
+function getStatusColorHex(order) {
+  const step = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+  if (!step || !step.timestamp_inizio) return '#92400e';
+  if (step.timestamp_fine) return '#1a7a48';
+  const today = formatDateStr(new Date());
+  const delivery = order.data_consegna ? order.data_consegna.split('T')[0] : '9999';
+  if (delivery < today) return '#991b1b';
+  return '#1e40af';
+}
+
+function calculateLaserProgress(order) {
+  const step = (order.processing_steps || []).filter(s => s.fase === 'LASER').pop();
+  if (!step) return 0;
+  if (step.timestamp_fine) return 100;
+  if (step.timestamp_inizio) return 50;
+  return 0;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// === CUSTOM CONFIRM DIALOG ===
+let _confirmResolve = null;
+function showConfirm(title, message, { icon = '', okText = 'Conferma' } = {}) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirm-icon').innerHTML = icon;
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = message;
+    document.getElementById('confirm-ok-btn').textContent = okText;
+    document.getElementById('confirm-overlay').style.display = 'flex';
+  });
+}
+function resolveConfirm(value) {
+  document.getElementById('confirm-overlay').style.display = 'none';
+  if (_confirmResolve) { _confirmResolve(value); _confirmResolve = null; }
+}
+
+function showToast(message, type = 'success') {
+  let toast = document.getElementById('cal-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'cal-toast';
+    toast.style.cssText = `position: fixed; bottom: 24px; right: 24px; z-index: 9999; padding: 14px 24px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.12); font-family: 'Inter', sans-serif; backdrop-filter: blur(8px); transform: translateY(100px); opacity: 0; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;`;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.background = type === 'error' ? 'rgba(254,226,226,0.95)' : 'rgba(220,252,231,0.95)';
+  toast.style.color = type === 'error' ? '#991b1b' : '#166534';
+  toast.style.border = type === 'error' ? '1px solid rgba(153,27,27,0.15)' : '1px solid rgba(22,101,52,0.15)';
+  // Force reflow for re-triggering animation
+  toast.style.transform = 'translateY(100px)';
+  toast.style.opacity = '0';
+  requestAnimationFrame(() => {
+    toast.style.transform = 'translateY(0)';
+    toast.style.opacity = '1';
+  });
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.transform = 'translateY(100px)';
+    toast.style.opacity = '0';
+  }, 3000);
+}
+
+// === INTEGRATION WITH loadOrders ===
+// Wrappa la loadOrders originale per aggiornare anche il calendario view + KPI
+// (nel nuovo workflow la fetch e il filtering vivono dentro loadOrders sopra)
+const _originalLoadOrders = loadOrders;
+loadOrders = async function() {
+  await _originalLoadOrders();
+  if (currentTab === 'calendario') {
+    renderCalendarView();
+    updateKPIs();
+  }
+};
+
+// ===========================
+// NOTIFICHE
+// ===========================
+let notifPanelOpen = false;
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  notifPanelOpen = !notifPanelOpen;
+  panel.classList.toggle('active', notifPanelOpen);
+  if (notifPanelOpen) loadNotifs();
+}
+
+document.addEventListener('click', (e) => {
+  if (notifPanelOpen && !e.target.closest('.notif-bell')) {
+    notifPanelOpen = false;
+    document.getElementById('notif-panel').classList.remove('active');
+  }
+});
+
+function getNotifUserId() {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  return user.id;
+}
+
+async function loadNotifs() {
+  const uid = getNotifUserId();
+  if (!uid) return;
+  try {
+    const res = await fetch(`${API_URL}/api/notifications?user_id=${uid}&limit=50`);
+    const data = await res.json();
+    if (!data.success) return;
+    updateNotifBadge(data.data.unread_count || 0);
+    renderNotifs(data.data.notifications || []);
+  } catch (e) { console.error('loadNotifs:', e); }
+}
+
+function updateNotifBadge(count) {
+  const badge = document.getElementById('notif-badge');
+  if (count > 0) { badge.style.display = 'flex'; badge.textContent = count > 99 ? '99+' : count; }
+  else { badge.style.display = 'none'; }
+}
+
+function renderNotifs(notifs) {
+  const body = document.getElementById('notif-panel-body');
+  const footer = document.getElementById('notif-panel-footer');
+  if (!notifs.length) { body.innerHTML = '<div class="notif-empty">Nessuna notifica</div>'; footer.style.display = 'none'; return; }
+  footer.style.display = 'block';
+  body.innerHTML = notifs.map(n => {
+    const cat = n.notification_category || 'informativa';
+    const unread = n.is_read ? '' : ' unread';
+    const d = new Date(n.timestamp); const now = new Date(); const diff = Math.floor((now-d)/1000);
+    let time = 'adesso';
+    if (diff >= 60 && diff < 3600) time = `${Math.floor(diff/60)}m fa`;
+    else if (diff >= 3600 && diff < 86400) time = `${Math.floor(diff/3600)}h fa`;
+    else if (diff >= 86400) time = d.toLocaleDateString('it-IT', {day:'2-digit', month:'short'});
+    return `<div class="notif-item${unread}" onclick="markNotifRead('${n.id}',this,'${n.order_id || ''}')">
+      <div class="notif-dot ${cat}"></div>
+      <div class="notif-content">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-message">${n.message}</div>
+        <div class="notif-time">${time}</div>
+      </div>
+      <button class="notif-delete" onclick="event.stopPropagation();deleteNotif('${n.id}')" title="Elimina">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+async function markNotifRead(id, el, orderId) {
+  if (el) el.classList.remove('unread');
+  try { await fetch(`${API_URL}/api/notifications/${id}/read`, { method: 'PUT' }); pollNotifCount(); } catch (_) {}
+  // Apri l'ordine nella stessa pagina laser invece di navigare alla pagina dettaglio (cancellata)
+  if (orderId) {
+    toggleNotifPanel();
+    selectOrder(orderId);
+  }
+}
+
+async function deleteNotif(id) {
+  try { await fetch(`${API_URL}/api/notifications/${id}`, { method: 'DELETE' }); loadNotifs(); } catch (_) {}
+}
+
+async function clearAllNotifs() {
+  const uid = getNotifUserId();
+  if (!uid) return;
+  try { await fetch(`${API_URL}/api/notifications/clear-all?user_id=${uid}`, { method: 'DELETE' }); loadNotifs(); } catch (_) {}
+}
+
+async function pollNotifCount() {
+  const uid = getNotifUserId();
+  if (!uid) return;
+  try {
+    const res = await fetch(`${API_URL}/api/notifications?user_id=${uid}&limit=1`);
+    const data = await res.json();
+    if (data.success) updateNotifBadge(data.data.unread_count || 0);
+  } catch (_) {}
+}
+
+setInterval(pollNotifCount, 30000);
+setTimeout(pollNotifCount, 2000);
+
+// === COMPLETE ORDER (chiusura anticipata) ===
+let completeOrderTarget = null;
+
+function formatDurSec(sec) {
+  if (!sec || sec <= 0) return '';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
+}
+
+function openCompleteOrderModal(orderId) {
+  const order = allOrders.find(o => o.id === orderId) || allOrdiniStato.find(o => o.id === orderId);
+  if (!order) return;
+  // Blocca se operatore di supporto
+  const curUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const isSupport = (order.support_requests || []).some(sr => sr.operatore_supporto === curUser.id && sr.stato === 'accepted');
+  if (isSupport && !curUser.is_capo) {
+    showToast("Solo l'operatore principale può chiudere l'ordine", 'error');
+    return;
+  }
+  completeOrderTarget = orderId;
+
+  const allPhases = ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA'];
+  const steps = order.processing_steps || [];
+  const executedPhases = new Set(steps.filter(s => s.timestamp_fine).map(s => s.fase));
+  const activeStep = steps.find(s => !s.timestamp_fine);
+  if (activeStep) executedPhases.add(activeStep.fase);
+
+  let html = '';
+  allPhases.forEach(p => {
+    const step = steps.filter(s => s.fase === p).pop();
+    if (executedPhases.has(p)) {
+      const dur = step?.tempo_cumulativo_secondi || 0;
+      const durStr = dur > 0 ? formatDurSec(dur) : (step?.timestamp_inizio ? 'in corso' : '');
+      html += `<div class="co-phase-done">&#10004; ${p} &mdash; ${escapeHtml(step?.operatore || '')} ${durStr}</div>`;
+    } else {
+      html += `<div class="co-phase-skip">&mdash; ${p} &mdash; Non necessaria</div>`;
+    }
+  });
+
+  document.getElementById('co-order-info').textContent =
+    `${order.cliente} — #${order.numero_ordine || order.id.substring(0,8)}`;
+  document.getElementById('co-phase-summary').innerHTML = html;
+  document.getElementById('co-note').value = '';
+  document.getElementById('co-overlay').style.display = 'flex';
+}
+
+function closeCompleteOrderModal() {
+  document.getElementById('co-overlay').style.display = 'none';
+  completeOrderTarget = null;
+}
+
+async function confirmCompleteOrder() {
+  if (!completeOrderTarget) return;
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const note = document.getElementById('co-note').value.trim();
+  try {
+    const resp = await fetch(`${API_URL}/api/orders/${completeOrderTarget}/complete-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operatore_id: user.id, note })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error('complete-order error:', resp.status, text);
+      try {
+        const err = JSON.parse(text);
+        showToast('Errore: ' + (err.error || resp.status), 'error');
+      } catch (_) {
+        showToast('Errore server: ' + resp.status, 'error');
+      }
+      return;
+    }
+    const result = await resp.json();
+    if (result.success) {
+      closeCompleteOrderModal();
+      showToast('Ordine completato!');
+      await loadOrders();
+      if (currentTab === 'stato') loadStatoOrdini();
+    } else {
+      showToast('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (err) {
+    console.error('complete-order fetch error:', err);
+    showToast('Errore di connessione: ' + err.message, 'error');
+  }
+}
+
+// === SUPPORTO / CHIEDI AIUTO ===
+let supportModalOrderId = null;
+
+async function openSupportModal(orderId) {
+  supportModalOrderId = orderId;
+  const order = allOrders.find(o => o.id === orderId);
+  document.getElementById('support-modal-info').innerHTML =
+    order ? `<strong>${escapeHtml(order.cliente)}</strong> &mdash; #${escapeHtml(order.numero_ordine || order.id.substring(0,8))}` : '';
+
+  const existingSupport = (order?.support_requests || [])
+    .filter(sr => sr.stato === 'accepted' || sr.stato === 'pending')
+    .map(sr => sr.operatore_supporto);
+
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  try {
+    const resp = await fetch(`${API_URL}/api/users`);
+    const data = await resp.json();
+    const select = document.getElementById('support-operatore-select');
+    select.innerHTML = '<option value="">Seleziona operatore...</option>';
+    (data.users || [])
+      .filter(u => u.id !== user.id && u.is_active !== false && !existingSupport.includes(u.id) && u.id !== 'elena-impiegata')
+      .forEach(u => {
+        select.innerHTML += `<option value="${u.id}">${escapeHtml(u.name)} (${u.role})</option>`;
+      });
+  } catch (e) { console.error('Errore caricamento operatori:', e); }
+
+  document.getElementById('support-note').value = '';
+  document.getElementById('support-modal').classList.add('active');
+}
+
+function closeSupportModal() {
+  document.getElementById('support-modal').classList.remove('active');
+  supportModalOrderId = null;
+}
+
+async function submitSupportRequest() {
+  const opSupporto = document.getElementById('support-operatore-select').value;
+  if (!opSupporto) { showToast('Seleziona un operatore', 'error'); return; }
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  try {
+    const resp = await fetch(`${API_URL}/api/support-requests`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        order_id: supportModalOrderId,
+        operatore_principale: user.id,
+        operatore_supporto: opSupporto,
+        note: document.getElementById('support-note').value.trim()
+      })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      closeSupportModal();
+      showToast('Richiesta di aiuto inviata!');
+      await loadOrders();
+    } else {
+      showToast('Errore: ' + (result.error || ''), 'error');
+    }
+  } catch (err) { showToast('Errore di connessione', 'error'); }
+}
+
+async function acceptSupport(requestId) {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  try {
+    const resp = await fetch(`${API_URL}/api/support-requests/${requestId}/accept`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ operatore_id: user.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showToast('Supporto accettato!');
+      await loadOrders();
+    } else { showToast('Errore: ' + (result.error || ''), 'error'); }
+  } catch (err) { showToast('Errore di connessione', 'error'); }
+}
+
+async function rejectSupport(requestId) {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  try {
+    const resp = await fetch(`${API_URL}/api/support-requests/${requestId}/reject`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ operatore_id: user.id })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showToast('Richiesta rifiutata');
+      await loadOrders();
+    } else { showToast('Errore: ' + (result.error || ''), 'error'); }
+  } catch (err) { showToast('Errore di connessione', 'error'); }
+}
+
+// === SMOOTH PAGE TRANSITIONS ===
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript') || link.target === '_blank') return;
+  if (href === window.location.pathname) return;
+  e.preventDefault();
+  document.body.classList.add('page-exit');
+  setTimeout(() => { window.location.href = href; }, 150);
+});
+</script>
+
+<!-- CONFIRM DIALOG (replaces native confirm()) -->
+<div class="confirm-overlay" id="confirm-overlay" style="display:none;" onclick="resolveConfirm(false)">
+  <div class="confirm-dialog" onclick="event.stopPropagation()">
+    <div class="confirm-icon" id="confirm-icon"></div>
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="confirm-btn cancel" onclick="resolveConfirm(false)">Annulla</button>
+      <button class="confirm-btn primary" id="confirm-ok-btn" onclick="resolveConfirm(true)">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLETE ORDER MODAL -->
+<div class="co-overlay" id="co-overlay" style="display:none;" onclick="closeCompleteOrderModal()">
+  <div class="co-modal" onclick="event.stopPropagation()">
+    <h3>Chiudi Ordine Definitivamente</h3>
+    <p class="co-subtitle" id="co-order-info"></p>
+    <div class="co-phase-list" id="co-phase-summary"></div>
+    <textarea class="co-note" id="co-note" placeholder="Note (opzionale)"></textarea>
+    <div class="co-actions">
+      <button class="btn-danger" onclick="confirmCompleteOrder()">Conferma Chiusura</button>
+      <button class="btn-cancel" onclick="closeCompleteOrderModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORT MODAL -->
+<div id="support-modal">
+    <div class="support-modal-content" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="font-size:18px; font-weight:800;">Chiedi Aiuto</div>
+            <button style="background:none; border:none; font-size:20px; cursor:pointer;" onclick="closeSupportModal()">&times;</button>
+        </div>
+        <div id="support-modal-info" style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;"></div>
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Invita collega</label>
+            <select id="support-operatore-select" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px;"><option value="">Seleziona operatore...</option></select>
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Messaggio (opzionale)</label>
+            <textarea id="support-note" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical; min-height:50px; font-family:inherit; box-sizing:border-box;" placeholder="Descrivi di che aiuto hai bisogno..."></textarea>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button class="btn-cancel" onclick="closeSupportModal()">Annulla</button>
+            <button class="btn btn-primary" onclick="submitSupportRequest()">Invia Richiesta</button>
+        </div>
+    </div>
+</div>
+
+<!-- PDF MODAL (per Stato Ordini) -->
+<div class="modal-overlay" id="pdf-modal" onclick="closePdfModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>PDF Ordine</h3>
+      <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="pdf-modal-frame" style="width:100%; height:100%; border:none;"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+function closePdfModal() {
+  document.getElementById('pdf-modal').classList.remove('active');
+  document.getElementById('pdf-modal-frame').src = '';
+}
+</script>
+<style>.conn-badge{position:fixed;bottom:16px;right:16px;z-index:9000;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:#fff;border:1px solid #e5e7eb;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .3s}.conn-dot{width:8px;height:8px;border-radius:50%}.conn-badge.online .conn-dot{background:#22c55e}.conn-badge.offline{background:#fee2e2;border-color:#fecaca}.conn-badge.offline .conn-dot{background:#ef4444}</style>
+<div class="conn-badge online" id="conn-badge"><span class="conn-dot"></span><span class="conn-label">Connesso</span></div>
+<script>function updateConnBadge(o){const b=document.getElementById('conn-badge');if(!b)return;b.className='conn-badge '+(o?'online':'offline');b.querySelector('.conn-label').textContent=o?'Connesso':'Offline';}</script>
+<script>
+document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement)sessionStorage.setItem('wantsFs','1');});
+if(sessionStorage.getItem('wantsFs')==='1'){document.addEventListener('click',function f(){try{var e=document.documentElement;if(e.requestFullscreen)e.requestFullscreen();else if(e.webkitRequestFullscreen)e.webkitRequestFullscreen();}catch(x){}document.removeEventListener('click',f);},{once:true});}
+</script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+</body>
+</html>

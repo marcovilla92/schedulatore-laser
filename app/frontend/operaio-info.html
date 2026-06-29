@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Operaio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(160deg, #fafafa, #eef0f2);
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 48px 40px;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.04), 0 18px 60px rgba(0,0,0,0.10);
+}
+.logo {
+  width: 64px; height: 64px;
+  background: #1a7a48; color: white;
+  border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Geist'; font-weight: 900; font-size: 22px;
+  margin-bottom: 18px;
+}
+h1 { font-family: 'Geist'; font-weight: 900; font-size: 22px; letter-spacing: -0.5px; margin-bottom: 6px; }
+.role { font-size: 13px; color: #666; margin-bottom: 28px; }
+.illustration {
+  font-size: 64px; margin: 20px 0;
+}
+.msg {
+  font-size: 15px; color: #333; line-height: 1.55;
+  background: #f5f7f6; border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 24px;
+}
+.msg b { color: #1a7a48; }
+.note { font-size: 12px; color: #999; margin-bottom: 24px; line-height: 1.5; }
+.btn {
+  padding: 12px 28px;
+  border: 1px solid #e5e5e5; background: #fff;
+  border-radius: 10px; cursor: pointer;
+  font-weight: 600; font-size: 14px;
+  transition: background 0.15s;
+}
+.btn:hover { background: #f5f5f5; }
+.btn.danger { color: #991b1b; border-color: #fee2e2; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">LS</div>
+  <h1 id="hello">Ciao</h1>
+  <div class="role" id="role">Operaio</div>
+
+  <div class="illustration">📷</div>
+
+  <div class="msg">
+    Per lavorare in officina, <b>usa la pistola WiFi</b> per scansionare il cartellino dell'ordine.
+    Non serve aprire altro su questa pagina.
+  </div>
+
+  <div class="note">
+    Quando scansioni un nuovo ordine la sessione precedente si chiude in automatico.
+    A fine turno il sistema chiude tutte le scansioni rimaste aperte.
+  </div>
+
+  <button class="btn danger" onclick="logout()">Esci</button>
+</div>
+<script>
+(function init(){
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id) { window.location.href = '/login.html'; return; }
+  document.getElementById('hello').textContent = 'Ciao ' + (user.name || '').split(' ')[0];
+  document.getElementById('role').textContent = user.role || 'Operaio';
+})();
+
+function logout() {
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from .models import (
     Order, OrderFile, ProcessingStep, OrderNotification, PhaseSession,
     FaseCorrente, get_session, User, AuditLog, Notification, OperatorClient,
-    PhaseDelegation, SupportRequest
+    PhaseDelegation, SupportRequest, OfficinaScan, Pistola
 )
 import uuid
 import json
@@ -76,65 +76,135 @@ class OrderManager:
             return 0.0
 
     @staticmethod
-    def create_order(cliente: str, data_consegna: str, destinazione: str = "LASER",
-                     numero_ordine: str = "", note: str = "") -> Order:
-        """
-        Crea un nuovo ordine con routing dinamico.
+    def create_order(cliente: str, data_consegna: str,
+                     numero_ordine: str = "", note: str = "",
+                     destinazione: str = None) -> Order:
+        """Crea un nuovo ordine.
 
-        destinazione: "LASER" o "OFFICINA" — dove l'impiegata manda l'ordine.
-        Se OFFICINA, auto-assegna operatore da operator_clients.
-        numero_ordine: obbligatorio — riferimento univoco inserito dall'impiegata.
+        Non assegna fase né operatore: il sistema barcode rileva chi
+        scansiona, e la chiusura è una decisione del capo.
+        Il parametro 'destinazione' è kept per backward-compat di chiamate
+        legacy ma viene IGNORATO.
         """
         session = get_session()
-
         try:
-            # Auto-assegna operatore se destinazione è OFFICINA
-            operatore_assegnato = None
-            if destinazione == "OFFICINA":
-                # Cerca operatore assegnato a questo cliente (case-insensitive)
-                assignments = session.query(OperatorClient).filter(
-                    func.lower(OperatorClient.client_name) == func.lower(cliente)
-                ).all()
-                # Preferisci operatore non-LASER
-                for assignment in assignments:
-                    op_user = session.query(User).filter(User.id == assignment.operator_id).first()
-                    if op_user and op_user.phase != 'LASER':
-                        operatore_assegnato = assignment.operator_id
-                        break
-                # Fallback: primo mapping disponibile
-                if not operatore_assegnato and assignments:
-                    operatore_assegnato = assignments[0].operator_id
-                # Fallback finale: assegna a un capo per non perdere l'ordine
-                if not operatore_assegnato:
-                    capo = session.query(User).filter(User.is_capo == True).first()
-                    if capo:
-                        operatore_assegnato = capo.id
-                        logger.warning(f"Ordine {numero_ordine} ({cliente}): nessun operatore mappato per OFFICINA, assegnato al capo {capo.name}")
-
-            # Determina fase_corrente
-            fase_corrente = "LASER" if destinazione == "LASER" else "PIEGA"
-
             order = Order(
                 id=str(uuid.uuid4()),
                 cliente=cliente,
                 numero_ordine=numero_ordine,
                 data_consegna=datetime.fromisoformat(data_consegna),
-                fase_corrente=fase_corrente,
-                operatore_assegnato=operatore_assegnato,
-                note=note
+                fase_corrente=None,        # legacy column, no fase nel nuovo flusso
+                operatore_assegnato=None,  # legacy, no assegnazione automatica
+                status='RICEVUTO',
+                note=note,
             )
-
             session.add(order)
             session.commit()
             session.refresh(order)
             return order
-
         except Exception as e:
             session.rollback()
             raise e
         finally:
             session.close()
-    
+
+    @staticmethod
+    def close_order(order_id: str, user_id: str = '') -> dict:
+        """Capo officina dichiara 'lavoro fisico finito': l'ordine passa a
+        DA_FATTURARE e finisce nella tab di Elena per la chiusura amministrativa.
+
+        - Setta status='DA_FATTURARE' (NON CHIUSO — quello è dopo DDT/fattura)
+        - Chiude tutte le OfficinaScan ancora aperte (motivo='ordine_chiuso')
+        - Audit log
+        """
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {'success': False, 'error': 'Ordine non trovato'}
+            if order.status in ('DA_FATTURARE', 'CHIUSO', 'SPEDITO'):
+                return {'success': False, 'error': f'Ordine già in stato {order.status}'}
+            order.status = 'DA_FATTURARE'
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
+        # Chiude scan aperte
+        try:
+            n = BarcodeManager.close_open_scans(order_id, motivo='ordine_chiuso')
+        except Exception as exc:
+            logger.warning('close_open_scans failed in close_order: %s', exc)
+            n = 0
+
+        try:
+            AuditManager.log(
+                user_id=user_id, action='CLOSE_ORDER',
+                entity_type='order', entity_id=order_id,
+                detail=f'Lavorazione finita → DA_FATTURARE, scan chiuse: {n}',
+            )
+        except Exception:
+            pass
+        return {'success': True, 'order_id': order_id, 'scan_chiuse': n, 'nuovo_status': 'DA_FATTURARE'}
+
+    @staticmethod
+    def mark_laser_done(order_id: str, user_id: str = '') -> dict:
+        """Marca il taglio laser come completato: da questo momento gli operai
+        officina possono scansionare il cartellino col barcode.
+        """
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {'success': False, 'error': 'Ordine non trovato'}
+            if order.taglio_completato:
+                return {'success': False, 'error': 'Taglio già marcato come completato'}
+            order.taglio_completato = True
+            order.data_taglio_completato = datetime.utcnow()
+            order.taglio_completato_da = user_id or None
+            session.commit()
+            try:
+                AuditManager.log(
+                    user_id=user_id, action='MARK_LASER_DONE',
+                    entity_type='order', entity_id=order_id, detail='Taglio completato',
+                )
+            except Exception:
+                pass
+            return {'success': True, 'order_id': order_id}
+        except Exception as e:
+            session.rollback()
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def mark_laser_undone(order_id: str, user_id: str = '') -> dict:
+        """Rollback: l'ordine torna 'da tagliare'. Utile in caso di errore."""
+        session = get_session()
+        try:
+            order = session.query(Order).filter(Order.id == order_id).first()
+            if not order:
+                return {'success': False, 'error': 'Ordine non trovato'}
+            order.taglio_completato = False
+            order.data_taglio_completato = None
+            order.taglio_completato_da = None
+            session.commit()
+            try:
+                AuditManager.log(
+                    user_id=user_id, action='MARK_LASER_UNDONE',
+                    entity_type='order', entity_id=order_id, detail='Taglio annullato',
+                )
+            except Exception:
+                pass
+            return {'success': True, 'order_id': order_id}
+        except Exception as e:
+            session.rollback()
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
+
     @staticmethod
     def get_order(order_id: str) -> Order:
         """Recupera un ordine per ID"""
@@ -334,7 +404,10 @@ class OrderManager:
                     'lotti_count': lotti_count,
                     'all_lotti_completed': all_lotti_completed,
                     'visto_da_operatore': bool(order.visto_da_operatore),
-                    'data_presa_visione': order.data_presa_visione.isoformat() if order.data_presa_visione else None
+                    'data_presa_visione': order.data_presa_visione.isoformat() if order.data_presa_visione else None,
+                    'taglio_completato': bool(getattr(order, 'taglio_completato', False)),
+                    'data_taglio_completato': order.data_taglio_completato.isoformat() if getattr(order, 'data_taglio_completato', None) else None,
+                    'taglio_completato_da': getattr(order, 'taglio_completato_da', None),
                 })
 
             return result
@@ -1458,7 +1531,10 @@ class OrderManager:
                 "lotti_count": lotti_count,
                 "all_lotti_completed": all_lotti_completed,
                 "visto_da_operatore": bool(order.visto_da_operatore),
-                "data_presa_visione": order.data_presa_visione.isoformat() if order.data_presa_visione else None
+                "data_presa_visione": order.data_presa_visione.isoformat() if order.data_presa_visione else None,
+                "taglio_completato": bool(getattr(order, 'taglio_completato', False)),
+                "data_taglio_completato": order.data_taglio_completato.isoformat() if getattr(order, 'data_taglio_completato', None) else None,
+                "taglio_completato_da": getattr(order, 'taglio_completato_da', None),
             }
         finally:
             session.close()
@@ -2767,95 +2843,6 @@ class NotificationManager:
             session.close()
 
 
-class OperatorClientManager:
-    """Gestore assegnazioni operatore-cliente"""
-
-    @staticmethod
-    def get_all() -> list[dict]:
-        """Recupera tutte le assegnazioni operatore-cliente"""
-        session = get_session()
-        try:
-            assignments = session.query(OperatorClient).all()
-            result = []
-            for a in assignments:
-                operator = session.query(User).filter(User.id == a.operator_id).first()
-                result.append({
-                    'id': a.id,
-                    'operator_id': a.operator_id,
-                    'operator_name': operator.name if operator else 'N/A',
-                    'client_name': a.client_name
-                })
-            return result
-        finally:
-            session.close()
-
-    @staticmethod
-    def get_by_operator(operator_id: str) -> list[dict]:
-        """Recupera clienti assegnati a un operatore"""
-        session = get_session()
-        try:
-            assignments = session.query(OperatorClient).filter(
-                OperatorClient.operator_id == operator_id
-            ).all()
-            return [{'id': a.id, 'client_name': a.client_name} for a in assignments]
-        finally:
-            session.close()
-
-    @staticmethod
-    def find_operator_for_client(client_name: str) -> str | None:
-        """Trova l'operatore assegnato a un cliente"""
-        session = get_session()
-        try:
-            assignment = session.query(OperatorClient).filter(
-                OperatorClient.client_name == client_name
-            ).first()
-            return assignment.operator_id if assignment else None
-        finally:
-            session.close()
-
-    @staticmethod
-    def create(operator_id: str, client_name: str) -> dict:
-        """Crea una nuova assegnazione operatore-cliente"""
-        session = get_session()
-        try:
-            assignment = OperatorClient(
-                id=str(uuid.uuid4()),
-                operator_id=operator_id,
-                client_name=client_name
-            )
-            session.add(assignment)
-            session.commit()
-            return {
-                'id': assignment.id,
-                'operator_id': operator_id,
-                'client_name': client_name
-            }
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
-    @staticmethod
-    def delete(assignment_id: str) -> bool:
-        """Rimuovi un'assegnazione"""
-        session = get_session()
-        try:
-            assignment = session.query(OperatorClient).filter(
-                OperatorClient.id == assignment_id
-            ).first()
-            if assignment:
-                session.delete(assignment)
-                session.commit()
-                return True
-            return False
-        except Exception as e:
-            session.rollback()
-            return False
-        finally:
-            session.close()
-
-
 class AlertManager:
     """Gestore alert automatici per capo officina"""
 
@@ -2951,653 +2938,49 @@ class AlertManager:
 
 
 class KPIManager:
-    """Calcolo KPI per dashboard Capo Officina"""
+    """KPI dashboard semplificato.
+
+    NOTA: la versione precedente calcolava medie su PhaseSession (fasi
+    produttive ormai dismesse). Ora ritorna conteggi raw sugli ordini —
+    i KPI veri ora vivono in BarcodeManager.get_kpi_operai().
+    """
 
     @staticmethod
     def get_dashboard_kpi() -> dict:
         session = get_session()
         try:
+            STATI_FINALI = ('COMPLETATO', 'DA_FATTURARE', 'CHIUSO', 'SPEDITO')
             now = datetime.utcnow()
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            TURNO_ORE = 8  # Durata turno standard in ore
-
-            # === PRE-CARICAMENTO DATI (eliminare N+1) ===
-            all_orders = session.query(Order).all()
-            all_steps = session.query(ProcessingStep).all()
-
-            # Mappa order_id -> lista steps
-            steps_by_order = {}
-            for s in all_steps:
-                steps_by_order.setdefault(s.order_id, []).append(s)
-
-            # Pre-carica tutte le sessioni chiuse
-            all_closed_sessions = session.query(PhaseSession).filter(
-                PhaseSession.timestamp_fine != None
-            ).all()
-            sessions_by_step = {}
-            for ps in all_closed_sessions:
-                sessions_by_step.setdefault(ps.step_id, []).append(ps)
-            sessions_by_operator = {}
-            for ps in all_closed_sessions:
-                op_name = ps.operatore or 'unknown'
-                sessions_by_operator.setdefault(op_name, []).append(ps)
-
-            # === RIEPILOGO ===
-            _STATI_FINALI = ('COMPLETATO', 'DA_FATTURARE', 'CHIUSO', 'SPEDITO')
-            ordini_attivi = sum(1 for o in all_orders if o.status not in _STATI_FINALI)
-
-            # Completati oggi: ordine finale con ultimo step finito oggi
-            completati_oggi = 0
-            for o in all_orders:
-                if o.status not in _STATI_FINALI:
-                    continue
-                order_steps = steps_by_order.get(o.id, [])
-                finished = [s.timestamp_fine for s in order_steps if s.timestamp_fine]
-                if finished and max(finished) >= today_start:
-                    completati_oggi += 1
-
-            in_ritardo = sum(1 for o in all_orders
-                if o.data_consegna and o.data_consegna < now
-                and o.status not in _STATI_FINALI)
-
-            # Efficienza puntualita: ordini dove ULTIMO step completato <= data_consegna
-            completati_totali = 0
-            completati_in_tempo = 0
-            for o in all_orders:
-                if o.status not in _STATI_FINALI:
-                    continue
-                completati_totali += 1
-                if not o.data_consegna:
-                    continue
-                order_steps = steps_by_order.get(o.id, [])
-                finished = [s.timestamp_fine for s in order_steps if s.timestamp_fine]
-                if finished and max(finished) <= o.data_consegna:
-                    completati_in_tempo += 1
-            efficienza = round((completati_in_tempo / completati_totali * 100) if completati_totali > 0 else 100)
-
-            riepilogo = {
-                'ordini_attivi': ordini_attivi,
-                'completati_oggi': completati_oggi,
-                'in_ritardo': in_ritardo,
-                'efficienza_puntualita': efficienza
-            }
-
-            # === KPI OPERATORI ===
-            operatori_kpi = []
-            operators = session.query(User).filter(
-                User.role.in_(['Operaio Officina', 'Operaio Laser', 'Capo Officina']),
-                User.is_active == True
-            ).all()
-
-            # Pre-carica steps completati per operatore (evita query nel loop)
-            all_completed_steps_by_op = {}
-            for s in all_steps:
-                if s.operatore and s.timestamp_fine:
-                    all_completed_steps_by_op.setdefault(s.operatore, []).append(s)
-
-            # Mappa order_id -> Order per lookup puntualita
-            orders_by_id = {o.id: o for o in all_orders}
-
-            for op in operators:
-                op_sessions = sessions_by_operator.get(op.name, [])
-                completed_steps = all_completed_steps_by_op.get(op.name, [])
-                steps_oggi = [s for s in completed_steps if s.timestamp_fine >= today_start]
-
-                # Tempo medio per step: somma sessioni reali / numero step
-                step_real_times = []
-                for s in completed_steps:
-                    step_ss = sessions_by_step.get(s.id, [])
-                    op_step_ss = [x for x in step_ss if x.operatore == op.name]
-                    if op_step_ss:
-                        real_secs = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in op_step_ss)
-                        step_real_times.append(real_secs)
-                    elif s.timestamp_inizio and s.timestamp_fine:
-                        step_real_times.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
-                tempo_medio_min = round(sum(step_real_times) / len(step_real_times) / 60) if step_real_times else None
-
-                # Tempo totale lavorato oggi (dalle sessioni)
-                sessioni_oggi = [x for x in op_sessions if x.timestamp_fine >= today_start]
-                tempo_oggi_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_oggi)
-
-                ordini_unici = len(set(s.order_id for s in completed_steps))
-
-                # Step attivo (in corso)
-                active_session = session.query(PhaseSession).filter(
-                    PhaseSession.operatore == op.name,
-                    PhaseSession.timestamp_fine == None
-                ).first()
-                active_step = None
-                if active_session:
-                    active_step = session.query(ProcessingStep).filter(
-                        ProcessingStep.id == active_session.step_id
-                    ).first()
-
-                clienti = session.query(OperatorClient).filter(
-                    OperatorClient.operator_id == op.id
-                ).count()
-
-                is_online = op.last_login and op.last_login >= today_start
-
-                # SATURAZIONE: ore lavorate oggi / turno 8h * 100
-                saturazione = min(100, round(tempo_oggi_sec / (TURNO_ORE * 3600) * 100)) if tempo_oggi_sec > 0 else 0
-
-                # PUNTUALITA: % ordini completati in tempo dall'operatore
-                # Per ogni ordine unico dell'operatore che e' COMPLETATO,
-                # verifica se l'ultimo step globale e' entro data_consegna
-                ordini_completati_op = set(s.order_id for s in completed_steps)
-                op_totale_completati = 0
-                op_in_tempo = 0
-                for oid in ordini_completati_op:
-                    order = orders_by_id.get(oid)
-                    if not order or order.status != 'COMPLETATO':
-                        continue
-                    op_totale_completati += 1
-                    if not order.data_consegna:
-                        continue
-                    order_steps = steps_by_order.get(oid, [])
-                    finished = [st.timestamp_fine for st in order_steps if st.timestamp_fine]
-                    if finished and max(finished) <= order.data_consegna:
-                        op_in_tempo += 1
-                puntualita = round((op_in_tempo / op_totale_completati * 100) if op_totale_completati > 0 else 100)
-
-                # === KPI MENSILI ===
-                CAPACITA_MENSILE_ORE = 160  # 8h * 20 giorni lavorativi
-                month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                week_start = today_start - timedelta(days=today_start.weekday())  # Lunedi
-
-                sessioni_mese = [x for x in op_sessions if x.timestamp_fine >= month_start]
-                ore_mese_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_mese)
-                ore_mese = round(ore_mese_sec / 3600, 1)
-                saturazione_mensile = min(100, round(ore_mese / CAPACITA_MENSILE_ORE * 100))
-
-                # Giorni lavorativi trascorsi nel mese (lun-ven)
-                giorni_lavorativi_passati = sum(
-                    1 for d in range((now - month_start).days + 1)
-                    if (month_start + timedelta(days=d)).weekday() < 5
-                )
-                media_giornaliera_ore = round(ore_mese / max(giorni_lavorativi_passati, 1), 1)
-
-                # Ore settimana corrente
-                sessioni_settimana = [x for x in op_sessions if x.timestamp_fine >= week_start]
-                ore_settimana_sec = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in sessioni_settimana)
-                ore_settimana = round(ore_settimana_sec / 3600, 1)
-
-                # Ordini completati nel mese
-                ordini_mese = len(set(
-                    s.order_id for s in completed_steps
-                    if s.timestamp_fine and s.timestamp_fine >= month_start
-                ))
-
-                operatori_kpi.append({
-                    'id': op.id,
-                    'name': op.name,
-                    'initials': op.initials,
-                    'role': op.role,
-                    'phase': op.phase,
-                    'is_online': is_online,
-                    'ordini_completati': ordini_unici,
-                    'ordini_oggi': len(set(s.order_id for s in steps_oggi)),
-                    'tempo_medio_minuti': tempo_medio_min,
-                    'tempo_oggi_minuti': round(tempo_oggi_sec / 60) if tempo_oggi_sec > 0 else 0,
-                    'clienti_assegnati': clienti,
-                    'fase_attiva': active_step.fase if active_step else None,
-                    'ordine_attivo': active_step.order_id if active_step else None,
-                    'saturazione': saturazione,
-                    'puntualita': puntualita,
-                    # KPI mensili
-                    'ore_mese': ore_mese,
-                    'ore_settimana': ore_settimana,
-                    'saturazione_mensile': saturazione_mensile,
-                    'media_giornaliera_ore': media_giornaliera_ore,
-                    'ordini_mese': ordini_mese,
-                    'capacita_mensile': CAPACITA_MENSILE_ORE
-                })
-
-            # === KPI FASI/MACCHINARI ===
-            fasi_kpi = []
-            for fase_nome in ['LASER', 'PIEGA', 'SALDATURA', 'PULIZIA']:
-                in_coda_orders = session.query(Order).filter(
-                    Order.fase_corrente == fase_nome,
-                    Order.status.notin_(['COMPLETATO', 'DA_FATTURARE', 'CHIUSO', 'SPEDITO'])
-                ).all()
-                active_in_fase = session.query(ProcessingStep).filter(
-                    ProcessingStep.fase == fase_nome,
-                    ProcessingStep.timestamp_inizio != None,
-                    ProcessingStep.timestamp_fine == None
-                ).count()
-                in_coda = max(0, len(in_coda_orders) - active_in_fase)
-
-                completed_in_fase = [s for s in all_steps if s.fase == fase_nome and s.timestamp_fine]
-                completati_oggi_fase = sum(1 for s in completed_in_fase if s.timestamp_fine >= today_start)
-
-                durations_fase = []
-                for s in completed_in_fase:
-                    step_ss = sessions_by_step.get(s.id, [])
-                    if step_ss:
-                        real_secs = sum((x.timestamp_fine - x.timestamp_inizio).total_seconds() for x in step_ss)
-                        durations_fase.append(real_secs)
-                    elif s.timestamp_inizio and s.timestamp_fine:
-                        durations_fase.append((s.timestamp_fine - s.timestamp_inizio).total_seconds())
-                tempo_medio_fase = round(sum(durations_fase) / len(durations_fase) / 60) if durations_fase else None
-
-                fasi_kpi.append({
-                    'fase': fase_nome,
-                    'in_coda': in_coda,
-                    'in_corso': active_in_fase,
-                    'completati_totale': len(completed_in_fase),
-                    'completati_oggi': completati_oggi_fase,
-                    'tempo_medio_minuti': tempo_medio_fase
-                })
-
+            all_orders = session.query(Order).filter(Order.is_deleted == False).all()  # noqa: E712
+            tot = len(all_orders)
+            aperti = sum(1 for o in all_orders if o.status not in STATI_FINALI)
+            chiusi = tot - aperti
+            in_ritardo = sum(
+                1 for o in all_orders
+                if o.status not in STATI_FINALI and o.data_consegna and o.data_consegna < now
+            )
+            ricevuti_oggi = sum(
+                1 for o in all_orders
+                if o.data_ricezione and o.data_ricezione >= today_start
+            )
             return {
-                'success': True,
-                'riepilogo': riepilogo,
-                'operatori': operatori_kpi,
-                'fasi': fasi_kpi
+                'totale_ordini': tot,
+                'ordini_aperti': aperti,
+                'ordini_chiusi': chiusi,
+                'in_ritardo': in_ritardo,
+                'ricevuti_oggi': ricevuti_oggi,
+                'operai': [],  # backward compat: chi consuma il vecchio shape non rompe
             }
-
-        except Exception as e:
-            logger.error(f"get_dashboard_kpi: {e}")
-            return {'success': False, 'error': str(e)}
         finally:
             session.close()
 
 
-class DelegationManager:
-    """Gestore deleghe di fase tra operatori"""
 
-    @staticmethod
-    def create_delegation(order_id: str, fase: str, op_principale: str,
-                          op_delegato: str, delegata_da: str,
-                          forzata: bool = False, note: str = "") -> dict:
-        """Crea una delega di fase. Se forzata (dal capo), stato = accepted."""
-        session = get_session()
-        try:
-            order = session.query(Order).filter(Order.id == order_id).first()
-            if not order:
-                return {"success": False, "error": "Ordine non trovato"}
-
-            # Verifica che non esista già una delega attiva per questa fase/ordine
-            existing = session.query(PhaseDelegation).filter(
-                PhaseDelegation.order_id == order_id,
-                PhaseDelegation.fase == fase,
-                PhaseDelegation.stato.notin_(['rejected', 'completed'])
-            ).first()
-            if existing:
-                return {"success": False, "error": "Esiste già una delega attiva per questa fase"}
-
-            delegation = PhaseDelegation(
-                id=str(uuid.uuid4()),
-                order_id=order_id,
-                fase=fase,
-                operatore_principale=op_principale,
-                operatore_delegato=op_delegato,
-                stato='accepted' if forzata else 'pending',
-                delegata_da=delegata_da,
-                forzata=forzata,
-                scadenza=order.data_consegna,
-                note=note
-            )
-            session.add(delegation)
-            session.commit()
-
-            # Notifica operatore delegato
-            op_princ = session.query(User).filter(User.id == op_principale).first()
-            princ_name = op_princ.name if op_princ else op_principale
-            NotificationManager.create_notification(
-                user_id=op_delegato,
-                order_id=order_id,
-                title='Nuova delega fase' if not forzata else 'Delega fase (forzata)',
-                message=f'{princ_name} ti ha delegato {fase} per {order.cliente}',
-                notification_type='delegation'
-            )
-
-            return {"success": True, "delegation_id": delegation.id}
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def accept_delegation(delegation_id: str, operatore_id: str) -> dict:
-        """Accetta una delega pending."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-            if d.operatore_delegato != operatore_id:
-                return {"success": False, "error": "Non sei il delegato"}
-            if d.stato != 'pending':
-                return {"success": False, "error": f"Stato attuale: {d.stato}"}
-
-            d.stato = 'accepted'
-            session.commit()
-
-            # Notifica operatore principale
-            NotificationManager.create_notification(
-                user_id=d.operatore_principale,
-                order_id=d.order_id,
-                title='Delega accettata',
-                message=f'La delega {d.fase} è stata accettata',
-                notification_type='delegation'
-            )
-            return {"success": True}
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def reject_delegation(delegation_id: str, operatore_id: str) -> dict:
-        """Rifiuta una delega pending."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-            if d.operatore_delegato != operatore_id:
-                return {"success": False, "error": "Non sei il delegato"}
-            if d.stato != 'pending':
-                return {"success": False, "error": f"Stato attuale: {d.stato}"}
-
-            d.stato = 'rejected'
-            session.commit()
-
-            # Notifica operatore principale + capi
-            op_deleg = session.query(User).filter(User.id == operatore_id).first()
-            deleg_name = op_deleg.name if op_deleg else operatore_id
-            for uid in [d.operatore_principale, 'paolo-responsabile', 'stefano-responsabile']:
-                NotificationManager.create_notification(
-                    user_id=uid,
-                    order_id=d.order_id,
-                    title='Delega rifiutata',
-                    message=f'{deleg_name} ha rifiutato la delega {d.fase}',
-                    notification_type='delegation'
-                )
-            return {"success": True}
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def start_delegated_phase(delegation_id: str, operatore_id: str) -> dict:
-        """Inizia la fase delegata (accepted → in_progress). Chiama OrderManager.start_phase."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-            if d.operatore_delegato != operatore_id:
-                return {"success": False, "error": "Non sei il delegato"}
-            if d.stato != 'accepted':
-                return {"success": False, "error": f"Stato attuale: {d.stato}"}
-
-            d.stato = 'in_progress'
-            d.tempo_inizio_delegato = datetime.utcnow()
-            session.commit()
-
-            # Avvia la fase tramite OrderManager
-            op = session.query(User).filter(User.id == operatore_id).first()
-            op_name = op.name if op else operatore_id
-            OrderManager.start_phase(d.order_id, d.fase, op_name)
-            return {"success": True, "tempo_inizio": d.tempo_inizio_delegato.isoformat() + 'Z'}
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def complete_delegated_phase(delegation_id: str, operatore_id: str, note: str = "") -> dict:
-        """Completa la fase delegata. Chiama OrderManager.complete_phase."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-            if d.operatore_delegato != operatore_id:
-                return {"success": False, "error": "Non sei il delegato"}
-            if d.stato != 'in_progress':
-                return {"success": False, "error": f"Stato attuale: {d.stato}"}
-
-            d.stato = 'completed'
-            d.tempo_fine_delegato = datetime.utcnow()
-            if note:
-                d.note_delegato = note
-            session.commit()
-
-            # Completa la fase tramite OrderManager
-            result = OrderManager.complete_phase(d.order_id, d.fase, operatore=operatore_id)
-
-            # Calcola durata_effettiva da sessioni cumulative (non wall-clock)
-            try:
-                sess2 = get_session()
-                order = sess2.query(Order).filter(Order.id == d.order_id).first()
-                if order:
-                    step = sess2.query(ProcessingStep).filter(
-                        ProcessingStep.order_id == d.order_id,
-                        ProcessingStep.fase == d.fase
-                    ).order_by(ProcessingStep.timestamp_inizio.desc()).first()
-                    if step:
-                        sessions_list = sess2.query(PhaseSession).filter(
-                            PhaseSession.step_id == step.id
-                        ).all()
-                        cumul = sum(
-                            int((s.timestamp_fine - s.timestamp_inizio).total_seconds())
-                            for s in sessions_list if s.timestamp_fine
-                        )
-                        d2 = sess2.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-                        if d2:
-                            d2.durata_effettiva = cumul
-                            sess2.commit()
-                sess2.close()
-            except Exception:
-                pass
-
-            # Notifica operatore principale
-            NotificationManager.create_notification(
-                user_id=d.operatore_principale,
-                order_id=d.order_id,
-                title='Fase delegata completata',
-                message=f'{d.fase} completata dal delegato',
-                notification_type='delegation'
-            )
-            return result
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def save_partial_delegated_phase(delegation_id: str, operatore_id: str, note: str = "") -> dict:
-        """Salva parziale su fase delegata. Chiude sessione ma non lo step."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-            if d.operatore_delegato != operatore_id:
-                return {"success": False, "error": "Non sei il delegato"}
-            if d.stato != 'in_progress':
-                return {"success": False, "error": f"Stato attuale: {d.stato}"}
-
-            result = OrderManager.save_partial(d.order_id, d.fase, note=note, operatore=operatore_id)
-            return result
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def resume_delegated_phase(delegation_id: str, operatore_id: str) -> dict:
-        """Riprende una fase delegata in pausa. Crea nuova PhaseSession."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-            if d.operatore_delegato != operatore_id:
-                return {"success": False, "error": "Non sei il delegato"}
-            if d.stato != 'in_progress':
-                return {"success": False, "error": f"Stato attuale: {d.stato}"}
-
-            # start_phase gestisce il resume: trova step aperto, crea nuova sessione
-            op = session.query(User).filter(User.id == operatore_id).first()
-            op_name = op.name if op else operatore_id
-            OrderManager.start_phase(d.order_id, d.fase, op_name)
-            return {"success": True}
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def revoke_delegation(delegation_id: str, revocata_da: str) -> dict:
-        """Revoca una delega (solo capo o op_principale)."""
-        session = get_session()
-        try:
-            d = session.query(PhaseDelegation).filter(PhaseDelegation.id == delegation_id).first()
-            if not d:
-                return {"success": False, "error": "Delega non trovata"}
-
-            # Solo capo o operatore principale può revocare
-            user = session.query(User).filter(User.id == revocata_da).first()
-            if not user:
-                return {"success": False, "error": "Utente non trovato"}
-            if not user.is_capo and revocata_da != d.operatore_principale:
-                return {"success": False, "error": "Non autorizzato a revocare"}
-
-            if d.stato in ['completed', 'rejected']:
-                return {"success": False, "error": f"Impossibile revocare: stato {d.stato}"}
-
-            d.stato = 'rejected'
-            session.commit()
-
-            # Notifica delegato
-            NotificationManager.create_notification(
-                user_id=d.operatore_delegato,
-                order_id=d.order_id,
-                title='Delega revocata',
-                message=f'La delega {d.fase} è stata revocata da {user.name}',
-                notification_type='delegation'
-            )
-            return {"success": True}
-        except Exception as e:
-            session.rollback()
-            return {"success": False, "error": str(e)}
-        finally:
-            session.close()
-
-    @staticmethod
-    def _serialize_delegation(d, session):
-        """Serializza una delega con info sessioni."""
-        order = session.query(Order).filter(Order.id == d.order_id).first()
-        op_princ = session.query(User).filter(User.id == d.operatore_principale).first()
-        op_deleg = session.query(User).filter(User.id == d.operatore_delegato).first()
-
-        # Info sessioni per deleghe in_progress
-        sessione_attiva = False
-        sessione_attiva_inizio = None
-        tempo_cumulativo_secondi = 0
-        sessioni_count = 0
-        in_pausa = False
-
-        if d.stato == 'in_progress':
-            step = session.query(ProcessingStep).filter(
-                ProcessingStep.order_id == d.order_id,
-                ProcessingStep.fase == d.fase,
-                ProcessingStep.timestamp_fine.is_(None)
-            ).first()
-            if step:
-                phase_sessions = session.query(PhaseSession).filter(
-                    PhaseSession.step_id == step.id
-                ).order_by(PhaseSession.timestamp_inizio).all()
-                sessioni_count = len(phase_sessions)
-                closed = [s for s in phase_sessions if s.timestamp_fine]
-                tempo_cumulativo_secondi = sum(
-                    int((s.timestamp_fine - s.timestamp_inizio).total_seconds()) for s in closed
-                )
-                active_list = [s for s in phase_sessions if s.timestamp_fine is None]
-                active = active_list[0] if active_list else None
-                sessione_attiva = len(active_list) > 0
-                sessione_attiva_inizio = active.timestamp_inizio.isoformat() + 'Z' if active else None
-                in_pausa = (not sessione_attiva and sessioni_count > 0)
-
-        return {
-            'id': d.id,
-            'order_id': d.order_id,
-            'cliente': order.cliente if order else 'N/A',
-            'numero_ordine': order.numero_ordine if order else None,
-            'fase': d.fase,
-            'operatore_principale': d.operatore_principale,
-            'nome_principale': op_princ.name if op_princ else 'N/A',
-            'operatore_delegato': d.operatore_delegato,
-            'nome_delegato': op_deleg.name if op_deleg else 'N/A',
-            'stato': d.stato,
-            'forzata': d.forzata,
-            'data_delega': d.data_delega.isoformat() + 'Z' if d.data_delega else None,
-            'scadenza': d.scadenza.isoformat() if d.scadenza else None,
-            'note': d.note,
-            'tempo_inizio_delegato': d.tempo_inizio_delegato.isoformat() + 'Z' if d.tempo_inizio_delegato else None,
-            'tempo_fine_delegato': d.tempo_fine_delegato.isoformat() + 'Z' if d.tempo_fine_delegato else None,
-            'durata_effettiva': d.durata_effettiva,
-            'note_delegato': d.note_delegato,
-            'sessione_attiva': sessione_attiva,
-            'sessione_attiva_inizio': sessione_attiva_inizio,
-            'tempo_cumulativo_secondi': tempo_cumulativo_secondi,
-            'sessioni_count': sessioni_count,
-            'in_pausa': in_pausa
-        }
-
-    @staticmethod
-    def get_delegations(order_id: str = None, op_principale: str = None,
-                        op_delegato: str = None, stato: str = None) -> list:
-        """Query flessibile deleghe con filtri opzionali."""
-        session = get_session()
-        try:
-            query = session.query(PhaseDelegation)
-
-            if order_id:
-                query = query.filter(PhaseDelegation.order_id == order_id)
-            if op_principale:
-                query = query.filter(PhaseDelegation.operatore_principale == op_principale)
-            if op_delegato:
-                query = query.filter(PhaseDelegation.operatore_delegato == op_delegato)
-            if stato:
-                query = query.filter(PhaseDelegation.stato == stato)
-
-            delegations = query.order_by(PhaseDelegation.data_delega.desc()).all()
-            return [DelegationManager._serialize_delegation(d, session) for d in delegations]
-        except Exception as e:
-            logger.error(f"get_delegations: {e}")
-            return []
-        finally:
-            session.close()
-
-    @staticmethod
-    def get_all_active_delegations() -> list:
-        """Per dashboard capo: tutte le deleghe non completate/rifiutate."""
-        session = get_session()
-        try:
-            delegations = session.query(PhaseDelegation).filter(
-                PhaseDelegation.stato.notin_(['completed', 'rejected'])
-            ).order_by(PhaseDelegation.data_delega.desc()).all()
-            return [DelegationManager._serialize_delegation(d, session) for d in delegations]
-        except Exception as e:
-            logger.error(f"get_all_active_delegations: {e}")
-            return []
-        finally:
-            session.close()
-
-
+# === LEGACY (deprecated 2026-06-29) ===
+# SupportManager: il sistema non assegna più clienti agli operatori
+# e non usa più deleghe/support a fasi. Classe lasciata per
+# retrocompat solo lettura. Non chiamare i metodi di scrittura.
 class SupportManager:
     """Gestione richieste di supporto — collaborazione su ordini interi"""
 
@@ -3864,3 +3247,726 @@ class SupportManager:
             'data_risposta': sr.data_risposta.isoformat() + 'Z' if sr.data_risposta else None,
             'note': sr.note
         }
+
+
+# ============================================================================
+#  BARCODE / OFFICINA SCAN — rilevazione tempi via pistola WiFi
+# ============================================================================
+
+class BarcodeManager:
+    """Gestione scan barcode officina e KPI derivate.
+
+    Ogni operaio ha una pistola WiFi (registrata nella tabella Pistola). Quando
+    scansiona il cartellino di un ordine, il sistema apre una OfficinaScan.
+    Un solo ordine attivo per operaio: scansione di un ordine diverso chiude
+    automaticamente il precedente.
+    """
+
+    # ---- Pistole CRUD --------------------------------------------------------
+
+    @staticmethod
+    def list_pistole(include_inactive: bool = True) -> list[dict]:
+        session = get_session()
+        try:
+            q = session.query(Pistola)
+            if not include_inactive:
+                q = q.filter(Pistola.attiva == True)  # noqa: E712
+            rows = q.order_by(Pistola.created_at.asc()).all()
+            users = {u.id: u for u in session.query(User).all()}
+            out = []
+            for p in rows:
+                u = users.get(p.operatore_id)
+                out.append({
+                    'id': p.id,
+                    'pistola_id': p.pistola_id,
+                    'operatore_id': p.operatore_id,
+                    'operatore_name': u.name if u else '',
+                    'attiva': bool(p.attiva),
+                    'note': p.note or '',
+                    'created_at': p.created_at.isoformat() + 'Z' if p.created_at else None,
+                })
+            return out
+        finally:
+            session.close()
+
+    @staticmethod
+    def create_pistola(pistola_id: str, operatore_id: str, note: str = '') -> dict:
+        """Registra una nuova pistola. Errore se pistola_id già usato o operatore inesistente."""
+        pistola_id = (pistola_id or '').strip()
+        if not pistola_id:
+            return {'error': 'pistola_id obbligatorio'}
+        session = get_session()
+        try:
+            if session.query(Pistola).filter(Pistola.pistola_id == pistola_id).first():
+                return {'error': f'pistola_id "{pistola_id}" già registrato'}
+            if not session.query(User).filter(User.id == operatore_id).first():
+                return {'error': f'operatore "{operatore_id}" non trovato'}
+            p = Pistola(
+                id=str(uuid.uuid4()),
+                pistola_id=pistola_id,
+                operatore_id=operatore_id,
+                attiva=True,
+                note=note or None,
+            )
+            session.add(p)
+            session.commit()
+            return {'ok': True, 'id': p.id, 'pistola_id': p.pistola_id}
+        except Exception as e:
+            session.rollback()
+            logger.error('create_pistola failed: %s', e)
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def update_pistola(pistola_uuid: str, operatore_id: str = None,
+                        attiva: bool = None, note: str = None) -> dict:
+        session = get_session()
+        try:
+            p = session.query(Pistola).filter(Pistola.id == pistola_uuid).first()
+            if not p:
+                return {'error': 'Pistola non trovata'}
+            if operatore_id is not None:
+                if not session.query(User).filter(User.id == operatore_id).first():
+                    return {'error': f'operatore "{operatore_id}" non trovato'}
+                p.operatore_id = operatore_id
+            if attiva is not None:
+                p.attiva = bool(attiva)
+            if note is not None:
+                p.note = note or None
+            session.commit()
+            return {'ok': True}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def delete_pistola(pistola_uuid: str) -> dict:
+        session = get_session()
+        try:
+            p = session.query(Pistola).filter(Pistola.id == pistola_uuid).first()
+            if not p:
+                return {'error': 'Pistola non trovata'}
+            session.delete(p)
+            session.commit()
+            return {'ok': True}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    # ---- Scan ---------------------------------------------------------------
+
+    @staticmethod
+    def _find_order_by_code(session, codice: str) -> Order | None:
+        """Trova ordine per numero_ordine esatto; fallback su id LIKE codice%."""
+        codice = (codice or '').strip()
+        if not codice:
+            return None
+        # Match esatto su numero_ordine
+        o = session.query(Order).filter(
+            Order.numero_ordine == codice,
+            Order.is_deleted == False  # noqa: E712
+        ).first()
+        if o:
+            return o
+        # Fallback: prefisso UUID (utile in test)
+        if len(codice) >= 6:
+            o = session.query(Order).filter(
+                Order.id.like(f'{codice}%'),
+                Order.is_deleted == False  # noqa: E712
+            ).first()
+        return o
+
+    @staticmethod
+    def process_scan(pistola_id: str, codice: str) -> dict:
+        """Logica cuore: apre/chiude OfficinaScan in base alla pistola+codice.
+
+        Ritorna dict con status code suggerito ('status_code') e payload.
+        """
+        session = get_session()
+        try:
+            pistola_id = (pistola_id or '').strip()
+            if not pistola_id:
+                return {'status_code': 400, 'error': 'pistola_id mancante'}
+
+            pist = session.query(Pistola).filter(
+                Pistola.pistola_id == pistola_id,
+                Pistola.attiva == True,  # noqa: E712
+            ).first()
+            if not pist:
+                logger.warning('Scan rifiutata: pistola "%s" sconosciuta o inattiva', pistola_id)
+                return {'status_code': 401, 'error': 'Pistola non registrata o inattiva'}
+
+            operatore_id = pist.operatore_id
+            order = BarcodeManager._find_order_by_code(session, codice)
+            if not order:
+                logger.warning('Scan rifiutata: codice "%s" non trovato', codice)
+                return {'status_code': 404, 'error': f'Ordine "{codice}" non trovato'}
+
+            # Blocco scansioni se il laser non ha ancora marcato "taglio completato".
+            # I pezzi non sono ancora in officina, le scan non hanno senso.
+            if not getattr(order, 'taglio_completato', True):
+                logger.warning('Scan rifiutata: ordine "%s" non ancora tagliato', codice)
+                return {'status_code': 409,
+                        'error': f'Ordine "{codice}" non ancora tagliato dal laser'}
+
+            # Blocco scansioni su ordini gia` chiusi
+            if order.status in ('CHIUSO', 'SPEDITO'):
+                logger.warning('Scan rifiutata: ordine "%s" gia` chiuso (%s)', codice, order.status)
+                return {'status_code': 409,
+                        'error': f'Ordine "{codice}" gia` chiuso'}
+
+            now = datetime.utcnow()
+
+            # Sessione attiva di quest'operaio (max 1)
+            active = session.query(OfficinaScan).filter(
+                OfficinaScan.operatore_id == operatore_id,
+                OfficinaScan.timestamp_fine == None,  # noqa: E711
+            ).order_by(OfficinaScan.timestamp_inizio.desc()).first()
+
+            azione = None
+            if active is None:
+                # Nessuna sessione attiva: apri nuova
+                BarcodeManager._open_scan(session, order.id, operatore_id, pistola_id, now)
+                azione = 'aperta'
+            elif active.order_id == order.id:
+                # Stesso ordine: idempotente (protegge da doppie pressioni)
+                azione = 'idempotente'
+            else:
+                # Ordine diverso: chiudi precedente, apri nuova
+                active.timestamp_fine = now
+                active.chiusura_motivo = 'altro_ordine'
+                session.flush()
+                BarcodeManager._open_scan(session, order.id, operatore_id, pistola_id, now)
+                azione = 'cambio_ordine'
+
+            # Audit
+            try:
+                AuditManager.log(
+                    user_id=operatore_id,
+                    user_name=(pist.operatore_id),
+                    action='SCAN_BARCODE',
+                    entity_type='order',
+                    entity_id=order.id,
+                    detail=json.dumps({
+                        'pistola_id': pistola_id,
+                        'codice': codice,
+                        'azione': azione,
+                    }, ensure_ascii=False),
+                )
+            except Exception:
+                pass
+
+            session.commit()
+
+            tempo_cumulato = BarcodeManager._tempo_cumulato_secondi(session, order.id)
+            user = session.query(User).filter(User.id == operatore_id).first()
+
+            return {
+                'status_code': 200,
+                'ok': True,
+                'azione': azione,
+                'operatore_id': operatore_id,
+                'operatore_name': user.name if user else '',
+                'ordine_id': order.id,
+                'numero_ordine': order.numero_ordine or order.id[:8],
+                'cliente': order.cliente,
+                'tempo_cumulato_secondi': tempo_cumulato,
+            }
+        except Exception as e:
+            session.rollback()
+            logger.exception('process_scan failed')
+            return {'status_code': 500, 'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def _open_scan(session, order_id: str, operatore_id: str,
+                    pistola_id: str, ts: datetime) -> OfficinaScan:
+        s = OfficinaScan(
+            id=str(uuid.uuid4()),
+            order_id=order_id,
+            operatore_id=operatore_id,
+            pistola_id=pistola_id,
+            timestamp_inizio=ts,
+            timestamp_fine=None,
+            chiusura_motivo=None,
+        )
+        session.add(s)
+        session.flush()
+        return s
+
+    # ---- Orario lavorativo (per scorporo automatico pausa pranzo / notte) ----
+
+    @staticmethod
+    def _get_finestre_lavorative():
+        """Ritorna le finestre lavorative giornaliere come [(h,m,h,m), ...].
+        Default azienda: 07:30-12:00 + 13:30-17:00. Letto da app_config.json.
+        """
+        cfg = BarcodeManager.load_config()
+        raw = cfg.get('orario_lavoro') or [['07:30', '12:00'], ['13:30', '17:00']]
+        out = []
+        for w in raw:
+            try:
+                s_hh, s_mm = (int(x) for x in str(w[0]).split(':'))
+                e_hh, e_mm = (int(x) for x in str(w[1]).split(':'))
+                if 0 <= s_hh <= 23 and 0 <= e_hh <= 23 and 0 <= s_mm <= 59 and 0 <= e_mm <= 59:
+                    out.append((s_hh, s_mm, e_hh, e_mm))
+            except Exception:
+                pass
+        return out or [(7, 30, 12, 0), (13, 30, 17, 0)]
+
+    @staticmethod
+    def _utc_to_local_offset():
+        """Offset (timedelta) per convertire un timestamp UTC naive in ora locale del server.
+        I timestamp delle scan sono salvati con datetime.utcnow(); le finestre sono in ora locale.
+        """
+        return datetime.now() - datetime.utcnow()
+
+    @staticmethod
+    def _durata_lavorativa_secondi(inizio_utc, fine_utc, finestre=None) -> int:
+        """Secondi *lavorativi* tra due timestamp UTC, intersecando con le finestre
+        lavorative giornaliere (esclude pausa pranzo e ore non lavorative).
+
+        Esempio: scan 11:30 → 14:30 con default 07:30-12:00+13:30-17:00
+                 ritorna 5400 secondi (90 min), non 10800 (180 min).
+        """
+        if not fine_utc or not inizio_utc or fine_utc <= inizio_utc:
+            return 0
+        if finestre is None:
+            finestre = BarcodeManager._get_finestre_lavorative()
+        offset = BarcodeManager._utc_to_local_offset()
+        inizio = inizio_utc + offset
+        fine = fine_utc + offset
+        total = 0
+        cur_date = inizio.date()
+        end_date = fine.date()
+        # Safety cap: scan multi-giorno > 60 giorni → tronca (anomalia, evita loop lunghi)
+        if (end_date - cur_date).days > 60:
+            end_date = cur_date + timedelta(days=60)
+        while cur_date <= end_date:
+            for (sh, sm, eh, em) in finestre:
+                win_start = datetime(cur_date.year, cur_date.month, cur_date.day, sh, sm)
+                win_end = datetime(cur_date.year, cur_date.month, cur_date.day, eh, em)
+                seg_start = max(inizio, win_start)
+                seg_end = min(fine, win_end)
+                if seg_end > seg_start:
+                    total += int((seg_end - seg_start).total_seconds())
+            cur_date += timedelta(days=1)
+        return total
+
+    @staticmethod
+    def _tempo_cumulato_secondi(session, order_id: str, include_open: bool = True) -> int:
+        """Somma secondi *lavorativi* su tutte le scan dell'ordine. Include le scan
+        aperte (calcolando now - inizio) se include_open=True.
+        Pausa pranzo e ore non lavorative sono scorporate automaticamente.
+        """
+        rows = session.query(OfficinaScan).filter(
+            OfficinaScan.order_id == order_id
+        ).all()
+        now = datetime.utcnow()
+        tot = 0
+        for r in rows:
+            if r.timestamp_fine:
+                tot += BarcodeManager._durata_lavorativa_secondi(r.timestamp_inizio, r.timestamp_fine)
+            elif include_open and r.timestamp_inizio:
+                tot += BarcodeManager._durata_lavorativa_secondi(r.timestamp_inizio, now)
+        return tot
+
+    # ---- Chiusura di gruppo --------------------------------------------------
+
+    @staticmethod
+    def close_open_scans(order_id: str, motivo: str = 'manuale') -> int:
+        """Chiude tutte le scan aperte di un ordine. Ritorna numero chiuse."""
+        session = get_session()
+        try:
+            now = datetime.utcnow()
+            rows = session.query(OfficinaScan).filter(
+                OfficinaScan.order_id == order_id,
+                OfficinaScan.timestamp_fine == None,  # noqa: E711
+            ).all()
+            for r in rows:
+                r.timestamp_fine = now
+                r.chiusura_motivo = motivo
+            session.commit()
+            return len(rows)
+        except Exception as e:
+            session.rollback()
+            logger.exception('close_open_scans failed: %s', e)
+            return 0
+        finally:
+            session.close()
+
+    @staticmethod
+    def close_residual_scans(motivo: str = 'fine_turno') -> int:
+        """Chiude tutte le scan ancora aperte nel sistema (es. fine turno)."""
+        session = get_session()
+        try:
+            now = datetime.utcnow()
+            rows = session.query(OfficinaScan).filter(
+                OfficinaScan.timestamp_fine == None,  # noqa: E711
+            ).all()
+            for r in rows:
+                r.timestamp_fine = now
+                r.chiusura_motivo = motivo
+            session.commit()
+            return len(rows)
+        except Exception as e:
+            session.rollback()
+            logger.exception('close_residual_scans failed: %s', e)
+            return 0
+        finally:
+            session.close()
+
+    # ---- Live status (per Elena) --------------------------------------------
+
+    @staticmethod
+    def get_live_status() -> dict:
+        """Feed per la pagina 'Stato officina live' dell'impiegata."""
+        session = get_session()
+        try:
+            now = datetime.utcnow()
+
+            # Scan attive
+            active_rows = session.query(OfficinaScan).filter(
+                OfficinaScan.timestamp_fine == None,  # noqa: E711
+            ).order_by(OfficinaScan.timestamp_inizio.asc()).all()
+
+            users = {u.id: u for u in session.query(User).all()}
+            order_ids = list({r.order_id for r in active_rows})
+            orders = {o.id: o for o in session.query(Order).filter(Order.id.in_(order_ids)).all()} if order_ids else {}
+
+            scan_attive = []
+            for r in active_rows:
+                u = users.get(r.operatore_id)
+                o = orders.get(r.order_id)
+                if not o:
+                    continue
+                minuti = BarcodeManager._durata_lavorativa_secondi(r.timestamp_inizio, now) // 60
+                scan_attive.append({
+                    'operatore_id': r.operatore_id,
+                    'operatore_name': u.name if u else '',
+                    'ordine_id': o.id,
+                    'numero_ordine': o.numero_ordine or o.id[:8],
+                    'cliente': o.cliente,
+                    'fase_corrente': o.fase_corrente,
+                    'minuti_correnti': minuti,
+                    'timestamp_inizio': r.timestamp_inizio.isoformat() + 'Z',
+                })
+
+            # Ordini "in officina": tutti quelli con almeno una scan negli ultimi 30 giorni
+            # e non ancora COMPLETATO/SPEDITO/CHIUSO
+            cutoff = now - timedelta(days=30)
+            recent_order_ids = [
+                r[0] for r in session.query(OfficinaScan.order_id).filter(
+                    OfficinaScan.timestamp_inizio >= cutoff
+                ).distinct().all()
+            ]
+            if recent_order_ids:
+                ord_q = session.query(Order).filter(
+                    Order.id.in_(recent_order_ids),
+                    Order.is_deleted == False,  # noqa: E712
+                    ~Order.fase_corrente.in_(['COMPLETATO']),
+                ).all()
+                ordini_in_officina = []
+                for o in ord_q:
+                    sec = BarcodeManager._tempo_cumulato_secondi(session, o.id)
+                    ultima = session.query(OfficinaScan).filter(
+                        OfficinaScan.order_id == o.id
+                    ).order_by(OfficinaScan.timestamp_inizio.desc()).first()
+                    ordini_in_officina.append({
+                        'ordine_id': o.id,
+                        'numero_ordine': o.numero_ordine or o.id[:8],
+                        'cliente': o.cliente,
+                        'fase_corrente': o.fase_corrente,
+                        'tempo_totale_minuti': sec // 60,
+                        'ultima_scan': ultima.timestamp_inizio.isoformat() + 'Z' if ultima else None,
+                    })
+                ordini_in_officina.sort(key=lambda x: x['ultima_scan'] or '', reverse=True)
+            else:
+                ordini_in_officina = []
+
+            return {
+                'scan_attive': scan_attive,
+                'ordini_in_officina': ordini_in_officina,
+                'server_time': now.isoformat() + 'Z',
+            }
+        finally:
+            session.close()
+
+    # ---- KPI operai (per pagina capo) ---------------------------------------
+
+    @staticmethod
+    def get_kpi_operai() -> list[dict]:
+        """Ore lavorate per operaio: oggi / settimana / mese + saturazione %."""
+        session = get_session()
+        try:
+            now = datetime.utcnow()
+            inizio_oggi = datetime(now.year, now.month, now.day)
+            inizio_settimana = inizio_oggi - timedelta(days=inizio_oggi.weekday())
+            inizio_mese = datetime(now.year, now.month, 1)
+
+            # Solo operai con almeno una pistola registrata
+            pistole_op_ids = {p.operatore_id for p in session.query(Pistola).all()}
+            if not pistole_op_ids:
+                return []
+
+            users = session.query(User).filter(User.id.in_(pistole_op_ids)).all()
+
+            out = []
+            for u in users:
+                rows = session.query(OfficinaScan).filter(
+                    OfficinaScan.operatore_id == u.id,
+                    OfficinaScan.timestamp_inizio >= inizio_mese,
+                ).all()
+
+                def _sec(scans, since):
+                    """Somma secondi *lavorativi* delle scan a partire da `since`."""
+                    tot = 0
+                    for r in scans:
+                        start = max(r.timestamp_inizio, since)
+                        end = r.timestamp_fine or now
+                        if end > start:
+                            tot += BarcodeManager._durata_lavorativa_secondi(start, end)
+                    return tot
+
+                sec_oggi = _sec(rows, inizio_oggi)
+                sec_sett = _sec(rows, inizio_settimana)
+                sec_mese = _sec([r for r in rows if r.timestamp_inizio >= inizio_mese], inizio_mese)
+                ore_sett = sec_sett / 3600.0
+                saturazione = round(ore_sett / 40.0 * 100, 1) if ore_sett else 0.0
+                out.append({
+                    'operatore_id': u.id,
+                    'nome': u.name,
+                    'ore_oggi': round(sec_oggi / 3600.0, 2),
+                    'ore_settimana': round(ore_sett, 2),
+                    'ore_mese': round(sec_mese / 3600.0, 2),
+                    'saturazione_settimana_pct': saturazione,
+                    'numero_scan_settimana': sum(1 for r in rows if r.timestamp_inizio >= inizio_settimana),
+                })
+            out.sort(key=lambda x: x['ore_settimana'], reverse=True)
+            return out
+        finally:
+            session.close()
+
+    # ---- Calendario ordini per mese (per pagina capo) -----------------------
+
+    @staticmethod
+    def get_calendario_ordini(year: int, month: int) -> dict:
+        """Ordini raggruppati per data_consegna nel mese richiesto."""
+        session = get_session()
+        try:
+            from calendar import monthrange
+            first = datetime(year, month, 1)
+            last_day = monthrange(year, month)[1]
+            last = datetime(year, month, last_day, 23, 59, 59)
+
+            rows = session.query(Order).filter(
+                Order.data_consegna >= first,
+                Order.data_consegna <= last,
+                Order.is_deleted == False,  # noqa: E712
+            ).order_by(Order.data_consegna.asc()).all()
+
+            out = {}
+            for o in rows:
+                key = o.data_consegna.strftime('%Y-%m-%d')
+                out.setdefault(key, []).append({
+                    'id': o.id,
+                    'numero_ordine': o.numero_ordine or o.id[:8],
+                    'cliente': o.cliente,
+                    'fase_corrente': o.fase_corrente,
+                    'status': o.status,
+                })
+            return out
+        finally:
+            session.close()
+
+    # ---- Tempo officina dettagliato per ordine ------------------------------
+
+    @staticmethod
+    def get_tempo_officina(order_id: str) -> dict:
+        session = get_session()
+        try:
+            rows = session.query(OfficinaScan).filter(
+                OfficinaScan.order_id == order_id
+            ).order_by(OfficinaScan.timestamp_inizio.asc()).all()
+            users = {u.id: u for u in session.query(User).all()}
+            sessions_out = []
+            tot_sec = 0
+            now = datetime.utcnow()
+            for r in rows:
+                end = r.timestamp_fine or now
+                dur = BarcodeManager._durata_lavorativa_secondi(r.timestamp_inizio, end)
+                tot_sec += dur
+                u = users.get(r.operatore_id)
+                sessions_out.append({
+                    'id': r.id,
+                    'operatore_id': r.operatore_id,
+                    'operatore_name': u.name if u else '',
+                    'pistola_id': r.pistola_id,
+                    'inizio': r.timestamp_inizio.isoformat() + 'Z',
+                    'fine': r.timestamp_fine.isoformat() + 'Z' if r.timestamp_fine else None,
+                    'durata_secondi': dur,
+                    'chiusura_motivo': r.chiusura_motivo,
+                    'aperta': r.timestamp_fine is None,
+                })
+            # Conta sessioni attive e giorni distinti di lavorazione (utile
+            # per ordini multi-giorno e per il badge "In pausa").
+            n_aperte = sum(1 for s in sessions_out if s['aperta'])
+            giorni_distinti = len({r.timestamp_inizio.date() for r in rows}) if rows else 0
+            prima_scan = rows[0].timestamp_inizio.isoformat() + 'Z' if rows else None
+            ultima_scan = rows[-1].timestamp_inizio.isoformat() + 'Z' if rows else None
+            return {
+                'ordine_id': order_id,
+                'tempo_totale_secondi': tot_sec,
+                'tempo_totale_minuti': tot_sec // 60,
+                'numero_sessioni': len(sessions_out),
+                'numero_sessioni_aperte': n_aperte,
+                'giorni_distinti': giorni_distinti,
+                'prima_scan': prima_scan,
+                'ultima_scan': ultima_scan,
+                'sessioni': sessions_out,
+            }
+        finally:
+            session.close()
+
+    # ---- Config app (soglie sospetto finito, ecc.) --------------------------
+
+    _CONFIG_PATH = None  # set lazy
+
+    @staticmethod
+    def _get_config_path():
+        import os
+        if BarcodeManager._CONFIG_PATH is None:
+            here = os.path.dirname(os.path.abspath(__file__))
+            BarcodeManager._CONFIG_PATH = os.path.join(here, '..', 'app_config.json')
+        return BarcodeManager._CONFIG_PATH
+
+    @staticmethod
+    def load_config() -> dict:
+        """Carica config app da JSON. Ritorna default se file mancante/corrotto."""
+        import os
+        defaults = {
+            'sospetto_giorni_dal_taglio': 5,
+            'sospetto_giorni_da_ultima_scan': 3,
+            'fine_turno_hhmm': '17:30',
+            'orario_lavoro': [['07:30', '12:00'], ['13:30', '17:00']],
+        }
+        path = BarcodeManager._get_config_path()
+        if not os.path.exists(path):
+            return defaults
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            # Merge con default per garantire chiavi minime
+            return {**defaults, **{k: v for k, v in cfg.items() if not k.startswith('_')}}
+        except Exception as e:
+            logger.warning('load_config failed (using defaults): %s', e)
+            return defaults
+
+    @staticmethod
+    def save_config(updates: dict) -> dict:
+        """Aggiorna chiavi del config. Ritorna config aggiornata."""
+        import os
+        path = BarcodeManager._get_config_path()
+        # Carica corrente preservando commenti _
+        current = {}
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    current = json.load(f)
+            except Exception:
+                pass
+        # Applica updates (solo chiavi note per sicurezza)
+        allowed_keys = {'sospetto_giorni_dal_taglio', 'sospetto_giorni_da_ultima_scan'}
+        for k, v in (updates or {}).items():
+            if k in allowed_keys:
+                try:
+                    current[k] = int(v)
+                except (ValueError, TypeError):
+                    pass
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(current, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error('save_config failed: %s', e)
+            return {'error': str(e)}
+        return BarcodeManager.load_config()
+
+    # ---- Ordini sospetti finiti --------------------------------------------
+
+    @staticmethod
+    def get_ordini_sospetti_finiti() -> list[dict]:
+        """Ritorna ordini che probabilmente sono finiti ma nessuno li ha chiusi.
+
+        Criteri (configurabili da app_config.json):
+        - status ancora 'RICEVUTO' (cioè non DA_FATTURARE/CHIUSO/SPEDITO)
+        - taglio_completato = True (sennò non è mai entrato in officina)
+        - taglio completato da almeno N giorni
+        - ultima scansione officina da almeno M giorni (oppure mai scansionato dopo il taglio)
+        """
+        cfg = BarcodeManager.load_config()
+        gg_taglio = int(cfg.get('sospetto_giorni_dal_taglio', 5))
+        gg_scan = int(cfg.get('sospetto_giorni_da_ultima_scan', 3))
+
+        session = get_session()
+        try:
+            now = datetime.utcnow()
+            soglia_taglio = now - timedelta(days=gg_taglio)
+            soglia_scan = now - timedelta(days=gg_scan)
+
+            orders = session.query(Order).filter(
+                Order.is_deleted == False,  # noqa: E712
+                Order.status == 'RICEVUTO',
+                Order.taglio_completato == True,  # noqa: E712
+                Order.data_taglio_completato <= soglia_taglio,
+            ).all()
+
+            out = []
+            for o in orders:
+                # Verifica ultima scan
+                ultima = session.query(OfficinaScan).filter(
+                    OfficinaScan.order_id == o.id
+                ).order_by(OfficinaScan.timestamp_inizio.desc()).first()
+
+                if ultima:
+                    # C'è almeno una scan: verifica che l'ultima sia abbastanza vecchia
+                    if ultima.timestamp_inizio > soglia_scan:
+                        continue
+                    ultima_iso = ultima.timestamp_inizio.isoformat() + 'Z'
+                    giorni_inattivo = int((now - ultima.timestamp_inizio).total_seconds() / 86400)
+                else:
+                    # Nessuna scan dopo il taglio: anche più sospetto
+                    ultima_iso = None
+                    giorni_inattivo = int((now - o.data_taglio_completato).total_seconds() / 86400)
+
+                # Tempo totale officina (per dare contesto al capo)
+                rows = session.query(OfficinaScan).filter(
+                    OfficinaScan.order_id == o.id
+                ).all()
+                tot_sec = 0
+                for r in rows:
+                    if r.timestamp_fine:
+                        tot_sec += int((r.timestamp_fine - r.timestamp_inizio).total_seconds())
+
+                out.append({
+                    'id': o.id,
+                    'numero_ordine': o.numero_ordine or o.id[:8],
+                    'cliente': o.cliente,
+                    'data_consegna': o.data_consegna.isoformat() if o.data_consegna else None,
+                    'data_taglio_completato': o.data_taglio_completato.isoformat() + 'Z' if o.data_taglio_completato else None,
+                    'ultima_scan': ultima_iso,
+                    'giorni_inattivo': giorni_inattivo,
+                    'tempo_totale_minuti': tot_sec // 60,
+                    'numero_scan': len(rows),
+                })
+
+            # Ordina dai più "inattivi" ai meno (probabilmente più urgenti)
+            out.sort(key=lambda x: x['giorni_inattivo'], reverse=True)
+            return out
+        finally:
+            session.close()

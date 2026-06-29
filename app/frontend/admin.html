@@ -3,1788 +3,933 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LS FerroTrack — Admin Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<title>LS FerroTrack — Impostazioni</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html,body { height:100%; overflow:hidden; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
 
 :root {
-  --ls-green: #1a7a48;
-  --ls-green-light: #22a060;
-  --ls-gray: #c8c2b8;
-  --ls-gray-light: #e2ddd5;
-  --bg-light: #fafafa;
-  --text-primary: #000000;
-  --text-secondary: #666666;
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --green: #1a7a48;
+  --green-light: #22a060;
+  --gray-text: #666666;
+  --gray-muted: #999999;
   --border: #e5e5e5;
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+  --blue: #1e40af;
+  --blue-bg: #e0eaff;
+  --red: #991b1b;
+  --red-bg: #ffe4e4;
+  --orange: #92400e;
+  --orange-bg: #fff4d6;
+  --green-badge: #166534;
+  --green-badge-bg: #e2fce9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08);
 }
 
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg-light);
-  color: var(--text-primary);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  overflow: hidden;
-}
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--black); }
 
-/* ── TOPBAR ── */
+/* TOPBAR */
 .topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 72px;
-  background: white;
+  position: fixed; top: 0; left: 0; right: 0; height: 64px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 48px;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 900;
-  font-size: 18px;
-}
-
-.logo-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.logo-main {
-  font-family: 'Geist', sans-serif;
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
-}
-
-.logo-sub {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--ls-green);
-}
-
-.status-bar {
-  display: flex;
-  gap: 32px;
-  align-items: center;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ls-green);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.user-menu {
-  position: relative;
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  border-radius: 40px;
-  background: var(--ls-gray-light);
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--border);
-}
-
-.user-profile:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.user-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--ls-green), var(--ls-green-light));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: white;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.user-name {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.user-role {
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-.user-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  min-width: 180px;
-  margin-top: 8px;
-  box-shadow: var(--shadow-lg);
-  display: none;
-  flex-direction: column;
-  z-index: 1001;
-}
-
-.user-dropdown.active {
-  display: flex;
-}
-
-.dropdown-item {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background 0.2s;
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
-.dropdown-item:last-child {
-  border-bottom: none;
-}
-
-.dropdown-item:hover {
-  background: var(--ls-gray-light);
-}
-
-.dropdown-item.logout {
-  color: #ef4444;
-  font-weight: 600;
-}
-
-/* ── DASHBOARD LAYOUT ── */
-.dashboard-container {
-  position: fixed;
-  top: 72px;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  overflow: hidden;
-}
-
-.sidebar {
-  width: 280px;
-  background: #0f0f0f;
-  color: white;
-  padding: 48px 24px;
-  overflow-y: auto;
-  border-right: 1px solid rgba(255,255,255,0.08);
-}
-
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-
-.nav-title {
-  font-family: 'Geist', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.3);
-  margin-bottom: 16px;
-  margin-top: 24px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 8px;
-  color: rgba(255,255,255,0.5);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.nav-item:hover {
-  background: rgba(255,255,255,0.1);
-  color: white;
-  transform: translateX(8px);
-}
-
-.nav-item.active {
-  background: var(--ls-green);
-  color: white;
-  font-weight: 600;
-}
-
-.content {
-  flex: 1;
-  overflow-y: auto;
-  background: var(--bg-light);
-  padding: 48px 64px;
-}
-
-.content::-webkit-scrollbar { width: 4px; }
-.content::-webkit-scrollbar-thumb { background: var(--border); }
-
-.screen {
-  display: none;
-}
-
-.screen.active {
-  display: block;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.section-title {
-  font-family: 'Geist', sans-serif;
-  font-size: 32px;
-  font-weight: 900;
-  margin-bottom: 32px;
-  letter-spacing: -0.5px;
-}
-
-.admin-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  background: rgba(26, 122, 72, 0.1);
-  color: var(--ls-green);
-  margin-bottom: 16px;
-}
-
-/* ── KPI GRID ── */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin-bottom: 48px;
-}
-
-.kpi-card {
-  padding: 32px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: white;
-  box-shadow: var(--shadow-lg);
-  transition: all 0.3s;
-}
-
-.kpi-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--ls-green);
-}
-
-.kpi-label {
-  font-family: 'Geist', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-}
-
-.kpi-value {
-  font-family: 'Geist', sans-serif;
-  font-size: 40px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.kpi-unit {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.kpi-trend {
-  font-size: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  color: var(--ls-green);
-  font-weight: 600;
-}
-
-/* ── OPERATORS TABLE ── */
-.operators-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 48px;
-}
-
-.operators-table th {
-  background: white;
-  padding: 16px;
-  text-align: left;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  border-bottom: 2px solid var(--border);
-  font-family: 'Geist', sans-serif;
-}
-
-.operators-table td {
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-
-.operators-table tr:hover {
-  background: var(--ls-gray-light);
-}
-
-.operator-name {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.operator-role {
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.metric-value {
-  font-family: 'Geist', sans-serif;
-  font-weight: 700;
-  color: var(--ls-green);
-}
-
-.metric-label {
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-/* ── AUDIT LOG ── */
-.audit-filters {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.filter-input {
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: 'Inter', sans-serif;
-}
-
-.filter-input:focus {
-  outline: none;
-  border-color: var(--ls-green);
-  box-shadow: 0 0 0 3px rgba(26, 122, 72, 0.1);
-}
-
-.audit-log {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-.audit-log::-webkit-scrollbar { width: 4px; }
-.audit-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-.audit-entry {
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: background 0.2s;
-}
-
-.audit-entry:hover {
-  background: var(--ls-gray-light);
-}
-
-.audit-entry:last-child {
-  border-bottom: none;
-}
-
-.audit-info {
-  flex: 1;
-}
-
-.audit-user {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
-.audit-action {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
-
-.audit-time {
-  font-family: 'Geist', sans-serif;
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.audit-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin-right: 12px;
-}
-
-.badge-login { background: rgba(26, 122, 72, 0.1); color: var(--ls-green); }
-.badge-action { background: rgba(37, 88, 184, 0.1); color: #2558b8; }
-.badge-error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-.badge-logout { background: rgba(255, 107, 53, 0.1); color: #ff6b35; }
-
-/* ── RESPONSIVE ── */
-@media (max-width: 1024px) {
-  .content { padding: 32px; }
-  .section-title { font-size: 24px; }
-}
-
-@media (max-width: 900px) {
-  .sidebar { width: 100%; max-height: 60px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-x: auto; }
-  .sidebar .nav-section { display: flex; flex-direction: row; gap: 4px; padding: 8px; }
-  .sidebar .nav-label { display: none; }
-  .sidebar .sidebar-header { display: none; }
-  .dashboard-container { flex-direction: column; }
-  .content { flex: 1; padding: 20px; }
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .operators-table { font-size: 12px; }
-  .operators-table th, .operators-table td { padding: 10px 8px; }
-  .nav-item { padding: 10px 14px; font-size: 12px; }
-}
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; z-index: 1000;
+}
+.logo-section { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 36px; height: 36px; background: var(--green); color: white; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; font-family: 'Geist'; }
+.logo-main { font-family: 'Geist'; font-weight: 900; font-size: 18px; letter-spacing: -0.4px; }
+.logo-sub  { font-family: 'Inter'; font-weight: 500; font-size: 12px; color: var(--gray-text); margin-top: -2px; }
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.user-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px 6px 6px; border: 1px solid var(--border); border-radius: 100px; background: var(--white);
+}
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--green); color: white;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.user-name { font-size: 13px; font-weight: 600; }
+.user-role { font-size: 11px; color: var(--gray-text); }
+.btn-tb {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--white);
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.btn-tb:hover { background: var(--bg); }
+.btn-tb.primary { background: var(--green); color: white; border-color: var(--green); }
+.btn-tb.primary:hover { background: var(--green-light); }
+.btn-tb.danger { color: var(--red); border-color: var(--red-bg); }
+
+/* TAB BAR */
+.tab-bar {
+  position: fixed; top: 64px; left: 0; right: 0; height: 56px;
+  background: var(--white); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 48px; gap: 4px; z-index: 999;
+}
+.tab-item {
+  padding: 18px 22px; font-size: 14px; font-weight: 600; color: var(--gray-text);
+  cursor: pointer; transition: all 0.15s; border-bottom: 2px solid transparent; height: 56px;
+  display: flex; align-items: center;
+}
+.tab-item.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-item:hover:not(.active) { color: var(--black); background: rgba(26,122,72,0.03); }
+
+/* PANELS */
+.panel { display: none; margin-top: 140px; padding: 0 48px 48px; }
+.panel.active { display: block; animation: tabFade 0.18s ease-out; }
+@keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.page-title { font-family: 'Geist'; font-weight: 900; font-size: 22px; letter-spacing: -0.5px; margin-bottom: 6px; }
+.page-sub   { font-size: 13px; color: var(--gray-text); margin-bottom: 20px; }
+
+/* CARDS */
+.card {
+  background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+  margin-bottom: 20px; overflow: hidden;
+}
+.card-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-header h3 {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--gray-text); margin: 0;
+}
+.card-meta { font-size: 12px; color: var(--gray-muted); font-weight: 600; }
+.card-body { padding: 18px; }
+.card-body.no-pad { padding: 0; }
+
+/* FORM */
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.form-field { display: flex; flex-direction: column; flex: 1; min-width: 180px; }
+.form-field label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--gray-text); margin-bottom: 6px;
+}
+.form-field input, .form-field select, .form-field textarea {
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+  font-family: 'Inter', sans-serif; background: var(--white); color: var(--black);
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+  outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1);
+}
+.form-hint { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
+.form-msg { font-size: 13px; min-height: 18px; margin-top: 8px; }
+.btn-primary {
+  padding: 9px 16px; background: var(--green); color: white; border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.btn-primary:hover { background: var(--green-light); }
+.btn-secondary {
+  padding: 9px 14px; background: var(--white); color: var(--black); border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.btn-secondary:hover { background: var(--bg); }
+.btn-danger {
+  padding: 6px 10px; background: var(--white); color: var(--red); border: 1px solid var(--red-bg); border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.btn-danger:hover { background: var(--red-bg); }
+.btn-mini {
+  padding: 5px 10px; background: var(--white); color: var(--black); border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 4px;
+}
+.btn-mini:hover { background: var(--bg); }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl thead th {
+  text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--gray-text); padding: 10px 18px;
+  border-bottom: 1px solid var(--border); background: #fafbfc;
+}
+.tbl tbody td { padding: 11px 18px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover { background: #fafbfc; }
+.tbl .n { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl code { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px; color: var(--gray-text); }
+
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 9px;
+  border-radius: 100px; font-size: 11px; font-weight: 700;
+}
+.badge.green { background: var(--green-badge-bg); color: var(--green-badge); }
+.badge.blue  { background: var(--blue-bg); color: var(--blue); }
+.badge.orange{ background: var(--orange-bg); color: var(--orange); }
+.badge.red   { background: var(--red-bg); color: var(--red); }
+.badge.gray  { background: #eef0f2; color: var(--gray-text); }
+
+.empty { padding: 32px; text-align: center; color: var(--gray-muted); font-size: 13px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: none; align-items: center; justify-content: center;
+  z-index: 2000; animation: fadeIn 0.15s ease-out;
+}
+.modal-overlay.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--white); border-radius: 14px; padding: 0;
+  width: 90%; max-width: 520px; max-height: 80vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.modal-head { padding: 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-head h3 { font-family: 'Geist'; font-weight: 800; font-size: 18px; margin: 0; }
+.modal-body { padding: 18px; overflow-y: auto; }
+.modal-foot { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: var(--bg); cursor: pointer; font-size: 16px; font-weight: 700;
+}
+.modal-close:hover { background: var(--red-bg); color: var(--red); }
 </style>
 </head>
 <body>
 
 <!-- TOPBAR -->
-<header class="topbar">
-  <div class="logo-section" onclick="window.location.href='/login.html'" style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+<div class="topbar">
+  <div class="logo-section">
     <div class="logo-icon">LS</div>
-    <div class="logo-text">
-      <div class="logo-main">FerroTrack</div>
-      <div class="logo-sub">LS s.r.l.</div>
-    </div>
-  </div>
-
-  <div class="status-bar">
-    <div class="status-item">
-      <div class="status-dot"></div>
-      Impianto Attivo
-    </div>
-    <div class="status-item" id="clock">--:--:--</div>
-    <button onclick="window.location.href='/login.html'" style="padding: 8px 16px; margin-left: auto; margin-right: 16px; background: var(--ls-green); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-      ← Home
-    </button>
-    <div class="user-menu">
-      <div class="user-profile" onclick="toggleUserDropdown()">
-        <div class="user-avatar">AD</div>
-        <div class="user-info">
-          <div class="user-name">Amministratore</div>
-          <div class="user-role">Admin</div>
-        </div>
-      </div>
-      <div class="user-dropdown" id="userDropdown">
-        <div class="dropdown-item" onclick="alert('Profilo Admin')">Profilo</div>
-        <div class="dropdown-item logout" onclick="logout()">Logout</div>
-      </div>
-    </div>
-  </div>
-</header>
-
-<!-- DASHBOARD LAYOUT -->
-<div class="dashboard-container">
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
     <div>
-      <div class="nav-title">Admin Panel</div>
-      <div class="nav-item active" onclick="switchScreen('overview')">📊 Overview</div>
-      <div class="nav-item" onclick="switchScreen('kpi-operai')">👷 KPI Operai</div>
-      <div class="nav-item" onclick="switchScreen('audit')">📋 Audit Log</div>
-      <div class="nav-item" onclick="switchScreen('settings')">⚙️ Impostazioni</div>
-
-      <div class="nav-title" style="margin-top: 48px;">Mie Macchine</div>
-      <div class="nav-item" onclick="switchScreen('machines')">🔧 Tutte le Macchine</div>
-
-      <div class="nav-title" style="margin-top: 48px;">Archivio</div>
-      <div class="nav-item" onclick="switchScreen('archive')">📦 Ordini Completati</div>
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">Impostazioni</div>
     </div>
-  </aside>
-
-  <!-- CONTENT -->
-  <div class="content">
-
-    <!-- OVERVIEW SCREEN -->
-    <div class="screen active" id="screen-overview">
-      <div class="admin-badge">AMMINISTRATORE</div>
-      <h1 class="section-title">Admin Dashboard</h1>
-
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">Operai Online</div>
-          <div class="kpi-value" id="kpi-operai-online">—</div>
-          <div class="kpi-unit" id="kpi-operai-totale">caricamento...</div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-label">Ordini Attivi</div>
-          <div class="kpi-value" id="kpi-ordini-attivi">—</div>
-          <div class="kpi-unit">in lavorazione</div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-label">Puntualit&agrave; Consegne</div>
-          <div class="kpi-value" id="kpi-efficienza">—</div>
-          <div class="kpi-unit">ordini consegnati in tempo</div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-label">Ordini in Ritardo</div>
-          <div class="kpi-value" id="kpi-ritardi">—</div>
-          <div class="kpi-unit">scaduti non completati</div>
-        </div>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">Login Oggi</div>
-          <div class="kpi-value" id="kpi-login-oggi">—</div>
-          <div class="kpi-unit">accessi registrati</div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-label">Completati Oggi</div>
-          <div class="kpi-value" id="kpi-completati-oggi">—</div>
-          <div class="kpi-unit">ordini</div>
-        </div>
+  </div>
+  <div class="topbar-actions">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-pill-avatar">?</div>
+      <div>
+        <div class="user-name" id="user-pill-name">Admin</div>
+        <div class="user-role">Amministratore</div>
       </div>
     </div>
+    <button class="btn-tb" onclick="window.location.href='/capo-officina.html'">&larr; Pannello Capo</button>
+    <button class="btn-tb danger" onclick="logout()">Esci</button>
+  </div>
+</div>
 
-    <!-- KPI OPERAI SCREEN -->
-    <div class="screen" id="screen-kpi-operai">
-      <div class="admin-badge">STATISTICHE</div>
-      <h1 class="section-title">KPI Dettagliati Operai</h1>
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-item active" data-tab="utenti"  onclick="switchTab('utenti')">Utenti</div>
+  <div class="tab-item"        data-tab="soglie"  onclick="switchTab('soglie')">Soglie sistema</div>
+  <div class="tab-item"        data-tab="backup"  onclick="switchTab('backup')">Backup</div>
+  <div class="tab-item"        data-tab="audit"   onclick="switchTab('audit')">Audit log</div>
+</div>
 
-      <table class="operators-table">
-        <thead>
-          <tr>
-            <th>Operaio</th>
-            <th>Ordini Completati</th>
-            <th>Tempo Medio</th>
-            <th>Puntualit&agrave;</th>
-            <th>Saturazione Oggi</th>
-            <th>Ritardi</th>
-            <th>Ultimo Accesso</th>
-          </tr>
-        </thead>
-        <tbody id="kpi-operai-tbody">
-          <tr><td colspan="7" style="text-align:center; padding:32px; color: var(--text-secondary);">Caricamento KPI...</td></tr>
-        </tbody>
-      </table>
+<!-- ===================== PANEL: UTENTI ===================== -->
+<div class="panel active" id="panel-utenti">
+  <h2 class="page-title">Utenti</h2>
+  <p class="page-sub">Operai, capi, impiegate e amministratori. Le pistole barcode si gestiscono dal <a href="/capo-officina.html" style="color:var(--green); font-weight:600;">Pannello Capo &rarr; Pistole</a>.</p>
+
+  <!-- Crea utente -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Aggiungi utente</h3>
     </div>
-
-    <!-- AUDIT LOG SCREEN -->
-    <div class="screen" id="screen-audit">
-      <div class="admin-badge">SICUREZZA</div>
-      <h1 class="section-title">Audit Log</h1>
-
-      <div class="audit-filters">
-        <input type="text" class="filter-input" placeholder="Filtra per operaio...">
-        <input type="text" class="filter-input" placeholder="Filtra per azione...">
-        <input type="text" class="filter-input" placeholder="Filtra per data...">
-      </div>
-
-      <div class="audit-log">
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-login">LOGIN</span><span class="audit-user">Mirko Sandionigi</span></div>
-            <div class="audit-action">Accesso al dashboard</div>
-          </div>
-          <div class="audit-time">Oggi 09:30</div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label>ID utente</label>
+          <input type="text" id="new-user-id" placeholder="es. nome-reparto">
         </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-action">AZIONE</span><span class="audit-user">Elena Colombo</span></div>
-            <div class="audit-action">Completato ordine C-205 (Piega)</div>
-          </div>
-          <div class="audit-time">Oggi 10:15</div>
+        <div class="form-field">
+          <label>Nome completo</label>
+          <input type="text" id="new-user-name" placeholder="es. Mario Rossi">
         </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-action">AZIONE</span><span class="audit-user">Enzo Masciari</span></div>
-            <div class="audit-action">Avviato ordine C-207 (Saldatura)</div>
-          </div>
-          <div class="audit-time">Oggi 10:45</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-error">ERRORE</span><span class="audit-user">Stefano Villa</span></div>
-            <div class="audit-action">Tentativo accesso negato (credenziali errate)</div>
-          </div>
-          <div class="audit-time">Oggi 11:20</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-action">AZIONE</span><span class="audit-user">Paolo Scola (Capo)</span></div>
-            <div class="audit-action">Modificato permessi per operaio Enzo Masciari</div>
-          </div>
-          <div class="audit-time">Oggi 11:35</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-login">LOGIN</span><span class="audit-user">Enzo Masciari</span></div>
-            <div class="audit-action">Accesso al dashboard</div>
-          </div>
-          <div class="audit-time">Oggi 11:15</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-action">AZIONE</span><span class="audit-user">Mirko Sandionigi</span></div>
-            <div class="audit-action">Completato ordine C-209 (Laser)</div>
-          </div>
-          <div class="audit-time">Oggi 13:40</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-logout">LOGOUT</span><span class="audit-user">Elena Colombo</span></div>
-            <div class="audit-action">Disconnessione dal sistema</div>
-          </div>
-          <div class="audit-time">Oggi 14:30</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-action">AZIONE</span><span class="audit-user">Paolo Scola (Capo)</span></div>
-            <div class="audit-action">Riavviato sistema (manutenzione programmata)</div>
-          </div>
-          <div class="audit-time">Ieri 23:00</div>
-        </div>
-
-        <div class="audit-entry">
-          <div class="audit-info">
-            <div><span class="audit-badge badge-login">LOGIN</span><span class="audit-user">Stefano Villa</span></div>
-            <div class="audit-action">Accesso al dashboard</div>
-          </div>
-          <div class="audit-time">Ieri 07:45</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MACHINES SCREEN -->
-    <div class="screen" id="screen-machines">
-      <div class="admin-badge">MIE MACCHINE</div>
-      <h1 class="section-title">Tutte le Macchine & KPI</h1>
-
-      <div id="machinesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
-        <!-- Machine KPI Cards -->
-        <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-            <div>
-              <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">🔴 CNC Laser CO2</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Potenza: 150W | LASER</div>
-            </div>
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: #e0f2f1; display: flex; align-items: center; justify-content: center; color: var(--ls-green); font-weight: 700;">✓</div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Uptime</div>
-              <div style="font-size: 18px; font-weight: 700; color: var(--ls-green);">98.5%</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Articoli Oggi</div>
-              <div style="font-size: 18px; font-weight: 700; color: #1976d2;">24</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Ore Utilizzo</div>
-              <div style="font-size: 18px; font-weight: 700; color: #d81b60;">7.2h</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Velocità Media</div>
-              <div style="font-size: 18px; font-weight: 700; color: #ff6348;">3.3 art/h</div>
-            </div>
-          </div>
-          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);">
-            Ultimo controllo: Oggi 14:32
-          </div>
-        </div>
-
-        <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-            <div>
-              <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">🔵 Pressa Piega</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Capacità: 50 Ton | PIEGA</div>
-            </div>
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: #e3f2fd; display: flex; align-items: center; justify-content: center; color: #1976d2; font-weight: 700;">✓</div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Uptime</div>
-              <div style="font-size: 18px; font-weight: 700; color: var(--ls-green);">96.8%</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Articoli Oggi</div>
-              <div style="font-size: 18px; font-weight: 700; color: #1976d2;">18</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Ore Utilizzo</div>
-              <div style="font-size: 18px; font-weight: 700; color: #d81b60;">6.5h</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Velocità Media</div>
-              <div style="font-size: 18px; font-weight: 700; color: #ff6348;">2.8 art/h</div>
-            </div>
-          </div>
-          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);">
-            Ultimo controllo: Oggi 14:28
-          </div>
-        </div>
-
-        <div style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-            <div>
-              <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">🟣 Stazione Saldatura</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Tipo: MIG/TIG | SALDATURA</div>
-            </div>
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: #fce4ec; display: flex; align-items: center; justify-content: center; color: #d81b60; font-weight: 700;">✓</div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Uptime</div>
-              <div style="font-size: 18px; font-weight: 700; color: var(--ls-green);">99.2%</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Articoli Oggi</div>
-              <div style="font-size: 18px; font-weight: 700; color: #1976d2;">12</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Ore Utilizzo</div>
-              <div style="font-size: 18px; font-weight: 700; color: #d81b60;">5.8h</div>
-            </div>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Velocità Media</div>
-              <div style="font-size: 18px; font-weight: 700; color: #ff6348;">2.1 art/h</div>
-            </div>
-          </div>
-          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);">
-            Ultimo controllo: Oggi 14:35
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SETTINGS SCREEN -->
-    <div class="screen" id="screen-settings">
-      <div class="admin-badge">IMPOSTAZIONI</div>
-      <h1 class="section-title">Impostazioni Sistema</h1>
-
-      <!-- TABS -->
-      <div style="display: flex; gap: 8px; margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
-        <button class="settings-tab active" onclick="switchSettingsTab('operators')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 600; color: var(--ls-green); border-bottom: 2px solid var(--ls-green);">
-          Operai e Ruoli
-        </button>
-        <button class="settings-tab" onclick="switchSettingsTab('backup')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
-          Backup e Ripristino
-        </button>
-        <button class="settings-tab" onclick="switchSettingsTab('notifications')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
-          Preferenze Notifiche
-        </button>
-        <button class="settings-tab" onclick="switchSettingsTab('security')" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
-          Impostazioni di Sicurezza
-        </button>
-      </div>
-
-      <!-- TAB: OPERATORI -->
-      <div id="tab-operators" class="settings-content" style="display: block;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="font-size: 20px; font-weight: 700; margin: 0;">Gestione Operai e Ruoli</h2>
-          <button onclick="openAddOperatorModal()" style="background: var(--ls-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            + Aggiungi Operaio
-          </button>
-        </div>
-        <div id="operatorsTable" style="background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden;">
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: #f5f5f5; border-bottom: 1px solid var(--border);">
-              <tr>
-                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Nome</th>
-                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Ruolo</th>
-                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Fase</th>
-                <th style="padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px;">Stato</th>
-                <th style="padding: 12px 16px; text-align: center; font-weight: 600; font-size: 12px;">Azioni</th>
-              </tr>
-            </thead>
-            <tbody id="operatorsList">
-              <tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">Caricamento...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- TAB: BACKUP -->
-      <div id="tab-backup" class="settings-content" style="display: none;">
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Backup e Ripristino</h2>
-        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
-          <div style="margin-bottom: 24px;">
-            <h3 style="font-weight: 600; margin-bottom: 12px;">Backup Dati</h3>
-            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">Scarica una copia completa del database e delle impostazioni.</p>
-            <button onclick="downloadBackup()" style="background: var(--ls-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-              📥 Scarica Backup
-            </button>
-          </div>
-          <hr style="border: none; border-top: 1px solid var(--border); margin: 24px 0;">
-          <div>
-            <h3 style="font-weight: 600; margin-bottom: 12px;">Ultimo Backup</h3>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 3px solid var(--ls-green);">
-              <div style="font-size: 12px; color: var(--text-secondary);">Data: 2026-03-02 ore 13:34</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Dimensione: 2.3 MB</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: NOTIFICHE -->
-      <div id="tab-notifications" class="settings-content" style="display: none;">
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Preferenze Notifiche</h2>
-        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);">
-            <div>
-              <div style="font-weight: 600; margin-bottom: 4px;">Ordini Completati</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Notifiche quando un ordine è completato</div>
-            </div>
-            <input type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);">
-            <div>
-              <div style="font-weight: 600; margin-bottom: 4px;">Ordini in Ritardo</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Avviso per ordini che superano la data di consegna</div>
-            </div>
-            <input type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border);">
-            <div>
-              <div style="font-weight: 600; margin-bottom: 4px;">Accessi Operai</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Log di accesso al sistema</div>
-            </div>
-            <input type="checkbox" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0;">
-            <div>
-              <div style="font-weight: 600; margin-bottom: 4px;">Errori Sistema</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">Notifiche per errori e malfunzionamenti</div>
-            </div>
-            <input type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--ls-green);">
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: SICUREZZA -->
-      <div id="tab-security" class="settings-content" style="display: none;">
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px;">Impostazioni di Sicurezza</h2>
-        <div style="background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px;">
-          <div style="margin-bottom: 24px;">
-            <h3 style="font-weight: 600; margin-bottom: 12px;">Protezione Accesso</h3>
-            <div style="margin-bottom: 12px;">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" checked style="width: 16px; height: 16px; accent-color: var(--ls-green);">
-                <span>Abilita autenticazione per accesso al sistema</span>
-              </label>
-            </div>
-            <div style="margin-bottom: 12px;">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" checked style="width: 16px; height: 16px; accent-color: var(--ls-green);">
-                <span>Registra tutti i login nei log di audit</span>
-              </label>
-            </div>
-            <div>
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" style="width: 16px; height: 16px; accent-color: var(--ls-green);">
-                <span>Scadenza sessione dopo 30 minuti di inattività</span>
-              </label>
-            </div>
-          </div>
-          <hr style="border: none; border-top: 1px solid var(--border); margin: 24px 0;">
-          <div>
-            <h3 style="font-weight: 600; margin-bottom: 12px;">Versione Sistema</h3>
-            <div style="background: #f5f5f5; padding: 12px; border-radius: 8px;">
-              <div style="font-size: 12px; color: var(--text-secondary);">Versione: 1.2.3</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Build: 2026-03-02</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Database: SQLite 3.x</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- MODAL: ADD OPERATOR -->
-    <div id="addOperatorModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
-      <div style="background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
-        <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 24px 0;">Aggiungi Nuovo Operaio</h2>
-
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">ID Utente</label>
-          <input id="newUserID" type="text" placeholder="es: nome-reparto" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: monospace;">
-        </div>
-
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Nome Operaio</label>
-          <input id="newUserName" type="text" placeholder="es: Nome Cognome" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box;">
-        </div>
-
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Ruolo</label>
-          <select id="newUserRole" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box;">
-            <option value="">-- Seleziona Ruolo --</option>
-            <option value="Operaio">Operaio</option>
-            <option value="Supervisore">Supervisore</option>
+        <div class="form-field">
+          <label>Ruolo</label>
+          <select id="new-user-role">
+            <option value="">&mdash;</option>
+            <option value="Impiegata">Impiegata</option>
+            <option value="Capo Officina">Capo Officina</option>
+            <option value="Operaio Laser">Operaio Laser</option>
+            <option value="Operaio Officina">Operaio Officina</option>
             <option value="Amministratore">Amministratore</option>
           </select>
         </div>
-
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">Fase Assegnata</label>
-          <select id="newUserPhase" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box;">
-            <option value="">-- Seleziona Fase --</option>
+        <div class="form-field" style="max-width:140px;">
+          <label>Fase</label>
+          <select id="new-user-phase">
+            <option value="">&mdash;</option>
             <option value="LASER">LASER</option>
-            <option value="PIEGA">PIEGA</option>
-            <option value="SALDATURA">SALDATURA</option>
-            <option value="ALL">TUTTE (Admin)</option>
+            <option value="OFFICINA">OFFICINA</option>
+            <option value="ALL">ALL</option>
           </select>
         </div>
-
-        <div style="margin-bottom: 24px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">Permessi</label>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="perm-overview" value="overview" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
-              <span>Visualizza Dashboard</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="perm-lavorazione" value="lavorazione" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
-              <span>Accedi a Lavorazione</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="perm-supervisione" value="supervisione" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
-              <span>Supervisore (Approva ordini)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="perm-archive" value="archive" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--ls-green);">
-              <span>Accedi ad Archivio</span>
-            </label>
-          </div>
+        <div class="form-field" style="flex:0 0 auto; min-width:auto;">
+          <label>&nbsp;</label>
+          <button class="btn-primary" onclick="createUser()">+ Crea utente</button>
         </div>
+      </div>
+      <div class="form-hint" style="margin-top:10px;">Permessi e stato attivo si modificano dopo la creazione.</div>
+      <div class="form-msg" id="new-user-msg"></div>
+    </div>
+  </div>
 
-        <div style="display: flex; gap: 12px;">
-          <button onclick="closeAddOperatorModal()" style="flex: 1; padding: 12px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-primary);">
-            Annulla
-          </button>
-          <button onclick="submitAddOperator()" style="flex: 1; padding: 12px; background: var(--ls-green); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            Crea Operaio
-          </button>
+  <!-- Lista utenti -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Utenti registrati</h3>
+      <span class="card-meta" id="users-meta">&mdash;</span>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>ID</th>
+            <th>Ruolo</th>
+            <th>Fase</th>
+            <th>Permessi</th>
+            <th>Stato</th>
+            <th style="text-align:right;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="7" class="empty">Caricamento&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PANEL: SOGLIE ===================== -->
+<div class="panel" id="panel-soglie">
+  <h2 class="page-title">Soglie sistema</h2>
+  <p class="page-sub">Configurazione dell'app. Solo capi e amministratori possono modificare questi valori.</p>
+
+  <!-- Soglie sospetti finiti -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Ordini "probabilmente finiti"</h3>
+      <span class="card-meta">Sezione rossa Pannello Capo / Impiegata</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size: 13px; color: var(--gray-text); margin-bottom: 16px;">
+        Un ordine compare nella sezione rossa "ordini sospetti finiti" se il <b>taglio &egrave; completato da almeno N giorni</b> E <b>nessuna scansione officina da almeno M giorni</b>.
+      </p>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Giorni dal taglio</label>
+          <input type="number" id="cfg-giorni-taglio" min="1" max="60">
+          <div class="form-hint">Quanti giorni dopo "taglio fatto" considerare l'ordine potenzialmente finito.</div>
+        </div>
+        <div class="form-field">
+          <label>Giorni dall'ultima scansione</label>
+          <input type="number" id="cfg-giorni-scan" min="1" max="30">
+          <div class="form-hint">Quanti giorni di inattivit&agrave; (nessuna scan in officina) per considerarlo sospetto.</div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ARCHIVE SCREEN -->
-    <div class="screen" id="screen-archive">
-      <h1 class="section-title">Archivio Ordini Completati</h1>
-
-      <!-- Filters -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; margin-bottom: 24px; padding: 16px; background: white; border-radius: 8px; border: 1px solid var(--border);">
-        <input type="date" id="filter-date-from" placeholder="Data inizio" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
-        <input type="date" id="filter-date-to" placeholder="Data fine" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
-        <input type="text" id="filter-cliente" placeholder="Cerca per cliente..." style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;">
-        <button onclick="applyArchiveFilters()" style="padding: 8px 16px; background: var(--ls-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-          Filtra
-        </button>
-      </div>
-
-      <!-- Export Button -->
-      <div style="margin-bottom: 16px; display: flex; justify-content: flex-end;">
-        <button onclick="exportArchiveCSV()" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-          📥 Scarica CSV
-        </button>
-      </div>
-
-      <!-- Orders Table -->
-      <div style="background: white; border-radius: 8px; border: 1px solid var(--border); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-          <thead style="background: #f5f5f5; border-bottom: 1px solid var(--border);">
-            <tr>
-              <th style="padding: 12px; text-align: left; font-weight: 600;">ID Ordine</th>
-              <th style="padding: 12px; text-align: left; font-weight: 600;">Cliente</th>
-              <th style="padding: 12px; text-align: left; font-weight: 600;">Data Consegna</th>
-              <th style="padding: 12px; text-align: left; font-weight: 600;">Completamento</th>
-              <th style="padding: 12px; text-align: left; font-weight: 600;">Articoli</th>
-              <th style="padding: 12px; text-align: left; font-weight: 600;">Tempo Totale</th>
-              <th style="padding: 12px; text-align: center; font-weight: 600;">Azioni</th>
-            </tr>
-          </thead>
-          <tbody id="archive-table-body">
-            <tr style="border-top: 1px solid var(--border);">
-              <td colspan="7" style="padding: 24px; text-align: center; color: var(--text-secondary);">
-                Caricamento ordini...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div style="display: flex; justify-content: center; gap: 12px; margin-top: 24px;">
-        <button onclick="previousArchivePage()" style="padding: 8px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-weight: 600;">
-          ← Precedente
-        </button>
-        <div id="archive-page-info" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: white; border: 1px solid var(--border); border-radius: 6px;">
-          Pagina <span id="current-page">1</span> di <span id="total-pages">1</span>
+  <!-- Orario di lavoro (per calcolo automatico ore) -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Orario di lavoro</h3>
+      <span class="card-meta">Scorpora automaticamente pausa pranzo dai conteggi</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size: 13px; color: var(--gray-text); margin-bottom: 16px;">
+        Le ore lavorate degli operai vengono calcolate <b>solo dentro queste finestre</b>. La pausa pranzo, le notti e i tempi fuori orario vengono scorporati automaticamente: l'operaio scansiona solo "inizio" e "fine" ordine, il resto lo fa il sistema.
+      </p>
+      <div class="form-row">
+        <div class="form-field" style="max-width:160px;">
+          <label>Mattina &mdash; inizio</label>
+          <input type="text" id="cfg-orario-mat-inizio" placeholder="07:30">
         </div>
-        <button onclick="nextArchivePage()" style="padding: 8px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer; font-weight: 600;">
-          Prossimo →
-        </button>
+        <div class="form-field" style="max-width:160px;">
+          <label>Mattina &mdash; fine</label>
+          <input type="text" id="cfg-orario-mat-fine" placeholder="12:00">
+        </div>
+        <div class="form-field" style="max-width:160px;">
+          <label>Pomeriggio &mdash; inizio</label>
+          <input type="text" id="cfg-orario-pom-inizio" placeholder="13:30">
+        </div>
+        <div class="form-field" style="max-width:160px;">
+          <label>Pomeriggio &mdash; fine</label>
+          <input type="text" id="cfg-orario-pom-fine" placeholder="17:00">
+        </div>
+      </div>
+      <div class="form-hint" style="margin-top:10px;">
+        Formato 24h, es. <code>07:30</code>. Esempio default: 07:30&ndash;12:00 (mattina, 4h30) + 13:30&ndash;17:00 (pomeriggio, 3h30) = <b>8h al giorno</b>.
       </div>
     </div>
+  </div>
 
-    <!-- ARCHIVE DETAILS MODAL -->
-    <div id="archive-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
-      <div style="background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 32px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-          <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Dettagli Ordine</h2>
-          <button onclick="closeArchiveModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);">✕</button>
-        </div>
-
-        <div id="modal-content" style="display: flex; flex-direction: column; gap: 16px;">
-          <!-- Header Info -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
-            <div>
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">ID Ordine</div>
-              <div id="modal-order-id" style="font-size: 16px; font-weight: 700;">—</div>
-            </div>
-            <div>
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Cliente</div>
-              <div id="modal-cliente" style="font-size: 16px; font-weight: 700;">—</div>
-            </div>
-            <div>
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Articoli</div>
-              <div id="modal-articoli-count" style="font-size: 16px; font-weight: 700;">—</div>
-            </div>
-            <div>
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Tempo Totale</div>
-              <div id="modal-tempo-totale" style="font-size: 16px; font-weight: 700;">—</div>
-            </div>
-          </div>
-
-          <!-- Dates -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <div style="padding: 12px; background: #f9f9f9; border-radius: 8px;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Consegna Prevista</div>
-              <div id="modal-data-consegna" style="font-size: 14px;">—</div>
-            </div>
-            <div style="padding: 12px; background: #f9f9f9; border-radius: 8px;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Completato il</div>
-              <div id="modal-data-completamento" style="font-size: 14px;">—</div>
-            </div>
-          </div>
-
-          <!-- Fasi -->
-          <div>
-            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Fasi Lavoro</div>
-            <div id="modal-fasi" style="display: flex; flex-direction: column; gap: 8px;">
-              <!-- Populated by JS -->
-            </div>
-          </div>
-
-          <!-- Articoli -->
-          <div>
-            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Articoli</div>
-            <div id="modal-articoli-list" style="display: flex; flex-direction: column; gap: 8px;">
-              <!-- Populated by JS -->
-            </div>
-          </div>
-
-          <!-- Note -->
-          <div id="modal-note-section" style="display: none;">
-            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Note</div>
-            <div id="modal-note" style="padding: 12px; background: #f9f9f9; border-radius: 8px; font-size: 14px;">—</div>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; margin-top: 24px;">
-          <button onclick="closeArchiveModal()" style="flex: 1; padding: 12px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-primary);">
-            Chiudi
-          </button>
+  <!-- Chiusura turno automatica -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Chiusura automatica fine turno</h3>
+      <span class="card-meta">Cron giornaliero</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size: 13px; color: var(--gray-text); margin-bottom: 16px;">
+        Ogni giorno a quest'ora il sistema chiude automaticamente le scansioni rimaste aperte (operai che dimenticano di scansionare a fine giornata). Conviene impostare qualche minuto dopo il fine orario pomeridiano. Motivo registrato: <code>fine_turno</code>.
+      </p>
+      <div class="form-row">
+        <div class="form-field" style="max-width:200px;">
+          <label>Orario chiusura (HH:MM)</label>
+          <input type="text" id="cfg-fine-turno" placeholder="17:30">
+          <div class="form-hint">Formato 24h, es. 17:30.</div>
         </div>
       </div>
     </div>
+  </div>
 
+  <div style="display: flex; gap: 12px; align-items: center; margin-top: 24px;">
+    <button class="btn-primary" onclick="saveConfig()">Salva impostazioni</button>
+    <button class="btn-secondary" onclick="loadConfig()">Ripristina</button>
+    <span class="form-msg" id="cfg-msg"></span>
+  </div>
+</div>
+
+<!-- ===================== PANEL: BACKUP ===================== -->
+<div class="panel" id="panel-backup">
+  <h2 class="page-title">Backup database</h2>
+  <p class="page-sub">Snapshot automatici e manuali del database SQLite. I backup automatici girano in background.</p>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Backup automatico</h3>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-field" style="max-width:160px;">
+          <label>Attivo</label>
+          <select id="bk-enabled">
+            <option value="true">S&igrave;</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-field" style="max-width:160px;">
+          <label>Intervallo (ore)</label>
+          <input type="number" id="bk-interval" min="1" max="168">
+        </div>
+        <div class="form-field" style="max-width:160px;">
+          <label>Max copie</label>
+          <input type="number" id="bk-max" min="5" max="100">
+        </div>
+        <div class="form-field">
+          <label>Percorso locale</label>
+          <input type="text" id="bk-path" placeholder="es. C:/backup/ferrotrack">
+        </div>
+        <div class="form-field" style="flex:0 0 auto; min-width:auto;">
+          <label>&nbsp;</label>
+          <button class="btn-primary" onclick="saveBackupSettings()">Salva</button>
+        </div>
+      </div>
+      <div class="form-msg" id="bk-settings-msg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Backup manuale</h3>
+      <button class="btn-primary" onclick="runManualBackup()" style="font-size:12px; padding:6px 14px;">Esegui ora</button>
+    </div>
+    <div class="card-body">
+      <div class="form-msg" id="bk-manual-msg" style="margin-top:0;">Pronto.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Copie esistenti</h3>
+      <span class="card-meta" id="bk-list-meta">&mdash;</span>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Data</th>
+            <th class="n">Dimensione</th>
+          </tr>
+        </thead>
+        <tbody id="bk-tbody">
+          <tr><td colspan="3" class="empty">Caricamento&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PANEL: AUDIT LOG ===================== -->
+<div class="panel" id="panel-audit">
+  <h2 class="page-title">Audit log</h2>
+  <p class="page-sub">Storico delle azioni amministrative: chi ha fatto cosa e quando.</p>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Eventi recenti</h3>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="audit-filter-user" placeholder="Filtra per ID utente&hellip;" style="padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:12px;">
+        <select id="audit-limit" style="padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:12px;">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="250">250</option>
+          <option value="500">500</option>
+        </select>
+        <button class="btn-secondary" onclick="loadAudit()" style="padding:6px 12px; font-size:12px;">Aggiorna</button>
+      </div>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Quando</th>
+            <th>Utente</th>
+            <th>Azione</th>
+            <th>Entit&agrave;</th>
+            <th>Dettaglio</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr><td colspan="5" class="empty">Caricamento&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: modifica utente -->
+<div class="modal-overlay" id="edit-user-modal" onclick="if(event.target===this)closeEditUser()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Modifica utente</h3>
+      <button class="modal-close" onclick="closeEditUser()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size: 13px; color: var(--gray-text); margin-bottom: 4px;" id="edit-user-display">&mdash;</div>
+      <div style="font-family: monospace; font-size: 11px; color: var(--gray-muted); margin-bottom: 18px;" id="edit-user-id">&mdash;</div>
+
+      <div class="form-field" style="margin-bottom: 14px;">
+        <label>Nome</label>
+        <input type="text" id="edit-user-name">
+      </div>
+      <div class="form-field" style="margin-bottom: 14px;">
+        <label>Ruolo</label>
+        <select id="edit-user-role">
+          <option value="Impiegata">Impiegata</option>
+          <option value="Capo Officina">Capo Officina</option>
+          <option value="Operaio Laser">Operaio Laser</option>
+          <option value="Operaio Officina">Operaio Officina</option>
+          <option value="Amministratore">Amministratore</option>
+        </select>
+      </div>
+      <div class="form-field" style="margin-bottom: 14px;">
+        <label>Fase</label>
+        <select id="edit-user-phase">
+          <option value="">&mdash; Nessuna &mdash;</option>
+          <option value="LASER">LASER</option>
+          <option value="OFFICINA">OFFICINA</option>
+          <option value="ALL">ALL</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;">
+          <input type="checkbox" id="edit-user-active" style="accent-color: var(--green);">
+          Utente attivo
+        </label>
+      </div>
+
+      <div class="form-msg" id="edit-user-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeEditUser()">Annulla</button>
+      <button class="btn-primary" onclick="submitEditUser()">Salva</button>
+    </div>
   </div>
 </div>
 
 <script>
-const API_BASE = '';
+const API_URL = '';
 let currentUser = null;
+let _editingUserId = null;
 
-// ── SESSION CHECK ──
-async function checkSession() {
-  const saved = localStorage.getItem('currentUser');
-  if (!saved) {
-    window.location.href = '/login.html';
-    return false;
-  }
-
-  currentUser = JSON.parse(saved);
-  const perms = currentUser.permissions || [];
-  if (!perms.includes('supervisione')) {
-    alert('Accesso negato. Solo supervisori e amministratori possono accedere.');
-    window.location.href = '/login.html';
-    return false;
-  }
-
-  // Update topbar
-  document.getElementById('userName').textContent = currentUser.name || 'Admin';
-  document.getElementById('userRole').textContent = currentUser.role || 'Amministratore';
-  document.getElementById('userInitials').textContent = (currentUser.initials || 'AD');
-
-  return true;
-}
-
-// ── LOAD KPI ──
-async function loadKPI() {
-  try {
-    const resp = await fetch(`${API_BASE}/api/admin/kpi`);
-    if (!resp.ok) throw new Error('Failed to load KPI');
-    const data = await resp.json();
-    if (!data.success) return;
-
-    const g = data.kpi_globali;
-
-    // Overview cards
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    setVal('kpi-operai-online', g.operai_online || 0);
-    setVal('kpi-operai-totale', 'di ' + (g.totale_operai || 0) + ' registrati');
-    setVal('kpi-ordini-attivi', g.ordini_attivi || 0);
-    setVal('kpi-efficienza', (g.efficienza || 0) + '%');
-    setVal('kpi-ritardi', g.ritardi || 0);
-    setVal('kpi-login-oggi', g.login_oggi || 0);
-    setVal('kpi-completati-oggi', g.completati_oggi || 0);
-
-    // KPI Operai table
-    const tbody = document.getElementById('kpi-operai-tbody');
-    if (tbody && data.kpi_operai && data.kpi_operai.length > 0) {
-      tbody.innerHTML = data.kpi_operai.map(op => {
-        const puntColor = op.puntualita >= 80 ? '#22c55e' : op.puntualita >= 50 ? '#ffa502' : '#ef4444';
-        const puntLabel = op.puntualita >= 80 ? 'eccellente' : op.puntualita >= 50 ? 'buono' : 'da migliorare';
-        const satColor = op.saturazione >= 60 ? '#22c55e' : op.saturazione >= 30 ? '#ffa502' : '#94a3b8';
-        const ritColor = op.ritardi === 0 ? '#22c55e' : op.ritardi <= 2 ? '#ffa502' : '#ef4444';
-        const ritLabel = op.ritardi === 0 ? 'nessun ritardo' : op.ritardi + ' ordini scaduti';
-        const accesso = op.ultimo_accesso === 'Mai' ? 'Mai' : formatAccesso(op.ultimo_accesso);
-
-        return '<tr>' +
-          '<td><div class="operator-name">' + escapeHtml(op.operaio) + '</div><div class="operator-role">' + escapeHtml(op.role || '') + '</div></td>' +
-          '<td><div class="metric-value">' + op.ordini_completati + '</div><div class="metric-label">totali</div></td>' +
-          '<td><div class="metric-value">' + escapeHtml(op.tempo_medio) + '</div><div class="metric-label">per fase</div></td>' +
-          '<td><div class="metric-value" style="color:' + puntColor + ';">' + op.puntualita + '%</div><div class="metric-label">' + puntLabel + '</div></td>' +
-          '<td><div class="metric-value" style="color:' + satColor + ';">' + op.saturazione + '%</div>' +
-            '<div style="background:#e5e7eb;border-radius:4px;height:6px;margin-top:4px;"><div style="background:' + satColor + ';height:100%;border-radius:4px;width:' + op.saturazione + '%;"></div></div></td>' +
-          '<td><div class="metric-value" style="color:' + ritColor + ';">' + op.ritardi + '</div><div class="metric-label">' + ritLabel + '</div></td>' +
-          '<td><div class="metric-label">' + escapeHtml(accesso) + '</div></td>' +
-        '</tr>';
-      }).join('');
-    } else if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary);">Nessun operaio trovato</td></tr>';
-    }
-  } catch (e) {
-    console.error('Error loading KPI:', e);
-  }
-}
-
-function formatAccesso(isoStr) {
-  try {
-    const d = new Date(isoStr);
-    const oggi = new Date();
-    const isToday = d.toDateString() === oggi.toDateString();
-    const ieri = new Date(oggi); ieri.setDate(ieri.getDate() - 1);
-    const isYesterday = d.toDateString() === ieri.toDateString();
-    const time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return 'Oggi ' + time;
-    if (isYesterday) return 'Ieri ' + time;
-    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + time;
-  } catch(e) { return isoStr; }
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── LOAD AUDIT LOG ──
-async function loadAuditLog() {
-  try {
-    const resp = await fetch(`${API_BASE}/api/admin/audit-log?limit=50`);
-    if (!resp.ok) throw new Error('Failed to load audit log');
-    const data = resp.json();
-
-    // Audit log loaded
-  } catch (e) {
-    console.error('Error loading audit log:', e);
-  }
-}
-
-function switchScreen(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(`screen-${screenId}`).classList.add('active');
-
-  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-  if (event && event.target) {
-    const navItem = event.target.closest('.nav-item');
-    if (navItem) navItem.classList.add('active');
-  }
-
-  // Load data based on screen
-  if (screenId === 'overview' || screenId === 'kpi-operai') {
-    loadKPI();
-  } else if (screenId === 'audit') {
-    loadAuditLog();
-  } else if (screenId === 'archive') {
-    loadArchiveOrders(1, {});
-  }
-}
-
-function toggleUserDropdown() {
-  document.getElementById('userDropdown').classList.toggle('active');
-}
-
-async function logout() {
-  try {
-    if (currentUser) {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.id })
-      });
-    }
-  } catch (e) {
-    console.error('Logout error:', e);
-  } finally {
-    localStorage.removeItem('currentUser');
-    window.location.href = '/login.html';
-  }
-}
-
-function updateClock() {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString('it-IT');
-}
-
-// ── SETTINGS FUNCTIONS ──
-function switchSettingsTab(tabName) {
-  // Hide all tabs
-  document.querySelectorAll('.settings-content').forEach(tab => {
-    tab.style.display = 'none';
-  });
-
-  // Show selected tab
-  document.getElementById(`tab-${tabName}`).style.display = 'block';
-
-  // Update tab buttons styling
-  document.querySelectorAll('.settings-tab').forEach(btn => {
-    btn.style.color = 'var(--text-secondary)';
-    btn.style.borderBottom = 'none';
-    btn.style.fontWeight = '500';
-  });
-
-  event.target.style.color = 'var(--ls-green)';
-  event.target.style.borderBottom = '2px solid var(--ls-green)';
-  event.target.style.fontWeight = '600';
-
-  // Load data based on tab
-  if (tabName === 'operators') {
-    loadOperators();
-  }
-}
-
-async function loadOperators() {
-  try {
-    const resp = await fetch(`${API_BASE}/api/users`);
-    if (!resp.ok) throw new Error('Failed to load operators');
-    const data = await resp.json();
-    const users = data.users || [];
-
-    let html = '';
-    users.forEach(user => {
-      const isActive = user.is_active !== false;
-      const statusColor = isActive ? '#22c55e' : '#ef4444';
-      const statusText = isActive ? 'Attivo' : 'Disattivo';
-
-      html += `
-        <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;">
-          <td style="padding: 12px 16px; font-weight: 500;">${user.name}</td>
-          <td style="padding: 12px 16px; font-size: 13px; color: var(--text-secondary);">${user.role}</td>
-          <td style="padding: 12px 16px; font-size: 13px; color: var(--text-secondary);">${user.phase || 'N/A'}</td>
-          <td style="padding: 12px 16px;">
-            <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; color: white; background: ${statusColor};">
-              ${statusText}
-            </span>
-          </td>
-          <td style="padding: 12px 16px; text-align: center; font-size: 12px; display: flex; gap: 6px; justify-content: center;">
-            <button onclick="toggleOperatorStatus('${user.id}')" style="background: #f5f5f5; border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
-              ${isActive ? 'Disattiva' : 'Attiva'}
-            </button>
-            <button onclick="deleteOperator('${user.id}', '${user.name}')" style="background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
-              Elimina
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-
-    document.getElementById('operatorsList').innerHTML = html;
-  } catch (e) {
-    console.error('Error loading operators:', e);
-    document.getElementById('operatorsList').innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Errore nel caricamento</td></tr>';
-  }
-}
-
-function toggleOperatorStatus(userId) {
-  alert(`Funzione di attivazione/disattivazione operatore in sviluppo.\nOperatore ID: ${userId}`);
-}
-
-function downloadBackup() {
-  const timestamp = new Date().toISOString().split('T')[0];
-  const filename = `backup-scheduler-${timestamp}.json`;
-
-  const backupData = {
-    timestamp: new Date().toISOString(),
-    version: '1.2.3',
-    exportDate: new Date().toLocaleString('it-IT'),
-    info: 'Questo è un backup di esempio. Nel sistema reale conterrebbe il dump del database.'
-  };
-
-  const json = JSON.stringify(backupData, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  alert(`Backup scaricato: ${filename}`);
-}
-
-// ── OPERATOR MANAGEMENT ──
-function openAddOperatorModal() {
-  document.getElementById('addOperatorModal').style.display = 'flex';
-  // Clear form fields
-  document.getElementById('newUserID').value = '';
-  document.getElementById('newUserName').value = '';
-  document.getElementById('newUserRole').value = '';
-  document.getElementById('newUserPhase').value = '';
-  document.querySelectorAll('#addOperatorModal input[type="checkbox"]').forEach(cb => cb.checked = false);
-}
-
-function closeAddOperatorModal() {
-  document.getElementById('addOperatorModal').style.display = 'none';
-}
-
-async function submitAddOperator() {
-  const userId = document.getElementById('newUserID').value.trim();
-  const name = document.getElementById('newUserName').value.trim();
-  const role = document.getElementById('newUserRole').value.trim();
-  const phase = document.getElementById('newUserPhase').value.trim();
-
-  if (!userId || !name || !role || !phase) {
-    alert('Compila tutti i campi obbligatori');
+// ---------- session / topbar ----------
+window.addEventListener('load', () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id) { window.location.href = '/login.html'; return; }
+  currentUser = user;
+  const perms = user.permissions || [];
+  const isAuth = user.is_capo || user.role === 'Amministratore' || perms.includes('supervisione');
+  if (!isAuth) {
+    if (user.role === 'Operaio Laser') window.location.href = '/laser.html';
+    else if (user.role === 'Impiegata') window.location.href = '/impiegata.html';
+    else window.location.href = '/operaio-info.html';
     return;
   }
+  const initials = (user.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+  document.getElementById('user-pill-avatar').textContent = initials;
+  document.getElementById('user-pill-name').textContent = user.name || 'Admin';
+  switchTab('utenti');
+});
 
-  // Collect permissions
-  const permissions = [];
-  if (document.getElementById('perm-overview').checked) permissions.push('overview');
-  if (document.getElementById('perm-lavorazione').checked) permissions.push('lavorazione');
-  if (document.getElementById('perm-supervisione').checked) permissions.push('supervisione');
-  if (document.getElementById('perm-archive').checked) permissions.push('archive');
+function logout() {
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
 
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showMsg(elId, text, color) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.color = color || 'var(--gray-text)';
+  el.textContent = text;
+  if (color === 'var(--green)' || color === 'green') {
+    setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 3500);
+  }
+}
+
+// ---------- tab switching ----------
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab-item[data-tab="${tabId}"]`).classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tabId}`).classList.add('active');
+
+  if (tabId === 'utenti') loadUsers();
+  if (tabId === 'soglie') loadConfig();
+  if (tabId === 'backup') { loadBackupSettings(); loadBackupList(); }
+  if (tabId === 'audit')  loadAudit();
+}
+
+// ============================================================
+//  UTENTI — CRUD
+// ============================================================
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  const meta = document.getElementById('users-meta');
   try {
-    const resp = await fetch(`${API_BASE}/api/users`, {
+    const r = await fetch(`${API_URL}/api/users?include_inactive=true`);
+    const d = await r.json();
+    const users = d.users || [];
+    meta.textContent = `${users.length} utenti`;
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Nessun utente. Creane uno qui sopra.</td></tr>';
+      return;
+    }
+    let html = '';
+    for (const u of users) {
+      const isActive = u.is_active !== false;
+      const perms = (u.permissions || []).join(', ') || '—';
+      const isCapo = u.is_capo || u.role === 'Capo Officina' || u.role === 'Amministratore';
+      html += `<tr>
+        <td><b>${escapeHtml(u.name || '')}</b>${isCapo ? ' <span class="badge green">Capo</span>' : ''}</td>
+        <td><code>${escapeHtml(u.id || '')}</code></td>
+        <td>${escapeHtml(u.role || '—')}</td>
+        <td><span class="badge gray">${escapeHtml(u.phase || '—')}</span></td>
+        <td style="font-size:11px; color:var(--gray-text);">${escapeHtml(perms)}</td>
+        <td>${isActive ? '<span class="badge green">Attivo</span>' : '<span class="badge red">Disattivo</span>'}</td>
+        <td style="text-align:right; white-space:nowrap;">
+          <button class="btn-mini" onclick="openEditUser('${u.id}')">Modifica</button>
+          <button class="btn-danger" onclick="deleteUser('${u.id}', '${escapeHtml(u.name || u.id)}')">Disattiva</button>
+        </td>
+      </tr>`;
+    }
+    tbody.innerHTML = html;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">Errore: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+async function createUser() {
+  const user_id = document.getElementById('new-user-id').value.trim();
+  const name = document.getElementById('new-user-name').value.trim();
+  const role = document.getElementById('new-user-role').value;
+  const phase = document.getElementById('new-user-phase').value || 'ALL';
+  if (!user_id || !name || !role) {
+    showMsg('new-user-msg', 'ID, nome e ruolo obbligatori', 'var(--red)');
+    return;
+  }
+  try {
+    const r = await fetch(`${API_URL}/api/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        user_id: userId,
-        name: name,
-        role: role,
-        phase: phase,
-        permissions: permissions,
-        machines: []
+        user_id, name, role, phase,
+        permissions: [], machines: [],
+        created_by: currentUser ? currentUser.id : ''
       })
     });
-
-    const data = await resp.json();
-    if (data.success) {
-      alert('Operaio creato con successo!');
-      closeAddOperatorModal();
-      loadOperators();
+    const d = await r.json();
+    if (r.ok && d.success) {
+      showMsg('new-user-msg', `✓ Creato "${name}"`, 'var(--green)');
+      document.getElementById('new-user-id').value = '';
+      document.getElementById('new-user-name').value = '';
+      document.getElementById('new-user-role').value = '';
+      document.getElementById('new-user-phase').value = '';
+      loadUsers();
     } else {
-      alert(`Errore: ${data.error}`);
+      showMsg('new-user-msg', `Errore: ${d.error || 'creazione fallita'}`, 'var(--red)');
     }
   } catch (e) {
-    console.error('Error creating operator:', e);
-    alert('Errore nella creazione dell\'operaio');
+    showMsg('new-user-msg', `Errore: ${e.message}`, 'var(--red)');
   }
 }
 
-async function deleteOperator(userId, userName) {
-  // Use a custom confirmation instead of browser confirm
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.5); z-index: 2000;
-    display: flex; justify-content: center; align-items: center;
-  `;
-
-  modal.innerHTML = `
-    <div style="background: white; border-radius: 12px; padding: 32px; max-width: 400px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
-      <h2 style="font-size: 18px; font-weight: 700; margin: 0 0 16px 0;">Conferma Eliminazione</h2>
-      <p style="color: var(--text-secondary); margin: 0 0 24px 0;">Sei sicuro di voler eliminare <strong>${userName}</strong>?</p>
-      <div style="display: flex; gap: 12px;">
-        <button id="confirmDelete-cancel" style="flex: 1; padding: 10px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor: pointer; font-weight: 600;">
-          Annulla
-        </button>
-        <button id="confirmDelete-ok" style="flex: 1; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-          Elimina
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  const cancelBtn = modal.querySelector('#confirmDelete-cancel');
-  const okBtn = modal.querySelector('#confirmDelete-ok');
-
-  return new Promise((resolve) => {
-    cancelBtn.addEventListener('click', () => {
-      modal.remove();
-      resolve(false);
-    });
-
-    okBtn.addEventListener('click', async () => {
-      modal.remove();
-      try {
-        const resp = await fetch(`${API_BASE}/api/users/${userId}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await resp.json();
-        if (data.success) {
-          alert('Operaio eliminato con successo!');
-          loadOperators();
-        } else {
-          alert(`Errore: ${data.error}`);
-        }
-      } catch (e) {
-        console.error('Error deleting operator:', e);
-        alert('Errore nell\'eliminazione dell\'operaio');
-      }
-      resolve(true);
-    });
-  });
-}
-
-// ── ARCHIVE MANAGEMENT ──
-let archiveCurrentPage = 1;
-let archiveTotalPages = 1;
-let archiveCurrentFilters = {};
-
-async function loadArchiveOrders(page = 1, filters = {}) {
+async function deleteUser(userId, name) {
+  if (!confirm(`Disattivare "${name}"? L'utente non potrà più accedere ma resta nel DB.`)) return;
   try {
-    archiveCurrentPage = page;
-    archiveCurrentFilters = filters;
-
-    const params = new URLSearchParams({
-      page: page,
-      limit: 10,
-      sort_by: 'data_consegna',
-      sort_dir: 'desc'
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ deleted_by: currentUser ? currentUser.id : '' })
     });
-
-    if (filters.cliente) params.append('cliente', filters.cliente);
-    if (filters.date_from) params.append('date_from', filters.date_from);
-    if (filters.date_to) params.append('date_to', filters.date_to);
-
-    const response = await fetch(`${API_BASE}/api/archive/orders?${params}`);
-    const data = await response.json();
-
-    if (!data.success) {
-      document.getElementById('archive-table-body').innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Errore nel caricamento</td></tr>';
-      return;
-    }
-
-    const orders = data.data.orders;
-    archiveTotalPages = data.data.pages;
-
-    let html = '';
-    if (orders.length === 0) {
-      html = '<tr><td colspan="7" style="padding: 24px; text-align: center; color: var(--text-secondary);">Nessun ordine trovato</td></tr>';
-    } else {
-      orders.forEach(order => {
-        const consegna = new Date(order.data_consegna).toLocaleDateString('it-IT');
-        const completamento = order.data_completamento
-          ? new Date(order.data_completamento).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit'})
-          : '—';
-
-        html += `
-          <tr style="border-top: 1px solid var(--border); transition: background 0.2s; hover: background-color: #f9f9f9;">
-            <td style="padding: 12px; font-weight: 600; font-family: monospace; font-size: 12px;">${order.numero_ordine}</td>
-            <td style="padding: 12px;">${order.cliente}</td>
-            <td style="padding: 12px; font-size: 13px;">${consegna}</td>
-            <td style="padding: 12px; font-size: 13px;">${completamento}</td>
-            <td style="padding: 12px; text-align: center;">${order.numero_articoli}</td>
-            <td style="padding: 12px; font-weight: 600;">${order.tempo_totale}</td>
-            <td style="padding: 12px; text-align: center;">
-              <button onclick="viewArchiveOrderDetails('${order.id}')" style="background: var(--ls-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
-                Dettagli
-              </button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    document.getElementById('archive-table-body').innerHTML = html;
-    document.getElementById('current-page').textContent = page;
-    document.getElementById('total-pages').textContent = archiveTotalPages;
-  } catch (e) {
-    console.error('Error loading archive:', e);
-    document.getElementById('archive-table-body').innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Errore nel caricamento</td></tr>';
-  }
+    const d = await r.json();
+    if (r.ok && d.success) loadUsers();
+    else alert(`Errore: ${d.error || 'operazione fallita'}`);
+  } catch (e) { alert(`Errore: ${e.message}`); }
 }
 
-function applyArchiveFilters() {
-  const filters = {
-    cliente: document.getElementById('filter-cliente').value || undefined,
-    date_from: document.getElementById('filter-date-from').value || undefined,
-    date_to: document.getElementById('filter-date-to').value || undefined
+async function openEditUser(userId) {
+  try {
+    const r = await fetch(`${API_URL}/api/users?include_inactive=true`);
+    const d = await r.json();
+    const u = (d.users || []).find(x => x.id === userId);
+    if (!u) { alert('Utente non trovato'); return; }
+    _editingUserId = userId;
+    document.getElementById('edit-user-display').textContent = u.name || '';
+    document.getElementById('edit-user-id').textContent = u.id;
+    document.getElementById('edit-user-name').value = u.name || '';
+    document.getElementById('edit-user-role').value = u.role || '';
+    document.getElementById('edit-user-phase').value = u.phase || '';
+    document.getElementById('edit-user-active').checked = u.is_active !== false;
+    document.getElementById('edit-user-msg').textContent = '';
+    document.getElementById('edit-user-modal').classList.add('active');
+  } catch (e) { alert(`Errore: ${e.message}`); }
+}
+
+function closeEditUser() {
+  document.getElementById('edit-user-modal').classList.remove('active');
+  _editingUserId = null;
+}
+
+async function submitEditUser() {
+  if (!_editingUserId) return;
+  const payload = {
+    name: document.getElementById('edit-user-name').value.trim(),
+    role: document.getElementById('edit-user-role').value,
+    phase: document.getElementById('edit-user-phase').value || null,
+    is_active: document.getElementById('edit-user-active').checked,
+    updated_by: currentUser ? currentUser.id : ''
   };
-
-  // Remove undefined filters
-  Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
-
-  loadArchiveOrders(1, filters);
-}
-
-function nextArchivePage() {
-  if (archiveCurrentPage < archiveTotalPages) {
-    loadArchiveOrders(archiveCurrentPage + 1, archiveCurrentFilters);
-  }
-}
-
-function previousArchivePage() {
-  if (archiveCurrentPage > 1) {
-    loadArchiveOrders(archiveCurrentPage - 1, archiveCurrentFilters);
-  }
-}
-
-async function viewArchiveOrderDetails(orderId) {
   try {
-    const response = await fetch(`${API_BASE}/api/archive/orders/${orderId}/details`);
-    const data = await response.json();
-
-    if (!data.success) {
-      alert('Errore nel caricamento dei dettagli');
-      return;
-    }
-
-    const order = data.data;
-
-    // Populate modal
-    document.getElementById('modal-order-id').textContent = order.numero_ordine;
-    document.getElementById('modal-cliente').textContent = order.cliente;
-    document.getElementById('modal-articoli-count').textContent = order.numero_articoli;
-    document.getElementById('modal-tempo-totale').textContent = order.tempo_totale;
-    document.getElementById('modal-data-consegna').textContent = new Date(order.data_consegna).toLocaleDateString('it-IT');
-    document.getElementById('modal-data-completamento').textContent = order.data_completamento
-      ? new Date(order.data_completamento).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})
-      : '—';
-
-    // Fasi
-    let fasiHtml = '';
-    order.fasi.forEach(fase => {
-      fasiHtml += `
-        <div style="padding: 8px; background: #f9f9f9; border-left: 3px solid var(--ls-green); border-radius: 4px; font-size: 13px;">
-          <div style="font-weight: 600;">${fase.fase}</div>
-          <div style="color: var(--text-secondary); font-size: 12px;">
-            Operatore: ${fase.operatore} | Tempo: ${fase.tempo}
-          </div>
-          ${fase.data_inizio ? `<div style="color: var(--text-secondary); font-size: 11px;">
-            ${new Date(fase.data_inizio).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}
-            →
-            ${fase.data_fine ? new Date(fase.data_fine).toLocaleDateString('it-IT', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}) : '—'}
-          </div>` : ''}
-        </div>
-      `;
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(_editingUserId)}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
     });
-    document.getElementById('modal-fasi').innerHTML = fasiHtml;
-
-    // Articoli
-    let articoliHtml = '';
-    order.articoli.forEach((art, idx) => {
-      articoliHtml += `
-        <div style="padding: 8px; background: #f9f9f9; border-radius: 4px; font-size: 13px;">
-          <div style="font-weight: 600;">${art.name || `Articolo ${idx + 1}`}</div>
-          <div style="color: var(--text-secondary); font-size: 12px;">
-            Codice: ${art.code || 'N/A'} | Qty: ${art.qty || '—'} ${art.unit || ''}
-          </div>
-        </div>
-      `;
-    });
-    document.getElementById('modal-articoli-list').innerHTML = articoliHtml;
-
-    // Note (if present)
-    if (order.note) {
-      document.getElementById('modal-note-section').style.display = 'block';
-      document.getElementById('modal-note').textContent = order.note;
+    const d = await r.json();
+    if (r.ok && d.success) {
+      showMsg('edit-user-msg', '✓ Salvato', 'var(--green)');
+      setTimeout(() => { closeEditUser(); loadUsers(); }, 500);
     } else {
-      document.getElementById('modal-note-section').style.display = 'none';
+      showMsg('edit-user-msg', `Errore: ${d.error || 'operazione fallita'}`, 'var(--red)');
     }
-
-    // Show modal
-    document.getElementById('archive-modal').style.display = 'flex';
-  } catch (e) {
-    console.error('Error loading order details:', e);
-    alert('Errore nel caricamento dei dettagli');
-  }
+  } catch (e) { showMsg('edit-user-msg', `Errore: ${e.message}`, 'var(--red)'); }
 }
 
-function closeArchiveModal() {
-  document.getElementById('archive-modal').style.display = 'none';
+// ============================================================
+//  SOGLIE / CONFIG
+// ============================================================
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function _hhmmToMinutes(s) {
+  const [h, m] = s.split(':').map(x => parseInt(x, 10));
+  return h * 60 + m;
 }
 
-async function exportArchiveCSV() {
+async function loadConfig() {
   try {
-    const params = new URLSearchParams();
-    if (archiveCurrentFilters.cliente) params.append('cliente', archiveCurrentFilters.cliente);
-    if (archiveCurrentFilters.date_from) params.append('date_from', archiveCurrentFilters.date_from);
-    if (archiveCurrentFilters.date_to) params.append('date_to', archiveCurrentFilters.date_to);
+    const r = await fetch(`${API_URL}/api/admin/config`);
+    const d = await r.json();
+    const cfg = d.config || {};
+    document.getElementById('cfg-giorni-taglio').value = cfg.sospetto_giorni_dal_taglio ?? 5;
+    document.getElementById('cfg-giorni-scan').value   = cfg.sospetto_giorni_da_ultima_scan ?? 3;
+    document.getElementById('cfg-fine-turno').value    = cfg.fine_turno_hhmm || '17:30';
+    const ol = cfg.orario_lavoro || [['07:30','12:00'], ['13:30','17:00']];
+    document.getElementById('cfg-orario-mat-inizio').value = (ol[0] && ol[0][0]) || '07:30';
+    document.getElementById('cfg-orario-mat-fine').value   = (ol[0] && ol[0][1]) || '12:00';
+    document.getElementById('cfg-orario-pom-inizio').value = (ol[1] && ol[1][0]) || '13:30';
+    document.getElementById('cfg-orario-pom-fine').value   = (ol[1] && ol[1][1]) || '17:00';
+    showMsg('cfg-msg', '', '');
+  } catch (e) { showMsg('cfg-msg', `Errore: ${e.message}`, 'var(--red)'); }
+}
 
-    const response = await fetch(`${API_BASE}/api/archive/export/csv?${params}`);
+async function saveConfig() {
+  const giorniTaglio = parseInt(document.getElementById('cfg-giorni-taglio').value, 10);
+  const giorniScan   = parseInt(document.getElementById('cfg-giorni-scan').value, 10);
+  const fineTurno    = document.getElementById('cfg-fine-turno').value.trim();
+  const matIn  = document.getElementById('cfg-orario-mat-inizio').value.trim();
+  const matFi  = document.getElementById('cfg-orario-mat-fine').value.trim();
+  const pomIn  = document.getElementById('cfg-orario-pom-inizio').value.trim();
+  const pomFi  = document.getElementById('cfg-orario-pom-fine').value.trim();
 
-    if (!response.ok) {
-      alert('Errore nell\'esportazione');
+  if (isNaN(giorniTaglio) || giorniTaglio < 1 || giorniTaglio > 60) {
+    showMsg('cfg-msg', 'Giorni dal taglio: 1-60', 'var(--red)'); return;
+  }
+  if (isNaN(giorniScan) || giorniScan < 1 || giorniScan > 30) {
+    showMsg('cfg-msg', 'Giorni dall\'ultima scan: 1-30', 'var(--red)'); return;
+  }
+  if (!HHMM_RE.test(fineTurno)) {
+    showMsg('cfg-msg', 'Orario fine turno: formato HH:MM (es. 17:30)', 'var(--red)'); return;
+  }
+  for (const [n, v] of [['Mattina inizio',matIn],['Mattina fine',matFi],['Pomeriggio inizio',pomIn],['Pomeriggio fine',pomFi]]) {
+    if (!HHMM_RE.test(v)) { showMsg('cfg-msg', `${n}: formato HH:MM (es. 07:30)`, 'var(--red)'); return; }
+  }
+  if (_hhmmToMinutes(matFi) <= _hhmmToMinutes(matIn)) {
+    showMsg('cfg-msg', 'Mattina: fine deve essere dopo l\'inizio', 'var(--red)'); return;
+  }
+  if (_hhmmToMinutes(pomFi) <= _hhmmToMinutes(pomIn)) {
+    showMsg('cfg-msg', 'Pomeriggio: fine deve essere dopo l\'inizio', 'var(--red)'); return;
+  }
+  if (_hhmmToMinutes(pomIn) < _hhmmToMinutes(matFi)) {
+    showMsg('cfg-msg', 'Pomeriggio deve iniziare dopo la fine mattina', 'var(--red)'); return;
+  }
+
+  try {
+    const r = await fetch(`${API_URL}/api/admin/config`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        admin_id: currentUser ? currentUser.id : '',
+        sospetto_giorni_dal_taglio: giorniTaglio,
+        sospetto_giorni_da_ultima_scan: giorniScan,
+        fine_turno_hhmm: fineTurno,
+        orario_lavoro: [[matIn, matFi], [pomIn, pomFi]]
+      })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) showMsg('cfg-msg', '✓ Impostazioni salvate', 'var(--green)');
+    else showMsg('cfg-msg', `Errore: ${d.error || 'operazione fallita'}`, 'var(--red)');
+  } catch (e) { showMsg('cfg-msg', `Errore: ${e.message}`, 'var(--red)'); }
+}
+
+// ============================================================
+//  BACKUP
+// ============================================================
+async function loadBackupSettings() {
+  try {
+    const r = await fetch(`${API_URL}/api/admin/backup/settings`);
+    const d = await r.json();
+    const s = d.settings || {};
+    document.getElementById('bk-enabled').value  = s.backup_enabled ? 'true' : 'false';
+    document.getElementById('bk-interval').value = s.interval_hours ?? 6;
+    document.getElementById('bk-max').value      = s.max_backups ?? 30;
+    document.getElementById('bk-path').value     = s.backup_path || '';
+  } catch (e) { showMsg('bk-settings-msg', `Errore: ${e.message}`, 'var(--red)'); }
+}
+
+async function saveBackupSettings() {
+  try {
+    const r = await fetch(`${API_URL}/api/admin/backup/settings`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        backup_enabled: document.getElementById('bk-enabled').value === 'true',
+        interval_hours: parseInt(document.getElementById('bk-interval').value, 10),
+        max_backups:    parseInt(document.getElementById('bk-max').value, 10),
+        backup_path:    document.getElementById('bk-path').value.trim()
+      })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) showMsg('bk-settings-msg', '✓ Impostazioni salvate', 'var(--green)');
+    else showMsg('bk-settings-msg', `Errore: ${d.error || 'operazione fallita'}`, 'var(--red)');
+  } catch (e) { showMsg('bk-settings-msg', `Errore: ${e.message}`, 'var(--red)'); }
+}
+
+async function runManualBackup() {
+  showMsg('bk-manual-msg', 'Backup in corso…', 'var(--gray-text)');
+  try {
+    const r = await fetch(`${API_URL}/api/admin/backup`, { method: 'POST' });
+    const d = await r.json();
+    if (r.ok && d.success) {
+      showMsg('bk-manual-msg', `✓ Creato: ${d.backup_path}${d.integrity_ok === false ? ' (integrity check fallito!)' : ''}`, d.integrity_ok === false ? 'var(--orange)' : 'var(--green)');
+      loadBackupList();
+    } else {
+      showMsg('bk-manual-msg', `Errore: ${d.error || 'backup fallito'}`, 'var(--red)');
+    }
+  } catch (e) { showMsg('bk-manual-msg', `Errore: ${e.message}`, 'var(--red)'); }
+}
+
+async function loadBackupList() {
+  const tbody = document.getElementById('bk-tbody');
+  const meta = document.getElementById('bk-list-meta');
+  try {
+    const r = await fetch(`${API_URL}/api/admin/backup/list`);
+    const d = await r.json();
+    const backups = d.backups || [];
+    meta.textContent = `${d.count ?? backups.length} file`;
+    if (!backups.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">Nessun backup esistente.</td></tr>';
       return;
     }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `archivio-ordini-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    let html = '';
+    for (const b of backups) {
+      const sizeKb = (b.size_bytes || b.size) ? ((b.size_bytes || b.size) / 1024).toFixed(1) + ' KB' : '—';
+      const ts = b.created_at || b.modified || b.timestamp || '';
+      const dt = ts ? new Date(ts).toLocaleString('it-IT') : '—';
+      html += `<tr>
+        <td><code>${escapeHtml(b.filename || b.name || '')}</code></td>
+        <td style="color:var(--gray-text); font-size:12px;">${dt}</td>
+        <td class="n">${sizeKb}</td>
+      </tr>`;
+    }
+    tbody.innerHTML = html;
   } catch (e) {
-    console.error('Error exporting CSV:', e);
-    alert('Errore nell\'esportazione');
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">Errore: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
-// ── INIT ──
-document.addEventListener('DOMContentLoaded', async () => {
-  const sessionOK = await checkSession();
-  if (sessionOK) {
-    loadKPI();
-    updateClock();
-    setInterval(updateClock, 1000);
+// ============================================================
+//  AUDIT LOG
+// ============================================================
+async function loadAudit() {
+  const tbody = document.getElementById('audit-tbody');
+  const userFilter = document.getElementById('audit-filter-user').value.trim();
+  const limit = document.getElementById('audit-limit').value;
+  let url = `${API_URL}/api/admin/audit?limit=${encodeURIComponent(limit)}`;
+  if (userFilter) url += `&user_id=${encodeURIComponent(userFilter)}`;
+  try {
+    const r = await fetch(url);
+    const d = await r.json();
+    const logs = d.logs || [];
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Nessun evento.</td></tr>';
+      return;
+    }
+    let html = '';
+    for (const l of logs) {
+      const ts = l.timestamp || l.created_at || '';
+      const dt = ts ? new Date(ts).toLocaleString('it-IT') : '—';
+      html += `<tr>
+        <td style="color:var(--gray-text); font-size:12px; white-space:nowrap;">${dt}</td>
+        <td><b>${escapeHtml(l.user_name || l.user_id || '—')}</b></td>
+        <td><span class="badge blue">${escapeHtml(l.action || '—')}</span></td>
+        <td style="font-size:12px; color:var(--gray-text);">${escapeHtml(l.entity_type || '')}${l.entity_id ? ' / ' + escapeHtml(l.entity_id) : ''}</td>
+        <td style="font-size:12px; color:var(--gray-text); max-width:340px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(l.detail || '')}</td>
+      </tr>`;
+    }
+    tbody.innerHTML = html;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">Errore: ${escapeHtml(e.message)}</td></tr>`;
   }
-});
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.user-menu')) {
-    document.getElementById('userDropdown').classList.remove('active');
-  }
-});
+}
 </script>
 
 </body>

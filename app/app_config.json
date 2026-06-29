@@ -1,0 +1,5 @@
+{
+  "sospetto_giorni_dal_taglio": 5,
+  "sospetto_giorni_da_ultima_scan": 3,
+  "_note": "Soglie per il rilevamento di 'ordini sospetti finiti' nel pannello capo/impiegata. Un ordine è considerato sospetto se taglio completato da almeno N giorni E ultima scansione officina da almeno M giorni."
+}

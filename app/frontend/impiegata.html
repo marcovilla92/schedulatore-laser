@@ -1188,6 +1188,23 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   margin-left: 6px;
   vertical-align: middle;
 }
+
+/* Live dot — indica che ci sono scan attive in officina */
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--green-light);
+  box-shadow: 0 0 6px var(--green-light);
+  vertical-align: middle;
+  animation: livePulse 1.4s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
 .fatt-container { max-width: 1200px; margin: 0 auto; padding: 20px 0; }
 .fatt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .fatt-header h2 { font-size: 20px; font-weight: 800; }
@@ -1329,9 +1346,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   <div class="tab-item active" data-tab="carica" onclick="switchTab('carica')">Carica Ordine</div>
   <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
   <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
+  <div class="tab-item" data-tab="officina-live" onclick="switchTab('officina-live')">Stato Officina <span class="live-dot" id="live-dot" style="display:none;"></span></div>
   <div class="tab-item" data-tab="fatturare" onclick="switchTab('fatturare')">Ordini da Fatturare <span class="fatt-badge" id="fatt-badge" style="display:none;">0</span></div>
   <div class="tab-item" data-tab="archivio" onclick="switchTab('archivio')">Archivio</div>
-  <div class="tab-item" data-tab="clienti" onclick="switchTab('clienti')">Clienti</div>
   <div class="tab-item" data-tab="backup" onclick="switchTab('backup')">Backup</div>
 </div>
 
@@ -1340,7 +1357,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   <div class="carica-body">
     <div class="form-card">
       <div class="form-title">Carica Nuovo Ordine</div>
-      <div class="form-sub">Carica il PDF dell'ordine e seleziona la destinazione iniziale.</div>
+      <div class="form-sub">Carica il PDF dell'ordine. Verrà generato automaticamente il cartellino col barcode.</div>
 
       <!-- FILE PDF UPLOAD -->
       <div class="form-group">
@@ -1380,20 +1397,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
       <div class="form-group">
         <label class="form-label">Note</label>
         <textarea id="mod-note" class="form-input" placeholder="Note aggiuntive..."></textarea>
-      </div>
-
-      <div class="dest-section">
-        <div class="dest-label">Destinazione Iniziale</div>
-        <div class="dest-row">
-          <label class="dest-option selected-laser" id="dest-laser-label" onclick="selectDest('laser')">
-            <input type="radio" name="destinazione" value="LASER" id="dest-laser" checked>
-            <span class="dest-text">LASER</span>
-          </label>
-          <label class="dest-option" id="dest-officina-label" onclick="selectDest('officina')">
-            <input type="radio" name="destinazione" value="OFFICINA" id="dest-officina">
-            <span class="dest-text">OFFICINA</span>
-          </label>
-        </div>
       </div>
 
       <div id="status-message" class="message"></div>
@@ -1439,14 +1442,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
       <button class="chip" data-filter="status" data-value="CHIUSO" onclick="setFilter(this,'status')">Chiuso</button>
       <button class="chip" data-filter="status" data-value="PARZIALE" onclick="setFilter(this,'status')">Parziale</button>
     </div>
-    <div class="filter-row">
-      <span class="filter-label">Fase:</span>
-      <button class="chip active" data-filter="fase" data-value="" onclick="setFilter(this,'fase')">Tutte</button>
-      <button class="chip" data-filter="fase" data-value="LASER" onclick="setFilter(this,'fase')">Laser</button>
-      <button class="chip" data-filter="fase" data-value="PIEGA" onclick="setFilter(this,'fase')">Piega</button>
-      <button class="chip" data-filter="fase" data-value="SALDATURA" onclick="setFilter(this,'fase')">Saldatura</button>
-      <button class="chip" data-filter="fase" data-value="PULIZIA" onclick="setFilter(this,'fase')">Pulizia</button>
-    </div>
     <div class="filter-row" style="margin-bottom: 20px;">
       <span class="filter-label">Completati:</span>
       <select id="completati-giorni" onchange="saveCompletatiSetting(); renderOrdersTable();"
@@ -1466,7 +1461,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
             <th onclick="sortOrders('numero_ordine')">Ordine &#8597;</th>
             <th onclick="sortOrders('cliente')">Cliente &#8597;</th>
             <th onclick="sortOrders('data_consegna')">Consegna &#8597;</th>
-            <th>Fase</th>
             <th>Stato</th>
             <th onclick="sortOrders('progress')">Avanzamento &#8597;</th>
             <th>PDF</th>
@@ -1476,6 +1470,57 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
       </table>
     </div>
     <div id="ordini-count" style="margin-top: 12px; font-size: 13px; color: var(--gray-text);"></div>
+  </div>
+</div>
+
+<!-- ===================== TAB: STATO OFFICINA LIVE ===================== -->
+<div class="tab-panel" id="panel-officina-live">
+  <div class="ordini-container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h2 class="page-title" style="margin-bottom:0;">Stato Officina <span id="live-server-time" style="font-size:13px; color:var(--gray-muted); font-weight:500; margin-left:12px;"></span></h2>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span id="live-indicator" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green-light); box-shadow:0 0 6px var(--green-light);"></span>
+        <span style="font-size:12px; color:var(--gray-text);">Aggiornamento ogni 5s</span>
+      </div>
+    </div>
+
+    <!-- SCAN ATTIVE (chi-fa-cosa adesso) -->
+    <div style="background:var(--white); border:1px solid var(--border); border-radius:12px; padding:0; margin-bottom:20px;">
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:0.4px; color:var(--gray-text);">Scansioni Attive</h3>
+        <span id="live-attive-count" style="font-size:12px; color:var(--gray-muted); font-weight:600;">—</span>
+      </div>
+      <div id="live-attive-body" style="padding:0;">
+        <div style="padding:24px; text-align:center; color:var(--gray-muted); font-size:13px;">Nessuna scansione attiva</div>
+      </div>
+    </div>
+
+    <!-- ORDINI IN OFFICINA (lista cumulativa) -->
+    <div style="background:var(--white); border:1px solid var(--border); border-radius:12px; padding:0; margin-bottom:20px;">
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:14px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:0.4px; color:var(--gray-text);">Ordini in Officina (ultimi 30 giorni)</h3>
+        <span id="live-ordini-count" style="font-size:12px; color:var(--gray-muted); font-weight:600;">—</span>
+      </div>
+      <div id="live-ordini-body" style="padding:0;">
+        <div style="padding:24px; text-align:center; color:var(--gray-muted); font-size:13px;">Nessun ordine in officina</div>
+      </div>
+    </div>
+
+    <!-- ORDINI SOSPETTI FINITI — backup quando i capi si dimenticano -->
+    <div id="sospetti-card" style="background:var(--white); border:1px solid #fca5a5; border-radius:12px; padding:0;">
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:#fef2f2;">
+        <h3 style="font-size:14px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:0.4px; color:#991b1b;">
+          ⚠ Ordini probabilmente finiti
+        </h3>
+        <span id="sospetti-count" style="font-size:12px; color:#991b1b; font-weight:700;">—</span>
+      </div>
+      <div style="padding:8px 18px; background:#fef2f2; border-bottom:1px solid var(--border); font-size:12px; color:#7f1d1d;">
+        Ordini con taglio fatto + nessuna attività recente. I capi potrebbero essersi dimenticati di marcarli come finiti — puoi farlo tu.
+      </div>
+      <div id="sospetti-body" style="padding:0;">
+        <div style="padding:24px; text-align:center; color:var(--gray-muted); font-size:13px;">Nessun ordine sospetto</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1621,32 +1666,28 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   </div>
 </div>
 
-<!-- === TAB 5: GESTIONE CLIENTI === -->
-<div class="tab-panel" id="panel-clienti">
-  <div class="clienti-container">
-    <div class="clienti-header">
-      <h2 style="font-size:20px; font-weight:800; margin:0;">Assegnazioni Clienti — Operatori</h2>
-    </div>
-
-    <div class="clienti-add-form">
-      <h3>Nuova Assegnazione</h3>
-      <div class="clienti-form-row">
-        <div class="clienti-form-group">
-          <label>Operatore</label>
-          <select id="assign-operator">
-            <option value="">Seleziona operatore...</option>
-          </select>
-        </div>
-        <div class="clienti-form-group">
-          <label>Nome Cliente</label>
-          <input type="text" id="assign-client" placeholder="Es: ABC S.r.l.">
-        </div>
-        <button class="btn-submit" onclick="addAssignment()">Aggiungi</button>
+<!-- MODAL CARTELLINO BARCODE — apertura post-creazione ordine -->
+<div class="modal-overlay" id="cartellino-modal">
+  <div class="modal-content" style="max-width: 620px; max-height: 90vh; display:flex; flex-direction:column;">
+    <div class="modal-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div>
+        <h3 style="margin:0; font-size:18px; font-weight:800;">Cartellino Barcode</h3>
+        <div id="cartellino-subtitle" style="font-size:13px; color:var(--gray-text); margin-top:2px;"></div>
       </div>
-      <div id="assign-status" style="margin-top:10px; font-size:13px;"></div>
+      <button class="modal-close" onclick="closeCartellinoModal()" title="Chiudi">&times;</button>
     </div>
-
-    <div id="clienti-list"></div>
+    <div style="padding:0 20px 12px; font-size:13px; color:var(--gray-text);">
+      Anteprima del cartellino A6 da stampare e incollare sul faldone dell'ordine.
+      L'operaio lo scansiona con la pistola WiFi.
+    </div>
+    <div class="modal-body" style="flex:1; min-height:480px; padding:0 20px;">
+      <iframe id="cartellino-iframe" style="width:100%; height:480px; border:1px solid var(--border); border-radius:8px; background:#fafafa;"></iframe>
+    </div>
+    <div style="padding:14px 20px 20px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--border); margin-top:12px;">
+      <button onclick="closeCartellinoModal()" style="padding:10px 18px; background:#fff; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; color:var(--gray-text);">Stampa dopo</button>
+      <button onclick="downloadCartellino()" style="padding:10px 18px; background:#fff; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;">Scarica PDF</button>
+      <button onclick="printCartellino()" style="padding:10px 22px; background:var(--green); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px;">🖨 Stampa</button>
+    </div>
   </div>
 </div>
 
@@ -1746,7 +1787,6 @@ let allOrders = [];
 let calDate = new Date();
 let calSelectedDate = null;
 let currentStatusFilter = '';
-let currentFaseFilter = '';
 let currentSort = { field: 'data_consegna', dir: 'asc' };
 let allUsersClienti = [];
 let operatorClients = [];
@@ -1835,7 +1875,6 @@ window.addEventListener('load', () => {
   if (!user.id) { window.location.href = '/login.html'; return; }
   currentUser = user;
   updateUserPill();
-  updateDestStyle();
   loadCompletatiSetting();
   loadCalendar();
   loadOrdersList();
@@ -1847,6 +1886,24 @@ window.addEventListener('load', () => {
     if (tabId === 'calendario') loadCalendar();
     else if (tabId === 'ordini') loadOrdersList();
   }, 5000);
+
+  // Pallino "live" sulla tab Stato Officina: check leggero anche se la tab
+  // non è aperta, così l'impiegata sa che qualcuno sta scansionando.
+  async function _liveBadgeCheck() {
+    try {
+      const r = await fetch(`${API_URL}/api/officina/live-status`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const dot = document.getElementById('live-dot');
+      if (dot) dot.style.display = (d.scan_attive || []).length ? 'inline-block' : 'none';
+    } catch (_) {}
+  }
+  _liveBadgeCheck();
+  setInterval(_liveBadgeCheck, 15000);
+
+  // Polling badge "Ordini da Fatturare": appena il capo officina marca un
+  // ordine come "lavoro finito", il numero appare in tab bar entro 15s.
+  setInterval(() => { try { updateFattBadge(); } catch (_) {} }, 15000);
 });
 
 // ===========================
@@ -1866,8 +1923,189 @@ function switchTab(tabId) {
   if (tabId === 'ordini') loadOrdersList();
   if (tabId === 'fatturare') loadFatturare();
   if (tabId === 'archivio') { loadArchiveFilters(); loadArchive(); }
-  if (tabId === 'clienti') loadClienti();
   if (tabId === 'backup') { loadBackupSettings(); loadBackupList(); }
+  if (tabId === 'officina-live') { startLivePolling(); } else { stopLivePolling(); }
+}
+
+// ===========================
+// TAB: STATO OFFICINA LIVE
+// ===========================
+let _livePollHandle = null;
+let _liveTickHandle = null;
+
+function startLivePolling() {
+  stopLivePolling();
+  refreshLiveStatus();
+  _livePollHandle = setInterval(refreshLiveStatus, 5000);
+  // Tick locale ogni 30s per incrementare i minuti correnti senza chiamare l'API
+  _liveTickHandle = setInterval(tickLiveAttive, 30000);
+}
+
+function stopLivePolling() {
+  if (_livePollHandle) { clearInterval(_livePollHandle); _livePollHandle = null; }
+  if (_liveTickHandle) { clearInterval(_liveTickHandle); _liveTickHandle = null; }
+}
+
+function tickLiveAttive() {
+  // Incrementa i minuti correnti delle scan attive senza polling extra
+  document.querySelectorAll('[data-live-minuti]').forEach(el => {
+    const m = parseInt(el.getAttribute('data-live-minuti') || '0', 10);
+    el.setAttribute('data-live-minuti', String(m + 1));
+    el.textContent = formatMinuti(m + 1);
+  });
+}
+
+function formatMinuti(min) {
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}min` : `${h}h`;
+}
+
+async function refreshLiveStatus() {
+  try {
+    const resp = await fetch(`${API_URL}/api/officina/live-status`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    renderLiveAttive(data.scan_attive || []);
+    renderLiveOrdini(data.ordini_in_officina || []);
+    // Pallino live in tab bar
+    const dot = document.getElementById('live-dot');
+    if (dot) dot.style.display = (data.scan_attive || []).length ? 'inline-block' : 'none';
+    const ts = document.getElementById('live-server-time');
+    if (ts) {
+      const d = new Date(data.server_time || Date.now());
+      ts.textContent = `aggiornato alle ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    }
+  } catch (e) {
+    console.warn('live-status error', e);
+  }
+  // Ordini sospetti finiti — refresh in parallelo
+  refreshSospettiFiniti();
+}
+
+async function refreshSospettiFiniti() {
+  try {
+    const r = await fetch(`${API_URL}/api/orders/sospetti-finiti`);
+    if (!r.ok) return;
+    const d = await r.json();
+    renderSospettiFiniti(d.orders || []);
+  } catch (e) {
+    console.warn('sospetti-finiti error', e);
+  }
+}
+
+function renderSospettiFiniti(orders) {
+  const card = document.getElementById('sospetti-card');
+  const countEl = document.getElementById('sospetti-count');
+  const body = document.getElementById('sospetti-body');
+  if (!card) return;
+  countEl.textContent = orders.length ? `${orders.length} ordini` : 'nessuno';
+  if (!orders.length) {
+    card.style.borderColor = 'var(--border)';
+    card.querySelector('div[style*="background:#fef2f2"]').style.display = 'none';
+    body.innerHTML = '<div style="padding:24px; text-align:center; color:var(--gray-muted); font-size:13px;">✓ Tutto a posto, nessun ordine sospetto</div>';
+    return;
+  }
+  card.style.borderColor = '#fca5a5';
+  card.querySelectorAll('div[style*="background:#fef2f2"]').forEach(el => el.style.display = '');
+  let html = '<table class="ordini-table" style="border-radius:0;"><thead><tr>';
+  html += '<th>Ordine</th><th>Cliente</th><th>Taglio fatto il</th><th>Ultima scan</th><th class="num">Inattivo</th><th style="text-align:center;">Azione</th>';
+  html += '</tr></thead><tbody>';
+  for (const o of orders) {
+    const dt = o.data_taglio_completato ? new Date(o.data_taglio_completato).toLocaleDateString('it-IT') : '—';
+    const ls = o.ultima_scan ? new Date(o.ultima_scan).toLocaleDateString('it-IT') : 'mai dopo taglio';
+    const label = escapeHtml(o.numero_ordine);
+    html += `<tr>
+      <td><code style="font-size:12px;">${label}</code></td>
+      <td>${escapeHtml(o.cliente || '')}</td>
+      <td style="color:var(--gray-text); font-size:12px;">${dt}</td>
+      <td style="color:var(--gray-text); font-size:12px;">${ls}</td>
+      <td class="num" style="font-weight:700; color:#991b1b;">${o.giorni_inattivo}g</td>
+      <td style="text-align:center;">
+        <button onclick="markOrderFinito('${o.id}', '${label}')"
+                style="padding:6px 12px; background:var(--green); color:white; border:none; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;">
+          ✓ Marca finito
+        </button>
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+async function markOrderFinito(orderId, label) {
+  if (!confirm(`Marcare ordine "${label}" come lavoro finito?\nL'ordine andrà in "Ordini da Fatturare".`)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/orders/${orderId}/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id })
+    });
+    const data = await r.json();
+    if (r.ok && data.success) {
+      showMessage(`Ordine "${label}" marcato come finito`, 'success');
+      refreshSospettiFiniti();
+      updateFattBadge();
+    } else {
+      showMessage('Errore: ' + (data.error || 'sconosciuto'), 'error');
+    }
+  } catch (e) {
+    showMessage('Errore: ' + e.message, 'error');
+  }
+}
+
+function renderLiveAttive(scans) {
+  const container = document.getElementById('live-attive-body');
+  const countEl = document.getElementById('live-attive-count');
+  countEl.textContent = scans.length ? `${scans.length} attive` : 'nessuna';
+  if (!scans.length) {
+    container.innerHTML = '<div style="padding:24px; text-align:center; color:var(--gray-muted); font-size:13px;">Nessuna scansione attiva</div>';
+    return;
+  }
+  let html = '<table class="ordini-table" style="border-radius:0;"><thead><tr>';
+  html += '<th style="width:25%;">Operaio</th><th>Ordine</th><th>Cliente</th><th>Fase</th><th style="text-align:right;">Da</th>';
+  html += '</tr></thead><tbody>';
+  for (const s of scans) {
+    html += `<tr>
+      <td><strong>${escapeHtml(s.operatore_name || s.operatore_id)}</strong></td>
+      <td><code style="font-size:12px;">${escapeHtml(s.numero_ordine)}</code></td>
+      <td>${escapeHtml(s.cliente || '')}</td>
+      <td><span class="chip" style="font-size:11px;">${escapeHtml(s.fase_corrente || '—')}</span></td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums;"><span data-live-minuti="${s.minuti_correnti}">${formatMinuti(s.minuti_correnti)}</span></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderLiveOrdini(ordini) {
+  const container = document.getElementById('live-ordini-body');
+  const countEl = document.getElementById('live-ordini-count');
+  countEl.textContent = ordini.length ? `${ordini.length} ordini` : 'nessuno';
+  if (!ordini.length) {
+    container.innerHTML = '<div style="padding:24px; text-align:center; color:var(--gray-muted); font-size:13px;">Nessun ordine in officina di recente</div>';
+    return;
+  }
+  let html = '<table class="ordini-table" style="border-radius:0;"><thead><tr>';
+  html += '<th>Ordine</th><th>Cliente</th><th>Fase</th><th style="text-align:right;">Tempo totale</th><th>Ultima scan</th>';
+  html += '</tr></thead><tbody>';
+  for (const o of ordini) {
+    let ultimaStr = '—';
+    try {
+      const d = new Date(o.ultima_scan);
+      ultimaStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    } catch (_) {}
+    html += `<tr>
+      <td><code style="font-size:12px;">${escapeHtml(o.numero_ordine)}</code></td>
+      <td>${escapeHtml(o.cliente || '')}</td>
+      <td><span class="chip" style="font-size:11px;">${escapeHtml(o.fase_corrente || '—')}</span></td>
+      <td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:600;">${formatMinuti(o.tempo_totale_minuti)}</td>
+      <td style="color:var(--gray-text); font-size:12px;">${ultimaStr}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
 // ===========================
@@ -1920,57 +2158,21 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
   }
 });
 
-function selectDest(type) {
-  if (type === 'laser') {
-    document.getElementById('dest-laser').checked = true;
-  } else {
-    document.getElementById('dest-officina').checked = true;
-  }
-  updateDestStyle();
-}
-
-function updateDestStyle() {
-  const laserChecked = document.getElementById('dest-laser').checked;
-  const ll = document.getElementById('dest-laser-label');
-  const ol = document.getElementById('dest-officina-label');
-  ll.className = 'dest-option' + (laserChecked ? ' selected-laser' : '');
-  ol.className = 'dest-option' + (!laserChecked ? ' selected-officina' : '');
-}
-
 async function submitOrder() {
   const numero = document.getElementById('mod-numero').value.trim();
   const cliente = document.getElementById('mod-cliente').value.trim();
   const data = document.getElementById('mod-data').value.trim();
   const note = document.getElementById('mod-note').value.trim();
-  const dest = document.querySelector('input[name="destinazione"]:checked').value;
   if (!numero) { showMessage('Inserisci il numero ordine', 'error'); return; }
   if (!cliente || !data) { showMessage('Inserisci cliente e data consegna', 'error'); return; }
   if (!pdfData.pdf_filename) { showMessage('Carica un PDF prima di confermare', 'error'); return; }
-
-  // Warning: controlla se il cliente è assegnato a un operatore
-  try {
-    const acResp = await fetch(`${API_URL}/api/operator-clients`);
-    const acData = await acResp.json();
-    const assignedClients = (acData.assignments || []).map(a => a.client_name.toLowerCase());
-    if (!assignedClients.includes(cliente.toLowerCase())) {
-      const ok = await showAppModal({
-        title: 'Cliente sconosciuto',
-        message: `"${cliente}" non è associato a nessun operatore. Controlla il nome o prosegui per assegnarlo manualmente dopo.`,
-        type: 'warning',
-        confirmText: 'Prosegui',
-        cancelText: 'Correggi',
-        confirmColor: 'confirm-green'
-      });
-      if (!ok) return;
-    }
-  } catch (_) { /* se l'API fallisce, procedi comunque */ }
 
   try {
     const resp = await fetch(`${API_URL}/api/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        cliente, numero_ordine: numero, data_consegna: data, note, destinazione: dest,
+        cliente, numero_ordine: numero, data_consegna: data, note,
         pdf_filename: pdfData.pdf_filename,
         operatore_id: currentUser.id
       })
@@ -1981,11 +2183,64 @@ async function submitOrder() {
       resetCaricaForm();
       loadCalendar();
       loadOrdersList();
-      setTimeout(() => switchTab('ordini'), 1200);
+      // Apri il modal cartellino: l'impiegata vede l'anteprima del PDF
+      // (barcode + dati) e decide se stamparlo subito o saltare.
+      if (result.order_id) {
+        openCartellinoModal(result.order_id, result.cliente || numero);
+      } else {
+        setTimeout(() => switchTab('ordini'), 1200);
+      }
     } else {
       showMessage('Errore: ' + result.error, 'error');
     }
   } catch (err) { showMessage('Errore invio ordine: ' + err.message, 'error'); }
+}
+
+// ===========================
+// MODAL CARTELLINO BARCODE
+// ===========================
+function openCartellinoModal(orderId, label) {
+  const url = `${API_URL}/api/orders/${orderId}/cartellino`;
+  const modal = document.getElementById('cartellino-modal');
+  const iframe = document.getElementById('cartellino-iframe');
+  const subtitle = document.getElementById('cartellino-subtitle');
+  // Toolbar del browser nascosta per ridurre rumore, ma navpanes off non sempre rispettato
+  iframe.src = url + '#toolbar=0&navpanes=0&zoom=page-fit';
+  subtitle.textContent = label || '';
+  modal.dataset.url = url;
+  modal.classList.add('active');
+}
+
+function closeCartellinoModal(skipNavigate) {
+  const modal = document.getElementById('cartellino-modal');
+  modal.classList.remove('active');
+  document.getElementById('cartellino-iframe').src = 'about:blank';
+  if (!skipNavigate) {
+    setTimeout(() => switchTab('ordini'), 250);
+  }
+}
+
+function printCartellino() {
+  const iframe = document.getElementById('cartellino-iframe');
+  try {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  } catch (_) {
+    // Fallback: apri in nuova tab e lascia che l'utente stampi da lì
+    const url = document.getElementById('cartellino-modal').dataset.url;
+    if (url) window.open(url, '_blank');
+  }
+}
+
+function downloadCartellino() {
+  const url = document.getElementById('cartellino-modal').dataset.url;
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cartellino.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function resetCaricaForm() {
@@ -1994,8 +2249,6 @@ function resetCaricaForm() {
   document.getElementById('mod-cliente').value = '';
   document.getElementById('mod-data').value = '';
   document.getElementById('mod-note').value = '';
-  document.getElementById('dest-laser').checked = true;
-  updateDestStyle();
   document.getElementById('pdf-preview').classList.remove('active');
   const pdfArea = document.getElementById('pdf-upload-area');
   if (pdfArea) pdfArea.classList.remove('active');
@@ -2190,7 +2443,6 @@ function setFilter(el, type) {
   document.querySelectorAll(`.chip[data-filter="${type}"]`).forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   if (type === 'status') currentStatusFilter = el.dataset.value;
-  if (type === 'fase') currentFaseFilter = el.dataset.value;
   renderOrdersTable();
 }
 
@@ -2218,7 +2470,6 @@ function renderOrdersTable() {
     );
   }
   if (currentStatusFilter) filtered = filtered.filter(o => o.status === currentStatusFilter);
-  if (currentFaseFilter) filtered = filtered.filter(o => o.fase_corrente === currentFaseFilter);
 
   // Filtra ordini completati/parziali piu' vecchi di N giorni
   const giorniMax = getCompletatiGiorni();
@@ -2246,7 +2497,7 @@ function renderOrdersTable() {
 
   const tbody = document.getElementById('ordini-tbody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📋</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine trovato</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📋</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine trovato</div></div></td></tr>';
   } else {
     tbody.innerHTML = filtered.map(o => {
       const progress = calculateProgress(o);
@@ -2257,7 +2508,6 @@ function renderOrdersTable() {
         <td style="font-weight: 600;">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}</td>
         <td>${escapeHtml(o.cliente) || 'N/A'}</td>
         <td>${consegna}</td>
-        <td><span class="fase-badge" style="background: ${faseColor};">${o.fase_corrente || '\u2014'}</span></td>
         <td><span style="font-size: 12px; font-weight: 600; color: ${statusColor};">${o.status}</span></td>
         <td style="min-width: 130px;">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -2815,7 +3065,7 @@ async function fetchFattPage() {
 function renderFattTable(orders) {
   const tbody = document.getElementById('fatt-tbody');
   if (!orders || orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#9989;</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine da fatturare</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#9989;</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine da fatturare</div></div></td></tr>';
     return;
   }
 
@@ -3123,7 +3373,7 @@ const archFaseColors = { LASER: '#ef4444', PIEGA: '#f59e0b', SALDATURA: '#3b82f6
 function renderArchiveTable(orders) {
   const tbody = document.getElementById('arch-tbody');
   if (!orders || orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#128203;</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine in archivio</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div style="text-align:center;padding:48px 24px;"><div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#128203;</div><div style="font-size:15px;font-weight:600;color:var(--gray-text);">Nessun ordine in archivio</div></div></td></tr>';
     return;
   }
 
@@ -3410,7 +3660,15 @@ function formatNotifTime(isoStr) {
 async function markNotifRead(id, el, orderId) {
   if (el) el.classList.remove('unread');
   try { await fetch(`${API_URL}/api/notifications/${id}/read`, { method: 'PUT' }); pollNotifCount(); } catch (_) {}
-  if (orderId) window.location.href = `/dettaglio-ordine.html?id=${orderId}`;
+  // Notifica con ordine → apri direttamente il modal dettaglio se la funzione esiste,
+  // altrimenti vai alla tab Ordini con focus su quell'id.
+  if (orderId) {
+    if (typeof openDetailModal === 'function') {
+      openDetailModal(orderId);
+    } else {
+      switchTab('ordini');
+    }
+  }
 }
 
 async function deleteNotif(id) {

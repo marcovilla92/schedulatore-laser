@@ -1215,8 +1215,11 @@ function goHome() {
   const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
   if (!u.id) { window.location.href = '/login.html'; return; }
   if (u.role === 'Impiegata') { window.location.href = '/impiegata.html'; return; }
-  if (u.phase === 'LASER') { window.location.href = '/laser-v2.html'; return; }
-  window.location.href = '/officina.html';
+  if (u.role === 'Operaio Laser') { window.location.href = '/laser.html'; return; }
+  if (u.is_capo || u.role === 'Capo Officina' || u.role === 'Amministratore') {
+    window.location.href = '/capo-officina.html'; return;
+  }
+  window.location.href = '/operaio-info.html';
 }
 
 async function logout() {

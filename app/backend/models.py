@@ -51,6 +51,11 @@ class Order(Base):
     lotto_nome = Column(String, nullable=True)  # Nome personalizzato del lotto (es. "Pezzi grandi")
     visto_da_operatore = Column(Boolean, default=False)  # True = operatore ha aperto/preso visione dell'ordine
     data_presa_visione = Column(DateTime, nullable=True)  # Quando l'operatore ha visto l'ordine
+    # Sblocca le scansioni officina: finché taglio_completato è False, le pistole
+    # rifiutano la scansione. Marcato dal LASER (Mirko) quando ha finito di tagliare.
+    taglio_completato = Column(Boolean, default=False)
+    data_taglio_completato = Column(DateTime, nullable=True)
+    taglio_completato_da = Column(String, ForeignKey('users.id'), nullable=True)
     files = relationship('OrderFile', back_populates='order', cascade='all, delete-orphan')
     processing_steps = relationship('ProcessingStep', back_populates='order', cascade='all, delete-orphan')
     notifications = relationship('OrderNotification', back_populates='order', cascade='all, delete-orphan')
@@ -188,6 +193,44 @@ class Notification(Base):
     notification_category = Column(String, default='informativa')  # 'informativa', 'attiva', 'delega', 'urgente'
     is_read = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)  # Soft delete
+
+
+class Pistola(Base):
+    """Pistola barcode WiFi assegnata a un operatore.
+
+    L'ID hardware (pistola_id) viene configurato una sola volta nella pistola
+    stessa e inviato a ogni scan; il sistema risale all'operatore di conseguenza.
+    """
+    __tablename__ = 'pistole'
+    id = Column(String, primary_key=True)
+    pistola_id = Column(String, unique=True, nullable=False)  # ID hw configurato sulla pistola
+    operatore_id = Column(String, ForeignKey('users.id'), nullable=False)
+    attiva = Column(Boolean, default=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class OfficinaScan(Base):
+    """Sessione di lavoro su un ordine in officina, aperta/chiusa da scan barcode.
+
+    Una scan apre una sessione (timestamp_inizio). Si chiude quando:
+    - lo stesso operaio scansiona un altro ordine ('altro_ordine')
+    - capo/impiegata sposta l'ordine a fase successiva ('cambio_fase')
+    - job di fine turno chiude le residue ('fine_turno')
+    - admin chiude manualmente ('manuale')
+
+    Tempo totale ordine = SUM(timestamp_fine - timestamp_inizio) sulle scan chiuse.
+    """
+    __tablename__ = 'officina_scans'
+    id = Column(String, primary_key=True)
+    order_id = Column(String, ForeignKey('orders.id'), nullable=False)
+    operatore_id = Column(String, ForeignKey('users.id'), nullable=False)
+    pistola_id = Column(String, nullable=True)  # ID hw audit (denormalizzato per storico)
+    timestamp_inizio = Column(DateTime, nullable=False, default=datetime.utcnow)
+    timestamp_fine = Column(DateTime, nullable=True)  # NULL = sessione attiva
+    chiusura_motivo = Column(String, nullable=True)
+    # 'altro_ordine' | 'cambio_fase' | 'fine_turno' | 'manuale'
+
 
 # Configurazione database
 engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
@@ -420,5 +463,22 @@ def initialize_database():
             conn.commit()
             if migrated:
                 logger.info('Migrati %d ordini COMPLETATO → DA_FATTURARE', migrated)
+
+    # Migrazione: aggiunge campi laser/taglio a orders
+    if 'orders' in insp.get_table_names():
+        existing_orders = [c['name'] for c in insp.get_columns('orders')]
+        with engine.connect() as conn:
+            if 'taglio_completato' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN taglio_completato BOOLEAN DEFAULT 0'))
+                # Ordini esistenti pre-refactor: considera taglio gia` fatto per non bloccarli
+                conn.execute(text('UPDATE orders SET taglio_completato = 1'))
+                logger.info('Aggiunta colonna taglio_completato a orders (esistenti segnati come gia` tagliati)')
+            if 'data_taglio_completato' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN data_taglio_completato DATETIME'))
+                logger.info('Aggiunta colonna data_taglio_completato a orders')
+            if 'taglio_completato_da' not in existing_orders:
+                conn.execute(text('ALTER TABLE orders ADD COLUMN taglio_completato_da TEXT'))
+                logger.info('Aggiunta colonna taglio_completato_da a orders')
+            conn.commit()
 
     seed_users()
