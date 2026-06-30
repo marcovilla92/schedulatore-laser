@@ -11,8 +11,10 @@ logger = logging.getLogger(__name__)
 
 # Importa moduli locali
 from .models import initialize_database, Order, OrderFile, get_session
-from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, AlertManager, KPIManager, BarcodeManager
+from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, AlertManager, KPIManager, BarcodeManager, PreventivoManager
 from .pdf_cartellino import genera_cartellino_pdf
+from .events import OrderEventBus
+from .preventivi import xlsx_importer as _xlsx_importer, dxf_scanner as _dxf_scanner, laser_cost_estimator as _laser_estimator
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
@@ -48,6 +50,29 @@ def _require_capo(user_id: str) -> bool:
         return False
     user = UserManager.get_user(user_id)
     return bool(user and user.get('is_capo', False))
+
+
+def _require_role(user_id: str, roles: list) -> bool:
+    """Verifica che user_id abbia uno dei ruoli specificati.
+
+    `roles` accetta: ruoli espliciti ('Commerciale', 'Admin', 'Impiegata',
+    'Capo Officina', 'Operaio Laser', 'Operaio Officina', 'Amministratore')
+    o l'alias virtuale 'CAPO' che include is_capo=True OR role='Amministratore'.
+
+    Usato dagli endpoint preventivi per autorizzare Commerciale, Admin, Capi.
+    """
+    if not user_id:
+        return False
+    user = UserManager.get_user(user_id)
+    if not user or not user.get('is_active', True):
+        return False
+    user_role = user.get('role', '')
+    for r in roles:
+        if r == 'CAPO' and (user.get('is_capo') or user_role == 'Amministratore'):
+            return True
+        if r == user_role:
+            return True
+    return False
 
 # ============ FRONTEND ROUTES ============
 
@@ -1549,6 +1574,458 @@ def api_admin_pistole_delete(pistola_uuid):
     except Exception as e:
         logger.exception('api_admin_pistole_delete failed')
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+#  PREVENTIVI — API REST (Fase 2 merge preventivatore)
+# ============================================================================
+
+# Ruoli autorizzati a write/read sui preventivi (decisione: aperto interni, no operai)
+_PREV_WRITE_ROLES = ['Commerciale', 'Amministratore', 'CAPO']
+_PREV_READ_ROLES = ['Commerciale', 'Amministratore', 'CAPO', 'Impiegata']
+
+
+@app.route('/api/preventivi', methods=['GET'])
+def api_preventivi_list():
+    """Lista preventivi (filtri opzionali: cliente, status)."""
+    try:
+        cliente = request.args.get('cliente')
+        status = request.args.get('status')
+        limit = min(int(request.args.get('limit', 200)), 500)
+        items = PreventivoManager.list(cliente=cliente, status=status, limit=limit)
+        return jsonify({'success': True, 'count': len(items), 'preventivi': items}), 200
+    except Exception as e:
+        logger.exception('preventivi list failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi', methods=['POST'])
+def api_preventivi_create():
+    """Crea preventivo (BOZZA). Riservato a Commerciale + Admin."""
+    try:
+        data = request.get_json() or {}
+        created_by = data.get('created_by') or ''
+        if not _require_role(created_by, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        cliente = (data.get('cliente') or '').strip()
+        if not cliente:
+            return jsonify({'success': False, 'error': 'Cliente obbligatorio'}), 400
+        dcp = data.get('data_consegna_proposta')
+        dcp_dt = None
+        if dcp:
+            try:
+                dcp_dt = datetime.strptime(dcp[:10], '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'success': False, 'error': 'data_consegna_proposta: formato YYYY-MM-DD'}), 400
+        p = PreventivoManager.create(
+            cliente=cliente,
+            created_by=created_by,
+            quantita=data.get('quantita', 1),
+            numero_ordine_cliente=data.get('numero_ordine_cliente'),
+            margine_pct=data.get('margine_pct', 0.0),
+            data_consegna_proposta=dcp_dt,
+            note=data.get('note'),
+        )
+        try:
+            AuditManager.log(user_id=created_by, action='CREATE_PREVENTIVO',
+                             entity_type='preventivi', entity_id=p['id'],
+                             detail='cliente=' + cliente)
+        except Exception:
+            pass
+        return jsonify({'success': True, 'preventivo': p}), 201
+    except Exception as e:
+        logger.exception('preventivi create failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>', methods=['GET'])
+def api_preventivi_get(preventivo_id):
+    """Dettaglio preventivo + articoli/assiemi/tubolari/piastre."""
+    try:
+        p = PreventivoManager.get(preventivo_id, include_children=True)
+        if not p:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        return jsonify({'success': True, 'preventivo': p}), 200
+    except Exception as e:
+        logger.exception('preventivo get failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>', methods=['PUT'])
+def api_preventivi_update(preventivo_id):
+    """Modifica preventivo. Bloccato se status INVIATO/ACCETTATO (immutabili)."""
+    try:
+        data = request.get_json() or {}
+        updated_by = data.pop('updated_by', '')
+        if not _require_role(updated_by, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        # data_consegna_proposta come stringa → datetime
+        if 'data_consegna_proposta' in data and data['data_consegna_proposta']:
+            try:
+                data['data_consegna_proposta'] = datetime.strptime(
+                    data['data_consegna_proposta'][:10], '%Y-%m-%d')
+            except (ValueError, TypeError):
+                data['data_consegna_proposta'] = None
+        result = PreventivoManager.update(preventivo_id, data)
+        if result is None:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        if isinstance(result, dict) and result.get('error'):
+            return jsonify({'success': False, 'error': result['error']}), 409
+        try:
+            AuditManager.log(user_id=updated_by, action='UPDATE_PREVENTIVO',
+                             entity_type='preventivi', entity_id=preventivo_id,
+                             detail=str(list(data.keys())))
+        except Exception:
+            pass
+        return jsonify({'success': True, 'preventivo': result}), 200
+    except Exception as e:
+        logger.exception('preventivo update failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>', methods=['DELETE'])
+def api_preventivi_delete(preventivo_id):
+    """Soft delete (is_deleted=True). Riservato a Commerciale + Admin."""
+    try:
+        deleted_by = request.args.get('deleted_by') or ''
+        if not _require_role(deleted_by, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        ok = PreventivoManager.soft_delete(preventivo_id)
+        if not ok:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        try:
+            AuditManager.log(user_id=deleted_by, action='DELETE_PREVENTIVO',
+                             entity_type='preventivi', entity_id=preventivo_id, detail='')
+        except Exception:
+            pass
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        logger.exception('preventivo delete failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/import-xlsx', methods=['POST'])
+def api_preventivi_import_xlsx(preventivo_id):
+    """Upload XLSX Lantek → estrae articoli e li ritorna (NON li salva ancora).
+    La UI mostra l'anteprima; il save effettivo avviene quando l'utente conferma.
+    """
+    try:
+        admin_id = request.form.get('admin_id') or request.args.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'File XLSX obbligatorio'}), 400
+        f = request.files['file']
+        if not f.filename or not f.filename.lower().endswith('.xlsx'):
+            return jsonify({'success': False, 'error': 'File deve essere .xlsx'}), 400
+        # Salva temporaneo per processing
+        tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '_' + os.path.basename(f.filename))
+        f.save(tmp_path)
+        try:
+            articoli = _xlsx_importer.importa_xlsx(tmp_path)
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+        return jsonify({'success': True, 'articoli': articoli, 'count': len(articoli)}), 200
+    except Exception as e:
+        logger.exception('preventivi import xlsx failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/import-dxf', methods=['POST'])
+def api_preventivi_import_dxf(preventivo_id):
+    """Upload DXF → estrae lavorazioni (pieghe/saldature) + geometria (area/perimetro).
+    Il file viene scartato dopo l'estrazione (decisione: no storage DXF).
+    """
+    try:
+        admin_id = request.form.get('admin_id') or request.args.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'File DXF obbligatorio'}), 400
+        f = request.files['file']
+        if not f.filename or not f.filename.lower().endswith('.dxf'):
+            return jsonify({'success': False, 'error': 'File deve essere .dxf'}), 400
+        tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '.dxf')
+        f.save(tmp_path)
+        try:
+            # Config minimo per dxf_scanner (colori standard Lantek)
+            dxf_cfg = {'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
+                       'dxf_lunghezza_minima': 15}
+            pieghe, sald_ml, fil, svas = _dxf_scanner.scansiona_dxf_dettagli(tmp_path, dxf_cfg)
+            geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+        return jsonify({
+            'success': True,
+            'lavorazioni': {
+                'pieghe': pieghe, 'saldatura_ml': sald_ml,
+                'filettatura_pz': fil, 'svasatura_pz': svas,
+            },
+            'geometria': geo,
+        }), 200
+    except Exception as e:
+        logger.exception('preventivi import dxf failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/articoli/<articolo_id>/stima-base', methods=['POST'])
+def api_preventivi_stima_base(preventivo_id, articolo_id):
+    """Calcola stima costo base laser per un articolo (richiede spessore+materiale).
+
+    Body opzionale: { articolo: {area_dm2, perimetro_taglio_m, n_forature,
+                                  spessore_mm, materiale} }
+    Se body non fornito, legge dal DB l'articolo per id.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or request.args.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        articolo = data.get('articolo')
+        if not articolo:
+            # Leggi articolo dal DB
+            p = PreventivoManager.get(preventivo_id, include_children=True)
+            if not p:
+                return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+            articolo = next((a for a in p['articoli'] if a['id'] == articolo_id), None)
+            if not articolo:
+                return jsonify({'success': False, 'error': 'Articolo non trovato'}), 404
+        cfg = BarcodeManager.load_config()
+        stima = _laser_estimator.stima_base(articolo, cfg)
+        return jsonify({'success': True, 'stima': stima}), 200
+    except Exception as e:
+        logger.exception('preventivi stima-base failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/calcola', methods=['POST'])
+def api_preventivi_calcola(preventivo_id):
+    """Ricalcola totali del preventivo (chiama cost_calculator)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        # Implementazione completa rimandata a Fase 3 (richiede integrazione editor articoli)
+        # Per ora ritorna i totali correnti dal DB (placeholder funzionale)
+        p = PreventivoManager.get(preventivo_id, include_children=False)
+        if not p:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        return jsonify({
+            'success': True,
+            'preventivo': p,
+            '_note': 'Ricalcolo completo via cost_calculator implementato in Fase 3',
+        }), 200
+    except Exception as e:
+        logger.exception('preventivi calcola failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/pdf', methods=['GET'])
+def api_preventivi_pdf(preventivo_id):
+    """Genera PDF preventivo (placeholder Fase 3 — implementazione completa con pdf_exporter)."""
+    try:
+        p = PreventivoManager.get(preventivo_id, include_children=True)
+        if not p:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        return jsonify({
+            'success': False,
+            'error': 'PDF preventivo: implementazione completa rimandata a Fase 3',
+            'preventivo': p,
+        }), 501
+    except Exception as e:
+        logger.exception('preventivi pdf failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/invia', methods=['POST'])
+def api_preventivi_invia(preventivo_id):
+    """Transizione BOZZA → INVIATO. (Snapshot versioning sarà aggiunto in Fase 3.)"""
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id') or ''
+        if not _require_role(user_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        result = PreventivoManager.transition_status(preventivo_id, 'INVIATO', user_id=user_id)
+        if result is None:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        if isinstance(result, dict) and result.get('error'):
+            return jsonify({'success': False, 'error': result['error']}), 409
+        try:
+            AuditManager.log(user_id=user_id, action='SEND_PREVENTIVO',
+                             entity_type='preventivi', entity_id=preventivo_id, detail='BOZZA->INVIATO')
+        except Exception:
+            pass
+        return jsonify({'success': True, 'preventivo': result}), 200
+    except Exception as e:
+        logger.exception('preventivi invia failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/accetta', methods=['POST'])
+def api_preventivi_accetta(preventivo_id):
+    """Transizione INVIATO → ACCETTATO + creazione Order FerroTrack (in Fase 4).
+
+    Per ora cambia solo lo status. La creazione dell'Order con cartellino barcode +
+    notifica capi è implementata nella Fase 4 del merge.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id') or ''
+        if not _require_role(user_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        result = PreventivoManager.transition_status(preventivo_id, 'ACCETTATO', user_id=user_id)
+        if result is None:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        if isinstance(result, dict) and result.get('error'):
+            return jsonify({'success': False, 'error': result['error']}), 409
+        try:
+            AuditManager.log(user_id=user_id, action='ACCEPT_PREVENTIVO',
+                             entity_type='preventivi', entity_id=preventivo_id,
+                             detail='INVIATO->ACCETTATO (Order creation: Fase 4)')
+        except Exception:
+            pass
+        try:
+            OrderEventBus.publish('preventivo.accepted', {'preventivo_id': preventivo_id})
+        except Exception:
+            pass
+        return jsonify({
+            'success': True,
+            'preventivo': result,
+            '_note': 'Order FerroTrack auto-creato in Fase 4 (placeholder per ora)',
+        }), 200
+    except Exception as e:
+        logger.exception('preventivi accetta failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/rifiuta', methods=['POST'])
+def api_preventivi_rifiuta(preventivo_id):
+    """Transizione INVIATO → RIFIUTATO."""
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id') or ''
+        if not _require_role(user_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        result = PreventivoManager.transition_status(preventivo_id, 'RIFIUTATO', user_id=user_id)
+        if result is None:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        if isinstance(result, dict) and result.get('error'):
+            return jsonify({'success': False, 'error': result['error']}), 409
+        try:
+            AuditManager.log(user_id=user_id, action='REJECT_PREVENTIVO',
+                             entity_type='preventivi', entity_id=preventivo_id, detail='INVIATO->RIFIUTATO')
+        except Exception:
+            pass
+        return jsonify({'success': True, 'preventivo': result}), 200
+    except Exception as e:
+        logger.exception('preventivi rifiuta failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/laser-config', methods=['GET'])
+def api_admin_laser_config_get():
+    """Ritorna sezione laser_config dal app_config.json (coefficienti stimatore)."""
+    try:
+        cfg = BarcodeManager.load_config()
+        return jsonify({
+            'success': True,
+            'laser_config': cfg.get('laser_config') or _laser_estimator.DEFAULT_LASER_CONFIG,
+        }), 200
+    except Exception as e:
+        logger.exception('admin laser-config GET failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/laser-config', methods=['PUT'])
+def api_admin_laser_config_put():
+    """Aggiorna coefficienti stimatore laser (solo admin/capi)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, ['Amministratore', 'CAPO']):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        new_config = data.get('laser_config')
+        if not isinstance(new_config, dict):
+            return jsonify({'success': False, 'error': 'laser_config deve essere un oggetto'}), 400
+        saved = BarcodeManager.save_config({'laser_config': new_config})
+        if 'error' in saved:
+            return jsonify({'success': False, 'error': saved['error']}), 500
+        try:
+            AuditManager.log(user_id=admin_id, action='UPDATE_LASER_CONFIG',
+                             entity_type='config', entity_id='laser_config',
+                             detail=str(list(new_config.keys())))
+        except Exception:
+            pass
+        return jsonify({'success': True, 'laser_config': saved.get('laser_config')}), 200
+    except Exception as e:
+        logger.exception('admin laser-config PUT failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/admin/export-orders', methods=['GET'])
+def api_admin_export_orders():
+    """Export CSV ordini per gestionale esterno (cliente non ha Odoo ma userà altro gestionale).
+
+    Query: ?format=csv|json (default: csv), ?from=YYYY-MM-DD, ?to=YYYY-MM-DD
+    """
+    try:
+        admin_id = request.args.get('admin_id') or ''
+        if not _require_role(admin_id, ['Amministratore', 'CAPO']):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        fmt = (request.args.get('format') or 'csv').lower()
+        orders = OrderManager.get_all_orders_dict() or []
+        # Filtri data
+        date_from = request.args.get('from')
+        date_to = request.args.get('to')
+        if date_from:
+            try:
+                df = datetime.strptime(date_from, '%Y-%m-%d')
+                orders = [o for o in orders if o.get('data_ricezione') and
+                          datetime.fromisoformat(str(o['data_ricezione']).rstrip('Z')[:19]) >= df]
+            except Exception:
+                pass
+        if date_to:
+            try:
+                dt = datetime.strptime(date_to, '%Y-%m-%d')
+                orders = [o for o in orders if o.get('data_ricezione') and
+                          datetime.fromisoformat(str(o['data_ricezione']).rstrip('Z')[:19]) <= dt]
+            except Exception:
+                pass
+
+        if fmt == 'json':
+            import json as _json
+            import io
+            ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            payload = _json.dumps(orders, ensure_ascii=False, indent=2, default=str).encode('utf-8')
+            buf = io.BytesIO(payload); buf.seek(0)
+            return send_file(buf, mimetype='application/json',
+                             as_attachment=True, download_name='orders_' + ts + '.json')
+        else:
+            import csv as _csv
+            import io
+            ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            cols = ['id', 'numero_ordine', 'cliente', 'data_ricezione', 'data_consegna',
+                    'status', 'origine', 'preventivo_id_origine',
+                    'numero_ddt', 'data_ddt', 'numero_fattura', 'data_fattura', 'note']
+            out = io.StringIO()
+            w = _csv.DictWriter(out, fieldnames=cols, extrasaction='ignore')
+            w.writeheader()
+            for o in orders:
+                w.writerow({c: o.get(c, '') for c in cols})
+            data_bytes = out.getvalue().encode('utf-8-sig')  # BOM per Excel italiano
+            buf = io.BytesIO(data_bytes); buf.seek(0)
+            return send_file(buf, mimetype='text/csv; charset=utf-8',
+                             as_attachment=True, download_name='orders_' + ts + '.csv')
+    except Exception as e:
+        logger.exception('admin export orders failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':
