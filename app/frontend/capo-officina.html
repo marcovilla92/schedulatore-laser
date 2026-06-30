@@ -30,11 +30,13 @@ body { animation: pageIn 0.3s ease-out; }
   --orange-bg: #fff4d6;
   --green-badge: #166534;
   --green-badge-bg: #e2fce9;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-sm: 0 0 0 1px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 0 0 1px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 0 0 1px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.06);
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
 }
 
-body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--black); }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--black); font-variant-numeric: tabular-nums; }
 
 /* TOPBAR */
 .topbar {
@@ -90,9 +92,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
 
 /* CARDS */
 .card {
-  background: var(--white); border: 1px solid var(--border); border-radius: 12px;
-  margin-bottom: 20px; overflow: hidden;
+  background: var(--white); border: 1px solid var(--border); border-radius: 14px;
+  margin-bottom: 20px; overflow: hidden; box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
+.card:hover { box-shadow: var(--shadow-md); }
 .card-header {
   padding: 14px 18px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
@@ -106,16 +110,27 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
 
 /* KPI GRID */
 .kpi-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px; padding: 18px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px; padding: 24px;
 }
 .kpi-card {
-  border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: 22px;
   background: linear-gradient(180deg, #fafbfc, var(--white));
+  box-shadow: var(--shadow-sm); transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.kpi-card .name { font-weight: 700; font-size: 15px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.kpi-card .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--green); color: white;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpi-card .name { font-weight: 700; font-size: 15px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+.kpi-card .avatar { width: 32px; height: 32px; border-radius: 50%; color: white;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;
+  background: var(--green); /* override inline da JS colorFromName */ }
+/* HERO: ore settimana grandi */
+.kpi-hero { padding: 6px 0 14px; border-bottom: 1px solid #f1f3f5; margin-bottom: 10px; }
+.kpi-hero .label { font-size: 11px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.6px; }
+.kpi-hero .value {
+  font-family: 'Geist'; font-weight: 900; font-size: 44px; line-height: 1.05; letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums; margin-top: 6px; color: var(--black);
+}
+.kpi-hero .value .unit { font-size: 18px; font-weight: 700; color: var(--gray-muted); margin-left: 4px; letter-spacing: 0; }
 .kpi-row { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; }
 .kpi-label { font-size: 12px; color: var(--gray-text); }
 .kpi-value { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; font-family: 'Geist'; }
@@ -192,17 +207,23 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
 
 /* DAY MODAL */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  position: fixed; inset: 0;
+  background: rgba(250, 250, 250, 0.55);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   display: none; align-items: center; justify-content: center;
-  z-index: 2000; animation: fadeIn 0.15s ease-out;
+  z-index: 2000; animation: fadeIn 0.2s ease-out;
 }
 .modal-overlay.active { display: flex; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
-  background: var(--white); border-radius: 14px; padding: 0;
+  background: var(--white); border-radius: var(--r-xl); padding: 0;
   width: 90%; max-width: 600px; max-height: 80vh; overflow: hidden;
   display: flex; flex-direction: column;
+  border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
+@keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .modal-head { padding: 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .modal-head h3 { font-family: 'Geist'; font-weight: 800; font-size: 18px; margin: 0; }
 .modal-body { padding: 0; overflow-y: auto; }
@@ -237,9 +258,15 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
         <div class="user-role">Officina</div>
       </div>
     </div>
-    <button class="btn-tb" onclick="window.location.href='/admin.html'" title="Impostazioni, utenti, soglie">⚙ Admin</button>
-    <button class="btn-tb danger" onclick="closeResidual()" title="Chiude tutte le scan ancora aperte (fine turno)">Chiudi turno</button>
-    <button class="btn-tb danger" onclick="logout()">Esci</button>
+    <button class="btn-tb" onclick="window.location.href='/admin.html'" title="Impostazioni, utenti, soglie">
+      <i data-lucide="settings" style="width:14px;height:14px;vertical-align:-2px;"></i> Admin
+    </button>
+    <button class="btn-tb danger" onclick="closeResidual()" title="Chiude tutte le scan ancora aperte (fine turno)">
+      <i data-lucide="moon" style="width:14px;height:14px;vertical-align:-2px;"></i> Chiudi turno
+    </button>
+    <button class="btn-tb danger" onclick="logout()">
+      <i data-lucide="log-out" style="width:14px;height:14px;vertical-align:-2px;"></i> Esci
+    </button>
   </div>
 </div>
 
@@ -442,8 +469,11 @@ window.addEventListener('load', () => {
     return;
   }
   const initials = (user.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
-  document.getElementById('user-pill-avatar').textContent = initials;
+  const avatarEl = document.getElementById('user-pill-avatar');
+  avatarEl.textContent = initials;
+  avatarEl.style.background = colorFromName(user.name);
   document.getElementById('user-pill-name').textContent = user.name || 'Capo';
+  if (window.lucide) lucide.createIcons();
   switchTab('kpi');
 });
 
@@ -664,6 +694,14 @@ async function deletePistola(pistolaUuid, label) {
 }
 
 // ---------- KPI operai ----------
+// Genera colore HSL deterministico dal nome — avatar diverso per ogni operaio
+function colorFromName(name) {
+  if (!name) return '#1a7a48';
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360}, 58%, 42%)`;
+}
+
 async function loadKpi() {
   const meta = document.getElementById('kpi-meta');
   try {
@@ -681,10 +719,25 @@ async function loadKpi() {
       const sat = Math.min(k.saturazione_settimana_pct || 0, 130);
       const barClass = sat < 60 ? '' : sat < 85 ? '' : sat < 110 ? 'warn' : 'crit';
       const initials = (k.nome || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+      const avatarColor = colorFromName(k.nome);
+      // Trend: ore oggi vs media giornaliera della settimana (5 giorni lavorativi)
+      const mediaGiornaliera = k.ore_settimana / 5;
+      const trendDelta = k.ore_oggi - mediaGiornaliera;
+      let trendBadge = '';
+      if (mediaGiornaliera > 0.3) {
+        const isUp = trendDelta >= 0;
+        const arrow = isUp ? '↗' : '↘';
+        const color = isUp ? 'var(--green-badge)' : '#b45309';
+        const bg = isUp ? 'var(--green-badge-bg)' : '#fff4d6';
+        trendBadge = `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:100px;background:${bg};color:${color};font-size:10px;font-weight:700;margin-left:8px;">${arrow} ${Math.abs(trendDelta).toFixed(1)}h vs media</span>`;
+      }
       html += `<div class="kpi-card">
-        <div class="name"><div class="avatar">${escapeHtml(initials)}</div>${escapeHtml(k.nome)}</div>
+        <div class="name"><div class="avatar" style="background:${avatarColor}">${escapeHtml(initials)}</div>${escapeHtml(k.nome)}</div>
+        <div class="kpi-hero">
+          <div class="label">Ore settimana</div>
+          <div class="value">${k.ore_settimana.toFixed(1)}<span class="unit">h</span>${trendBadge}</div>
+        </div>
         <div class="kpi-row"><span class="kpi-label">Oggi</span><span class="kpi-value">${k.ore_oggi.toFixed(1)}h</span></div>
-        <div class="kpi-row"><span class="kpi-label">Settimana</span><span class="kpi-value">${k.ore_settimana.toFixed(1)}h</span></div>
         <div class="kpi-row"><span class="kpi-label">Mese</span><span class="kpi-value">${k.ore_mese.toFixed(1)}h</span></div>
         <div class="kpi-bar-wrap">
           <div class="kpi-bar-bg"><div class="kpi-bar ${barClass}" style="width:${Math.min(sat,100)}%"></div></div>
@@ -1057,5 +1110,7 @@ async function closeResidual() {
   }
 }
 </script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
 </body>
 </html>
