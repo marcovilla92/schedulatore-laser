@@ -1471,6 +1471,12 @@ async function loginUser(userId) {
       return;
     }
 
+    // Commerciale → modulo preventivi (merge Preventivatore desktop)
+    if (currentUser.role === 'Commerciale') {
+      window.location.href = '/preventivi.html';
+      return;
+    }
+
     // Capi officina / Amministratore → Pannello Capo (KPI, ordini, calendario, pistole)
     if (currentUser.is_capo || currentUser.role === 'Capo Officina' || currentUser.role === 'Amministratore') {
       window.location.href = '/capo-officina.html';
@@ -2141,6 +2147,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Redirect to the correct page based on role
       if (currentUser.role === 'Impiegata') {
         window.location.href = '/impiegata.html';
+        return;
+      }
+      if (currentUser.role === 'Commerciale') {
+        window.location.href = '/preventivi.html';
         return;
       }
       if (currentUser.role === 'Amministratore') {
