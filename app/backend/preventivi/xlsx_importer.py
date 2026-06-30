@@ -1,6 +1,14 @@
 """XLSX (Lantek) importer service.
 
-Extracted from preventivatore 2.0.py — pure function, no UI references.
+Extended for FerroTrack merge: oltre a codice/costo/area, legge anche
+materiale, spessore, peso, perimetro di taglio, pieghe — tutti dati che
+Lantek già calcola e che ci permettono di evitare la stima da DXF approssimativa.
+
+Mapping materiale Lantek (formato libero) → codice del nostro laser_estimator:
+  'INOX', 'INOX 304', 'AISI 304', ...      → 'INOX_304'
+  'INOX 316', 'AISI 316'                    → 'INOX_316'
+  'ACCIAIO', 'S235', 'FERRO'                → 'S235'
+  'ALLUMINIO', 'ALU', 'AL'                  → 'ALU_5754'
 """
 
 import logging
@@ -10,85 +18,150 @@ import openpyxl
 logger = logging.getLogger(__name__)
 
 
-def importa_xlsx(path: str) -> list[dict]:
-    """Importa dati da file XLSX Lantek.
-
-    Gestisce sia il template "singolo" (un articolo per file) che il template
-    "multi" (ordine di produzione con più articoli). Aggrega automaticamente
-    gli articoli duplicati sommando i costi e contando le quantità.
-
-    Args:
-        path: percorso al file XLSX da importare.
+def _normalize_materiale(raw: str) -> str:
+    """Mappa il valore Lantek 'Materiale' al codice del laser_estimator.
 
     Returns:
-        Lista di dizionari articolo con chiavi:
-            codice (str), costo (float), area (float), quantita (int), row (int),
-            costo_totale (float).
+        Codice riconosciuto ('S235'|'INOX_304'|'INOX_316'|'ALU_5754') oppure
+        il valore raw uppercase se non mappabile (commerciale può scegliere a mano).
+    """
+    if not raw:
+        return ''
+    s = str(raw).strip().upper()
+    if not s:
+        return ''
+    if '316' in s:
+        return 'INOX_316'
+    if 'INOX' in s or 'AISI' in s or 'STAINLESS' in s:
+        return 'INOX_304'
+    if 'ALLUM' in s or s.startswith('ALU') or s == 'AL':
+        return 'ALU_5754'
+    if 'ACCI' in s or 'S235' in s or 'FERRO' in s or 'STEEL' in s:
+        return 'S235'
+    return s  # raw uppercase, commerciale può cambiare via dropdown
+
+
+# Mappa nome-colonna → indice nel template "singolo" Lantek (header standard).
+# Documento solo le colonne che ci interessano. Se Lantek cambia nome colonna,
+# si trova lo stesso fallback a indice numerico.
+COL_SINGOLO = {
+    'codice': 0,           # 'Codice'
+    'costo_standard': 12,  # 'Costo standard'
+    'peso': 21,            # 'Peso' (kg)
+    'materiale': 60,       # 'Materiale' (es. 'INOX')
+    'spessore': 63,        # 'Spessore' (mm)
+    'area': 64,            # 'Area' (m²)
+    'perimetro_taglio': 72,  # 'Perimetro di taglio' (m)
+    'pieghe_semplici': 141,  # 'Pieghe semplici'
+    'pieghe_speciali': 142,  # 'Pieghe speciali'
+}
+
+
+def importa_xlsx(path: str) -> list[dict]:
+    """Importa dati da file XLSX Lantek con tutti i dati materiale + geometria.
+
+    Gestisce template "singolo" (un articolo per riga, standard Lantek) e
+    template "multi" (ordine di produzione con quantità + costo totale).
+    Per il template singolo legge anche materiale, spessore, area, perimetro,
+    peso, pieghe — eliminando la necessità di stima approssimativa per il taglio.
+    Aggrega automaticamente i duplicati (stesso codice in più righe).
+
+    Returns:
+        Lista di dict con chiavi (oltre alle 4 originali):
+        - codice, costo, costo_totale, area, quantita, row
+        - materiale (codice normalizzato, es. 'INOX_304') — '' se non riconosciuto
+        - materiale_raw (valore originale dal Lantek, es. 'INOX')
+        - spessore_mm
+        - area_dm2 (= area m² × 100)
+        - perimetro_taglio_m
+        - peso_kg
+        - pieghe (= pieghe_semplici + pieghe_speciali)
 
     Raises:
-        ValueError: se nessun articolo trovato nel file.
-        Exception: se il file non è leggibile.
+        ValueError: se nessun articolo trovato.
     """
     wb = openpyxl.load_workbook(path, data_only=True)
 
-    # Cerca foglio "Struttura" o usa il primo
     if "Struttura" in wb.sheetnames:
         ws = wb["Struttura"]
     else:
         ws = wb.active
 
-    # Leggi intestazione per riconoscere template
     headers = [cell.value for cell in ws[1]]
 
-    if headers[0] == "Codice":
-        # Template singolo articolo
-        idx_codice, idx_costo, idx_area, idx_quantita = 0, 12, 64, None
+    if headers and headers[0] == "Codice":
+        # Template singolo articolo — supporto completo
         template = "singolo"
+        cols = COL_SINGOLO
     else:
-        # Template multi articolo (Ordine di produzione)
-        # Colonna 21 = Quantità prodotta, Colonna 22 = Costo totale
-        idx_codice, idx_costo, idx_area, idx_quantita = 1, 22, None, 21
+        # Template multi articolo (ordine di produzione)
+        # Solo i campi base: codice + costo + qty (no materiale/spessore qui)
         template = "multi"
+        cols = {'codice': 1, 'costo_standard': 22, 'peso': None,
+                'materiale': None, 'spessore': None, 'area': None,
+                'perimetro_taglio': None, 'pieghe_semplici': None,
+                'pieghe_speciali': None}
+        quantita_col = 21
 
-    # Leggi tutte le righe dati (dalla 2 in poi)
+    def _get(row, col_idx, default=None):
+        if col_idx is None or len(row) <= col_idx:
+            return default
+        v = row[col_idx]
+        return v if v not in (None, '') else default
+
     articoli = []
     for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-        codice = row[idx_codice] if len(row) > idx_codice and row[idx_codice] else None
-        costo_totale = row[idx_costo] if len(row) > idx_costo and row[idx_costo] else 0
-
-        # Leggi quantità se disponibile (template multi)
-        if idx_quantita is not None and len(row) > idx_quantita:
-            quantita = row[idx_quantita] if row[idx_quantita] else 1
+        codice = _get(row, cols['codice'])
+        costo_totale = _get(row, cols['costo_standard'], 0)
+        if template == "multi":
+            quantita = _get(row, quantita_col, 1) or 1
         else:
             quantita = 1
+        try:
+            quantita = max(1, int(quantita))
+        except (TypeError, ValueError):
+            quantita = 1
+        try:
+            costo_unit = float(costo_totale) / float(quantita) if costo_totale else 0.0
+        except (TypeError, ValueError):
+            costo_unit = 0.0
 
-        # Calcola costo unitario dividendo per quantità
-        if quantita > 0:
-            costo = float(costo_totale) / float(quantita)
-        else:
-            costo = float(costo_totale) if costo_totale else 0.0
+        if not codice or not costo_totale:
+            continue
 
-        # Area solo per template singolo
-        if idx_area is not None:
-            area = row[idx_area] if len(row) > idx_area and row[idx_area] else 0
-        else:
-            area = 0
+        area_m2 = float(_get(row, cols['area'], 0) or 0)
+        spessore_mm = float(_get(row, cols['spessore'], 0) or 0)
+        peso_kg = float(_get(row, cols['peso'], 0) or 0)
+        perimetro_m = float(_get(row, cols['perimetro_taglio'], 0) or 0)
+        materiale_raw = _get(row, cols['materiale'], '') or ''
+        materiale_norm = _normalize_materiale(materiale_raw)
+        pieghe_semplici = int(_get(row, cols['pieghe_semplici'], 0) or 0)
+        pieghe_speciali = int(_get(row, cols['pieghe_speciali'], 0) or 0)
+        pieghe_tot = pieghe_semplici + pieghe_speciali
 
-        # Salta righe vuote
-        if codice and costo:
-            articoli.append({
-                "codice": str(codice),
-                "costo": float(costo) if costo else 0.0,
-                "area": float(area) if area else 0.0,
-                "row": row_idx
-            })
+        articoli.append({
+            "codice": str(codice),
+            "costo": costo_unit,
+            "area": area_m2,
+            "row": row_idx,
+            # --- Extension ---
+            "materiale": materiale_norm,
+            "materiale_raw": str(materiale_raw) if materiale_raw else '',
+            "spessore_mm": spessore_mm if spessore_mm > 0 else None,
+            "area_dm2": area_m2 * 100,  # m² → dm²
+            "perimetro_taglio_m": perimetro_m,
+            "peso_kg": peso_kg,
+            "pieghe": pieghe_tot,
+            "pieghe_semplici": pieghe_semplici,
+            "pieghe_speciali": pieghe_speciali,
+        })
 
     wb.close()
 
     if not articoli:
         raise ValueError("Nessun articolo trovato nel file.")
 
-    # Aggrega articoli con lo stesso codice (somma costi, conta quantità)
+    # Aggrega duplicati (stesso codice → somma quantità e costi)
     aggregati = {}
     for art in articoli:
         codice = art['codice']
@@ -96,16 +169,13 @@ def importa_xlsx(path: str) -> list[dict]:
             aggregati[codice]['quantita'] += 1
             aggregati[codice]['costo_totale'] += art['costo']
             aggregati[codice]['area'] += art['area']
+            aggregati[codice]['area_dm2'] += art['area_dm2']
+            aggregati[codice]['peso_kg'] += art['peso_kg']
         else:
             aggregati[codice] = {
-                'codice': codice,
-                'costo': art['costo'],          # costo unitario
-                'costo_totale': art['costo'],   # costo totale (sommato)
-                'area': art['area'],
+                **art,
+                'costo_totale': art['costo'],
                 'quantita': 1,
-                'row': art['row']
             }
 
-    articoli = list(aggregati.values())
-
-    return articoli
+    return list(aggregati.values())

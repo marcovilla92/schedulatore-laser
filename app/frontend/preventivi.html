@@ -388,20 +388,20 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
         <div class="dropzone" onclick="document.getElementById('inp-xlsx').click()" id="dz-xlsx">
           <div class="icon"><i data-lucide="file-spreadsheet" style="width:32px;height:32px;"></i></div>
           <div class="label">XLSX Lantek</div>
-          <div class="hint">Articoli con codice + costo materiale.</div>
-          <input type="file" id="inp-xlsx" accept=".xlsx" style="display:none;" onchange="uploadXlsx(this.files[0])">
+          <div class="hint">Uno o più XLSX. Articoli con codice + costo materiale.</div>
+          <input type="file" id="inp-xlsx" accept=".xlsx" multiple style="display:none;" onchange="uploadFiles(this.files, 'xlsx')">
         </div>
         <div class="dropzone" onclick="document.getElementById('inp-dxf').click()" id="dz-dxf">
           <div class="icon"><i data-lucide="file-code" style="width:32px;height:32px;"></i></div>
-          <div class="label">DXF cliente</div>
-          <div class="hint">Pieghe, saldature, area, perimetro di taglio.</div>
-          <input type="file" id="inp-dxf" accept=".dxf" style="display:none;" onchange="uploadDxf(this.files[0])">
+          <div class="label">DXF / DWG cliente</div>
+          <div class="hint">Uno o più disegni 2D. <b>DWG</b>: richiede conversione a DXF (vedi messaggio).</div>
+          <input type="file" id="inp-dxf" accept=".dxf,.dwg" multiple style="display:none;" onchange="uploadFiles(this.files, 'dxf')">
         </div>
         <div class="dropzone" onclick="document.getElementById('inp-step').click()" id="dz-step">
           <div class="icon"><i data-lucide="box" style="width:32px;height:32px;"></i></div>
           <div class="label">STEP 3D</div>
-          <div class="hint">Assiemi: tubolari, piastre, saldature totali.</div>
-          <input type="file" id="inp-step" accept=".step,.stp" style="display:none;" onchange="uploadStep(this.files[0])">
+          <div class="hint">Uno o più STEP. Estrae tubolari, piastre, saldature.</div>
+          <input type="file" id="inp-step" accept=".step,.stp" multiple style="display:none;" onchange="uploadFiles(this.files, 'step')">
         </div>
       </div>
       <div class="form-msg" id="msg-import"></div>
@@ -1146,11 +1146,11 @@ function removePia(i) {
   renderPiastre(); recalcTotali();
 }
 
-async function uploadStep(file) {
+async function uploadStep(file, suppressMsg) {
   if (!file || !currentPreventivo) return;
   const fd = new FormData();
   fd.append('file', file);
-  showMsg('msg-import', 'Parsing STEP 3D (può richiedere qualche secondo)…', 'var(--gray-text)');
+  if (!suppressMsg) showMsg('msg-import', 'Parsing STEP 3D (può richiedere qualche secondo)…', 'var(--gray-text)');
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/import-step?admin_id=${encodeURIComponent(currentUser.id)}`, {
       method: 'POST', body: fd
@@ -1181,7 +1181,35 @@ async function uploadStep(file) {
 // ============================================================
 //  IMPORT FILE
 // ============================================================
-async function uploadXlsx(file) {
+// Batch processor: chiama l'uploader giusto per ciascun file, mostra progress.
+async function uploadFiles(fileList, kind) {
+  const files = Array.from(fileList || []);
+  if (!files.length || !currentPreventivo) return;
+  if (files.length === 1) {
+    // Caso single: chiama direttamente con messaggi normali
+    if (kind === 'xlsx') return uploadXlsx(files[0]);
+    if (kind === 'dxf')  return uploadDxf(files[0]);
+    if (kind === 'step') return uploadStep(files[0]);
+  }
+  // Multi: cicla sequenziale (parsing pesante, evito di sovraccaricare)
+  let ok = 0, errors = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    showMsg('msg-import', `Processing ${i+1}/${files.length}: ${f.name}…`, 'var(--gray-text)');
+    try {
+      if (kind === 'xlsx') await uploadXlsx(f, true);
+      else if (kind === 'dxf')  await uploadDxf(f, true);
+      else if (kind === 'step') await uploadStep(f, true);
+      ok++;
+    } catch (e) { errors.push(`${f.name}: ${e.message}`); }
+  }
+  const c = errors.length ? 'var(--orange)' : 'var(--green)';
+  let txt = `✓ Processati ${ok}/${files.length} file ${kind.toUpperCase()}`;
+  if (errors.length) txt += ` (errori: ${errors.length})`;
+  showMsg('msg-import', txt, c);
+}
+
+async function uploadXlsx(file, suppressMsg) {
   if (!file || !currentPreventivo) return;
   const fd = new FormData();
   fd.append('file', file);
@@ -1193,33 +1221,45 @@ async function uploadXlsx(file) {
     });
     const d = await r.json();
     if (!d.success) { showMsg('msg-import', 'Errore: ' + d.error, 'var(--red)'); return; }
-    // Aggiungi/merge articoli estratti
+    // Aggiungi articoli estratti — il Lantek XLSX contiene già TUTTO:
+    // materiale, spessore, area_dm2, perimetro_taglio, peso, pieghe, costo.
+    // Quindi NON serve la stima approssimativa: il costo Lantek è quello vero
+    // e va direttamente in costo_base_override.
+    let nNoMaterial = 0;
     for (const a of d.articoli) {
+      const materialeOk = a.materiale && ['S235', 'INOX_304', 'INOX_316', 'ALU_5754', 'ALU_5083'].includes(a.materiale);
+      if (!materialeOk) nNoMaterial++;
       currentArticoli.push({
         id: 'tmp-' + Date.now() + '-' + Math.random(),
         codice: a.codice,
         quantita: a.quantita || 1,
-        materiale: 'S235',  // default, l'utente deve scegliere
-        spessore_mm: null,
-        area: a.area || 0, area_dm2: 0,
-        perimetro_taglio_m: 0, n_forature: 0,
-        costo_materiale: a.costo || 0,
-        costo_base_stimato: 0, costo_base_override: null,
-        pieghe: 0, saldatura_ml: 0, filettatura_pz: 0, svasatura_pz: 0,
+        materiale: materialeOk ? a.materiale : 'S235',  // fallback se Lantek ha valore non mappato
+        spessore_mm: a.spessore_mm,
+        area: a.area || 0,
+        area_dm2: a.area_dm2 || 0,
+        perimetro_taglio_m: a.perimetro_taglio_m || 0,
+        n_forature: 0,  // non in Lantek XLSX, eventualmente da DXF
+        costo_materiale: a.costo || 0,         // valore Lantek (taglio+materiale)
+        costo_base_stimato: a.costo || 0,      // qui usiamo il valore Lantek come "stima"
+        costo_base_override: null,             // commerciale può sovrascrivere se serve
+        pieghe: a.pieghe || 0,                 // da colonna 'Pieghe semplici + speciali' Lantek
+        saldatura_ml: 0, filettatura_pz: 0, svasatura_pz: 0,
         costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
         costo_apporto: 0, costo_pulizia: 0,
       });
     }
     renderArticoli(); recalcTotali();
-    showMsg('msg-import', `✓ Importati ${d.count} articoli da XLSX. Imposta materiale + spessore e clicca "Stima costo laser tutti".`, 'var(--green)');
+    let msg = `✓ Importati ${d.count} articoli da Lantek con materiale + spessore + area + perimetro + costi.`;
+    if (nNoMaterial > 0) msg += ` ${nNoMaterial} articolo/i senza materiale riconosciuto (default S235, modifica via dropdown).`;
+    showMsg('msg-import', msg, nNoMaterial > 0 ? 'var(--orange)' : 'var(--green)');
   } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
-async function uploadDxf(file) {
+async function uploadDxf(file, suppressMsg) {
   if (!file || !currentPreventivo) return;
   const fd = new FormData();
   fd.append('file', file);
-  showMsg('msg-import', 'Parsing DXF…', 'var(--gray-text)');
+  if (!suppressMsg) showMsg('msg-import', 'Parsing DXF…', 'var(--gray-text)');
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/import-dxf?admin_id=${encodeURIComponent(currentUser.id)}`, {
       method: 'POST', body: fd
@@ -1365,18 +1405,16 @@ async function exportPdf() {
   } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
-// DRAG&DROP support per dropzone
-['dz-xlsx', 'dz-dxf', 'dz-step'].forEach(id => {
+// DRAG&DROP support per dropzone (multi-file)
+const _KIND_BY_DZ = { 'dz-xlsx': 'xlsx', 'dz-dxf': 'dxf', 'dz-step': 'step' };
+Object.keys(_KIND_BY_DZ).forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('dragover'); });
   el.addEventListener('dragleave', () => el.classList.remove('dragover'));
   el.addEventListener('drop', (e) => {
     e.preventDefault(); el.classList.remove('dragover');
     if (!e.dataTransfer.files.length) return;
-    const f = e.dataTransfer.files[0];
-    if (id === 'dz-xlsx') uploadXlsx(f);
-    else if (id === 'dz-dxf') uploadDxf(f);
-    else uploadStep(f);
+    uploadFiles(e.dataTransfer.files, _KIND_BY_DZ[id]);
   });
 });
 

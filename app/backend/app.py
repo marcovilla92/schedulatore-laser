@@ -33,6 +33,63 @@ try:
 except Exception as _e:
     logger.warning('profili_tubolari.json non caricato: %s', _e)
 
+
+def _find_oda_converter():
+    """Cerca ODA File Converter installato sul sistema. Ritorna path .exe o None.
+    Strategia: env var ODA_FC_PATH > glob su Program Files (versione qualsiasi).
+    """
+    import glob
+    custom = os.environ.get('ODA_FC_PATH')
+    if custom and os.path.exists(custom):
+        return custom
+    candidates = []
+    for base in (r'C:\Program Files\ODA', r'C:\Program Files (x86)\ODA'):
+        if os.path.isdir(base):
+            candidates += glob.glob(os.path.join(base, 'ODAFileConverter*', 'ODAFileConverter.exe'))
+    return candidates[-1] if candidates else None
+
+
+def _convert_dwg_to_dxf(dwg_path):
+    """Converte un .dwg in .dxf usando ODA File Converter (subprocess).
+
+    Ritorna path del .dxf convertito, oppure dict {'error': ...} se conversione
+    impossibile (ODA non installato, timeout, file corrotto).
+    """
+    import subprocess
+    import shutil
+    import tempfile
+    import glob
+
+    oda = _find_oda_converter()
+    if not oda:
+        return {'error': 'ODA_NOT_INSTALLED'}
+
+    tmp_in = tempfile.mkdtemp(prefix='dwg_in_')
+    tmp_out = tempfile.mkdtemp(prefix='dwg_out_')
+    try:
+        # ODA processa intere cartelle, non file singoli
+        in_path = os.path.join(tmp_in, os.path.basename(dwg_path))
+        shutil.copy2(dwg_path, in_path)
+        # CLI: <input_dir> <output_dir> <out_ver> <out_format> <recurse> <audit>
+        cmd = [oda, tmp_in, tmp_out, 'ACAD2018', 'DXF', '0', '1']
+        proc = subprocess.run(cmd, capture_output=True, timeout=90)
+        if proc.returncode != 0:
+            return {'error': 'CONVERTER_FAILED', 'detail': proc.stderr.decode('utf-8', errors='ignore')[:200]}
+        out_files = glob.glob(os.path.join(tmp_out, '*.dxf'))
+        if not out_files:
+            return {'error': 'NO_OUTPUT', 'detail': 'ODA non ha prodotto DXF'}
+        # Sposta il DXF in un path che non scompare al cleanup di tmp_out
+        out_path = os.path.join(UPLOAD_FOLDER, 'tmp_conv_' + uuid.uuid4().hex + '.dxf')
+        shutil.copy2(out_files[0], out_path)
+        return out_path
+    except subprocess.TimeoutExpired:
+        return {'error': 'TIMEOUT'}
+    except Exception as e:
+        return {'error': 'EXCEPTION', 'detail': str(e)}
+    finally:
+        shutil.rmtree(tmp_in, ignore_errors=True)
+        shutil.rmtree(tmp_out, ignore_errors=True)
+
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
 CORS(app, origins=[r"http://localhost:*", r"http://127\.0\.0\.1:*", r"http://192\.168\.\d+\.\d+:*"])
@@ -1761,12 +1818,35 @@ def api_preventivi_import_dxf(preventivo_id):
         if not _require_role(admin_id, _PREV_WRITE_ROLES):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         if 'file' not in request.files:
-            return jsonify({'success': False, 'error': 'File DXF obbligatorio'}), 400
+            return jsonify({'success': False, 'error': 'File disegno obbligatorio'}), 400
         f = request.files['file']
-        if not f.filename or not f.filename.lower().endswith('.dxf'):
-            return jsonify({'success': False, 'error': 'File deve essere .dxf'}), 400
-        tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '.dxf')
-        f.save(tmp_path)
+        fname_lower = (f.filename or '').lower()
+        if not (fname_lower.endswith('.dxf') or fname_lower.endswith('.dwg')):
+            return jsonify({'success': False, 'error': 'File deve essere .dxf o .dwg'}), 400
+        # DWG: conversione automatica via ODA File Converter
+        is_dwg = fname_lower.endswith('.dwg')
+        if is_dwg:
+            tmp_dwg = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '.dwg')
+            f.save(tmp_dwg)
+            conv = _convert_dwg_to_dxf(tmp_dwg)
+            try: os.remove(tmp_dwg)
+            except OSError: pass
+            if isinstance(conv, dict) and conv.get('error'):
+                err_code = conv['error']
+                if err_code == 'ODA_NOT_INSTALLED':
+                    return jsonify({
+                        'success': False,
+                        'error': 'ODA File Converter non installato. Scarica e installa da: '
+                                 'https://www.opendesign.com/guestfiles/oda_file_converter '
+                                 '(gratuito, ~50MB). Una volta installato il DWG viene '
+                                 'convertito automaticamente in DXF. Alternativa: salva il '
+                                 'DWG come DXF (AutoCAD 2018) dal tuo CAD e ricarica.',
+                    }), 415
+                return jsonify({'success': False, 'error': 'Conversione DWG fallita: ' + err_code + ' ' + str(conv.get('detail', ''))}), 500
+            tmp_path = conv  # path al DXF convertito
+        else:
+            tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '.dxf')
+            f.save(tmp_path)
         try:
             # Config minimo per dxf_scanner (colori standard Lantek)
             dxf_cfg = {'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
