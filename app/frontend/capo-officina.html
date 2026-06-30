@@ -163,6 +163,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
 .badge.orange{ background: var(--orange-bg); color: var(--orange); }
 .badge.red   { background: var(--red-bg); color: var(--red); }
 .badge.gray  { background: #eef0f2; color: var(--gray-text); }
+.badge.purple { background: #f3e8ff; color: #6b21a8; }
 
 /* CALENDARIO */
 .cal-controls {
@@ -793,8 +794,9 @@ async function loadOrdini() {
       const stato_iniziale = tagliato
         ? '<span class="badge gray" title="Caricamento…">…</span>'
         : '<span class="badge orange">Da tagliare</span>';
+      const prevBadge = (o.origine === 'PREVENTIVO') ? ' <span class="badge purple" style="font-size:9px; padding:1px 6px;" title="Ordine creato da preventivo accettato">PREV</span>' : '';
       html += `<tr data-order-id="${o.id}" style="cursor:pointer;" onclick="openOrderDetailModal('${o.id}', '${label}')">
-        <td><code>${label}</code></td>
+        <td><code>${label}</code>${prevBadge}</td>
         <td>${escapeHtml(o.cliente || '')}</td>
         <td>${consTxt}</td>
         <td class="n"><span class="badge ${urgClass}">${giorni}${typeof giorni === 'number' ? ' g' : ''}</span></td>
@@ -935,8 +937,9 @@ function openDayModal(key) {
   document.getElementById('day-modal-title').textContent = `Consegne del ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} — ${orders.length} ordini`;
   let html = '<table class="tbl"><thead><tr><th>Ordine</th><th>Cliente</th><th>Stato</th></tr></thead><tbody>';
   for (const o of orders) {
+    const prevBadge = (o.origine === 'PREVENTIVO') ? ' <span class="badge purple" style="font-size:9px; padding:1px 6px;" title="Ordine creato da preventivo accettato">PREV</span>' : '';
     html += `<tr>
-      <td><code>${escapeHtml(o.numero_ordine)}</code></td>
+      <td><code>${escapeHtml(o.numero_ordine)}</code>${prevBadge}</td>
       <td>${escapeHtml(o.cliente || '')}</td>
       <td><span class="badge gray">${escapeHtml(o.status || '—')}</span></td>
     </tr>`;

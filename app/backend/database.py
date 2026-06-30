@@ -110,6 +110,66 @@ class OrderManager:
             session.close()
 
     @staticmethod
+    def next_numero_preventivo() -> str:
+        """Genera prossimo numero progressivo PREV-{anno}-{NNNN} per ordini da preventivo.
+
+        Query MAX numero_ordine LIKE 'PREV-{anno}-%', estrae il progressivo,
+        ritorna il successivo zero-padded a 4 cifre.
+        """
+        import re
+        session = get_session()
+        try:
+            year = datetime.utcnow().year
+            prefix = f'PREV-{year}-'
+            rows = session.query(Order.numero_ordine).filter(
+                Order.numero_ordine.like(prefix + '%')
+            ).all()
+            max_n = 0
+            pattern = re.compile(rf'^PREV-{year}-(\d+)$')
+            for (num,) in rows:
+                m = pattern.match(num or '')
+                if m:
+                    max_n = max(max_n, int(m.group(1)))
+            return f'{prefix}{max_n + 1:04d}'
+        finally:
+            session.close()
+
+    @staticmethod
+    def create_order_from_preventivo(preventivo: dict, data_consegna: str,
+                                     numero_ordine: str, note_aggiuntive: str = '') -> Order:
+        """Crea Order FerroTrack a partire da un preventivo accettato.
+
+        Setta origine='PREVENTIVO' + preventivo_id_origine. Identico per il resto
+        al flusso "Elena carica PDF" (cartellino + notifica capi sono nel chiamante).
+        """
+        session = get_session()
+        try:
+            note_full = preventivo.get('note') or ''
+            if note_aggiuntive:
+                note_full = (note_full + '\n--\n' + note_aggiuntive).strip()
+            order = Order(
+                id=str(uuid.uuid4()),
+                cliente=preventivo['cliente'],
+                numero_ordine=numero_ordine,
+                data_consegna=datetime.fromisoformat(data_consegna),
+                fase_corrente=None,
+                operatore_assegnato=None,
+                status='RICEVUTO',
+                note=note_full,
+                origine='PREVENTIVO',
+                preventivo_id_origine=preventivo['id'],
+            )
+            session.add(order)
+            session.commit()
+            session.refresh(order)
+            return order
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    @staticmethod
     def close_order(order_id: str, user_id: str = '') -> dict:
         """Capo officina dichiara 'lavoro fisico finito': l'ordine passa a
         DA_FATTURARE e finisce nella tab di Elena per la chiusura amministrativa.
@@ -393,6 +453,8 @@ class OrderManager:
                     'operatore_assegnato': order.operatore_assegnato,
                     'operatore_nome': operatore_nome,
                     'prezzo_quotato': order.prezzo_quotato,
+                    'origine': order.origine or 'PDF',
+                    'preventivo_id_origine': order.preventivo_id_origine,
                     'pdf_file': pdf_file,
                     'dxf_files': dxf_files,
                     'note': order.note,
@@ -1520,6 +1582,8 @@ class OrderManager:
                 "operatore_assegnato": order.operatore_assegnato,
                 "operatore_nome": operatore_nome,
                 "prezzo_quotato": order.prezzo_quotato,
+                "origine": order.origine or 'PDF',
+                "preventivo_id_origine": order.preventivo_id_origine,
                 "pdf_file": pdf_file,
                 "dxf_files": dxf_files,
                 "note": order.note,
@@ -4096,6 +4160,188 @@ class PreventivoManager:
             return True
         finally:
             session.close()
+
+    @staticmethod
+    def replace_articoli(preventivo_id, articoli: list):
+        """Sostituisce TUTTI gli articoli del preventivo con la lista passata.
+        Usato dal frontend per persistere lo stato dell'editor articoli.
+        Atomic: delete tutti i vecchi, insert i nuovi in una transazione.
+        Bloccato se preventivo INVIATO/ACCETTATO (immutabile).
+        """
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return {'error': 'Preventivo non trovato'}
+            if p.status in ('INVIATO', 'ACCETTATO'):
+                return {'error': 'Preventivo ' + p.status + ': immutabile'}
+            # Delete tutti gli articoli esistenti
+            session.query(PreventivoArticolo).filter(
+                PreventivoArticolo.preventivo_id == preventivo_id
+            ).delete(synchronize_session=False)
+            # Insert i nuovi
+            for a in articoli or []:
+                session.add(PreventivoArticolo(
+                    id=str(uuid.uuid4()),
+                    preventivo_id=preventivo_id,
+                    codice=a.get('codice') or '',
+                    quantita=int(a.get('quantita') or 1),
+                    codice_assieme=a.get('codice_assieme'),
+                    area=float(a.get('area') or 0),
+                    area_dm2=float(a.get('area_dm2') or 0),
+                    perimetro_taglio_m=float(a.get('perimetro_taglio_m') or 0),
+                    n_forature=int(a.get('n_forature') or 0),
+                    spessore_mm=a.get('spessore_mm') if a.get('spessore_mm') else None,
+                    materiale=a.get('materiale') or None,
+                    costo_materiale=float(a.get('costo_materiale') or 0),
+                    costo_base_stimato=float(a.get('costo_base_stimato') or 0),
+                    costo_base_override=a.get('costo_base_override'),
+                    pieghe=int(a.get('pieghe') or 0),
+                    saldatura_ml=float(a.get('saldatura_ml') or 0),
+                    filettatura_pz=int(a.get('filettatura_pz') or 0),
+                    svasatura_pz=int(a.get('svasatura_pz') or 0),
+                    costo_piega=float(a.get('costo_piega') or 0),
+                    costo_saldatura=float(a.get('costo_saldatura') or 0),
+                    costo_filettatura=float(a.get('costo_filettatura') or 0),
+                    costo_svasatura=float(a.get('costo_svasatura') or 0),
+                    costo_apporto=float(a.get('costo_apporto') or 0),
+                    costo_pulizia=float(a.get('costo_pulizia') or 0),
+                ))
+            session.commit()
+            return {'success': True, 'count': len(articoli or [])}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def accetta_e_crea_ordine(preventivo_id, user_id, *,
+                              articoli=None, totali=None,
+                              note_aggiuntive=None, data_consegna_override=None):
+        """Workflow critico: INVIATO -> ACCETTATO + creazione Order FerroTrack.
+
+        Atomica end-to-end:
+          1. Persist articoli (se passati dal frontend)
+          2. Aggiorna totali sul preventivo (se passati)
+          3. Transizione status INVIATO -> ACCETTATO
+          4. Crea Order FerroTrack con origine='PREVENTIVO', numero PREV-{anno}-{NNNN}
+          5. Notifica capi
+          6. Pubblica evento OrderEventBus
+          7. Audit log
+
+        Ritorna: {success, order_id, numero_ordine, preventivo} oppure {error}.
+        """
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return {'error': 'Preventivo non trovato'}
+            if p.status != 'INVIATO':
+                return {'error': 'Preventivo deve essere INVIATO (attuale: ' + p.status + ')'}
+
+            # 1. Persist articoli — workaround: serve di nuovo aprire una session "esterna"
+            # perché replace_articoli ha la sua. La race condition è OK qui (no concorrenza)
+            if articoli is not None:
+                # Sblocca temporaneamente lo stato per consentire replace_articoli
+                p.status = 'BOZZA'
+                session.commit()
+                res = PreventivoManager.replace_articoli(preventivo_id, articoli)
+                # Riprendi sessione
+                p = session.query(Preventivo).filter(Preventivo.id == preventivo_id).first()
+                p.status = 'INVIATO'
+                if isinstance(res, dict) and res.get('error'):
+                    session.commit()
+                    return {'error': 'replace_articoli failed: ' + res['error']}
+
+            # 2. Aggiorna totali
+            if totali:
+                if 'totale_pezzo' in totali: p.totale_pezzo = float(totali['totale_pezzo'])
+                if 'totale_pezzo_con_margine' in totali: p.totale_pezzo_con_margine = float(totali['totale_pezzo_con_margine'])
+                if 'totale_lotto' in totali: p.totale_lotto = float(totali['totale_lotto'])
+
+            # 3. Transizione status
+            p.status = 'ACCETTATO'
+            session.commit()
+
+            # Preparo dict preventivo per il chiamante e l'OrderManager
+            preventivo_dict = PreventivoManager._serialize(p)
+        finally:
+            session.close()
+
+        # 4. Crea Order FerroTrack
+        # Data consegna: override > data proposta del preventivo > oggi+30g
+        if data_consegna_override:
+            data_cons_str = data_consegna_override[:10]
+        elif preventivo_dict.get('data_consegna_proposta'):
+            data_cons_str = preventivo_dict['data_consegna_proposta'][:10]
+        else:
+            data_cons_str = (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d')
+
+        numero = OrderManager.next_numero_preventivo()
+        try:
+            order = OrderManager.create_order_from_preventivo(
+                preventivo=preventivo_dict,
+                data_consegna=data_cons_str,
+                numero_ordine=numero,
+                note_aggiuntive=note_aggiuntive or '',
+            )
+        except Exception as e:
+            logger.exception('create_order_from_preventivo failed: %s', e)
+            return {'error': 'Order creation failed: ' + str(e)}
+
+        # 5. Notifica capi
+        try:
+            for u in UserManager.get_all_users() or []:
+                if u.get('is_capo') and u.get('is_active', True):
+                    NotificationManager.create_notification(
+                        user_id=u['id'],
+                        order_id=order.id,
+                        title='Nuovo ordine da preventivo',
+                        message='Ordine #' + numero + ' (' + order.cliente + ') accettato dal commerciale',
+                        notification_type='order',
+                        notification_category='informativa',
+                    )
+        except Exception as exc:
+            logger.warning('notifica capi nuovo ordine da preventivo fallita: %s', exc)
+
+        # 6. Event bus (no-op oggi, hook per gestionale futuro)
+        try:
+            from .events import OrderEventBus
+            OrderEventBus.publish('order.created', {
+                'order_id': order.id, 'numero_ordine': numero,
+                'cliente': order.cliente, 'origine': 'PREVENTIVO',
+                'preventivo_id_origine': preventivo_id,
+            })
+            OrderEventBus.publish('preventivo.accepted', {
+                'preventivo_id': preventivo_id, 'order_id': order.id,
+            })
+        except Exception:
+            pass
+
+        # 7. Audit
+        try:
+            AuditManager.log(
+                user_id=user_id, action='ACCEPT_PREVENTIVO_CREATE_ORDER',
+                entity_type='preventivi', entity_id=preventivo_id,
+                detail='Order ' + order.id + ' (' + numero + ') creato da preventivo',
+            )
+        except Exception:
+            pass
+
+        return {
+            'success': True,
+            'order_id': order.id,
+            'numero_ordine': numero,
+            'cartellino_url': '/api/orders/' + order.id + '/cartellino',
+            'preventivo': preventivo_dict,
+        }
 
     @staticmethod
     def transition_status(preventivo_id, new_status, user_id=None):

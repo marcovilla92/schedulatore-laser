@@ -996,23 +996,48 @@ function closeAccettaModal() {
 
 async function confermaAccetta() {
   if (!currentPreventivo) return;
+  // Calcola totali correnti dal local state per inviarli al backend
+  const qty = parseInt(document.getElementById('ed-quantita').value, 10) || 1;
+  const margine = parseFloat(document.getElementById('ed-margine').value) || 0;
+  let totalePezzo = 0;
+  for (const a of currentArticoli) {
+    const base = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+    const lavorazioni = (a.costo_piega || 0) + (a.costo_saldatura || 0) + (a.costo_filettatura || 0) +
+                        (a.costo_svasatura || 0) + (a.costo_apporto || 0) + (a.costo_pulizia || 0);
+    totalePezzo += (base + lavorazioni) * (a.quantita || 1);
+  }
+  const conMargine = totalePezzo * (1 + margine / 100);
+  const totaleLotto = conMargine * qty;
+
+  document.getElementById('btn-conferma-accetta').disabled = true;
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/accetta`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         user_id: currentUser.id,
+        articoli: currentArticoli,
+        totali: {
+          totale_pezzo: totalePezzo,
+          totale_pezzo_con_margine: conMargine,
+          totale_lotto: totaleLotto,
+        },
         note_aggiuntive: document.getElementById('ap-note').value,
       }),
     });
     const d = await r.json();
     if (!d.success) { showMsg('msg-accetta', 'Errore: ' + d.error, 'var(--red)'); return; }
-    currentPreventivo = d.preventivo;
-    populateEditor(currentPreventivo);
     closeAccettaModal();
-    const noteFase4 = d._note ? ' (Nota: ' + d._note + ')' : '';
-    showMsg('msg-workflow', '✓ Preventivo accettato. Ordine FerroTrack creato.' + noteFase4, 'var(--green)');
-  } catch (e) { showMsg('msg-accetta', 'Errore: ' + e.message, 'var(--red)'); }
+    // Ricarica preventivo dal server per status aggiornato + articoli persistiti
+    await openPreventivo(currentPreventivo.id);
+    showMsg('msg-workflow',
+      `✓ Preventivo accettato. Ordine ${d.numero_ordine} creato in FerroTrack. ` +
+      `Cartellino: ${d.cartellino_url}`, 'var(--green)');
+  } catch (e) {
+    showMsg('msg-accetta', 'Errore: ' + e.message, 'var(--red)');
+  } finally {
+    document.getElementById('btn-conferma-accetta').disabled = false;
+  }
 }
 
 async function rifiutaPreventivo() {

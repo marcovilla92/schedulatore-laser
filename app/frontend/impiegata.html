@@ -2525,8 +2525,9 @@ function renderOrdersTable() {
       const statusColor = getStatusColor(o);
       const faseColor = faseColors[o.fase_corrente] || '#666';
       const consegna = o.data_consegna ? new Date(o.data_consegna).toLocaleDateString('it-IT') : 'N/A';
+      const prevBadgeImp = (o.origine === 'PREVENTIVO') ? ' <span style="display:inline-block; font-size:9px; padding:1px 6px; border-radius:100px; background:#f3e8ff; color:#6b21a8; font-weight:700; margin-left:6px;" title="Ordine da preventivo accettato">PREV</span>' : '';
       return `<tr style="cursor:pointer;" onclick="openDetailModal('${o.id}')">
-        <td style="font-weight: 600;">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}</td>
+        <td style="font-weight: 600;">${escapeHtml(o.numero_ordine || o.id?.substring(0, 8))}${prevBadgeImp}</td>
         <td>${escapeHtml(o.cliente) || 'N/A'}</td>
         <td>${consegna}</td>
         <td><span style="font-size: 12px; font-weight: 600; color: ${statusColor};">${o.status}</span></td>

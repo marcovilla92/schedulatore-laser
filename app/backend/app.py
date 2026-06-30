@@ -1870,36 +1870,36 @@ def api_preventivi_invia(preventivo_id):
 
 @app.route('/api/preventivi/<preventivo_id>/accetta', methods=['POST'])
 def api_preventivi_accetta(preventivo_id):
-    """Transizione INVIATO → ACCETTATO + creazione Order FerroTrack (in Fase 4).
+    """Transizione INVIATO → ACCETTATO + creazione atomica Order FerroTrack.
 
-    Per ora cambia solo lo status. La creazione dell'Order con cartellino barcode +
-    notifica capi è implementata nella Fase 4 del merge.
+    Body opzionale:
+      {
+        "user_id": "...",
+        "articoli": [...],                  // se passati, sostituiscono quelli su DB
+        "totali": {"totale_pezzo", "totale_pezzo_con_margine", "totale_lotto"},
+        "data_consegna": "YYYY-MM-DD",      // override della data_consegna_proposta
+        "note_aggiuntive": "..."            // appese alle note ordine FerroTrack
+      }
+
+    Output: {success, order_id, numero_ordine, cartellino_url, preventivo}.
     """
     try:
         data = request.get_json(silent=True) or {}
         user_id = data.get('user_id') or ''
         if not _require_role(user_id, _PREV_WRITE_ROLES):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
-        result = PreventivoManager.transition_status(preventivo_id, 'ACCETTATO', user_id=user_id)
-        if result is None:
-            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
-        if isinstance(result, dict) and result.get('error'):
-            return jsonify({'success': False, 'error': result['error']}), 409
-        try:
-            AuditManager.log(user_id=user_id, action='ACCEPT_PREVENTIVO',
-                             entity_type='preventivi', entity_id=preventivo_id,
-                             detail='INVIATO->ACCETTATO (Order creation: Fase 4)')
-        except Exception:
-            pass
-        try:
-            OrderEventBus.publish('preventivo.accepted', {'preventivo_id': preventivo_id})
-        except Exception:
-            pass
-        return jsonify({
-            'success': True,
-            'preventivo': result,
-            '_note': 'Order FerroTrack auto-creato in Fase 4 (placeholder per ora)',
-        }), 200
+        result = PreventivoManager.accetta_e_crea_ordine(
+            preventivo_id,
+            user_id=user_id,
+            articoli=data.get('articoli'),
+            totali=data.get('totali'),
+            note_aggiuntive=data.get('note_aggiuntive'),
+            data_consegna_override=data.get('data_consegna'),
+        )
+        if not result or result.get('error'):
+            err = result.get('error') if result else 'Errore sconosciuto'
+            return jsonify({'success': False, 'error': err}), 409
+        return jsonify(result), 200
     except Exception as e:
         logger.exception('preventivi accetta failed')
         return jsonify({'success': False, 'error': str(e)}), 500
