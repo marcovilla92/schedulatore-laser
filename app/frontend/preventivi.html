@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS FerroTrack — Preventivi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { animation: pageIn 0.3s ease-out; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+:root {
+  --bg: #fafafa;
+  --white: #ffffff;
+  --black: #000000;
+  --green: #1a7a48;
+  --green-light: #22a060;
+  --gray-text: #666666;
+  --gray-muted: #999999;
+  --border: #e5e5e5;
+  --blue: #1e40af;
+  --blue-bg: #e0eaff;
+  --red: #991b1b;
+  --red-bg: #ffe4e4;
+  --orange: #92400e;
+  --orange-bg: #fff4d6;
+  --green-badge: #166534;
+  --green-badge-bg: #e2fce9;
+  --purple: #6b21a8;
+  --purple-bg: #f3e8ff;
+  --shadow-sm: 0 0 0 1px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 0 0 1px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 0 0 1px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.06);
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+}
+
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--black); font-variant-numeric: tabular-nums; }
+
+/* TOPBAR */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 64px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; z-index: 1000;
+}
+.logo-section { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 36px; height: 36px; background: var(--green); color: white; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; font-family: 'Geist'; }
+.logo-main { font-family: 'Geist'; font-weight: 900; font-size: 18px; letter-spacing: -0.4px; }
+.logo-sub { font-family: 'Inter'; font-weight: 500; font-size: 12px; color: var(--gray-text); margin-top: -2px; }
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.user-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px 6px 6px; border: 1px solid var(--border); border-radius: 100px; background: var(--white);
+}
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--green); color: white;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.user-name { font-size: 13px; font-weight: 600; }
+.user-role { font-size: 11px; color: var(--gray-text); }
+.btn-tb {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--white);
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.btn-tb:hover { background: var(--bg); }
+.btn-tb.primary { background: var(--green); color: white; border-color: var(--green); }
+.btn-tb.primary:hover { background: var(--green-light); }
+.btn-tb.danger { color: var(--red); border-color: var(--red-bg); }
+
+/* TAB BAR */
+.tab-bar {
+  position: fixed; top: 64px; left: 0; right: 0; height: 56px;
+  background: var(--white); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 48px; gap: 4px; z-index: 999;
+}
+.tab-item {
+  padding: 18px 22px; font-size: 14px; font-weight: 600; color: var(--gray-text);
+  cursor: pointer; transition: all 0.15s; border-bottom: 2px solid transparent; height: 56px;
+  display: flex; align-items: center;
+}
+.tab-item.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-item:hover:not(.active) { color: var(--black); background: rgba(26,122,72,0.03); }
+
+/* PANELS */
+.panel { display: none; margin-top: 140px; padding: 0 48px 48px; }
+.panel.active { display: block; animation: tabFade 0.18s ease-out; }
+@keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.page-title { font-family: 'Geist'; font-weight: 900; font-size: 22px; letter-spacing: -0.5px; margin-bottom: 6px; }
+.page-sub { font-size: 13px; color: var(--gray-text); margin-bottom: 20px; }
+
+/* CARDS */
+.card {
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg);
+  margin-bottom: 20px; overflow: hidden; box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+.card:hover { box-shadow: var(--shadow-md); }
+.card-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-header h3 {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--gray-text); margin: 0;
+}
+.card-meta { font-size: 12px; color: var(--gray-muted); font-weight: 600; }
+.card-body { padding: 18px; }
+.card-body.no-pad { padding: 0; }
+
+/* FORM */
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.form-field { display: flex; flex-direction: column; flex: 1; min-width: 160px; }
+.form-field label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--gray-text); margin-bottom: 6px;
+}
+.form-field input, .form-field select, .form-field textarea {
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+  font-family: 'Inter', sans-serif; background: var(--white); color: var(--black);
+  font-variant-numeric: tabular-nums;
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+  outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,72,0.1);
+}
+.form-hint { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
+.form-msg { font-size: 13px; min-height: 18px; margin-top: 8px; }
+.btn-primary {
+  padding: 9px 16px; background: var(--green); color: white; border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.btn-primary:hover { background: var(--green-light); }
+.btn-primary:disabled { background: var(--gray-muted); cursor: not-allowed; }
+.btn-secondary {
+  padding: 9px 14px; background: var(--white); color: var(--black); border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.btn-secondary:hover { background: var(--bg); }
+.btn-danger {
+  padding: 6px 12px; background: var(--white); color: var(--red); border: 1px solid var(--red-bg); border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.btn-danger:hover { background: var(--red-bg); }
+.btn-mini {
+  padding: 5px 10px; background: var(--white); color: var(--black); border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 4px;
+}
+.btn-mini:hover { background: var(--bg); }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl thead th {
+  text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--gray-text); padding: 10px 18px;
+  border-bottom: 1px solid var(--border); background: #fafbfc;
+}
+.tbl tbody td { padding: 11px 18px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover { background: #fafbfc; }
+.tbl tbody tr.clickable { cursor: pointer; }
+.tbl .n { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl code { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px; color: var(--gray-text); }
+.tbl input.cell-edit, .tbl select.cell-edit {
+  width: 100%; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px;
+  background: transparent; font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.tbl input.cell-edit:focus, .tbl select.cell-edit:focus {
+  outline: none; border-color: var(--green); background: var(--white);
+}
+
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 9px;
+  border-radius: 100px; font-size: 11px; font-weight: 700;
+}
+.badge.green { background: var(--green-badge-bg); color: var(--green-badge); }
+.badge.blue { background: var(--blue-bg); color: var(--blue); }
+.badge.orange { background: var(--orange-bg); color: var(--orange); }
+.badge.red { background: var(--red-bg); color: var(--red); }
+.badge.gray { background: #eef0f2; color: var(--gray-text); }
+.badge.purple { background: var(--purple-bg); color: var(--purple); }
+
+.empty { padding: 32px; text-align: center; color: var(--gray-muted); font-size: 13px; }
+
+/* DROPZONE */
+.dropzone {
+  border: 2px dashed var(--border); border-radius: var(--r-lg);
+  padding: 28px; text-align: center; cursor: pointer; transition: all 0.18s;
+  background: #fafbfc;
+}
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--green); background: #f1f9f4;
+}
+.dropzone .icon { font-size: 28px; margin-bottom: 8px; color: var(--gray-muted); }
+.dropzone .label { font-weight: 600; font-size: 14px; }
+.dropzone .hint { font-size: 12px; color: var(--gray-text); margin-top: 4px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(250, 250, 250, 0.55);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  display: none; align-items: center; justify-content: center;
+  z-index: 2000; animation: fadeIn 0.2s ease-out;
+}
+.modal-overlay.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--white); border-radius: var(--r-xl); padding: 0;
+  width: 90%; max-width: 560px; max-height: 80vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.modal-head { padding: 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-head h3 { font-family: 'Geist'; font-weight: 800; font-size: 18px; margin: 0; }
+.modal-body { padding: 18px; overflow-y: auto; }
+.modal-foot { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: var(--bg); cursor: pointer; font-size: 16px; font-weight: 700;
+}
+.modal-close:hover { background: var(--red-bg); color: var(--red); }
+
+/* HERO KPI per riepilogo costi preventivo */
+.totals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 18px; }
+.total-card {
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px;
+  background: linear-gradient(180deg, #fafbfc, var(--white));
+}
+.total-card .label { font-size: 11px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px; }
+.total-card .value { font-family: 'Geist'; font-weight: 900; font-size: 28px; line-height: 1.1; letter-spacing: -0.5px; margin-top: 6px; }
+.total-card .value .unit { font-size: 14px; font-weight: 700; color: var(--gray-muted); margin-left: 3px; }
+.total-card.highlight { background: linear-gradient(180deg, #f1f9f4, #e2fce9); border-color: var(--green); }
+.total-card.highlight .value { color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-section">
+    <div class="logo-icon">LS</div>
+    <div>
+      <div class="logo-main">FerroTrack</div>
+      <div class="logo-sub">Preventivi</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-pill-avatar">?</div>
+      <div>
+        <div class="user-name" id="user-pill-name">Commerciale</div>
+        <div class="user-role" id="user-pill-role">Commerciale</div>
+      </div>
+    </div>
+    <button class="btn-tb danger" onclick="logout()">
+      <i data-lucide="log-out" style="width:14px;height:14px;vertical-align:-2px;"></i> Esci
+    </button>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-item active" data-tab="storico" onclick="switchTab('storico')">Storico preventivi</div>
+  <div class="tab-item" data-tab="editor" onclick="switchTab('editor')" id="tab-editor">Nuovo / In modifica</div>
+</div>
+
+<!-- ===================== PANEL: STORICO ===================== -->
+<div class="panel active" id="panel-storico">
+  <h2 class="page-title">Storico preventivi</h2>
+  <p class="page-sub">Lista preventivi recenti. Click su una riga per aprirla nell'editor.</p>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Filtri</h3>
+      <button class="btn-primary" onclick="newPreventivo()">+ Nuovo preventivo</button>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label>Cliente</label>
+          <input type="text" id="filter-cliente" placeholder="Cerca per nome cliente&hellip;" oninput="loadList()">
+        </div>
+        <div class="form-field" style="max-width:180px;">
+          <label>Status</label>
+          <select id="filter-status" onchange="loadList()">
+            <option value="">Tutti</option>
+            <option value="BOZZA">Bozza</option>
+            <option value="INVIATO">Inviato</option>
+            <option value="ACCETTATO">Accettato</option>
+            <option value="RIFIUTATO">Rifiutato</option>
+          </select>
+        </div>
+        <div class="form-field" style="flex:0 0 auto;">
+          <label>&nbsp;</label>
+          <button class="btn-secondary" onclick="loadList()">Aggiorna</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>Preventivi</h3>
+      <span class="card-meta" id="list-meta">&mdash;</span>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>N. ord. cliente</th>
+            <th>Status</th>
+            <th class="n">Quantit&agrave;</th>
+            <th class="n">Margine %</th>
+            <th class="n">Totale lotto</th>
+            <th>Data consegna</th>
+            <th>Creato il</th>
+          </tr>
+        </thead>
+        <tbody id="list-tbody">
+          <tr><td colspan="8" class="empty">Caricamento&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PANEL: EDITOR ===================== -->
+<div class="panel" id="panel-editor">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
+    <h2 class="page-title" id="editor-title">Nuovo preventivo</h2>
+    <span class="badge gray" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">&mdash;</span>
+  </div>
+  <p class="page-sub" id="editor-sub">Compila i dati base e salva, poi importa XLSX/DXF.</p>
+
+  <!-- Dati base -->
+  <div class="card">
+    <div class="card-header"><h3>Dati base preventivo</h3></div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-field" style="flex:2;">
+          <label>Cliente *</label>
+          <input type="text" id="ed-cliente" placeholder="Es. Acme S.r.l.">
+        </div>
+        <div class="form-field">
+          <label>N. ord. cliente (opz)</label>
+          <input type="text" id="ed-numero-cliente" placeholder="RFQ-2026-42">
+        </div>
+        <div class="form-field" style="max-width:120px;">
+          <label>Quantit&agrave;</label>
+          <input type="number" id="ed-quantita" min="1" value="1">
+        </div>
+        <div class="form-field" style="max-width:120px;">
+          <label>Margine %</label>
+          <input type="number" id="ed-margine" min="0" max="100" step="0.5" value="25">
+        </div>
+        <div class="form-field" style="max-width:170px;">
+          <label>Data consegna proposta</label>
+          <input type="date" id="ed-data-consegna">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:14px;">
+        <div class="form-field">
+          <label>Note interne</label>
+          <textarea id="ed-note" rows="2" placeholder="Note opzionali..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
+        <button class="btn-primary" onclick="saveBase()" id="btn-save-base">Salva</button>
+        <button class="btn-secondary" onclick="goStorico()">Annulla</button>
+        <span class="form-msg" id="msg-base"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import file (solo dopo creazione preventivo) -->
+  <div class="card" id="card-import" style="display:none;">
+    <div class="card-header"><h3>Importa file</h3></div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div class="dropzone" onclick="document.getElementById('inp-xlsx').click()" id="dz-xlsx">
+          <div class="icon"><i data-lucide="file-spreadsheet" style="width:32px;height:32px;"></i></div>
+          <div class="label">XLSX Lantek</div>
+          <div class="hint">Click o trascina file qui. Estrae articoli con codice + costo materiale.</div>
+          <input type="file" id="inp-xlsx" accept=".xlsx" style="display:none;" onchange="uploadXlsx(this.files[0])">
+        </div>
+        <div class="dropzone" onclick="document.getElementById('inp-dxf').click()" id="dz-dxf">
+          <div class="icon"><i data-lucide="file-code" style="width:32px;height:32px;"></i></div>
+          <div class="label">DXF cliente</div>
+          <div class="hint">Estrae pieghe, saldature, area e perimetro di taglio. Il file non viene salvato.</div>
+          <input type="file" id="inp-dxf" accept=".dxf" style="display:none;" onchange="uploadDxf(this.files[0])">
+        </div>
+      </div>
+      <div class="form-msg" id="msg-import"></div>
+    </div>
+  </div>
+
+  <!-- Articoli -->
+  <div class="card" id="card-articoli" style="display:none;">
+    <div class="card-header">
+      <h3>Articoli</h3>
+      <div>
+        <button class="btn-mini" onclick="addArticoloManuale()">+ Aggiungi manuale</button>
+        <button class="btn-mini" onclick="stimaTutti()">Stima costo laser tutti</button>
+      </div>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Codice</th>
+            <th class="n">Qty</th>
+            <th>Materiale</th>
+            <th class="n">Spess. (mm)</th>
+            <th class="n">Area (dm&sup2;)</th>
+            <th class="n">Perim. (m)</th>
+            <th class="n">Forat.</th>
+            <th class="n">Costo base &euro;</th>
+            <th class="n">Pieghe</th>
+            <th class="n">Sald. (ml)</th>
+            <th style="text-align:right;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="articoli-tbody">
+          <tr><td colspan="11" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Riepilogo totali -->
+  <div class="card" id="card-totali" style="display:none;">
+    <div class="card-header"><h3>Riepilogo costi</h3></div>
+    <div class="card-body no-pad">
+      <div class="totals-grid">
+        <div class="total-card">
+          <div class="label">Totale pezzo (base)</div>
+          <div class="value" id="t-pezzo">0.00<span class="unit">&euro;</span></div>
+        </div>
+        <div class="total-card">
+          <div class="label">Con margine</div>
+          <div class="value" id="t-margine">0.00<span class="unit">&euro;</span></div>
+        </div>
+        <div class="total-card highlight">
+          <div class="label">Totale lotto (<span id="t-qty">1</span> pz)</div>
+          <div class="value" id="t-lotto">0.00<span class="unit">&euro;</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Azioni workflow -->
+  <div class="card" id="card-azioni" style="display:none;">
+    <div class="card-header"><h3>Azioni workflow</h3></div>
+    <div class="card-body">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button class="btn-secondary" onclick="exportPdf()">
+          <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> Esporta PDF
+        </button>
+        <button class="btn-primary" onclick="inviaPreventivo()" id="btn-invia">
+          Invia al cliente (BOZZA &rarr; INVIATO)
+        </button>
+        <button class="btn-primary" onclick="openAccettaModal()" id="btn-accetta" style="display:none;">
+          Accetta e manda in produzione
+        </button>
+        <button class="btn-danger" onclick="rifiutaPreventivo()" id="btn-rifiuta" style="display:none;">
+          Rifiutato dal cliente
+        </button>
+        <span class="form-msg" id="msg-workflow"></span>
+      </div>
+      <div class="form-hint" style="margin-top:10px;">
+        Una volta inviato al cliente, il preventivo diventa <b>immutabile</b>. Per modifiche crea una nuova versione.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: accetta preventivo -->
+<div class="modal-overlay" id="modal-accetta" onclick="if(event.target===this)closeAccettaModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Accetta e manda in produzione</h3>
+      <button class="modal-close" onclick="closeAccettaModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--gray-text); margin-bottom:14px;">
+        Cliccando <b>Conferma</b>, viene creato un ordine FerroTrack con un cartellino barcode
+        pronto per l'officina. Verranno notificati i capi.
+      </p>
+      <div class="card-body no-pad" style="background:#fafbfc; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="display:grid; grid-template-columns: 120px 1fr; gap:8px 14px; font-size:13px;">
+          <div style="color:var(--gray-text); font-weight:600;">Cliente</div><div id="ap-cliente">&mdash;</div>
+          <div style="color:var(--gray-text); font-weight:600;">N. ordine</div><div><code id="ap-numero">PREV-AUTO</code></div>
+          <div style="color:var(--gray-text); font-weight:600;">Data consegna</div><div id="ap-data">&mdash;</div>
+          <div style="color:var(--gray-text); font-weight:600;">Quantit&agrave;</div><div id="ap-qty">&mdash;</div>
+          <div style="color:var(--gray-text); font-weight:600;">Totale lotto</div><div id="ap-totale" style="font-weight:700;">&mdash;</div>
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:14px;">
+        <label>Note aggiuntive per officina (opzionale)</label>
+        <textarea id="ap-note" rows="2" placeholder="Es: spedizione franco fabbrica"></textarea>
+      </div>
+      <div class="form-msg" id="msg-accetta"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeAccettaModal()">Annulla</button>
+      <button class="btn-primary" onclick="confermaAccetta()" id="btn-conferma-accetta">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = '';
+let currentUser = null;
+let currentPreventivo = null;  // oggetto preventivo corrente caricato nell'editor
+let currentArticoli = [];      // lista articoli (locale, sincronizzata col DB via save)
+
+// Materiali (sync con app_config.json)
+const MATERIALI = ['', 'S235', 'INOX_304', 'INOX_316', 'ALU_5754', 'ALU_5083'];
+
+// ---------- session / topbar ----------
+window.addEventListener('load', () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (!user.id) { window.location.href = '/login.html'; return; }
+  currentUser = user;
+  const perms = user.permissions || [];
+  const isAuth = user.role === 'Commerciale' || user.role === 'Amministratore' || user.is_capo;
+  if (!isAuth) {
+    if (user.role === 'Operaio Laser') window.location.href = '/laser.html';
+    else if (user.role === 'Impiegata') window.location.href = '/impiegata.html';
+    else window.location.href = '/operaio-info.html';
+    return;
+  }
+  const initials = (user.name || '').split(' ').map(w => w[0]).join('').toUpperCase() || '?';
+  const av = document.getElementById('user-pill-avatar');
+  av.textContent = initials;
+  av.style.background = colorFromName(user.name);
+  document.getElementById('user-pill-name').textContent = user.name || 'Commerciale';
+  document.getElementById('user-pill-role').textContent = user.role || 'Commerciale';
+  if (window.lucide) lucide.createIcons();
+  switchTab('storico');
+});
+
+function colorFromName(name) {
+  if (!name) return '#1a7a48';
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360}, 58%, 42%)`;
+}
+
+function logout() {
+  localStorage.removeItem('currentUser');
+  window.location.href = '/login.html';
+}
+
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showMsg(elId, text, color) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.color = color || 'var(--gray-text)';
+  el.textContent = text;
+  if (color === 'var(--green)') {
+    setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 3500);
+  }
+}
+
+function statusBadge(status) {
+  const map = {
+    'BOZZA': 'gray', 'INVIATO': 'blue',
+    'ACCETTATO': 'green', 'RIFIUTATO': 'red',
+  };
+  return `<span class="badge ${map[status] || 'gray'}">${status}</span>`;
+}
+
+function formatEur(v) {
+  if (v == null || isNaN(v)) return '—';
+  return Number(v).toFixed(2).replace('.', ',');
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('it-IT'); } catch(e) { return iso; }
+}
+
+// ---------- tab switching ----------
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab-item[data-tab="${tabId}"]`).classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tabId}`).classList.add('active');
+  if (tabId === 'storico') loadList();
+  if (window.lucide) lucide.createIcons();
+}
+
+function goStorico() {
+  currentPreventivo = null;
+  currentArticoli = [];
+  switchTab('storico');
+}
+
+// ============================================================
+//  STORICO (LIST)
+// ============================================================
+async function loadList() {
+  const tbody = document.getElementById('list-tbody');
+  const meta = document.getElementById('list-meta');
+  const cliente = document.getElementById('filter-cliente').value.trim();
+  const status = document.getElementById('filter-status').value;
+  let url = `${API_URL}/api/preventivi?limit=200`;
+  if (cliente) url += `&cliente=${encodeURIComponent(cliente)}`;
+  if (status) url += `&status=${encodeURIComponent(status)}`;
+  try {
+    const r = await fetch(url);
+    const d = await r.json();
+    const items = d.preventivi || [];
+    meta.textContent = `${items.length} preventivi`;
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">Nessun preventivo. Click "+ Nuovo preventivo" per iniziare.</td></tr>';
+      return;
+    }
+    let html = '';
+    for (const p of items) {
+      html += `<tr class="clickable" onclick="openPreventivo('${p.id}')">
+        <td><b>${escapeHtml(p.cliente)}</b></td>
+        <td><code>${escapeHtml(p.numero_ordine_cliente || '—')}</code></td>
+        <td>${statusBadge(p.status)}</td>
+        <td class="n">${p.quantita}</td>
+        <td class="n">${(p.margine_pct || 0).toFixed(1)}%</td>
+        <td class="n" style="font-weight:700;">${formatEur(p.totale_lotto)} €</td>
+        <td style="color:var(--gray-text); font-size:12px;">${formatDate(p.data_consegna_proposta)}</td>
+        <td style="color:var(--gray-text); font-size:12px;">${formatDate(p.data_creazione)}</td>
+      </tr>`;
+    }
+    tbody.innerHTML = html;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">Errore: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+// ============================================================
+//  EDITOR (Nuovo / In modifica)
+// ============================================================
+function newPreventivo() {
+  currentPreventivo = null;
+  currentArticoli = [];
+  document.getElementById('editor-title').textContent = 'Nuovo preventivo';
+  document.getElementById('editor-status-badge').outerHTML = '<span class="badge gray" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">NUOVO</span>';
+  document.getElementById('editor-sub').textContent = 'Compila i dati base e salva, poi importa XLSX/DXF.';
+  document.getElementById('ed-cliente').value = '';
+  document.getElementById('ed-numero-cliente').value = '';
+  document.getElementById('ed-quantita').value = 1;
+  document.getElementById('ed-margine').value = 25;
+  document.getElementById('ed-data-consegna').value = '';
+  document.getElementById('ed-note').value = '';
+  document.getElementById('card-import').style.display = 'none';
+  document.getElementById('card-articoli').style.display = 'none';
+  document.getElementById('card-totali').style.display = 'none';
+  document.getElementById('card-azioni').style.display = 'none';
+  document.getElementById('btn-save-base').textContent = 'Crea preventivo';
+  showMsg('msg-base', '', '');
+  switchTab('editor');
+}
+
+async function openPreventivo(id) {
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${id}`);
+    const d = await r.json();
+    if (!d.success) { alert('Errore: ' + (d.error || 'preventivo non trovato')); return; }
+    const p = d.preventivo;
+    currentPreventivo = p;
+    currentArticoli = p.articoli || [];
+    populateEditor(p);
+    switchTab('editor');
+  } catch (e) { alert('Errore: ' + e.message); }
+}
+
+function populateEditor(p) {
+  document.getElementById('editor-title').textContent = `Preventivo per ${p.cliente}`;
+  document.getElementById('editor-status-badge').outerHTML = statusBadge(p.status).replace('class="badge', 'class="badge').replace('">', '" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">');
+  document.getElementById('editor-sub').textContent = `Versione ${p.versione} • creato il ${formatDate(p.data_creazione)}`;
+  document.getElementById('ed-cliente').value = p.cliente || '';
+  document.getElementById('ed-numero-cliente').value = p.numero_ordine_cliente || '';
+  document.getElementById('ed-quantita').value = p.quantita || 1;
+  document.getElementById('ed-margine').value = p.margine_pct || 0;
+  document.getElementById('ed-data-consegna').value = p.data_consegna_proposta ? p.data_consegna_proposta.slice(0,10) : '';
+  document.getElementById('ed-note').value = p.note || '';
+  document.getElementById('btn-save-base').textContent = 'Salva modifiche';
+  // Sezioni mostrate
+  document.getElementById('card-import').style.display = '';
+  document.getElementById('card-articoli').style.display = '';
+  document.getElementById('card-totali').style.display = '';
+  document.getElementById('card-azioni').style.display = '';
+  // Disabilita save/import se non BOZZA
+  const editable = p.status === 'BOZZA';
+  document.getElementById('btn-save-base').disabled = !editable;
+  document.getElementById('btn-invia').style.display = (p.status === 'BOZZA') ? '' : 'none';
+  document.getElementById('btn-accetta').style.display = (p.status === 'INVIATO') ? '' : 'none';
+  document.getElementById('btn-rifiuta').style.display = (p.status === 'INVIATO') ? '' : 'none';
+  document.getElementById('card-import').style.opacity = editable ? '1' : '0.5';
+  document.getElementById('card-import').style.pointerEvents = editable ? '' : 'none';
+  renderArticoli();
+  recalcTotali();
+}
+
+async function saveBase() {
+  const cliente = document.getElementById('ed-cliente').value.trim();
+  const numeroCliente = document.getElementById('ed-numero-cliente').value.trim();
+  const qty = parseInt(document.getElementById('ed-quantita').value, 10);
+  const margine = parseFloat(document.getElementById('ed-margine').value);
+  const dataConsegna = document.getElementById('ed-data-consegna').value;
+  const note = document.getElementById('ed-note').value;
+  if (!cliente) { showMsg('msg-base', 'Cliente obbligatorio', 'var(--red)'); return; }
+  if (!qty || qty < 1) { showMsg('msg-base', 'Quantità deve essere ≥ 1', 'var(--red)'); return; }
+  try {
+    if (!currentPreventivo) {
+      // CREATE
+      const r = await fetch(`${API_URL}/api/preventivi`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          cliente, numero_ordine_cliente: numeroCliente, quantita: qty,
+          margine_pct: margine, data_consegna_proposta: dataConsegna || null, note,
+          created_by: currentUser.id,
+        })
+      });
+      const d = await r.json();
+      if (!d.success) { showMsg('msg-base', 'Errore: ' + d.error, 'var(--red)'); return; }
+      currentPreventivo = d.preventivo;
+      currentArticoli = [];
+      populateEditor(currentPreventivo);
+      showMsg('msg-base', '✓ Preventivo creato (BOZZA)', 'var(--green)');
+    } else {
+      // UPDATE
+      const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          cliente, numero_ordine_cliente: numeroCliente, quantita: qty,
+          margine_pct: margine, data_consegna_proposta: dataConsegna || null, note,
+          updated_by: currentUser.id,
+        })
+      });
+      const d = await r.json();
+      if (!d.success) { showMsg('msg-base', 'Errore: ' + d.error, 'var(--red)'); return; }
+      currentPreventivo = d.preventivo;
+      populateEditor(currentPreventivo);
+      recalcTotali();
+      showMsg('msg-base', '✓ Modifiche salvate', 'var(--green)');
+    }
+  } catch (e) { showMsg('msg-base', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+// ============================================================
+//  ARTICOLI — gestione locale (sync DB completo in Fase 3 estesa)
+// ============================================================
+function renderArticoli() {
+  const tbody = document.getElementById('articoli-tbody');
+  if (!currentArticoli.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>';
+    return;
+  }
+  let html = '';
+  currentArticoli.forEach((a, i) => {
+    const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+    html += `<tr>
+      <td><code>${escapeHtml(a.codice || '—')}</code></td>
+      <td class="n"><input type="number" class="cell-edit" value="${a.quantita || 1}" min="1" style="text-align:right;" onchange="updateArt(${i}, 'quantita', this.value, true)"></td>
+      <td>
+        <select class="cell-edit" onchange="updateArt(${i}, 'materiale', this.value)">
+          ${MATERIALI.map(m => `<option value="${m}" ${a.materiale === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}
+        </select>
+      </td>
+      <td class="n"><input type="number" class="cell-edit" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
+      <td class="n" style="color:var(--gray-text);">${(a.area_dm2 || 0).toFixed(2)}</td>
+      <td class="n" style="color:var(--gray-text);">${(a.perimetro_taglio_m || 0).toFixed(2)}</td>
+      <td class="n" style="color:var(--gray-text);">${a.n_forature || 0}</td>
+      <td class="n">
+        <input type="number" class="cell-edit" value="${baseEff.toFixed ? baseEff.toFixed(2) : baseEff}" step="0.01" style="text-align:right; font-weight:600;" onchange="updateArt(${i}, 'costo_base_override', this.value, true)" title="Costo base (materiale + taglio). Modificabile a mano.">
+      </td>
+      <td class="n" style="color:var(--gray-text);">${a.pieghe || 0}</td>
+      <td class="n" style="color:var(--gray-text);">${(a.saldatura_ml || 0).toFixed(1)}</td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn-mini" onclick="stimaArt(${i})" title="Ricalcola stima costo base laser">Stima</button>
+        <button class="btn-danger" onclick="removeArt(${i})">Rimuovi</button>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+function updateArt(idx, field, value, numeric) {
+  if (!currentArticoli[idx]) return;
+  currentArticoli[idx][field] = numeric ? parseFloat(value) || 0 : value;
+  recalcTotali();
+}
+
+function addArticoloManuale() {
+  currentArticoli.push({
+    id: 'tmp-' + Date.now(),
+    codice: 'ART-' + (currentArticoli.length + 1),
+    quantita: 1,
+    materiale: 'S235',
+    spessore_mm: 2,
+    area_dm2: 0, perimetro_taglio_m: 0, n_forature: 0,
+    costo_materiale: 0, costo_base_stimato: 0, costo_base_override: null,
+    pieghe: 0, saldatura_ml: 0, filettatura_pz: 0, svasatura_pz: 0,
+    costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
+    costo_apporto: 0, costo_pulizia: 0,
+  });
+  renderArticoli();
+}
+
+function removeArt(idx) {
+  if (!confirm('Rimuovere articolo "' + (currentArticoli[idx].codice || '?') + '"?')) return;
+  currentArticoli.splice(idx, 1);
+  renderArticoli();
+  recalcTotali();
+}
+
+async function stimaArt(idx) {
+  const a = currentArticoli[idx];
+  if (!a.materiale || !a.spessore_mm) { alert('Inserisci materiale e spessore prima di stimare.'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/articoli/x/stima-base`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ admin_id: currentUser.id, articolo: a }),
+    });
+    const d = await r.json();
+    if (!d.success) { alert('Errore: ' + d.error); return; }
+    a.costo_base_stimato = d.stima.base;
+    a.costo_base_override = null;  // reset override quando si rigenera la stima
+    renderArticoli();
+    recalcTotali();
+    if (d.stima.warnings && d.stima.warnings.length) {
+      showMsg('msg-import', '⚠ ' + d.stima.warnings.join(' | '), 'var(--orange)');
+    }
+  } catch (e) { alert('Errore: ' + e.message); }
+}
+
+async function stimaTutti() {
+  if (!currentArticoli.length) return;
+  let stimati = 0, errori = 0;
+  for (let i = 0; i < currentArticoli.length; i++) {
+    const a = currentArticoli[i];
+    if (!a.materiale || !a.spessore_mm) { errori++; continue; }
+    try {
+      const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/articoli/x/stima-base`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ admin_id: currentUser.id, articolo: a }),
+      });
+      const d = await r.json();
+      if (d.success) { a.costo_base_stimato = d.stima.base; a.costo_base_override = null; stimati++; }
+      else errori++;
+    } catch (e) { errori++; }
+  }
+  renderArticoli(); recalcTotali();
+  showMsg('msg-import', `Stimati ${stimati} articoli, ${errori} saltati (manca materiale/spessore)`, errori ? 'var(--orange)' : 'var(--green)');
+}
+
+function recalcTotali() {
+  const qty = parseInt(document.getElementById('ed-quantita').value, 10) || 1;
+  const margine = parseFloat(document.getElementById('ed-margine').value) || 0;
+  let totalePezzo = 0;
+  for (const a of currentArticoli) {
+    const base = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+    const lavorazioni = (a.costo_piega || 0) + (a.costo_saldatura || 0) + (a.costo_filettatura || 0) +
+                        (a.costo_svasatura || 0) + (a.costo_apporto || 0) + (a.costo_pulizia || 0);
+    totalePezzo += (base + lavorazioni) * (a.quantita || 1);
+  }
+  const conMargine = totalePezzo * (1 + margine / 100);
+  const totaleLotto = conMargine * qty;
+  document.getElementById('t-pezzo').innerHTML = formatEur(totalePezzo) + '<span class="unit">€</span>';
+  document.getElementById('t-margine').innerHTML = formatEur(conMargine) + '<span class="unit">€</span>';
+  document.getElementById('t-lotto').innerHTML = formatEur(totaleLotto) + '<span class="unit">€</span>';
+  document.getElementById('t-qty').textContent = qty;
+}
+
+// ============================================================
+//  IMPORT FILE
+// ============================================================
+async function uploadXlsx(file) {
+  if (!file || !currentPreventivo) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('admin_id', currentUser.id);
+  showMsg('msg-import', 'Parsing XLSX Lantek…', 'var(--gray-text)');
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/import-xlsx?admin_id=${encodeURIComponent(currentUser.id)}`, {
+      method: 'POST', body: fd
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-import', 'Errore: ' + d.error, 'var(--red)'); return; }
+    // Aggiungi/merge articoli estratti
+    for (const a of d.articoli) {
+      currentArticoli.push({
+        id: 'tmp-' + Date.now() + '-' + Math.random(),
+        codice: a.codice,
+        quantita: a.quantita || 1,
+        materiale: 'S235',  // default, l'utente deve scegliere
+        spessore_mm: null,
+        area: a.area || 0, area_dm2: 0,
+        perimetro_taglio_m: 0, n_forature: 0,
+        costo_materiale: a.costo || 0,
+        costo_base_stimato: 0, costo_base_override: null,
+        pieghe: 0, saldatura_ml: 0, filettatura_pz: 0, svasatura_pz: 0,
+        costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
+        costo_apporto: 0, costo_pulizia: 0,
+      });
+    }
+    renderArticoli(); recalcTotali();
+    showMsg('msg-import', `✓ Importati ${d.count} articoli da XLSX. Imposta materiale + spessore e clicca "Stima costo laser tutti".`, 'var(--green)');
+  } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+async function uploadDxf(file) {
+  if (!file || !currentPreventivo) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  showMsg('msg-import', 'Parsing DXF…', 'var(--gray-text)');
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/import-dxf?admin_id=${encodeURIComponent(currentUser.id)}`, {
+      method: 'POST', body: fd
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-import', 'Errore: ' + d.error, 'var(--red)'); return; }
+    // Crea articolo nuovo dalle estrazioni DXF (la UI permette di rinominarlo)
+    const fname = (file.name || 'DXF').replace(/\.dxf$/i, '');
+    currentArticoli.push({
+      id: 'tmp-' + Date.now() + '-' + Math.random(),
+      codice: fname,
+      quantita: 1,
+      materiale: 'S235', spessore_mm: 2,
+      area: 0, area_dm2: d.geometria.area_dm2 || 0,
+      perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
+      n_forature: d.geometria.n_forature || 0,
+      costo_materiale: 0, costo_base_stimato: 0, costo_base_override: null,
+      pieghe: d.lavorazioni.pieghe || 0,
+      saldatura_ml: d.lavorazioni.saldatura_ml || 0,
+      filettatura_pz: d.lavorazioni.filettatura_pz || 0,
+      svasatura_pz: d.lavorazioni.svasatura_pz || 0,
+      costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
+      costo_apporto: 0, costo_pulizia: 0,
+    });
+    renderArticoli(); recalcTotali();
+    showMsg('msg-import', `✓ DXF importato: ${d.lavorazioni.pieghe} pieghe, ${d.lavorazioni.saldatura_ml.toFixed(1)}ml sald., ${d.geometria.area_dm2}dm² area. Imposta materiale e clicca Stima.`, 'var(--green)');
+  } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+// ============================================================
+//  WORKFLOW (invia / accetta / rifiuta)
+// ============================================================
+async function inviaPreventivo() {
+  if (!currentPreventivo) return;
+  if (!confirm('Inviare preventivo al cliente?\n\nDopo l\'invio diventa IMMUTABILE.')) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/invia`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ user_id: currentUser.id }),
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-workflow', 'Errore: ' + d.error, 'var(--red)'); return; }
+    currentPreventivo = d.preventivo;
+    populateEditor(currentPreventivo);
+    showMsg('msg-workflow', '✓ Preventivo inviato. Aspetta accettazione cliente.', 'var(--green)');
+  } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+function openAccettaModal() {
+  if (!currentPreventivo) return;
+  document.getElementById('ap-cliente').textContent = currentPreventivo.cliente;
+  document.getElementById('ap-data').textContent = formatDate(currentPreventivo.data_consegna_proposta);
+  document.getElementById('ap-qty').textContent = currentPreventivo.quantita;
+  document.getElementById('ap-totale').textContent = formatEur(currentPreventivo.totale_lotto || document.getElementById('t-lotto').textContent.replace('€','').trim().replace(',','.')) + ' €';
+  document.getElementById('ap-note').value = '';
+  showMsg('msg-accetta', '', '');
+  document.getElementById('modal-accetta').classList.add('active');
+}
+
+function closeAccettaModal() {
+  document.getElementById('modal-accetta').classList.remove('active');
+}
+
+async function confermaAccetta() {
+  if (!currentPreventivo) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/accetta`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        note_aggiuntive: document.getElementById('ap-note').value,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-accetta', 'Errore: ' + d.error, 'var(--red)'); return; }
+    currentPreventivo = d.preventivo;
+    populateEditor(currentPreventivo);
+    closeAccettaModal();
+    const noteFase4 = d._note ? ' (Nota: ' + d._note + ')' : '';
+    showMsg('msg-workflow', '✓ Preventivo accettato. Ordine FerroTrack creato.' + noteFase4, 'var(--green)');
+  } catch (e) { showMsg('msg-accetta', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+async function rifiutaPreventivo() {
+  if (!currentPreventivo) return;
+  if (!confirm('Marcare preventivo come RIFIUTATO dal cliente?')) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/rifiuta`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ user_id: currentUser.id }),
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-workflow', 'Errore: ' + d.error, 'var(--red)'); return; }
+    currentPreventivo = d.preventivo;
+    populateEditor(currentPreventivo);
+    showMsg('msg-workflow', 'Preventivo marcato RIFIUTATO.', 'var(--gray-text)');
+  } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+async function exportPdf() {
+  if (!currentPreventivo) return;
+  showMsg('msg-workflow', 'Generazione PDF (Fase 3 estesa, non implementato ancora)…', 'var(--gray-text)');
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/pdf`);
+    if (r.status === 501) {
+      showMsg('msg-workflow', 'PDF export: implementazione completa in arrivo (Fase 3 estesa).', 'var(--orange)');
+    } else if (r.ok) {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url);
+    }
+  } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+// DRAG&DROP support per dropzone
+['dz-xlsx', 'dz-dxf'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('dragover'); });
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault(); el.classList.remove('dragover');
+    if (!e.dataTransfer.files.length) return;
+    const f = e.dataTransfer.files[0];
+    if (id === 'dz-xlsx') uploadXlsx(f);
+    else uploadDxf(f);
+  });
+});
+
+// Ricalc totali quando si cambia quantità o margine nel form base
+document.getElementById('ed-quantita').addEventListener('input', recalcTotali);
+document.getElementById('ed-margine').addEventListener('input', recalcTotali);
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>
