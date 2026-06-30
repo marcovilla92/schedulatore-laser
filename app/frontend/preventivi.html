@@ -1321,13 +1321,34 @@ async function uploadDxf(file, suppressMsg) {
     });
     const d = await r.json();
     if (!d.success) { showMsg('msg-import', 'Errore: ' + d.error, 'var(--red)'); return; }
-    // Crea articolo nuovo dalle estrazioni DXF (la UI permette di rinominarlo)
-    const fname = (file.name || 'DXF').replace(/\.dxf$/i, '');
+    // Nome file = probabile codice articolo (es. "20PA00693-00.dxf" → codice "20PA00693-00")
+    const fname = (file.name || 'DXF').replace(/\.(dxf|dwg)$/i, '');
+    // MERGE: se esiste già un articolo con questo codice (importato da Lantek XLSX),
+    // aggiorno solo le lavorazioni + geometria mantenendo il materiale/spessore Lantek.
+    const existingIdx = currentArticoli.findIndex(a => (a.codice || '').toLowerCase() === fname.toLowerCase());
+    if (existingIdx >= 0) {
+      const ex = currentArticoli[existingIdx];
+      // Aggiorna SOLO le lavorazioni rilevate dal DXF + geometria + dxf_filename per preview.
+      // NON tocca: materiale, spessore_mm, costo_materiale, area dal Lantek.
+      ex.pieghe = d.lavorazioni.pieghe || ex.pieghe || 0;
+      ex.saldatura_ml = d.lavorazioni.saldatura_ml || ex.saldatura_ml || 0;
+      ex.filettatura_pz = d.lavorazioni.filettatura_pz || ex.filettatura_pz || 0;
+      ex.svasatura_pz = d.lavorazioni.svasatura_pz || ex.svasatura_pz || 0;
+      ex.n_forature = d.geometria.n_forature || ex.n_forature || 0;
+      // Geometria DXF SOLO se Lantek non l'aveva (Lantek dà valori reali più affidabili del bbox DXF)
+      if (!ex.perimetro_taglio_m) ex.perimetro_taglio_m = d.geometria.perimetro_taglio_m || 0;
+      if (!ex.area_dm2) ex.area_dm2 = d.geometria.area_dm2 || 0;
+      ex.dxf_filename = d.filename || file.name;
+      if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente (lavorazioni aggiornate, materiale mantenuto).`, 'var(--green)');
+      renderArticoli(); recalcTotali();
+      return;
+    }
+    // Articolo NUOVO da DXF puro (no Lantek): materiale e spessore VUOTI, il commerciale deve sceglierli
     currentArticoli.push({
       id: 'tmp-' + Date.now() + '-' + Math.random(),
       codice: fname,
       quantita: 1,
-      materiale: 'S235', spessore_mm: 2,
+      materiale: '', spessore_mm: null,  // VUOTI → forza la scelta del commerciale
       area: 0, area_dm2: d.geometria.area_dm2 || 0,
       perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
       n_forature: d.geometria.n_forature || 0,
@@ -1338,10 +1359,10 @@ async function uploadDxf(file, suppressMsg) {
       svasatura_pz: d.lavorazioni.svasatura_pz || 0,
       costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
       costo_apporto: 0, costo_pulizia: 0,
-      dxf_filename: d.filename || file.name,  // per la preview successiva
+      dxf_filename: d.filename || file.name,
     });
     renderArticoli(); recalcTotali();
-    showMsg('msg-import', `✓ DXF importato: ${d.lavorazioni.pieghe} pieghe, ${d.lavorazioni.saldatura_ml.toFixed(1)}ml sald., ${d.geometria.area_dm2}dm² area. Imposta materiale e clicca Stima.`, 'var(--green)');
+    if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" importato come articolo NUOVO. Imposta materiale + spessore e clicca Stima.`, 'var(--orange)');
   } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
