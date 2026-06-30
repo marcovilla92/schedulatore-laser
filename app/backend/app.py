@@ -1772,6 +1772,7 @@ def api_preventivi_delete(preventivo_id):
                              entity_type='preventivi', entity_id=preventivo_id, detail='')
         except Exception:
             pass
+        _cleanup_preventivo_files(preventivo_id)
         return jsonify({'success': True}), 200
     except Exception as e:
         logger.exception('preventivo delete failed')
@@ -1823,7 +1824,12 @@ def api_preventivi_import_dxf(preventivo_id):
         fname_lower = (f.filename or '').lower()
         if not (fname_lower.endswith('.dxf') or fname_lower.endswith('.dwg')):
             return jsonify({'success': False, 'error': 'File deve essere .dxf o .dwg'}), 400
-        # DWG: conversione automatica via ODA File Converter
+        # Salva DXF (o DXF convertito da DWG) in uploads/preventivi_tmp/<id>/
+        # per consentire la preview interattiva. Sarà cancellato all'accettazione/rifiuto/delete.
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        os.makedirs(prev_dir, exist_ok=True)
+        saved_filename = os.path.basename(f.filename)
+
         is_dwg = fname_lower.endswith('.dwg')
         if is_dwg:
             tmp_dwg = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '.dwg')
@@ -1843,9 +1849,16 @@ def api_preventivi_import_dxf(preventivo_id):
                                  'DWG come DXF (AutoCAD 2018) dal tuo CAD e ricarica.',
                     }), 415
                 return jsonify({'success': False, 'error': 'Conversione DWG fallita: ' + err_code + ' ' + str(conv.get('detail', ''))}), 500
-            tmp_path = conv  # path al DXF convertito
+            # Sposta il convertito (DXF) nella cartella preview persistente con nome originale
+            saved_filename = os.path.splitext(saved_filename)[0] + '.dxf'
+            tmp_path = os.path.join(prev_dir, saved_filename)
+            try:
+                import shutil
+                shutil.move(conv, tmp_path)
+            except Exception:
+                tmp_path = conv  # fallback
         else:
-            tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + '.dxf')
+            tmp_path = os.path.join(prev_dir, saved_filename)
             f.save(tmp_path)
         try:
             # Config minimo per dxf_scanner (colori standard Lantek)
@@ -1853,13 +1866,16 @@ def api_preventivi_import_dxf(preventivo_id):
                        'dxf_lunghezza_minima': 15}
             pieghe, sald_ml, fil, svas = _dxf_scanner.scansiona_dxf_dettagli(tmp_path, dxf_cfg)
             geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
-        finally:
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
+            # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
+            # per consentire la preview successiva. Cleanup quando preventivo viene
+            # accettato/rifiutato/eliminato.
+        except Exception as e:
+            try: os.remove(tmp_path)
+            except OSError: pass
+            raise e
         return jsonify({
             'success': True,
+            'filename': saved_filename,
             'lavorazioni': {
                 'pieghe': pieghe, 'saldatura_ml': sald_ml,
                 'filettatura_pz': fil, 'svasatura_pz': svas,
@@ -1869,6 +1885,40 @@ def api_preventivi_import_dxf(preventivo_id):
     except Exception as e:
         logger.exception('preventivi import dxf failed')
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/svg', methods=['GET'])
+def api_preventivi_dxf_svg(preventivo_id, filename):
+    """Ritorna SVG ad alta fedeltà del DXF (caricato in import-dxf).
+
+    Usato dalla preview interattiva preview-dxf.html (pan/zoom + lavorazioni).
+    """
+    try:
+        # Sicurezza: filename normalizzato, niente path traversal
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'error': 'File DXF non trovato'}), 404
+        from flask import Response
+        svg_string = _dxf_scanner.dxf_to_svg_string(dxf_path)
+        return Response(svg_string, mimetype='image/svg+xml; charset=utf-8')
+    except Exception as e:
+        logger.exception('dxf_svg failed')
+        return jsonify({'error': str(e)}), 500
+
+
+def _cleanup_preventivo_files(preventivo_id):
+    """Rimuove la cartella uploads/preventivi_tmp/<preventivo_id>/ (DXF/STEP temporanei).
+    Chiamato all'accettazione, rifiuto o delete del preventivo.
+    """
+    try:
+        import shutil
+        d = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        if os.path.isdir(d):
+            shutil.rmtree(d, ignore_errors=True)
+    except Exception as exc:
+        logger.warning('cleanup preventivo files failed for %s: %s', preventivo_id, exc)
 
 
 @app.route('/api/preventivi/<preventivo_id>/import-step', methods=['POST'])
@@ -2118,6 +2168,8 @@ def api_preventivi_accetta(preventivo_id):
         if not result or result.get('error'):
             err = result.get('error') if result else 'Errore sconosciuto'
             return jsonify({'success': False, 'error': err}), 409
+        # Cleanup DXF/STEP temporanei caricati per il preventivo
+        _cleanup_preventivo_files(preventivo_id)
         return jsonify(result), 200
     except Exception as e:
         logger.exception('preventivi accetta failed')
@@ -2142,6 +2194,7 @@ def api_preventivi_rifiuta(preventivo_id):
                              entity_type='preventivi', entity_id=preventivo_id, detail='INVIATO->RIFIUTATO')
         except Exception:
             pass
+        _cleanup_preventivo_files(preventivo_id)
         return jsonify({'success': True, 'preventivo': result}), 200
     except Exception as e:
         logger.exception('preventivi rifiuta failed')

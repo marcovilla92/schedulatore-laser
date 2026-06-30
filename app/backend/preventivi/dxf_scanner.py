@@ -327,6 +327,28 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
     return conteggio_pieghe, totale_saldatura_ml, conteggio_filettatura, conteggio_svasatura
 
 
+def dxf_to_svg_string(path: str) -> str:
+    """Converte un DXF in stringa SVG ad alta fedeltà via ezdxf SVGBackend.
+
+    Rendering completo: colori, spessori, archi, spline, polyline complesse —
+    qualunque entità DXF supportata dal `Frontend` di ezdxf viene riprodotta
+    fedelmente. Usato dalla preview interattiva in `preview-dxf.html`.
+    """
+    from ezdxf.addons.drawing import Frontend, RenderContext
+    from ezdxf.addons.drawing.svg import SVGBackend
+    from ezdxf.addons.drawing import layout
+
+    doc = ezdxf.readfile(path)
+    msp = doc.modelspace()
+
+    backend = SVGBackend()
+    ctx = RenderContext(doc)
+    frontend = Frontend(ctx, backend)
+    frontend.draw_layout(msp)
+
+    return backend.get_string(layout.Page(0, 0))
+
+
 def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
     """Estrae area, perimetro_taglio e n_forature da DXF per stima costo laser.
 

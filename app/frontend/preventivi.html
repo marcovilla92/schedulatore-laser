@@ -568,6 +568,19 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
   </div>
 </div>
 
+<!-- MODAL: anteprima DXF (iframe) -->
+<div class="modal-overlay" id="modal-dxf-preview" onclick="if(event.target===this)closeDxfPreview()" style="z-index: 2500;">
+  <div class="modal" style="max-width: 1400px; width: 95%; height: 90vh; max-height: 90vh; padding: 0;">
+    <div class="modal-head">
+      <h3>Anteprima DXF</h3>
+      <button class="modal-close" onclick="closeDxfPreview()">&times;</button>
+    </div>
+    <div style="flex:1; overflow:hidden;">
+      <iframe id="dxf-preview-iframe" src="about:blank" style="width:100%; height:100%; border:none; display:block;"></iframe>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: accetta preventivo -->
 <div class="modal-overlay" id="modal-accetta" onclick="if(event.target===this)closeAccettaModal()">
   <div class="modal">
@@ -892,6 +905,7 @@ function renderArticoli() {
       <td class="n" style="color:var(--gray-text);">${a.pieghe || 0}</td>
       <td class="n" style="color:var(--gray-text);">${(a.saldatura_ml || 0).toFixed(1)}</td>
       <td style="text-align:right; white-space:nowrap;">
+        ${a.dxf_filename ? `<button class="btn-mini" onclick="previewDxf(${i})" title="Anteprima DXF (alta fedeltà)">👁</button>` : ''}
         <button class="btn-mini" onclick="stimaArt(${i})" title="Ricalcola stima costo base laser">Stima</button>
         <button class="btn-danger" onclick="removeArt(${i})">Rimuovi</button>
       </td>
@@ -928,6 +942,47 @@ function removeArt(idx) {
   renderArticoli();
   recalcTotali();
 }
+
+function previewDxf(idx) {
+  const a = currentArticoli[idx];
+  if (!a || !a.dxf_filename || !currentPreventivo) return;
+  const url = '/preview-dxf.html?' + new URLSearchParams({
+    preventivo: currentPreventivo.id,
+    dxf: a.dxf_filename,
+    articolo: a.id,
+    codice: a.codice || '',
+    saldatura: a.saldatura_ml || 0,
+    pieghe: a.pieghe || 0,
+    filettatura: a.filettatura_pz || 0,
+    svasatura: a.svasatura_pz || 0,
+  }).toString();
+  document.getElementById('dxf-preview-iframe').src = url;
+  document.getElementById('modal-dxf-preview').classList.add('active');
+}
+
+function closeDxfPreview() {
+  document.getElementById('modal-dxf-preview').classList.remove('active');
+  document.getElementById('dxf-preview-iframe').src = 'about:blank';
+}
+
+// Listener postMessage dalla preview-dxf.html: aggiorna valori articolo
+window.addEventListener('message', (event) => {
+  const m = event.data || {};
+  if (m.type === 'dxf-preview-confirm') {
+    const idx = currentArticoli.findIndex(a => a.id === m.articolo_id);
+    if (idx >= 0) {
+      currentArticoli[idx].saldatura_ml = m.saldatura || 0;
+      currentArticoli[idx].pieghe = m.pieghe || 0;
+      currentArticoli[idx].filettatura_pz = m.filettatura || 0;
+      currentArticoli[idx].svasatura_pz = m.svasatura || 0;
+      renderArticoli();
+      recalcTotali();
+    }
+    closeDxfPreview();
+  } else if (m.type === 'dxf-preview-cancel') {
+    closeDxfPreview();
+  }
+});
 
 async function stimaArt(idx) {
   const a = currentArticoli[idx];
@@ -1283,6 +1338,7 @@ async function uploadDxf(file, suppressMsg) {
       svasatura_pz: d.lavorazioni.svasatura_pz || 0,
       costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
       costo_apporto: 0, costo_pulizia: 0,
+      dxf_filename: d.filename || file.name,  // per la preview successiva
     });
     renderArticoli(); recalcTotali();
     showMsg('msg-import', `✓ DXF importato: ${d.lavorazioni.pieghe} pieghe, ${d.lavorazioni.saldatura_ml.toFixed(1)}ml sald., ${d.geometria.area_dm2}dm² area. Imposta materiale e clicca Stima.`, 'var(--green)');
