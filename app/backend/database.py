@@ -6,7 +6,8 @@ from sqlalchemy.orm.attributes import flag_modified
 from .models import (
     Order, OrderFile, ProcessingStep, OrderNotification, PhaseSession,
     FaseCorrente, get_session, User, AuditLog, Notification, OperatorClient,
-    PhaseDelegation, SupportRequest, OfficinaScan, Pistola
+    PhaseDelegation, SupportRequest, OfficinaScan, Pistola,
+    Preventivo, PreventivoArticolo, PreventivoAssieme, PreventivoTubolare, PreventivoPiastra,
 )
 import uuid
 import json
@@ -3970,3 +3971,234 @@ class BarcodeManager:
             return out
         finally:
             session.close()
+
+
+# ============================================================================
+#  PREVENTIVI — gestione preventivi (porting Preventivatore desktop)
+# ============================================================================
+
+class PreventivoManager:
+    """CRUD preventivi + workflow status (BOZZA → INVIATO → ACCETTATO).
+
+    Vedi `backend/preventivi/contract.md` per il modello dati completo.
+    L'integrazione con OrderManager (creazione ordine all'accettazione) sarà
+    aggiunta in Fase 4 del merge.
+    """
+
+    VALID_STATUSES = ('BOZZA', 'INVIATO', 'ACCETTATO', 'RIFIUTATO')
+
+    @staticmethod
+    def create(cliente, created_by, *, quantita=1, numero_ordine_cliente=None,
+               margine_pct=0.0, data_consegna_proposta=None, note=None):
+        """Crea un nuovo preventivo in BOZZA."""
+        session = get_session()
+        try:
+            p = Preventivo(
+                id=str(uuid.uuid4()),
+                cliente=cliente.strip(),
+                numero_ordine_cliente=(numero_ordine_cliente or '').strip() or None,
+                quantita=max(1, int(quantita)),
+                margine_pct=float(margine_pct or 0.0),
+                data_consegna_proposta=data_consegna_proposta,
+                status='BOZZA',
+                versione=1,
+                created_by=created_by,
+                note=note,
+            )
+            session.add(p)
+            session.commit()
+            return PreventivoManager._serialize(p)
+        finally:
+            session.close()
+
+    @staticmethod
+    def get(preventivo_id, include_children=True):
+        """Ritorna preventivo + articoli/assiemi/tubolari/piastre (se include_children)."""
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return None
+            data = PreventivoManager._serialize(p)
+            if include_children:
+                data['articoli'] = [PreventivoManager._serialize_articolo(a) for a in
+                                    session.query(PreventivoArticolo)
+                                    .filter(PreventivoArticolo.preventivo_id == preventivo_id)
+                                    .order_by(PreventivoArticolo.codice).all()]
+                data['assiemi'] = [PreventivoManager._serialize_assieme(a) for a in
+                                   session.query(PreventivoAssieme)
+                                   .filter(PreventivoAssieme.preventivo_id == preventivo_id).all()]
+                data['tubolari'] = [PreventivoManager._serialize_tubolare(t) for t in
+                                    session.query(PreventivoTubolare)
+                                    .filter(PreventivoTubolare.preventivo_id == preventivo_id).all()]
+                data['piastre'] = [PreventivoManager._serialize_piastra(pp) for pp in
+                                   session.query(PreventivoPiastra)
+                                   .filter(PreventivoPiastra.preventivo_id == preventivo_id).all()]
+            return data
+        finally:
+            session.close()
+
+    @staticmethod
+    def list(cliente=None, status=None, limit=200):
+        """Lista preventivi non eliminati, ordinati per data_creazione desc."""
+        session = get_session()
+        try:
+            q = session.query(Preventivo).filter(Preventivo.is_deleted == False)  # noqa: E712
+            if cliente:
+                q = q.filter(Preventivo.cliente.ilike('%' + cliente + '%'))
+            if status:
+                q = q.filter(Preventivo.status == status)
+            rows = q.order_by(Preventivo.data_creazione.desc()).limit(limit).all()
+            return [PreventivoManager._serialize(p) for p in rows]
+        finally:
+            session.close()
+
+    @staticmethod
+    def update(preventivo_id, updates):
+        """Aggiorna campi del preventivo. NON cambia status (usare transition_status).
+        Se status è 'INVIATO' o 'ACCETTATO' (snapshot immutabili), refuse.
+        """
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return None
+            if p.status in ('INVIATO', 'ACCETTATO'):
+                return {'error': 'Preventivo ' + p.status + ': immutabile. Crea nuova versione.'}
+            editable = {'cliente', 'numero_ordine_cliente', 'quantita', 'margine_pct',
+                        'sconto_pct', 'data_consegna_proposta', 'note',
+                        'totale_pezzo', 'totale_pezzo_con_margine', 'totale_pezzo_scontato',
+                        'totale_lotto', 'costi_montaggio_totale', 'costi_tubolari_totale',
+                        'costi_piastre_totale'}
+            for k, v in updates.items():
+                if k in editable:
+                    setattr(p, k, v)
+            session.commit()
+            return PreventivoManager._serialize(p)
+        finally:
+            session.close()
+
+    @staticmethod
+    def soft_delete(preventivo_id):
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(Preventivo.id == preventivo_id).first()
+            if not p:
+                return False
+            p.is_deleted = True
+            session.commit()
+            return True
+        finally:
+            session.close()
+
+    @staticmethod
+    def transition_status(preventivo_id, new_status, user_id=None):
+        """Cambia status del preventivo. Transizioni valide:
+          BOZZA → INVIATO
+          INVIATO → ACCETTATO (in Fase 4 crea anche l'Order FerroTrack)
+          INVIATO → RIFIUTATO
+        """
+        if new_status not in PreventivoManager.VALID_STATUSES:
+            return {'error': 'Status non valido: ' + str(new_status)}
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return None
+            valid_transitions = {
+                'BOZZA': {'INVIATO'},
+                'INVIATO': {'ACCETTATO', 'RIFIUTATO'},
+                'ACCETTATO': set(),
+                'RIFIUTATO': set(),
+            }
+            if new_status not in valid_transitions.get(p.status, set()):
+                return {'error': 'Transizione non valida: ' + p.status + ' -> ' + new_status}
+            p.status = new_status
+            session.commit()
+            return PreventivoManager._serialize(p)
+        finally:
+            session.close()
+
+    # ---- Serializzatori ----------------------------------------------------
+
+    @staticmethod
+    def _serialize(p):
+        return {
+            'id': p.id,
+            'cliente': p.cliente,
+            'numero_ordine_cliente': p.numero_ordine_cliente,
+            'quantita': p.quantita,
+            'margine_pct': p.margine_pct,
+            'sconto_pct': p.sconto_pct,
+            'data_consegna_proposta': p.data_consegna_proposta.isoformat() if p.data_consegna_proposta else None,
+            'status': p.status,
+            'versione': p.versione,
+            'parent_preventivo_id': p.parent_preventivo_id,
+            'totale_pezzo': p.totale_pezzo,
+            'totale_pezzo_con_margine': p.totale_pezzo_con_margine,
+            'totale_pezzo_scontato': p.totale_pezzo_scontato,
+            'totale_lotto': p.totale_lotto,
+            'costi_montaggio_totale': p.costi_montaggio_totale,
+            'costi_tubolari_totale': p.costi_tubolari_totale,
+            'costi_piastre_totale': p.costi_piastre_totale,
+            'created_by': p.created_by,
+            'data_creazione': p.data_creazione.isoformat() if p.data_creazione else None,
+            'note': p.note,
+        }
+
+    @staticmethod
+    def _serialize_articolo(a):
+        return {
+            'id': a.id, 'codice': a.codice, 'quantita': a.quantita,
+            'codice_assieme': a.codice_assieme,
+            'area': a.area, 'area_dm2': a.area_dm2,
+            'perimetro_taglio_m': a.perimetro_taglio_m, 'n_forature': a.n_forature,
+            'spessore_mm': a.spessore_mm, 'materiale': a.materiale,
+            'costo_materiale': a.costo_materiale,
+            'costo_base_stimato': a.costo_base_stimato,
+            'costo_base_override': a.costo_base_override,
+            'pieghe': a.pieghe, 'saldatura_ml': a.saldatura_ml,
+            'filettatura_pz': a.filettatura_pz, 'svasatura_pz': a.svasatura_pz,
+            'costo_piega': a.costo_piega, 'costo_saldatura': a.costo_saldatura,
+            'costo_filettatura': a.costo_filettatura, 'costo_svasatura': a.costo_svasatura,
+            'costo_apporto': a.costo_apporto, 'costo_pulizia': a.costo_pulizia,
+        }
+
+    @staticmethod
+    def _serialize_assieme(a):
+        return {
+            'id': a.id, 'codice_assieme': a.codice_assieme, 'qty': a.qty,
+            'ore_montaggio': a.ore_montaggio, 'ore_puntatura': a.ore_puntatura,
+            'costo': a.costo, 'costo_puntatura': a.costo_puntatura,
+            'costo_saldatura_assieme': a.costo_saldatura_assieme,
+            'saldatura_mt': a.saldatura_mt, 'peso_kg': a.peso_kg,
+            'componenti_qty': a.componenti_qty,
+        }
+
+    @staticmethod
+    def _serialize_tubolare(t):
+        return {
+            'id': t.id, 'codice_assieme': t.codice_assieme,
+            'profilo': t.profilo, 'tipo': t.tipo, 'materiale': t.materiale,
+            'lunghezza_m': t.lunghezza_m, 'peso_kg': t.peso_kg,
+            'costo_materiale': t.costo_materiale,
+            'costo_taglio_totale': t.costo_taglio_totale,
+            'n_tagli_dritti': t.n_tagli_dritti, 'n_tagli_obliqui': t.n_tagli_obliqui,
+        }
+
+    @staticmethod
+    def _serialize_piastra(p):
+        return {
+            'id': p.id, 'codice_assieme': p.codice_assieme,
+            'spessore_mm': p.spessore_mm, 'area_dm2': p.area_dm2,
+            'peso_kg': p.peso_kg, 'costo': p.costo, 'materiale': p.materiale,
+        }

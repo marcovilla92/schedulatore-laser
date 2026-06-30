@@ -38,6 +38,10 @@ class Order(Base):
     note = Column(Text)
     is_deleted = Column(Boolean, default=False)  # Soft delete — mai cancellare fisicamente
 
+    # Origine ordine (merge preventivatore — Fase 0)
+    origine = Column(String, default='PDF')  # 'PDF' (Elena carica) | 'PREVENTIVO' (commerciale accetta)
+    preventivo_id_origine = Column(String, nullable=True)  # FK debole verso preventivi.id (no constraint per legacy)
+
     # Chiusura amministrativa (DDT / Fattura)
     numero_ddt = Column(String, nullable=True)
     data_ddt = Column(DateTime, nullable=True)
@@ -230,6 +234,120 @@ class OfficinaScan(Base):
     timestamp_fine = Column(DateTime, nullable=True)  # NULL = sessione attiva
     chiusura_motivo = Column(String, nullable=True)
     # 'altro_ordine' | 'cambio_fase' | 'fine_turno' | 'manuale'
+
+
+# ============================================================================
+#  PREVENTIVI — moduli portati dal Preventivatore desktop (Tkinter → web)
+# ============================================================================
+
+class Preventivo(Base):
+    """Preventivo cliente — input per il workflow 'Accetta → crea Order FerroTrack'.
+
+    Stati: BOZZA → INVIATO (snapshot immutabile) → ACCETTATO (crea Order) | RIFIUTATO.
+    Versioning: quando una BOZZA passa a INVIATO si duplica come snapshot;
+    modifiche successive partono da BOZZA v2 con parent_preventivo_id=snapshot v1.
+    """
+    __tablename__ = 'preventivi'
+    id = Column(String, primary_key=True)
+    cliente = Column(String, nullable=False)
+    numero_ordine_cliente = Column(String, nullable=True)  # se cliente fornisce un suo numero RFQ
+    quantita = Column(Integer, nullable=False, default=1)
+    margine_pct = Column(Float, nullable=False, default=0.0)
+    sconto_pct = Column(Float, nullable=False, default=0.0)
+    data_consegna_proposta = Column(DateTime, nullable=True)  # in BOZZA può essere null
+    status = Column(String, nullable=False, default='BOZZA')  # BOZZA|INVIATO|ACCETTATO|RIFIUTATO
+    versione = Column(Integer, nullable=False, default=1)
+    parent_preventivo_id = Column(String, ForeignKey('preventivi.id'), nullable=True)  # snapshot link
+    totale_pezzo = Column(Float, nullable=False, default=0.0)
+    totale_pezzo_con_margine = Column(Float, nullable=False, default=0.0)
+    totale_pezzo_scontato = Column(Float, nullable=False, default=0.0)
+    totale_lotto = Column(Float, nullable=False, default=0.0)
+    costi_montaggio_totale = Column(Float, nullable=False, default=0.0)
+    costi_tubolari_totale = Column(Float, nullable=False, default=0.0)
+    costi_piastre_totale = Column(Float, nullable=False, default=0.0)
+    created_by = Column(String, ForeignKey('users.id'), nullable=True)
+    data_creazione = Column(DateTime, nullable=False, default=datetime.utcnow)
+    note = Column(Text, nullable=True)
+    is_deleted = Column(Boolean, nullable=False, default=False)
+
+
+class PreventivoArticolo(Base):
+    """Articolo di un preventivo. Include geometria DXF + costi laser stimati."""
+    __tablename__ = 'preventivo_articoli'
+    id = Column(String, primary_key=True)
+    preventivo_id = Column(String, ForeignKey('preventivi.id', ondelete='CASCADE'), nullable=False)
+    codice = Column(String, nullable=False)
+    quantita = Column(Integer, nullable=False, default=1)
+    codice_assieme = Column(String, nullable=True)  # se appartiene a un assieme
+    # --- geometria estratta da dxf_scanner ---
+    area = Column(Float, nullable=False, default=0.0)
+    area_dm2 = Column(Float, nullable=False, default=0.0)
+    perimetro_taglio_m = Column(Float, nullable=False, default=0.0)
+    n_forature = Column(Integer, nullable=False, default=0)
+    spessore_mm = Column(Float, nullable=True)  # inserito dal commerciale
+    materiale = Column(String, nullable=True)  # 'S235'|'INOX_304'|'ALU_5754'|...
+    # --- costo base (taglio + materiale) ---
+    costo_materiale = Column(Float, nullable=False, default=0.0)  # da XLSX Lantek se importato
+    costo_base_stimato = Column(Float, nullable=False, default=0.0)  # da laser_cost_estimator
+    costo_base_override = Column(Float, nullable=True)  # se commerciale sovrascrive
+    # --- costi lavorazione (post-taglio) ---
+    pieghe = Column(Integer, nullable=False, default=0)
+    saldatura_ml = Column(Float, nullable=False, default=0.0)
+    filettatura_pz = Column(Integer, nullable=False, default=0)
+    svasatura_pz = Column(Integer, nullable=False, default=0)
+    costo_piega = Column(Float, nullable=False, default=0.0)
+    costo_saldatura = Column(Float, nullable=False, default=0.0)
+    costo_filettatura = Column(Float, nullable=False, default=0.0)
+    costo_svasatura = Column(Float, nullable=False, default=0.0)
+    costo_apporto = Column(Float, nullable=False, default=0.0)
+    costo_pulizia = Column(Float, nullable=False, default=0.0)
+
+
+class PreventivoAssieme(Base):
+    """Assieme 3D dentro un preventivo (da analisi STEP)."""
+    __tablename__ = 'preventivo_assiemi'
+    id = Column(String, primary_key=True)
+    preventivo_id = Column(String, ForeignKey('preventivi.id', ondelete='CASCADE'), nullable=False)
+    codice_assieme = Column(String, nullable=False)
+    qty = Column(Integer, nullable=False, default=1)
+    ore_montaggio = Column(Float, nullable=False, default=0.0)
+    ore_puntatura = Column(Float, nullable=False, default=0.0)
+    costo = Column(Float, nullable=False, default=0.0)  # costo montaggio
+    costo_puntatura = Column(Float, nullable=False, default=0.0)
+    costo_saldatura_assieme = Column(Float, nullable=False, default=0.0)
+    saldatura_mt = Column(Float, nullable=False, default=0.0)
+    peso_kg = Column(Float, nullable=False, default=0.0)
+    componenti_qty = Column(JSON, nullable=True)  # {codice: qty, ...}
+
+
+class PreventivoTubolare(Base):
+    """Tubolare dentro un preventivo (da analisi STEP)."""
+    __tablename__ = 'preventivo_tubolari'
+    id = Column(String, primary_key=True)
+    preventivo_id = Column(String, ForeignKey('preventivi.id', ondelete='CASCADE'), nullable=False)
+    codice_assieme = Column(String, nullable=True)
+    profilo = Column(String, nullable=False)
+    tipo = Column(String, nullable=True)  # 'dritto'|'obliquo'|'sagomato'
+    materiale = Column(String, nullable=True, default='acciaio')
+    lunghezza_m = Column(Float, nullable=False, default=0.0)
+    peso_kg = Column(Float, nullable=False, default=0.0)
+    costo_materiale = Column(Float, nullable=False, default=0.0)
+    costo_taglio_totale = Column(Float, nullable=False, default=0.0)
+    n_tagli_dritti = Column(Integer, nullable=False, default=0)
+    n_tagli_obliqui = Column(Integer, nullable=False, default=0)
+
+
+class PreventivoPiastra(Base):
+    """Piastra dentro un preventivo (da analisi STEP)."""
+    __tablename__ = 'preventivo_piastre'
+    id = Column(String, primary_key=True)
+    preventivo_id = Column(String, ForeignKey('preventivi.id', ondelete='CASCADE'), nullable=False)
+    codice_assieme = Column(String, nullable=True)
+    spessore_mm = Column(Float, nullable=False, default=0.0)
+    area_dm2 = Column(Float, nullable=False, default=0.0)
+    peso_kg = Column(Float, nullable=False, default=0.0)
+    costo = Column(Float, nullable=False, default=0.0)
+    materiale = Column(String, nullable=True, default='acciaio')
 
 
 # Configurazione database
