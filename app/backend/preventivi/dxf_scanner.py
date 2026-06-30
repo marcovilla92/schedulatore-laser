@@ -559,12 +559,54 @@ def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
             entita.append(('POLYLINE', cx, cy, (verts, closed)))
             centroidi_xs.append(cx); centroidi_ys.append(cy)
 
-    # Definisci zona pezzo via CLUSTERING DI DENSITÀ su griglia 20×20.
-    # Trova la cella più densa, espande greedy alle celle adiacenti con almeno
-    # il 20% della densità massima. Bbox del cluster = zona pezzo.
-    # Robusto contro cartigli A3/A4 con cornici + riquadri sparsi sui 4 bordi.
+    # === IDENTIFICAZIONE ZONA PEZZO ===
+    # Due tipi di DXF cliente:
+    # 1. SVILUPPATO: pezzo in lamiera con linee di piega marcate (testi SU/GIU
+    #    o linee in COLOR 2). Il pezzo è dove ci sono le pieghe → bbox piega
+    # 2. A VISTE: disegno tecnico con front/top/side. Niente pieghe → fallback
+    #    cluster densità (prende la vista più ricca di entità = principale)
+
+    # Strategia 1: ZONA PIEGA (più affidabile per pezzi sviluppati)
+    pieghe_pts = []
+    for entity in msp:
+        et = entity.dxftype()
+        if et in ('TEXT', 'MTEXT'):
+            try:
+                t = (entity.dxf.text or '').strip().upper()
+                if t.startswith('SU') or t.startswith('GIU') or t.startswith('GIÙ'):
+                    pieghe_pts.append((float(entity.dxf.insert.x), float(entity.dxf.insert.y)))
+            except Exception:
+                pass
+        elif et == 'LINE':
+            try:
+                color = entity.dxf.color if hasattr(entity.dxf, 'color') else 7
+                if color in cfg.get('dxf_colori_piega', [2]):
+                    s, e = entity.dxf.start, entity.dxf.end
+                    pieghe_pts.append(((s.x + e.x) / 2, (s.y + e.y) / 2))
+            except Exception:
+                pass
+
+    # Pezzo è SVILUPPATO (1 lamiera piana con pieghe) o A VISTE (più proiezioni).
+    # Sviluppato: zona = bbox delle pieghe + margine 100mm o 50% (= include contorni)
+    # A viste:    zona = cluster densità (= vista più ricca di entità)
+    is_sviluppato = len(pieghe_pts) > 0
     zona_pezzo_bbox = None
-    if len(centroidi_xs) >= 10:
+
+    if is_sviluppato:
+        pxs = [p[0] for p in pieghe_pts]
+        pys = [p[1] for p in pieghe_pts]
+        zx_min, zx_max = min(pxs), max(pxs)
+        zy_min, zy_max = min(pys), max(pys)
+        w_p = zx_max - zx_min
+        h_p = zy_max - zy_min
+        # Margine misto: 100mm assoluti OPPURE 50% dimensione bbox piega (il max)
+        margine_x = max(100.0, w_p * 0.5)
+        margine_y = max(100.0, h_p * 0.5)
+        zona_pezzo_bbox = (zx_min - margine_x, zx_max + margine_x,
+                           zy_min - margine_y, zy_max + margine_y)
+
+    # Cluster densità SOLO per pezzi a viste (no pieghe)
+    if zona_pezzo_bbox is None and len(centroidi_xs) >= 10:
         x_min_tot, x_max_tot = min(centroidi_xs), max(centroidi_xs)
         y_min_tot, y_max_tot = min(centroidi_ys), max(centroidi_ys)
         N_BINS = 20
@@ -578,7 +620,7 @@ def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
         if grid:
             max_cell = max(grid, key=grid.get)
             max_count = grid[max_cell]
-            threshold = max(1, max_count * 0.20)  # 20% — bilanciamento sovrastima/sottostima sui sample reali
+            threshold = max(1, max_count * 0.20)  # 20% — isola vista più densa
             # BFS espansione greedy
             visited = {max_cell}
             queue = [max_cell]
@@ -662,6 +704,7 @@ def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
         'bbox_width_mm': round(bbox_w_mm, 2),
         'bbox_height_mm': round(bbox_h_mm, 2),
         'zona_pezzo_filtered': zona_pezzo_bbox is not None,
+        'tipo_disegno': 'sviluppato' if is_sviluppato else 'a_viste',
     }
 
 
