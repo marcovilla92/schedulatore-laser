@@ -1862,8 +1862,16 @@ def api_preventivi_import_dxf(preventivo_id):
             f.save(tmp_path)
         try:
             # Config minimo per dxf_scanner (colori standard Lantek)
-            dxf_cfg = {'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
-                       'dxf_lunghezza_minima': 15}
+            # Config rilevamento da app_config.json (sezione dxf_detection) — valori calibrati
+            # sul config Preventivatore desktop (ratio_min=1.8, filtra_zona=True, ecc.)
+            app_cfg = BarcodeManager.load_config()
+            dxf_cfg = app_cfg.get('dxf_detection') or {
+                'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
+                'dxf_lunghezza_minima': 15.0, 'dxf_tolleranza_centro': 1.0,
+                'dxf_svasatura_ratio_min': 1.8, 'dxf_svasatura_ratio_max': 3.0,
+                'dxf_semicerchio_angolo_min': 150.0, 'dxf_semicerchio_angolo_max': 320.0,
+                'dxf_filtra_zona_sviluppata': True,
+            }
             pieghe, sald_ml, fil, svas = _dxf_scanner.scansiona_dxf_dettagli(tmp_path, dxf_cfg)
             geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)

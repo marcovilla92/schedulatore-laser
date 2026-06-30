@@ -19,5 +19,17 @@
       "ALU_5083": {"1": 0.05, "2": 0.14, "3": 0.32, "5": 0.90, "8": 1.60, "10": 1.90, "12": 2.20}
     },
     "costo_pierce_eur": 0.05
+  },
+  "dxf_detection": {
+    "_note": "Parametri rilevamento pieghe/saldature/filettature/svasature da DXF — calibrati sul config reale del Preventivatore desktop.",
+    "dxf_colori_piega": [2],
+    "dxf_colori_saldatura": [1],
+    "dxf_lunghezza_minima": 15.0,
+    "dxf_tolleranza_centro": 1.0,
+    "dxf_svasatura_ratio_min": 1.8,
+    "dxf_svasatura_ratio_max": 3.0,
+    "dxf_semicerchio_angolo_min": 150.0,
+    "dxf_semicerchio_angolo_max": 320.0,
+    "dxf_filtra_zona_sviluppata": true
   }
 }

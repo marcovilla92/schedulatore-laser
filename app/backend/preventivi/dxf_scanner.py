@@ -15,89 +15,65 @@ logger = logging.getLogger(__name__)
 def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, int]:
     """Scansiona il DXF e restituisce (pieghe, saldatura_ml, filettatura, svasatura).
 
-    - pieghe: conta le LINE con colore in dxf_colori_piega e lunghezza > soglia
-    - saldatura: somma le lunghezze delle LINE con colore in dxf_colori_saldatura
-    - filettatura: conta coppie (CIRCLE + ARC semicircolare adiacente)
-    - svasatura: conta coppie di CIRCLE concentrici con ratio specifico
-
-    Args:
-        path: percorso al file DXF.
-        config: dizionario di configurazione con chiavi dxf_colori_piega, ecc.
-
-    Returns:
-        (conteggio_pieghe, totale_saldatura_ml, conteggio_filettatura, conteggio_svasatura)
+    Versione AGGIORNATA (porting dal desktop main_window.py:1105):
+    - pieghe: metodo IBRIDO — priorità ai testi 'SU'/'GIU' nel disegno,
+      fallback alle linee con colore in dxf_colori_piega
+    - saldatura: somma lunghezze LINE con colore in dxf_colori_saldatura
+    - filettatura: CIRCLE+ARC adiacenti (filtrato per zona sviluppata se rilevata)
+    - svasatura: CIRCLE concentrici (filtrato per zona sviluppata + escluso se
+      c'è arco concentrico = sarebbe filettatura, non svasatura)
     """
     doc = ezdxf.readfile(path)
     msp = doc.modelspace()
 
-    # Configurazione parametri
     colori_piega = config.get("dxf_colori_piega", [2])
     colori_sald = config.get("dxf_colori_saldatura", [1])
     lunghezza_minima = float(config.get("dxf_lunghezza_minima", 15))
-
     tolleranza_centro = float(config.get("dxf_tolleranza_centro", 1.0))
     ratio_min = float(config.get("dxf_svasatura_ratio_min", 1.3))
     ratio_max = float(config.get("dxf_svasatura_ratio_max", 3.0))
     angolo_min = float(config.get("dxf_semicerchio_angolo_min", 150))
     angolo_max = float(config.get("dxf_semicerchio_angolo_max", 210))
+    filtra_zona = config.get("dxf_filtra_zona_sviluppata", False)
 
     totale_saldatura = 0.0
-
-    # Raccogli geometria per pattern detection
-    circles = []  # Lista di (center_x, center_y, radius)
-    arcs = []     # Lista di (center_x, center_y, radius, start_angle, end_angle)
-    linee_piega = []  # Lista di (x1, y1, x2, y2) per filtro spaziale
-
-    # Controlla se abilitato filtro zona sviluppata
-    filtra_zona = config.get("dxf_filtra_zona_sviluppata", False)
+    circles = []
+    arcs = []
+    linee_piega = []
     min_x_global = float('inf')
     max_x_global = float('-inf')
 
     # === PASSO 1: Raccolta cerchi e archi ===
     for entity in msp:
-        entity_type = entity.dxftype()
-
-        if entity_type == 'CIRCLE':
+        et = entity.dxftype()
+        if et == 'CIRCLE':
             try:
-                cx = float(entity.dxf.center.x)
-                cy = float(entity.dxf.center.y)
-                r = float(entity.dxf.radius)
-                circles.append((cx, cy, r))
+                circles.append((float(entity.dxf.center.x), float(entity.dxf.center.y), float(entity.dxf.radius)))
+            except AttributeError:
+                continue
+        elif et == 'ARC':
+            try:
+                arcs.append((float(entity.dxf.center.x), float(entity.dxf.center.y), float(entity.dxf.radius),
+                             float(entity.dxf.start_angle), float(entity.dxf.end_angle)))
             except AttributeError:
                 continue
 
-        elif entity_type == 'ARC':
-            try:
-                cx = float(entity.dxf.center.x)
-                cy = float(entity.dxf.center.y)
-                r = float(entity.dxf.radius)
-                start = float(entity.dxf.start_angle)
-                end = float(entity.dxf.end_angle)
-                arcs.append((cx, cy, r, start, end))
-            except AttributeError:
-                continue
-
-    # === PASSO 2A: Detection pieghe tramite testi "SU"/"GIU" (Priorità 1) ===
+    # === PASSO 2A: Detection pieghe via testi SU/GIU (priorità 1) ===
     testi_piega = []
     for entity in msp:
-        entity_type = entity.dxftype()
-        if entity_type in ['TEXT', 'MTEXT']:
+        et = entity.dxftype()
+        if et in ('TEXT', 'MTEXT'):
             try:
-                testo = entity.dxf.text.strip().upper()
-                # Check se inizia con "SU" o "GIU"
+                testo = (entity.dxf.text or '').strip().upper()
                 if testo.startswith('SU') or testo.startswith('GIU') or testo.startswith('GIÙ'):
-                    if entity_type == 'TEXT':
-                        x = float(entity.dxf.insert.x)
-                        y = float(entity.dxf.insert.y)
-                    else:  # MTEXT
-                        x = float(entity.dxf.insert.x)
-                        y = float(entity.dxf.insert.y)
+                    x = float(entity.dxf.insert.x)
+                    y = float(entity.dxf.insert.y)
                     testi_piega.append((x, y))
             except Exception:
                 continue
 
     # === PASSO 2B: Raccogli tutte le linee ===
-    tutte_linee = []  # Lista completa con coordinate
+    tutte_linee = []
     for entity in msp.query('LINE'):
         try:
             colore = entity.dxf.color
@@ -108,222 +84,147 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
             x_centro = (x1 + x2) / 2
             y_centro = (y1 + y2) / 2
             lunghezza = float(start.distance(end))
-
-            # Aggiorna bounding box globale
             min_x_global = min(min_x_global, x1, x2)
             max_x_global = max(max_x_global, x1, x2)
-
-            # Salva linea completa
-            tutte_linee.append({
-                'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
-                'x_centro': x_centro, 'y_centro': y_centro,
-                'lunghezza': lunghezza, 'colore': colore
-            })
-
-            # Raccogli linee di piega colorate (per fallback)
+            tutte_linee.append({'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+                                'x_centro': x_centro, 'y_centro': y_centro,
+                                'lunghezza': lunghezza, 'colore': colore})
             if colore in colori_piega and lunghezza > lunghezza_minima:
                 linee_piega.append((x1, y1, x2, y2))
-
-            # Calcola saldature
             if colore in colori_sald and lunghezza > 0:
                 totale_saldatura += lunghezza
-
         except AttributeError:
             continue
 
-    # === PASSO 2C: Detection pieghe con metodo ibrido ===
+    # === PASSO 2C: Detection pieghe ibrido ===
     x_medio = (min_x_global + max_x_global) / 2 if max_x_global > min_x_global else 0
 
-    # METODO 1: Cerca pieghe tramite testi "SU"/"GIU" (priorità alta)
     pieghe_da_testo = []
-    if len(testi_piega) > 0:
-        distanza_max = 150.0  # mm - distanza massima testo-linea
-
+    if testi_piega:
+        distanza_max = 150.0
         def _dist_punto_segmento(px, py, x1, y1, x2, y2):
-            """Distanza minima tra punto (px,py) e segmento (x1,y1)-(x2,y2)."""
             dx, dy = x2 - x1, y2 - y1
             len_sq = dx * dx + dy * dy
             if len_sq == 0:
-                return math.sqrt((px - x1)**2 + (py - y1)**2)
+                return math.sqrt((px - x1) ** 2 + (py - y1) ** 2)
             t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / len_sq))
             proj_x = x1 + t * dx
             proj_y = y1 + t * dy
-            return math.sqrt((px - proj_x)**2 + (py - proj_y)**2)
+            return math.sqrt((px - proj_x) ** 2 + (py - proj_y) ** 2)
 
         for (tx, ty) in testi_piega:
-            # Trova linea più vicina usando distanza punto-segmento
-            # (più accurata del punto-centro per linee lunghe)
             min_dist = float('inf')
             linea_vicina = None
-
             for linea in tutte_linee:
-                # Considera solo linee abbastanza lunghe (probabili linee di piega)
                 if linea['lunghezza'] < lunghezza_minima:
                     continue
-                dist = _dist_punto_segmento(tx, ty, linea['x1'], linea['y1'], linea['x2'], linea['y2'])
-                if dist < min_dist and dist < distanza_max:
-                    min_dist = dist
+                d = _dist_punto_segmento(tx, ty, linea['x1'], linea['y1'], linea['x2'], linea['y2'])
+                if d < min_dist and d < distanza_max:
+                    min_dist = d
                     linea_vicina = linea
-
             if linea_vicina:
-                # Check zona sinistra se filtro abilitato
                 if filtra_zona:
                     if linea_vicina['x_centro'] < x_medio:
                         pieghe_da_testo.append(linea_vicina)
                 else:
                     pieghe_da_testo.append(linea_vicina)
 
-    # Se trovati testi SU/GIU, usa il massimo tra:
-    # - conteggio testi (semplice e affidabile)
-    # - conteggio match testo-linea (validazione geometrica)
-    if len(testi_piega) > 0:
+    if testi_piega:
         conteggio_pieghe = max(len(testi_piega), len(pieghe_da_testo))
-    elif len(pieghe_da_testo) > 0:
+    elif pieghe_da_testo:
         conteggio_pieghe = len(pieghe_da_testo)
     else:
-        # METODO 2: Fallback al metodo colore (se nessun testo trovato)
         if filtra_zona and linee_piega and max_x_global > min_x_global:
-            # Filtra pieghe colorate nella zona sinistra
-            linee_piega_filtrate = []
-            for (x1, y1, x2, y2) in linee_piega:
-                x_centro_linea = (x1 + x2) / 2
-                if x_centro_linea < x_medio:
-                    linee_piega_filtrate.append((x1, y1, x2, y2))
-            conteggio_pieghe = len(linee_piega_filtrate)
+            linee_filtrate = [l for l in linee_piega if ((l[0] + l[2]) / 2) < x_medio]
+            conteggio_pieghe = len(linee_filtrate)
         else:
-            # Nessun filtro: conta tutte le pieghe colorate
             conteggio_pieghe = len(linee_piega)
 
-    # === PASSO 3: Detection filettatura ===
-    # Calcola bounding box della zona sviluppata (dove ci sono le pieghe)
-    zona_sviluppata_min_x = float('inf')
-    zona_sviluppata_max_x = float('-inf')
-    zona_sviluppata_min_y = float('inf')
-    zona_sviluppata_max_y = float('-inf')
-
-    # Usa le linee di piega per definire la zona sviluppata
+    # === PASSO 3: Bounding box "zona sviluppata" (filtro per filettatura/svasatura) ===
+    zona_min_x, zona_max_x = float('inf'), float('-inf')
+    zona_min_y, zona_max_y = float('inf'), float('-inf')
     if linee_piega:
         for (x1, y1, x2, y2) in linee_piega:
-            zona_sviluppata_min_x = min(zona_sviluppata_min_x, x1, x2)
-            zona_sviluppata_max_x = max(zona_sviluppata_max_x, x1, x2)
-            zona_sviluppata_min_y = min(zona_sviluppata_min_y, y1, y2)
-            zona_sviluppata_max_y = max(zona_sviluppata_max_y, y1, y2)
-        ha_zona_sviluppata = True
-    # Se non ci sono linee di piega, usa i testi "SU"/"GIU" per definire la zona
+            zona_min_x = min(zona_min_x, x1, x2)
+            zona_max_x = max(zona_max_x, x1, x2)
+            zona_min_y = min(zona_min_y, y1, y2)
+            zona_max_y = max(zona_max_y, y1, y2)
+        ha_zona = True
     elif testi_piega:
         for (tx, ty) in testi_piega:
-            zona_sviluppata_min_x = min(zona_sviluppata_min_x, tx)
-            zona_sviluppata_max_x = max(zona_sviluppata_max_x, tx)
-            zona_sviluppata_min_y = min(zona_sviluppata_min_y, ty)
-            zona_sviluppata_max_y = max(zona_sviluppata_max_y, ty)
-        ha_zona_sviluppata = True
+            zona_min_x = min(zona_min_x, tx)
+            zona_max_x = max(zona_max_x, tx)
+            zona_min_y = min(zona_min_y, ty)
+            zona_max_y = max(zona_max_y, ty)
+        ha_zona = True
     else:
-        # Se non ci sono pieghe, usa tutto il disegno
-        ha_zona_sviluppata = False
+        ha_zona = False
 
-    # Espandi la zona per includere elementi vicini alle pieghe
-    if ha_zona_sviluppata:
-        margine = 100.0  # mm di margine (aumentato per includere fori vicini)
-        zona_sviluppata_min_x -= margine
-        zona_sviluppata_max_x += margine
-        zona_sviluppata_min_y -= margine
-        zona_sviluppata_max_y += margine
+    if ha_zona:
+        margine = 100.0
+        zona_min_x -= margine; zona_max_x += margine
+        zona_min_y -= margine; zona_max_y += margine
 
-    def punto_in_zona_sviluppata(x, y):
-        """Verifica se un punto è nella zona sviluppata."""
-        if not ha_zona_sviluppata:
-            return True  # Se non ci sono pieghe, accetta tutto
-        return (zona_sviluppata_min_x <= x <= zona_sviluppata_max_x and
-                zona_sviluppata_min_y <= y <= zona_sviluppata_max_y)
+    def in_zona(x, y):
+        if not ha_zona:
+            return True
+        return zona_min_x <= x <= zona_max_x and zona_min_y <= y <= zona_max_y
 
-    filettatura_matched = set()  # Set di (circle_idx, arc_idx)
-
-    for i, (cx_circle, cy_circle, r_circle) in enumerate(circles):
-        # Filtra: cerca solo nella zona sviluppata
-        if not punto_in_zona_sviluppata(cx_circle, cy_circle):
+    # === PASSO 4: Filettatura (CIRCLE + ARC adiacenti, in zona sviluppata) ===
+    filettatura_matched = set()
+    for i, (cxc, cyc, rc) in enumerate(circles):
+        if not in_zona(cxc, cyc):
             continue
-
-        for j, (cx_arc, cy_arc, r_arc, start_angle, end_angle) in enumerate(arcs):
-            # Skip se già matchato
+        for j, (cxa, cya, ra, sa, ea) in enumerate(arcs):
             if (i, j) in filettatura_matched:
                 continue
-
-            # Check 1: Centri vicini (entro tolleranza)
-            dist = math.sqrt((cx_circle - cx_arc)**2 + (cy_circle - cy_arc)**2)
-            if dist > tolleranza_centro:
+            d = math.sqrt((cxc - cxa) ** 2 + (cyc - cya) ** 2)
+            if d > tolleranza_centro:
                 continue
-
-            # Check 2: Raggio arco leggermente più grande del cerchio
-            if r_circle == 0:
+            if rc == 0:
                 continue
-            ratio = r_arc / r_circle
+            ratio = ra / rc
             if not (0.9 <= ratio <= 1.5):
                 continue
-
-            # Check 3: Arco è un semicerchio (150° - 210°) o arco grande (240° - 360°)
-            arc_angle = end_angle - start_angle
+            arc_angle = ea - sa
             if arc_angle < 0:
                 arc_angle += 360
-
-            # Accetta sia semicerchi piccoli che archi grandi (come 300°)
-            is_small_semicircle = angolo_min <= arc_angle <= angolo_max
-            is_large_arc = 240 <= arc_angle <= 360
-
-            if is_small_semicircle or is_large_arc:
+            if (angolo_min <= arc_angle <= angolo_max) or (240 <= arc_angle <= 360):
                 filettatura_matched.add((i, j))
-
     conteggio_filettatura = len(filettatura_matched)
 
-    # === PASSO 4: Detection svasatura ===
-    svasatura_matched = set()  # Set di (circle_idx1, circle_idx2)
-
+    # === PASSO 5: Svasatura (CIRCLE concentrici, escluso se c'è arco concentrico = filettatura) ===
+    svasatura_matched = set()
     for i, (cx1, cy1, r1) in enumerate(circles):
-        # Filtra: cerca solo nella zona sviluppata
-        if not punto_in_zona_sviluppata(cx1, cy1):
+        if not in_zona(cx1, cy1):
             continue
-
         for j, (cx2, cy2, r2) in enumerate(circles):
-            # Skip stesso cerchio
             if i >= j:
                 continue
-
-            # Skip se già matchato
             if (i, j) in svasatura_matched or (j, i) in svasatura_matched:
                 continue
-
-            # Check 1: Centri concentrici (entro tolleranza)
-            dist = math.sqrt((cx1 - cx2)**2 + (cy1 - cy2)**2)
-            if dist > tolleranza_centro:
+            d = math.sqrt((cx1 - cx2) ** 2 + (cy1 - cy2) ** 2)
+            if d > tolleranza_centro:
                 continue
-
-            # Check 2: Ratio raggi nel range specificato
             r_outer = max(r1, r2)
             r_inner = min(r1, r2)
-
             if r_inner == 0:
                 continue
-
             ratio = r_outer / r_inner
-
             if ratio_min <= ratio <= ratio_max:
-                # Check 3: Verifica che NON ci sia un arco nella stessa posizione
-                # (che indicherebbe filettatura, non svasatura)
                 ha_arco_concentrico = False
-                for (cx_arc, cy_arc, r_arc, _, _) in arcs:
-                    dist_arc = math.sqrt((cx1 - cx_arc)**2 + (cy1 - cy_arc)**2)
-                    if dist_arc <= tolleranza_centro:
+                for (cxa, cya, ra, _, _) in arcs:
+                    if math.sqrt((cx1 - cxa) ** 2 + (cy1 - cya) ** 2) <= tolleranza_centro:
                         ha_arco_concentrico = True
                         break
-
-                # Solo se NON c'è un arco, conta come svasatura
                 if not ha_arco_concentrico:
                     svasatura_matched.add((i, j))
-
     conteggio_svasatura = len(svasatura_matched)
 
-    # Converti saldatura da mm (unità DXF) a metri lineari (unità di costo)
-    totale_saldatura_ml = totale_saldatura / 1000.0
-
+    totale_saldatura_ml = round(totale_saldatura / 1000.0, 2)
+    logger.info("DXF %s: pieghe=%d, saldatura=%.2f ml, filettatura=%d, svasatura=%d",
+                os.path.basename(path), conteggio_pieghe, totale_saldatura_ml,
+                conteggio_filettatura, conteggio_svasatura)
     return conteggio_pieghe, totale_saldatura_ml, conteggio_filettatura, conteggio_svasatura
 
 
