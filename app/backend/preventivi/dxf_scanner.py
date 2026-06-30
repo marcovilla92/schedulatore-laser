@@ -505,18 +505,153 @@ def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
             except Exception:
                 pass
 
-    # Area = bbox di tutte le entità di taglio (= lamiera di partenza necessaria).
-    # Sovrastima la sagoma reale ma è coerente con quanto si paga al fornitore
-    # (lamiera rettangolare, non sagomata).
-    # Se ci sono polyline chiuse, le riportiamo come info aggiuntiva ma la "area"
-    # principale resta il bbox per coerenza col calcolo del peso materiale.
-    if bbox_xs and bbox_ys:
-        bbox_w_mm = max(bbox_xs) - min(bbox_xs)
-        bbox_h_mm = max(bbox_ys) - min(bbox_ys)
-        area_mm2 = bbox_w_mm * bbox_h_mm
+    # === Filtro cartiglio via cluster denso ===
+    # Strategia: il pezzo è una zona DENSA di entità geometriche concentrate.
+    # Il cartiglio è composto da poche entità SPARSE (cornici sui 4 bordi del foglio,
+    # piccoli riquadri di registro). Filtrando per percentile 5-95 dei centroidi
+    # delle entità di taglio, isolo la zona del pezzo escludendo cornici.
+
+    # Raccogli centroidi di TUTTE le entità di taglio
+    centroidi_xs = []
+    centroidi_ys = []
+    entita = []  # lista di (etype, centroide, dati per ricalcolo) per ri-iterazione
+    for entity in msp:
+        et = entity.dxftype()
+        if et in TIPI_ANNOTAZIONE:
+            continue
+        color = entity.dxf.color if hasattr(entity.dxf, 'color') else 7
+        if color in colori_esclusi:
+            continue
+        if et == 'LINE':
+            s, e = entity.dxf.start, entity.dxf.end
+            cx, cy = (s.x + e.x) / 2, (s.y + e.y) / 2
+            entita.append(('LINE', cx, cy, (s.x, s.y, e.x, e.y)))
+            centroidi_xs.append(cx); centroidi_ys.append(cy)
+        elif et == 'CIRCLE':
+            c, r = entity.dxf.center, entity.dxf.radius
+            entita.append(('CIRCLE', c.x, c.y, (c.x, c.y, r)))
+            centroidi_xs.append(c.x); centroidi_ys.append(c.y)
+        elif et == 'ARC':
+            c, r = entity.dxf.center, entity.dxf.radius
+            sweep = (entity.dxf.end_angle - entity.dxf.start_angle) % 360.0
+            entita.append(('ARC', c.x, c.y, (c.x, c.y, r, sweep)))
+            centroidi_xs.append(c.x); centroidi_ys.append(c.y)
+        elif et == 'LWPOLYLINE':
+            verts = [(p[0], p[1]) for p in entity.get_points()]
+            if not verts:
+                continue
+            cx = sum(v[0] for v in verts) / len(verts)
+            cy = sum(v[1] for v in verts) / len(verts)
+            closed = bool(entity.closed) or (
+                len(verts) >= 3 and _len_line(verts[0][0], verts[0][1], verts[-1][0], verts[-1][1]) < 0.1)
+            entita.append(('LWPOLYLINE', cx, cy, (verts, closed)))
+            centroidi_xs.append(cx); centroidi_ys.append(cy)
+        elif et == 'POLYLINE':
+            verts = [(v.dxf.location.x, v.dxf.location.y) for v in entity.vertices]
+            if not verts:
+                continue
+            cx = sum(v[0] for v in verts) / len(verts)
+            cy = sum(v[1] for v in verts) / len(verts)
+            closed_flag = bool(getattr(entity, 'is_closed', False))
+            geom_closed = (len(verts) >= 3 and
+                           _len_line(verts[0][0], verts[0][1], verts[-1][0], verts[-1][1]) < 0.1)
+            closed = closed_flag or geom_closed
+            entita.append(('POLYLINE', cx, cy, (verts, closed)))
+            centroidi_xs.append(cx); centroidi_ys.append(cy)
+
+    # Definisci zona pezzo via CLUSTERING DI DENSITÀ su griglia 20×20.
+    # Trova la cella più densa, espande greedy alle celle adiacenti con almeno
+    # il 20% della densità massima. Bbox del cluster = zona pezzo.
+    # Robusto contro cartigli A3/A4 con cornici + riquadri sparsi sui 4 bordi.
+    zona_pezzo_bbox = None
+    if len(centroidi_xs) >= 10:
+        x_min_tot, x_max_tot = min(centroidi_xs), max(centroidi_xs)
+        y_min_tot, y_max_tot = min(centroidi_ys), max(centroidi_ys)
+        N_BINS = 20
+        cell_w = max(1e-6, (x_max_tot - x_min_tot) / N_BINS)
+        cell_h = max(1e-6, (y_max_tot - y_min_tot) / N_BINS)
+        grid = {}
+        for cx, cy in zip(centroidi_xs, centroidi_ys):
+            ix = min(N_BINS - 1, max(0, int((cx - x_min_tot) / cell_w)))
+            iy = min(N_BINS - 1, max(0, int((cy - y_min_tot) / cell_h)))
+            grid[(ix, iy)] = grid.get((ix, iy), 0) + 1
+        if grid:
+            max_cell = max(grid, key=grid.get)
+            max_count = grid[max_cell]
+            threshold = max(1, max_count * 0.20)  # 20% — bilanciamento sovrastima/sottostima sui sample reali
+            # BFS espansione greedy
+            visited = {max_cell}
+            queue = [max_cell]
+            while queue:
+                ix, iy = queue.pop(0)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = ix + dx, iy + dy
+                        if 0 <= nx < N_BINS and 0 <= ny < N_BINS and (nx, ny) not in visited:
+                            if grid.get((nx, ny), 0) >= threshold:
+                                visited.add((nx, ny))
+                                queue.append((nx, ny))
+            cxs = [c[0] for c in visited]
+            cys = [c[1] for c in visited]
+            bx_min = x_min_tot + min(cxs) * cell_w
+            bx_max = x_min_tot + (max(cxs) + 1) * cell_w
+            by_min = y_min_tot + min(cys) * cell_h
+            by_max = y_min_tot + (max(cys) + 1) * cell_h
+            # Margine cella per non tagliare entità di bordo
+            zona_pezzo_bbox = (bx_min - cell_w * 0.5, bx_max + cell_w * 0.5,
+                               by_min - cell_h * 0.5, by_max + cell_h * 0.5)
+
+    if zona_pezzo_bbox:
+        x_min_z, x_max_z, y_min_z, y_max_z = zona_pezzo_bbox
+
+        def _in_pezzo(x, y):
+            return x_min_z <= x <= x_max_z and y_min_z <= y <= y_max_z
+
+        # Itera le entità collezionate, conta solo quelle nella zona pezzo
+        perim_pezzo_mm = 0.0
+        n_forature_pezzo = 0
+        xs_real, ys_real = [], []  # bbox effettivo delle entità nel pezzo
+        for kind, cx, cy, dati in entita:
+            if not _in_pezzo(cx, cy):
+                continue
+            if kind == 'LINE':
+                x1, y1, x2, y2 = dati
+                perim_pezzo_mm += _len_line(x1, y1, x2, y2)
+                xs_real += [x1, x2]; ys_real += [y1, y2]
+            elif kind == 'CIRCLE':
+                cxx, cyy, r = dati
+                perim_pezzo_mm += 2 * math.pi * r
+                n_forature_pezzo += 1
+                xs_real += [cxx - r, cxx + r]; ys_real += [cyy - r, cyy + r]
+            elif kind == 'ARC':
+                cxx, cyy, r, sweep = dati
+                perim_pezzo_mm += 2 * math.pi * r * (sweep / 360.0)
+                xs_real += [cxx - r, cxx + r]; ys_real += [cyy - r, cyy + r]
+            elif kind in ('LWPOLYLINE', 'POLYLINE'):
+                verts, closed = dati
+                perim_pezzo_mm += _perim_polyline(verts, closed)
+                for vx, vy in verts:
+                    xs_real.append(vx); ys_real.append(vy)
+
+        if xs_real:
+            bbox_w_mm = max(xs_real) - min(xs_real)
+            bbox_h_mm = max(ys_real) - min(ys_real)
+            area_mm2 = bbox_w_mm * bbox_h_mm  # bbox del pezzo (lamiera necessaria)
+        else:
+            bbox_w_mm = bbox_h_mm = area_mm2 = 0.0
+        perimetro_mm = perim_pezzo_mm
+        n_forature = n_forature_pezzo
     else:
-        bbox_w_mm = bbox_h_mm = 0.0
-        area_mm2 = 0.0
+        # Fallback: nessuna polyline chiusa → uso bbox totale (vecchia logica)
+        if bbox_xs and bbox_ys:
+            bbox_w_mm = max(bbox_xs) - min(bbox_xs)
+            bbox_h_mm = max(bbox_ys) - min(bbox_ys)
+            area_mm2 = bbox_w_mm * bbox_h_mm
+        else:
+            bbox_w_mm = bbox_h_mm = 0.0
+            area_mm2 = 0.0
 
     return {
         'area_dm2': round(area_mm2 / 10000.0, 4),       # mm² → dm² (1 dm² = 10000 mm²)
@@ -526,6 +661,7 @@ def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
         'area_mm2_raw': round(area_mm2, 2),
         'bbox_width_mm': round(bbox_w_mm, 2),
         'bbox_height_mm': round(bbox_h_mm, 2),
+        'zona_pezzo_filtered': zona_pezzo_bbox is not None,
     }
 
 

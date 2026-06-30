@@ -896,9 +896,9 @@ function renderArticoli() {
         </select>
       </td>
       <td class="n"><input type="number" class="cell-edit" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
-      <td class="n" style="color:var(--gray-text);">${(a.area_dm2 || 0).toFixed(2)}</td>
-      <td class="n" style="color:var(--gray-text);">${(a.perimetro_taglio_m || 0).toFixed(2)}</td>
-      <td class="n" style="color:var(--gray-text);">${a.n_forature || 0}</td>
+      <td class="n"><input type="number" class="cell-edit" value="${(a.area_dm2||0).toFixed(2)}" step="0.01" min="0" style="text-align:right;" onchange="updateArt(${i},'area_dm2',this.value,true)" title="Area lamiera necessaria (dm²) — modifica se la stima DXF è imprecisa"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${(a.perimetro_taglio_m||0).toFixed(2)}" step="0.01" min="0" style="text-align:right;" onchange="updateArt(${i},'perimetro_taglio_m',this.value,true)" title="Perimetro di taglio (m) — modifica se la stima DXF è imprecisa"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${a.n_forature||0}" step="1" min="0" style="text-align:right;" onchange="updateArt(${i},'n_forature',this.value,true)"></td>
       <td class="n">
         <input type="number" class="cell-edit" value="${baseEff.toFixed ? baseEff.toFixed(2) : baseEff}" step="0.01" style="text-align:right; font-weight:600;" onchange="updateArt(${i}, 'costo_base_override', this.value, true)" title="Costo base (materiale + taglio). Modificabile a mano.">
       </td>
