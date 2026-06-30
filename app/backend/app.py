@@ -1874,6 +1874,7 @@ def api_preventivi_import_dxf(preventivo_id):
             }
             pieghe, sald_ml, fil, svas = _dxf_scanner.scansiona_dxf_dettagli(tmp_path, dxf_cfg)
             geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
+            cartiglio = _dxf_scanner.estrai_materiale_da_cartiglio(tmp_path)
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
             # per consentire la preview successiva. Cleanup quando preventivo viene
             # accettato/rifiutato/eliminato.
@@ -1889,6 +1890,7 @@ def api_preventivi_import_dxf(preventivo_id):
                 'filettatura_pz': fil, 'svasatura_pz': svas,
             },
             'geometria': geo,
+            'cartiglio': cartiglio,  # {materiale, materiale_raw, confidence}
         }), 200
     except Exception as e:
         logger.exception('preventivi import dxf failed')

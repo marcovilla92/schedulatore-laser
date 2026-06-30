@@ -228,6 +228,125 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
     return conteggio_pieghe, totale_saldatura_ml, conteggio_filettatura, conteggio_svasatura
 
 
+def _normalize_materiale_cartiglio(raw: str) -> str:
+    """Mappa il valore raw del cartiglio al codice del laser_estimator.
+
+    Pattern reali trovati nei DXF cliente: 'AISI 304', '1.0037 (S235JR)', 'S235JR',
+    'X5CrNi18-10', 'INOX 316', ecc.
+    """
+    s = (raw or '').strip().upper()
+    if not s:
+        return ''
+    # INOX 316 (numerazione DIN 1.4401)
+    if '316' in s or '1.4401' in s or '1.4404' in s:
+        return 'INOX_316'
+    # INOX 304 (numerazione DIN 1.4301 / nome X5CrNi)
+    if '304' in s or '1.4301' in s or 'X5CRNI' in s or 'INOX' in s or 'AISI' in s or 'STAINLESS' in s:
+        return 'INOX_304'
+    # Alluminio leghe comuni
+    if '5083' in s:
+        return 'ALU_5083'
+    if 'ALLUM' in s or s.startswith('ALU') or '5754' in s or s == 'AL':
+        return 'ALU_5754'
+    # Acciai al carbonio S235/S275/S355 (codici DIN 1.0037, 1.0044, 1.0577)
+    if 'S235' in s or '1.0037' in s or 'ST37' in s or 'FE 37' in s or 'FE37' in s:
+        return 'S235'
+    if 'S275' in s or '1.0044' in s:
+        return 'S235'  # aggregato a S235 (no S275 in laser_config attuale)
+    if 'S355' in s or '1.0577' in s or 'ST52' in s:
+        return 'S235'  # aggregato a S235 (caratteristiche taglio simili)
+    if 'ACCI' in s or 'STEEL' in s or 'FERRO' in s:
+        return 'S235'
+    # Acciai al carbonio per molle/lamine (C45, C50, C60, C75)
+    import re as _re
+    if _re.search(r'\bC\s*\d{2}\b', s):
+        return 'S235'  # mappato a S235 per costi taglio simili
+    # Lamiere a freddo per imbutitura (DIN EN 10130: DC01..DC06)
+    if _re.match(r'^DC0?\d', s) or _re.match(r'^DD1\d', s):
+        return 'S235'
+    # Acciai E335/E355/E360 (DIN EN 10025)
+    if _re.search(r'\bE3[3-9]\d\b', s):
+        return 'S235'
+    return ''
+
+
+def estrai_materiale_da_cartiglio(path: str) -> dict:
+    """Estrae il materiale dal cartiglio del disegno DXF.
+
+    Strategia: cerca un MTEXT/TEXT con testo "Materiale" (case-insensitive),
+    prende il testo più vicino spazialmente come valore. Normalizza via
+    `_normalize_materiale_cartiglio` al codice del laser_estimator.
+
+    Returns:
+        {materiale: 'S235'|'INOX_304'|..., materiale_raw: stringa originale,
+         confidence: float 0..1}.
+        Se non trovato: materiale='', confidence=0.
+    """
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        logger.warning('estrai_materiale_da_cartiglio: lettura DXF fallita: %s', e)
+        return {'materiale': '', 'materiale_raw': '', 'confidence': 0.0}
+    msp = doc.modelspace()
+
+    testi = []
+    for e in msp:
+        et = e.dxftype()
+        if et in ('MTEXT', 'TEXT'):
+            try:
+                t = (e.dxf.text or '').strip()
+                if not t:
+                    continue
+                # Pulizia codici DXF per MTEXT (es. \U+00B1, \pxqc, formatting)
+                import re
+                t_clean = re.sub(r'\\[A-Za-z][^;]*;', '', t)  # rimuovi \pxqc; ecc.
+                t_clean = re.sub(r'\{|\}', '', t_clean)
+                t_clean = re.sub(r'\\U\+([0-9A-Fa-f]{4})', '', t_clean)  # rimuovi unicode escape
+                t_clean = t_clean.strip()
+                if not t_clean:
+                    continue
+                x = float(e.dxf.insert.x)
+                y = float(e.dxf.insert.y)
+                testi.append((x, y, t_clean))
+            except Exception:
+                continue
+
+    # Trova "Materiale" etichetta
+    label_pos = None
+    for x, y, t in testi:
+        if t.lower() in ('materiale', 'material:', 'material', 'materiale:'):
+            label_pos = (x, y)
+            break
+    if not label_pos:
+        # Fallback: cerca direttamente un testo che sia chiaramente un materiale
+        for x, y, t in testi:
+            mat = _normalize_materiale_cartiglio(t)
+            if mat:
+                return {'materiale': mat, 'materiale_raw': t, 'confidence': 0.5}
+        return {'materiale': '', 'materiale_raw': '', 'confidence': 0.0}
+
+    # Trova il testo più vicino spazialmente che sia un materiale valido
+    import math as _math
+    best = None
+    best_dist = float('inf')
+    lx, ly = label_pos
+    for x, y, t in testi:
+        if (x, y) == label_pos and t.lower().startswith('material'):
+            continue
+        d = _math.hypot(x - lx, y - ly)
+        if d < best_dist:
+            mat = _normalize_materiale_cartiglio(t)
+            if mat:
+                best_dist = d
+                best = (mat, t, d)
+    if best:
+        # confidence proporzionale alla distanza (più vicino = più alta)
+        # entro 50 unità DXF: 1.0, oltre 500: 0.3
+        conf = max(0.3, min(1.0, 1.0 - (best[2] / 500.0)))
+        return {'materiale': best[0], 'materiale_raw': best[1], 'confidence': round(conf, 2)}
+    return {'materiale': '', 'materiale_raw': '', 'confidence': 0.0}
+
+
 def dxf_to_svg_string(path: str) -> str:
     """Converte un DXF in stringa SVG ad alta fedeltà via ezdxf SVGBackend.
 

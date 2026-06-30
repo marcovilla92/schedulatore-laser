@@ -1343,12 +1343,14 @@ async function uploadDxf(file, suppressMsg) {
       renderArticoli(); recalcTotali();
       return;
     }
-    // Articolo NUOVO da DXF puro (no Lantek): materiale e spessore VUOTI, il commerciale deve sceglierli
+    // Articolo NUOVO da DXF puro: usa materiale dal cartiglio se rilevato (alta confidenza)
+    const cartiglio = d.cartiglio || {};
+    const matFromCartiglio = (cartiglio.confidence >= 0.8) ? cartiglio.materiale : '';
     currentArticoli.push({
       id: 'tmp-' + Date.now() + '-' + Math.random(),
       codice: fname,
       quantita: 1,
-      materiale: '', spessore_mm: null,  // VUOTI → forza la scelta del commerciale
+      materiale: matFromCartiglio, spessore_mm: null,  // materiale da cartiglio o vuoto; spessore sempre vuoto
       area: 0, area_dm2: d.geometria.area_dm2 || 0,
       perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
       n_forature: d.geometria.n_forature || 0,
@@ -1362,7 +1364,12 @@ async function uploadDxf(file, suppressMsg) {
       dxf_filename: d.filename || file.name,
     });
     renderArticoli(); recalcTotali();
-    if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" importato come articolo NUOVO. Imposta materiale + spessore e clicca Stima.`, 'var(--orange)');
+    if (!suppressMsg) {
+      const matMsg = matFromCartiglio
+        ? `materiale rilevato dal cartiglio: ${matFromCartiglio} (${cartiglio.materiale_raw})`
+        : 'materiale da impostare a mano';
+      showMsg('msg-import', `✓ DXF "${fname}" importato — ${matMsg}. Imposta spessore e clicca Stima.`, matFromCartiglio ? 'var(--green)' : 'var(--orange)');
+    }
   } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
