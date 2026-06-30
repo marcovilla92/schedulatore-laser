@@ -1,5 +1,24 @@
 {
   "sospetto_giorni_dal_taglio": 5,
   "sospetto_giorni_da_ultima_scan": 3,
-  "_note": "Soglie per il rilevamento di 'ordini sospetti finiti' nel pannello capo/impiegata. Un ordine è considerato sospetto se taglio completato da almeno N giorni E ultima scansione officina da almeno M giorni."
+  "_note": "Soglie per il rilevamento di 'ordini sospetti finiti' nel pannello capo/impiegata. Un ordine è considerato sospetto se taglio completato da almeno N giorni E ultima scansione officina da almeno M giorni.",
+  "laser_config": {
+    "_note": "Coefficienti per laser_cost_estimator (Fase 1b merge preventivatore). Modificabili da admin in futuro.",
+    "materiali": {
+      "S235":     { "densita_kg_dm3": 7.85, "euro_kg": 1.20 },
+      "INOX_304": { "densita_kg_dm3": 8.00, "euro_kg": 4.50 },
+      "INOX_316": { "densita_kg_dm3": 8.00, "euro_kg": 6.20 },
+      "ALU_5754": { "densita_kg_dm3": 2.70, "euro_kg": 3.80 },
+      "ALU_5083": { "densita_kg_dm3": 2.66, "euro_kg": 4.20 }
+    },
+    "velocita_taglio_m_h": {
+      "S235":     { "1": 6000, "2": 3500, "3": 2500, "4": 2000, "5": 1500, "6": 1200, "8": 950,  "10": 800, "12": 600, "15": 400, "20": 250 },
+      "INOX_304": { "1": 4500, "2": 2800, "3": 2000, "4": 1500, "5": 1100, "6": 900,  "8": 650,  "10": 500, "12": 350 },
+      "INOX_316": { "1": 4500, "2": 2800, "3": 2000, "4": 1500, "5": 1100, "6": 900,  "8": 650,  "10": 500, "12": 350 },
+      "ALU_5754": { "1": 8000, "2": 5000, "3": 3500, "4": 2500, "5": 1800, "6": 1300, "8": 900,  "10": 650 },
+      "ALU_5083": { "1": 8000, "2": 5000, "3": 3500, "4": 2500, "5": 1800, "6": 1300, "8": 900,  "10": 650 }
+    },
+    "euro_h_macchina": 85.0,
+    "tempo_perforazione_sec": 0.5
+  }
 }

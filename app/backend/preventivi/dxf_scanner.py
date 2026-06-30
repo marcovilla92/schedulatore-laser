@@ -327,6 +327,166 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
     return conteggio_pieghe, totale_saldatura_ml, conteggio_filettatura, conteggio_svasatura
 
 
+def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
+    """Estrae area, perimetro_taglio e n_forature da DXF per stima costo laser.
+
+    Aggiunta Fase 1b merge preventivatore. Complementare a `scansiona_dxf_dettagli`
+    (che invece estrae pieghe/saldature/filettature/svasature per i costi post-taglio).
+
+    Convenzioni DXF: tutte le unità in mm.
+    - **area_dm2**: area della sagoma esterna del pezzo. Calcolata come area della
+      polyline chiusa con BOUNDING BOX più grande (la "shell" esterna). Le
+      polyline interne (fori, asole) NON vengono sottratte qui (approssimazione
+      conservativa per il PESO MATERIALE, che si calcola sulla lamiera intera
+      prima del taglio).
+    - **perimetro_taglio_m**: somma di tutte le entità "di taglio" — LINE,
+      LWPOLYLINE, POLYLINE, CIRCLE, ARC, SPLINE — ESCLUSE le linee di colore
+      piega/saldatura (che non sono tagli laser ma indicazioni grafiche).
+    - **n_forature**: count di CIRCLE (ogni cerchio = 1 piercing del laser).
+
+    Args:
+        path: percorso al DXF.
+        config: dict opzionale con dxf_colori_piega/dxf_colori_saldatura da escludere.
+
+    Returns:
+        {area_dm2, perimetro_taglio_m, n_forature, n_polyline_chiuse, area_mm2_raw}
+    """
+    cfg = config or {}
+    colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
+
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        logger.warning('estrai_geometria_taglio: impossibile aprire %s: %s', path, e)
+        return {'area_dm2': 0.0, 'perimetro_taglio_m': 0.0, 'n_forature': 0,
+                'n_polyline_chiuse': 0, 'area_mm2_raw': 0.0,
+                'bbox_width_mm': 0.0, 'bbox_height_mm': 0.0}
+    msp = doc.modelspace()
+
+    perimetro_mm = 0.0
+    n_forature = 0
+    polyline_chiuse_areas = []  # (area_mm2, bbox_size_mm) per scegliere shell esterna
+    # Bounding box delle entità "di taglio" (= dimensione lamiera necessaria, sovrastima conservativa)
+    bbox_xs, bbox_ys = [], []
+    # Ignora annotazioni DIMENSION/MTEXT/TEXT/INSERT (sono testo, non geometria di taglio)
+    TIPI_ANNOTAZIONE = {'DIMENSION', 'MTEXT', 'TEXT', 'INSERT', 'ATTRIB', 'ATTDEF', 'LEADER', 'MULTILEADER'}
+
+    def _len_line(x1, y1, x2, y2):
+        return math.hypot(x2 - x1, y2 - y1)
+
+    def _shoelace_area(verts):
+        n = len(verts)
+        if n < 3:
+            return 0.0
+        a = 0.0
+        for i in range(n):
+            x1, y1 = verts[i][0], verts[i][1]
+            x2, y2 = verts[(i + 1) % n][0], verts[(i + 1) % n][1]
+            a += x1 * y2 - x2 * y1
+        return abs(a) / 2.0
+
+    def _bbox_size(verts):
+        xs = [v[0] for v in verts]
+        ys = [v[1] for v in verts]
+        return max(max(xs) - min(xs), max(ys) - min(ys))
+
+    def _perim_polyline(verts, closed=False):
+        if len(verts) < 2:
+            return 0.0
+        p = 0.0
+        for i in range(len(verts) - 1):
+            p += _len_line(verts[i][0], verts[i][1], verts[i + 1][0], verts[i + 1][1])
+        if closed:
+            p += _len_line(verts[-1][0], verts[-1][1], verts[0][0], verts[0][1])
+        return p
+
+    for entity in msp:
+        etype = entity.dxftype()
+        if etype in TIPI_ANNOTAZIONE:
+            continue
+        color = entity.dxf.color if hasattr(entity.dxf, 'color') else 7
+        if color in colori_esclusi:
+            continue
+
+        if etype == 'LINE':
+            s = entity.dxf.start
+            e = entity.dxf.end
+            perimetro_mm += _len_line(s.x, s.y, e.x, e.y)
+            bbox_xs += [s.x, e.x]; bbox_ys += [s.y, e.y]
+
+        elif etype == 'CIRCLE':
+            c = entity.dxf.center
+            r = entity.dxf.radius
+            perimetro_mm += 2 * math.pi * r
+            n_forature += 1
+            bbox_xs += [c.x - r, c.x + r]; bbox_ys += [c.y - r, c.y + r]
+
+        elif etype == 'ARC':
+            c = entity.dxf.center
+            r = entity.dxf.radius
+            sweep = (entity.dxf.end_angle - entity.dxf.start_angle) % 360.0
+            perimetro_mm += 2 * math.pi * r * (sweep / 360.0)
+            bbox_xs += [c.x - r, c.x + r]; bbox_ys += [c.y - r, c.y + r]
+
+        elif etype == 'LWPOLYLINE':
+            verts = [(p[0], p[1]) for p in entity.get_points()]
+            closed_flag = bool(entity.closed)
+            geom_closed = (len(verts) >= 3 and
+                           _len_line(verts[0][0], verts[0][1], verts[-1][0], verts[-1][1]) < 0.1)
+            closed = closed_flag or geom_closed
+            perimetro_mm += _perim_polyline(verts, closed and not geom_closed)
+            if closed and len(verts) >= 3:
+                a_mm2 = _shoelace_area(verts)
+                if a_mm2 > 0:
+                    polyline_chiuse_areas.append((a_mm2, _bbox_size(verts)))
+            for vx, vy in verts:
+                bbox_xs.append(vx); bbox_ys.append(vy)
+
+        elif etype == 'POLYLINE':
+            verts = [(v.dxf.location.x, v.dxf.location.y) for v in entity.vertices]
+            closed_flag = bool(getattr(entity, 'is_closed', False))
+            geom_closed = (len(verts) >= 3 and
+                           _len_line(verts[0][0], verts[0][1], verts[-1][0], verts[-1][1]) < 0.1)
+            closed = closed_flag or geom_closed
+            perimetro_mm += _perim_polyline(verts, closed and not geom_closed)
+            if closed and len(verts) >= 3:
+                a_mm2 = _shoelace_area(verts)
+                if a_mm2 > 0:
+                    polyline_chiuse_areas.append((a_mm2, _bbox_size(verts)))
+
+        elif etype == 'SPLINE':
+            # Approssimazione: lunghezza spline ≈ sum segments dei punti di controllo
+            try:
+                pts = list(entity.flattening(distance=0.5))
+                for i in range(len(pts) - 1):
+                    perimetro_mm += _len_line(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y)
+            except Exception:
+                pass
+
+    # Area = bbox di tutte le entità di taglio (= lamiera di partenza necessaria).
+    # Sovrastima la sagoma reale ma è coerente con quanto si paga al fornitore
+    # (lamiera rettangolare, non sagomata).
+    # Se ci sono polyline chiuse, le riportiamo come info aggiuntiva ma la "area"
+    # principale resta il bbox per coerenza col calcolo del peso materiale.
+    if bbox_xs and bbox_ys:
+        bbox_w_mm = max(bbox_xs) - min(bbox_xs)
+        bbox_h_mm = max(bbox_ys) - min(bbox_ys)
+        area_mm2 = bbox_w_mm * bbox_h_mm
+    else:
+        bbox_w_mm = bbox_h_mm = 0.0
+        area_mm2 = 0.0
+
+    return {
+        'area_dm2': round(area_mm2 / 10000.0, 4),       # mm² → dm² (1 dm² = 10000 mm²)
+        'perimetro_taglio_m': round(perimetro_mm / 1000.0, 4),  # mm → m
+        'n_forature': n_forature,
+        'n_polyline_chiuse': len(polyline_chiuse_areas),
+        'area_mm2_raw': round(area_mm2, 2),
+        'bbox_width_mm': round(bbox_w_mm, 2),
+        'bbox_height_mm': round(bbox_h_mm, 2),
+    }
+
+
 def dxf_to_segments(path: str) -> tuple[list, list, list]:
     """Legge un file DXF e restituisce (segments, xs, ys).
 
