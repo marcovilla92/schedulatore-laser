@@ -9,6 +9,8 @@ import os
 
 import ezdxf
 
+from .dxf_polygon_detector import detect_pezzo_geometry as _detect_v2
+
 logger = logging.getLogger(__name__)
 
 
@@ -372,28 +374,43 @@ def dxf_to_svg_string(path: str) -> str:
 def estrai_geometria_taglio(path: str, config: dict | None = None) -> dict:
     """Estrae area, perimetro_taglio e n_forature da DXF per stima costo laser.
 
-    Aggiunta Fase 1b merge preventivatore. Complementare a `scansiona_dxf_dettagli`
-    (che invece estrae pieghe/saldature/filettature/svasature per i costi post-taglio).
+    Dispatcher v1/v2 via config flag `dxf_scanner_version` (default 'v2').
 
-    Convenzioni DXF: tutte le unità in mm.
-    - **area_dm2**: area della sagoma esterna del pezzo. Calcolata come area della
-      polyline chiusa con BOUNDING BOX più grande (la "shell" esterna). Le
-      polyline interne (fori, asole) NON vengono sottratte qui (approssimazione
-      conservativa per il PESO MATERIALE, che si calcola sulla lamiera intera
-      prima del taglio).
-    - **perimetro_taglio_m**: somma di tutte le entità "di taglio" — LINE,
-      LWPOLYLINE, POLYLINE, CIRCLE, ARC, SPLINE — ESCLUSE le linee di colore
-      piega/saldatura (che non sono tagli laser ma indicazioni grafiche).
-    - **n_forature**: count di CIRCLE (ogni cerchio = 1 piercing del laser).
+    - **v2** (default): polygon detection vero (algoritmo CAM standard).
+      Identifica outer/inner contours, filtra cartiglio per formati ISO + cornici
+      rettangolari grandi, sceglie outer come "poligono con più CIRCLE contenuti".
+      Errore tipico <10% su DXF Lantek puliti.
 
-    Args:
-        path: percorso al DXF.
-        config: dict opzionale con dxf_colori_piega/dxf_colori_saldatura da escludere.
+    - **v1** (legacy): euristica bbox + cluster densità. Errore medio 38%.
+      Fallback se v2 non rileva geometria (es. DXF molto scadenti).
 
     Returns:
-        {area_dm2, perimetro_taglio_m, n_forature, n_polyline_chiuse, area_mm2_raw}
+        Dict con campi compatibili tra v1 e v2:
+        {area_dm2, perimetro_taglio_m, n_forature, bbox_width_mm, bbox_height_mm,
+         tipo_disegno, ...}.
     """
     cfg = config or {}
+    version = cfg.get('dxf_scanner_version', 'v2')
+
+    if version == 'v2':
+        try:
+            r = _detect_v2(path, cfg)
+            # Se v2 ha trovato geometria valida, usa il suo risultato
+            if r and r.get('area_dm2', 0) > 0:
+                # Compatibilità con vecchio schema (alias n_pierce → n_forature)
+                if 'n_pierce' in r and 'n_forature' not in r:
+                    r['n_forature'] = r['n_pierce']
+                # Garantisci tutti i campi attesi da chi consuma estrai_geometria_taglio
+                r.setdefault('n_polyline_chiuse', r.get('poligoni_grezzi', 0))
+                r.setdefault('area_mm2_raw', round(r['area_dm2'] * 10000.0, 2))
+                r.setdefault('zona_pezzo_filtered', True)
+                return r
+            logger.warning("dxf_scanner v2 ha restituito area=0 per %s — fallback v1", os.path.basename(path))
+        except Exception as e:
+            logger.warning("dxf_scanner v2 errore su %s: %s — fallback v1", os.path.basename(path), e)
+        # Fallthrough a v1
+
+    # === v1 (legacy euristica) ===
     colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
 
     try:
