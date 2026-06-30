@@ -384,18 +384,24 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
   <div class="card" id="card-import" style="display:none;">
     <div class="card-header"><h3>Importa file</h3></div>
     <div class="card-body">
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
         <div class="dropzone" onclick="document.getElementById('inp-xlsx').click()" id="dz-xlsx">
           <div class="icon"><i data-lucide="file-spreadsheet" style="width:32px;height:32px;"></i></div>
           <div class="label">XLSX Lantek</div>
-          <div class="hint">Click o trascina file qui. Estrae articoli con codice + costo materiale.</div>
+          <div class="hint">Articoli con codice + costo materiale.</div>
           <input type="file" id="inp-xlsx" accept=".xlsx" style="display:none;" onchange="uploadXlsx(this.files[0])">
         </div>
         <div class="dropzone" onclick="document.getElementById('inp-dxf').click()" id="dz-dxf">
           <div class="icon"><i data-lucide="file-code" style="width:32px;height:32px;"></i></div>
           <div class="label">DXF cliente</div>
-          <div class="hint">Estrae pieghe, saldature, area e perimetro di taglio. Il file non viene salvato.</div>
+          <div class="hint">Pieghe, saldature, area, perimetro di taglio.</div>
           <input type="file" id="inp-dxf" accept=".dxf" style="display:none;" onchange="uploadDxf(this.files[0])">
+        </div>
+        <div class="dropzone" onclick="document.getElementById('inp-step').click()" id="dz-step">
+          <div class="icon"><i data-lucide="box" style="width:32px;height:32px;"></i></div>
+          <div class="label">STEP 3D</div>
+          <div class="hint">Assiemi: tubolari, piastre, saldature totali.</div>
+          <input type="file" id="inp-step" accept=".step,.stp" style="display:none;" onchange="uploadStep(this.files[0])">
         </div>
       </div>
       <div class="form-msg" id="msg-import"></div>
@@ -430,6 +436,86 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
         </thead>
         <tbody id="articoli-tbody">
           <tr><td colspan="11" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Assiemi (da STEP 3D) -->
+  <div class="card" id="card-assiemi" style="display:none;">
+    <div class="card-header">
+      <h3>Assiemi 3D</h3>
+      <button class="btn-mini" onclick="addAssiemeManuale()">+ Aggiungi manuale</button>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Codice assieme</th>
+            <th class="n">Qty</th>
+            <th class="n">Ore mont.</th>
+            <th class="n">Costo mont. &euro;</th>
+            <th class="n">Sald. (mt)</th>
+            <th class="n">Costo sald. &euro;</th>
+            <th class="n">Peso kg</th>
+            <th style="text-align:right;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="assiemi-tbody">
+          <tr><td colspan="8" class="empty">Importa STEP 3D o aggiungi manualmente.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tubolari (da STEP 3D) -->
+  <div class="card" id="card-tubolari" style="display:none;">
+    <div class="card-header">
+      <h3>Tubolari</h3>
+      <span class="card-meta" id="tubolari-meta">&mdash;</span>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Profilo</th>
+            <th>Tipo</th>
+            <th>Materiale</th>
+            <th class="n">Lungh. m</th>
+            <th class="n">Peso kg</th>
+            <th class="n">Costo mat. &euro;</th>
+            <th class="n">Costo taglio &euro;</th>
+            <th class="n">Tagli dritti / obliqui</th>
+            <th style="text-align:right;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="tubolari-tbody">
+          <tr><td colspan="9" class="empty">Importa STEP 3D per estrarre tubolari.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Piastre (da STEP 3D) -->
+  <div class="card" id="card-piastre" style="display:none;">
+    <div class="card-header">
+      <h3>Piastre</h3>
+      <span class="card-meta" id="piastre-meta">&mdash;</span>
+    </div>
+    <div class="card-body no-pad">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th class="n">Spess. mm</th>
+            <th class="n">Area dm&sup2;</th>
+            <th class="n">Peso kg</th>
+            <th>Materiale</th>
+            <th class="n">Costo &euro;</th>
+            <th style="text-align:right;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="piastre-tbody">
+          <tr><td colspan="6" class="empty">Importa STEP 3D per estrarre piastre.</td></tr>
         </tbody>
       </table>
     </div>
@@ -521,6 +607,9 @@ const API_URL = '';
 let currentUser = null;
 let currentPreventivo = null;  // oggetto preventivo corrente caricato nell'editor
 let currentArticoli = [];      // lista articoli (locale, sincronizzata col DB via save)
+let currentAssiemi = [];       // assiemi 3D (da STEP o manuale)
+let currentTubolari = [];      // tubolari (da STEP)
+let currentPiastre = [];       // piastre (da STEP)
 
 // Materiali (sync con app_config.json)
 const MATERIALI = ['', 'S235', 'INOX_304', 'INOX_316', 'ALU_5754', 'ALU_5083'];
@@ -654,6 +743,9 @@ async function loadList() {
 function newPreventivo() {
   currentPreventivo = null;
   currentArticoli = [];
+  currentAssiemi = [];
+  currentTubolari = [];
+  currentPiastre = [];
   document.getElementById('editor-title').textContent = 'Nuovo preventivo';
   document.getElementById('editor-status-badge').outerHTML = '<span class="badge gray" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">NUOVO</span>';
   document.getElementById('editor-sub').textContent = 'Compila i dati base e salva, poi importa XLSX/DXF.';
@@ -680,6 +772,9 @@ async function openPreventivo(id) {
     const p = d.preventivo;
     currentPreventivo = p;
     currentArticoli = p.articoli || [];
+    currentAssiemi = p.assiemi || [];
+    currentTubolari = p.tubolari || [];
+    currentPiastre = p.piastre || [];
     populateEditor(p);
     switchTab('editor');
   } catch (e) { alert('Errore: ' + e.message); }
@@ -699,6 +794,9 @@ function populateEditor(p) {
   // Sezioni mostrate
   document.getElementById('card-import').style.display = '';
   document.getElementById('card-articoli').style.display = '';
+  document.getElementById('card-assiemi').style.display = '';
+  document.getElementById('card-tubolari').style.display = '';
+  document.getElementById('card-piastre').style.display = '';
   document.getElementById('card-totali').style.display = '';
   document.getElementById('card-azioni').style.display = '';
   // Disabilita save/import se non BOZZA
@@ -710,6 +808,9 @@ function populateEditor(p) {
   document.getElementById('card-import').style.opacity = editable ? '1' : '0.5';
   document.getElementById('card-import').style.pointerEvents = editable ? '' : 'none';
   renderArticoli();
+  renderAssiemi();
+  renderTubolari();
+  renderPiastre();
   recalcTotali();
 }
 
@@ -880,12 +981,201 @@ function recalcTotali() {
                         (a.costo_svasatura || 0) + (a.costo_apporto || 0) + (a.costo_pulizia || 0);
     totalePezzo += (base + lavorazioni) * (a.quantita || 1);
   }
+  // Assiemi: costo (montaggio + puntatura + saldatura assieme) * qty
+  let costoAssiemi = 0;
+  for (const a of currentAssiemi) {
+    const q = a.qty || 1;
+    costoAssiemi += ((a.costo || 0) + (a.costo_puntatura || 0) + (a.costo_saldatura_assieme || 0)) * q;
+  }
+  // Tubolari: costo materiale + taglio (sommati così come arrivano)
+  let costoTubolari = 0;
+  for (const t of currentTubolari) {
+    costoTubolari += (t.costo_materiale || 0) + (t.costo_taglio_totale || 0);
+  }
+  // Piastre: costo per piastra
+  let costoPiastre = 0;
+  for (const p of currentPiastre) {
+    costoPiastre += (p.costo || 0);
+  }
   const conMargine = totalePezzo * (1 + margine / 100);
-  const totaleLotto = conMargine * qty;
+  // Margine sui costi di assieme/tubolari/piastre — default sì (configurabile in futuro)
+  const conMargineAssiemi = costoAssiemi * (1 + margine / 100);
+  const conMargineTubolari = costoTubolari * (1 + margine / 100);
+  const conMarginePiastre = costoPiastre * (1 + margine / 100);
+  const totaleLotto = conMargine * qty + conMargineAssiemi + conMargineTubolari + conMarginePiastre;
   document.getElementById('t-pezzo').innerHTML = formatEur(totalePezzo) + '<span class="unit">€</span>';
   document.getElementById('t-margine').innerHTML = formatEur(conMargine) + '<span class="unit">€</span>';
   document.getElementById('t-lotto').innerHTML = formatEur(totaleLotto) + '<span class="unit">€</span>';
   document.getElementById('t-qty').textContent = qty;
+}
+
+// ============================================================
+//  ASSIEMI / TUBOLARI / PIASTRE — render + edit
+// ============================================================
+function renderAssiemi() {
+  const tbody = document.getElementById('assiemi-tbody');
+  if (!currentAssiemi.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">Importa STEP 3D o aggiungi manualmente.</td></tr>';
+    return;
+  }
+  let html = '';
+  currentAssiemi.forEach((a, i) => {
+    html += `<tr>
+      <td><input type="text" class="cell-edit" value="${escapeHtml(a.codice_assieme || '')}" onchange="updateAss(${i},'codice_assieme',this.value)"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${a.qty || 1}" min="1" style="text-align:right;" onchange="updateAss(${i},'qty',this.value,true)"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${(a.ore_montaggio||0).toFixed(2)}" step="0.1" style="text-align:right;" onchange="updateAss(${i},'ore_montaggio',this.value,true)"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${(a.costo||0).toFixed(2)}" step="0.5" style="text-align:right; font-weight:600;" onchange="updateAss(${i},'costo',this.value,true)"></td>
+      <td class="n" style="color:var(--gray-text);">${(a.saldatura_mt||0).toFixed(2)}</td>
+      <td class="n"><input type="number" class="cell-edit" value="${(a.costo_saldatura_assieme||0).toFixed(2)}" step="0.5" style="text-align:right;" onchange="updateAss(${i},'costo_saldatura_assieme',this.value,true)"></td>
+      <td class="n" style="color:var(--gray-text);">${(a.peso_kg||0).toFixed(1)}</td>
+      <td style="text-align:right;"><button class="btn-danger" onclick="removeAss(${i})">Rimuovi</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+function updateAss(i, field, value, numeric) {
+  if (!currentAssiemi[i]) return;
+  currentAssiemi[i][field] = numeric ? parseFloat(value) || 0 : value;
+  recalcTotali();
+}
+
+function addAssiemeManuale() {
+  currentAssiemi.push({
+    id: 'tmp-' + Date.now(),
+    codice_assieme: 'ASS-' + (currentAssiemi.length + 1),
+    qty: 1, ore_montaggio: 0, ore_puntatura: 0,
+    costo: 0, costo_puntatura: 0, costo_saldatura_assieme: 0,
+    saldatura_mt: 0, peso_kg: 0, componenti_qty: {},
+  });
+  renderAssiemi();
+}
+
+function removeAss(i) {
+  if (!confirm('Rimuovere assieme "' + (currentAssiemi[i].codice_assieme || '?') + '"?')) return;
+  currentAssiemi.splice(i, 1);
+  renderAssiemi(); recalcTotali();
+}
+
+function renderTubolari() {
+  const tbody = document.getElementById('tubolari-tbody');
+  const meta = document.getElementById('tubolari-meta');
+  if (!currentTubolari.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Importa STEP 3D per estrarre tubolari.</td></tr>';
+    meta.textContent = '—';
+    return;
+  }
+  let html = '';
+  let pesoTot = 0, costoTot = 0;
+  currentTubolari.forEach((t, i) => {
+    pesoTot += t.peso_kg || 0;
+    costoTot += (t.costo_materiale || 0) + (t.costo_taglio_totale || 0);
+    html += `<tr>
+      <td><code>${escapeHtml(t.profilo || '—')}</code></td>
+      <td><span class="badge gray">${escapeHtml(t.tipo || '—')}</span></td>
+      <td>
+        <select class="cell-edit" onchange="updateTub(${i},'materiale',this.value)">
+          <option value="acciaio" ${t.materiale==='acciaio'?'selected':''}>acciaio</option>
+          <option value="inox" ${t.materiale==='inox'?'selected':''}>inox</option>
+          <option value="alluminio" ${t.materiale==='alluminio'?'selected':''}>alluminio</option>
+        </select>
+      </td>
+      <td class="n">${(t.lunghezza_m||0).toFixed(3)}</td>
+      <td class="n">${(t.peso_kg||0).toFixed(2)}</td>
+      <td class="n"><input type="number" class="cell-edit" value="${(t.costo_materiale||0).toFixed(2)}" step="0.1" style="text-align:right;" onchange="updateTub(${i},'costo_materiale',this.value,true)"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${(t.costo_taglio_totale||0).toFixed(2)}" step="0.1" style="text-align:right;" onchange="updateTub(${i},'costo_taglio_totale',this.value,true)"></td>
+      <td class="n" style="color:var(--gray-text); font-size:11px;">${t.n_tagli_dritti||0} / ${t.n_tagli_obliqui||0}</td>
+      <td style="text-align:right;"><button class="btn-danger" onclick="removeTub(${i})">Rim.</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  meta.textContent = `${currentTubolari.length} tubolari • ${pesoTot.toFixed(1)} kg • ${formatEur(costoTot)} €`;
+}
+
+function updateTub(i, field, value, numeric) {
+  if (!currentTubolari[i]) return;
+  currentTubolari[i][field] = numeric ? parseFloat(value) || 0 : value;
+  recalcTotali();
+}
+
+function removeTub(i) {
+  currentTubolari.splice(i, 1);
+  renderTubolari(); recalcTotali();
+}
+
+function renderPiastre() {
+  const tbody = document.getElementById('piastre-tbody');
+  const meta = document.getElementById('piastre-meta');
+  if (!currentPiastre.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Importa STEP 3D per estrarre piastre.</td></tr>';
+    meta.textContent = '—';
+    return;
+  }
+  let html = '';
+  let pesoTot = 0, costoTot = 0;
+  currentPiastre.forEach((p, i) => {
+    pesoTot += p.peso_kg || 0;
+    costoTot += p.costo || 0;
+    html += `<tr>
+      <td class="n">${(p.spessore_mm||0).toFixed(1)}</td>
+      <td class="n">${(p.area_dm2||0).toFixed(2)}</td>
+      <td class="n">${(p.peso_kg||0).toFixed(2)}</td>
+      <td>
+        <select class="cell-edit" onchange="updatePia(${i},'materiale',this.value)">
+          <option value="acciaio" ${p.materiale==='acciaio'?'selected':''}>acciaio</option>
+          <option value="inox" ${p.materiale==='inox'?'selected':''}>inox</option>
+          <option value="alluminio" ${p.materiale==='alluminio'?'selected':''}>alluminio</option>
+        </select>
+      </td>
+      <td class="n"><input type="number" class="cell-edit" value="${(p.costo||0).toFixed(2)}" step="0.1" style="text-align:right; font-weight:600;" onchange="updatePia(${i},'costo',this.value,true)"></td>
+      <td style="text-align:right;"><button class="btn-danger" onclick="removePia(${i})">Rim.</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  meta.textContent = `${currentPiastre.length} piastre • ${pesoTot.toFixed(1)} kg • ${formatEur(costoTot)} €`;
+}
+
+function updatePia(i, field, value, numeric) {
+  if (!currentPiastre[i]) return;
+  currentPiastre[i][field] = numeric ? parseFloat(value) || 0 : value;
+  recalcTotali();
+}
+
+function removePia(i) {
+  currentPiastre.splice(i, 1);
+  renderPiastre(); recalcTotali();
+}
+
+async function uploadStep(file) {
+  if (!file || !currentPreventivo) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  showMsg('msg-import', 'Parsing STEP 3D (può richiedere qualche secondo)…', 'var(--gray-text)');
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/import-step?admin_id=${encodeURIComponent(currentUser.id)}`, {
+      method: 'POST', body: fd
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-import', 'Errore: ' + d.error, 'var(--red)'); return; }
+    // Aggiungi alle liste correnti (non sostituire — il commerciale potrebbe già aver caricato altri pezzi)
+    for (const a of (d.assiemi || [])) {
+      a.id = 'tmp-' + Date.now() + '-' + Math.random();
+      currentAssiemi.push(a);
+    }
+    for (const t of (d.tubolari || [])) {
+      t.id = 'tmp-' + Date.now() + '-' + Math.random();
+      currentTubolari.push(t);
+    }
+    for (const p of (d.piastre || [])) {
+      p.id = 'tmp-' + Date.now() + '-' + Math.random();
+      currentPiastre.push(p);
+    }
+    renderAssiemi(); renderTubolari(); renderPiastre(); recalcTotali();
+    const s = d.summary || {};
+    showMsg('msg-import',
+      `✓ STEP importato: ${s.n_tubolari||0} tubolari (${formatEur(s.costo_totale_tubolari||0)}€) + ${s.n_piastre||0} piastre + ${s.peso_totale_kg||0}kg + ${s.saldatura_mt_tot||0}mt saldatura`,
+      'var(--green)');
+  } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
 // ============================================================
@@ -1017,6 +1307,9 @@ async function confermaAccetta() {
       body: JSON.stringify({
         user_id: currentUser.id,
         articoli: currentArticoli,
+        assiemi: currentAssiemi,
+        tubolari: currentTubolari,
+        piastre: currentPiastre,
         totali: {
           totale_pezzo: totalePezzo,
           totale_pezzo_con_margine: conMargine,
@@ -1073,7 +1366,7 @@ async function exportPdf() {
 }
 
 // DRAG&DROP support per dropzone
-['dz-xlsx', 'dz-dxf'].forEach(id => {
+['dz-xlsx', 'dz-dxf', 'dz-step'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('dragover'); });
   el.addEventListener('dragleave', () => el.classList.remove('dragover'));
@@ -1082,7 +1375,8 @@ async function exportPdf() {
     if (!e.dataTransfer.files.length) return;
     const f = e.dataTransfer.files[0];
     if (id === 'dz-xlsx') uploadXlsx(f);
-    else uploadDxf(f);
+    else if (id === 'dz-dxf') uploadDxf(f);
+    else uploadStep(f);
   });
 });
 

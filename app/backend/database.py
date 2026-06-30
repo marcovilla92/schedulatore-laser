@@ -4219,8 +4219,122 @@ class PreventivoManager:
             session.close()
 
     @staticmethod
+    def replace_assiemi(preventivo_id, assiemi: list):
+        """Sostituisce TUTTI gli assiemi del preventivo. Stesso pattern di replace_articoli."""
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return {'error': 'Preventivo non trovato'}
+            if p.status in ('INVIATO', 'ACCETTATO'):
+                return {'error': 'Preventivo ' + p.status + ': immutabile'}
+            session.query(PreventivoAssieme).filter(
+                PreventivoAssieme.preventivo_id == preventivo_id
+            ).delete(synchronize_session=False)
+            for a in assiemi or []:
+                session.add(PreventivoAssieme(
+                    id=str(uuid.uuid4()),
+                    preventivo_id=preventivo_id,
+                    codice_assieme=a.get('codice_assieme') or 'ASS',
+                    qty=int(a.get('qty') or 1),
+                    ore_montaggio=float(a.get('ore_montaggio') or 0),
+                    ore_puntatura=float(a.get('ore_puntatura') or 0),
+                    costo=float(a.get('costo') or 0),
+                    costo_puntatura=float(a.get('costo_puntatura') or 0),
+                    costo_saldatura_assieme=float(a.get('costo_saldatura_assieme') or 0),
+                    saldatura_mt=float(a.get('saldatura_mt') or 0),
+                    peso_kg=float(a.get('peso_kg') or 0),
+                    componenti_qty=a.get('componenti_qty') or {},
+                ))
+            session.commit()
+            return {'success': True, 'count': len(assiemi or [])}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def replace_tubolari(preventivo_id, tubolari: list):
+        """Sostituisce TUTTI i tubolari del preventivo."""
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return {'error': 'Preventivo non trovato'}
+            if p.status in ('INVIATO', 'ACCETTATO'):
+                return {'error': 'Preventivo ' + p.status + ': immutabile'}
+            session.query(PreventivoTubolare).filter(
+                PreventivoTubolare.preventivo_id == preventivo_id
+            ).delete(synchronize_session=False)
+            for t in tubolari or []:
+                session.add(PreventivoTubolare(
+                    id=str(uuid.uuid4()),
+                    preventivo_id=preventivo_id,
+                    codice_assieme=t.get('codice_assieme'),
+                    profilo=t.get('profilo') or '',
+                    tipo=t.get('tipo'),
+                    materiale=t.get('materiale') or 'acciaio',
+                    lunghezza_m=float(t.get('lunghezza_m') or 0),
+                    peso_kg=float(t.get('peso_kg') or 0),
+                    costo_materiale=float(t.get('costo_materiale') or 0),
+                    costo_taglio_totale=float(t.get('costo_taglio_totale') or 0),
+                    n_tagli_dritti=int(t.get('n_tagli_dritti') or 0),
+                    n_tagli_obliqui=int(t.get('n_tagli_obliqui') or 0),
+                ))
+            session.commit()
+            return {'success': True, 'count': len(tubolari or [])}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
+    def replace_piastre(preventivo_id, piastre: list):
+        """Sostituisce TUTTE le piastre del preventivo."""
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.id == preventivo_id,
+                Preventivo.is_deleted == False,  # noqa: E712
+            ).first()
+            if not p:
+                return {'error': 'Preventivo non trovato'}
+            if p.status in ('INVIATO', 'ACCETTATO'):
+                return {'error': 'Preventivo ' + p.status + ': immutabile'}
+            session.query(PreventivoPiastra).filter(
+                PreventivoPiastra.preventivo_id == preventivo_id
+            ).delete(synchronize_session=False)
+            for pi in piastre or []:
+                session.add(PreventivoPiastra(
+                    id=str(uuid.uuid4()),
+                    preventivo_id=preventivo_id,
+                    codice_assieme=pi.get('codice_assieme'),
+                    spessore_mm=float(pi.get('spessore_mm') or 0),
+                    area_dm2=float(pi.get('area_dm2') or 0),
+                    peso_kg=float(pi.get('peso_kg') or 0),
+                    costo=float(pi.get('costo') or 0),
+                    materiale=pi.get('materiale') or 'acciaio',
+                ))
+            session.commit()
+            return {'success': True, 'count': len(piastre or [])}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
     def accetta_e_crea_ordine(preventivo_id, user_id, *,
-                              articoli=None, totali=None,
+                              articoli=None, tubolari=None, piastre=None, assiemi=None,
+                              totali=None,
                               note_aggiuntive=None, data_consegna_override=None):
         """Workflow critico: INVIATO -> ACCETTATO + creazione Order FerroTrack.
 
@@ -4246,19 +4360,30 @@ class PreventivoManager:
             if p.status != 'INVIATO':
                 return {'error': 'Preventivo deve essere INVIATO (attuale: ' + p.status + ')'}
 
-            # 1. Persist articoli — workaround: serve di nuovo aprire una session "esterna"
-            # perché replace_articoli ha la sua. La race condition è OK qui (no concorrenza)
-            if articoli is not None:
-                # Sblocca temporaneamente lo stato per consentire replace_articoli
+            # 1. Persist articoli/assiemi/tubolari/piastre. Sblocca status BOZZA
+            #    temporaneamente per consentire ai replace_* di passare la guardia immutabile.
+            if any(x is not None for x in (articoli, assiemi, tubolari, piastre)):
                 p.status = 'BOZZA'
                 session.commit()
-                res = PreventivoManager.replace_articoli(preventivo_id, articoli)
+                errors = []
+                if articoli is not None:
+                    r = PreventivoManager.replace_articoli(preventivo_id, articoli)
+                    if isinstance(r, dict) and r.get('error'): errors.append('articoli: ' + r['error'])
+                if assiemi is not None:
+                    r = PreventivoManager.replace_assiemi(preventivo_id, assiemi)
+                    if isinstance(r, dict) and r.get('error'): errors.append('assiemi: ' + r['error'])
+                if tubolari is not None:
+                    r = PreventivoManager.replace_tubolari(preventivo_id, tubolari)
+                    if isinstance(r, dict) and r.get('error'): errors.append('tubolari: ' + r['error'])
+                if piastre is not None:
+                    r = PreventivoManager.replace_piastre(preventivo_id, piastre)
+                    if isinstance(r, dict) and r.get('error'): errors.append('piastre: ' + r['error'])
                 # Riprendi sessione
                 p = session.query(Preventivo).filter(Preventivo.id == preventivo_id).first()
                 p.status = 'INVIATO'
-                if isinstance(res, dict) and res.get('error'):
+                if errors:
                     session.commit()
-                    return {'error': 'replace_articoli failed: ' + res['error']}
+                    return {'error': 'persist failed: ' + ' | '.join(errors)}
 
             # 2. Aggiorna totali
             if totali:

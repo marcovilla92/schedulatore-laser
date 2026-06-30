@@ -14,7 +14,24 @@ from .models import initialize_database, Order, OrderFile, get_session
 from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, AlertManager, KPIManager, BarcodeManager, PreventivoManager
 from .pdf_cartellino import genera_cartellino_pdf
 from .events import OrderEventBus
-from .preventivi import xlsx_importer as _xlsx_importer, dxf_scanner as _dxf_scanner, laser_cost_estimator as _laser_estimator
+from .preventivi import (
+    xlsx_importer as _xlsx_importer,
+    dxf_scanner as _dxf_scanner,
+    laser_cost_estimator as _laser_estimator,
+    step_assieme as _step_assieme,
+    step_tubolari as _step_tubolari,
+    step_piastre as _step_piastre,
+)
+import json as _json_mod
+# Carica DB profili tubolari una volta (file copiato dal Preventivatore desktop)
+_PROFILI_TUBOLARI_DB = {}
+try:
+    _profili_path = os.path.join(os.path.dirname(__file__), 'preventivi', 'profili_tubolari.json')
+    if os.path.exists(_profili_path):
+        with open(_profili_path, 'r', encoding='utf-8') as _f:
+            _PROFILI_TUBOLARI_DB = _json_mod.load(_f)
+except Exception as _e:
+    logger.warning('profili_tubolari.json non caricato: %s', _e)
 
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max upload
@@ -1774,6 +1791,125 @@ def api_preventivi_import_dxf(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/import-step', methods=['POST'])
+def api_preventivi_import_step(preventivo_id):
+    """Upload STEP (.stp/.step) → estrae assiemi 3D + tubolari + piastre.
+
+    Esegue 3 analisi indipendenti:
+      - step_assieme.analizza_step_assieme  → conteggio corpi + saldatura totale
+      - step_tubolari.analizza_step_tubolari → lista profili tubolari (CHS/SHS/RHS)
+      - step_piastre.analizza_step_piastre  → lista piastre (spessore + area)
+
+    Il file viene scartato dopo (no storage). Costi base calcolati su materiale='acciaio'
+    di default (commerciale può modificare poi).
+    """
+    try:
+        admin_id = request.form.get('admin_id') or request.args.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'File STEP obbligatorio'}), 400
+        f = request.files['file']
+        if not f.filename or not f.filename.lower().endswith(('.step', '.stp')):
+            return jsonify({'success': False, 'error': 'File deve essere .step o .stp'}), 400
+
+        tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + os.path.splitext(f.filename)[1])
+        f.save(tmp_path)
+        try:
+            assieme_data = _step_assieme.analizza_step_assieme(tmp_path) or {}
+            tubolari_data = _step_tubolari.analizza_step_tubolari(tmp_path, _PROFILI_TUBOLARI_DB) or {}
+            piastre_data = _step_piastre.analizza_step_piastre(tmp_path) or {}
+        finally:
+            try: os.remove(tmp_path)
+            except OSError: pass
+
+        # Coefficienti da config del Preventivatore desktop (oggi inline, in futuro spostiamoli in app_config)
+        config_tubolari_piastre = {
+            'costo_materiale_acciaio_kg': 1.50,
+            'costo_materiale_inox_kg': 4.50,
+            'costo_materiale_alluminio_kg': 3.50,
+            'costo_orario_taglio_tubo': 40.0,
+            'costo_taglio_dritto': 1.0,
+            'costo_taglio_obliquo': 2.5,
+            'costo_taglio_sagomato': 5.0,
+        }
+
+        # Costi tubolari + piastre
+        tub_costi = {}
+        pia_costi = {}
+        try:
+            tub_costi = _step_tubolari.calcola_costo_tubolare(tubolari_data, config_tubolari_piastre, 'acciaio')
+        except Exception as e:
+            logger.warning('calcola_costo_tubolare failed: %s', e)
+        try:
+            pia_costi = _step_piastre.calcola_costo_piastre(piastre_data, config_tubolari_piastre, 'acciaio')
+        except Exception as e:
+            logger.warning('calcola_costo_piastre failed: %s', e)
+
+        # Normalizza tubolari per la UI/DB
+        tubolari_list = []
+        for t in (tubolari_data.get('tubi') or []):
+            tubolari_list.append({
+                'profilo': t.get('profilo') or '',
+                'tipo': t.get('tipo'),
+                'materiale': 'acciaio',
+                'lunghezza_m': t.get('lunghezza_m') or 0,
+                'peso_kg': t.get('peso_kg') or 0,
+                'costo_materiale': (t.get('peso_kg') or 0) * config_tubolari_piastre['costo_materiale_acciaio_kg'],
+                'costo_taglio_totale': 0,  # aggregato in tub_costi.totale, qui zero per articolo singolo
+                'n_tagli_dritti': 1 if t.get('taglio_1') == 'dritto' else 0,
+                'n_tagli_obliqui': 1 if t.get('taglio_1') == 'obliquo' else 0,
+            })
+
+        # Normalizza piastre per la UI/DB
+        piastre_list = []
+        dettaglio_pia = pia_costi.get('dettaglio_piastre') or []
+        for i, p in enumerate(piastre_data.get('piastre') or []):
+            costo_p = dettaglio_pia[i].get('costo', 0) if i < len(dettaglio_pia) else 0
+            piastre_list.append({
+                'spessore_mm': p.get('spessore_mm') or 0,
+                'area_dm2': p.get('area_dm2') or 0,
+                'peso_kg': p.get('peso_kg') or 0,
+                'costo': costo_p,
+                'materiale': 'acciaio',
+            })
+
+        # Aggrega un assieme "macro" dal file STEP (saldatura totale + componenti count)
+        assiemi_list = []
+        saldatura_mt_tot = (assieme_data.get('saldatura_mm') or 0) / 1000.0
+        if tubolari_list or piastre_list or saldatura_mt_tot > 0:
+            assiemi_list.append({
+                'codice_assieme': os.path.splitext(f.filename)[0],
+                'qty': 1,
+                'ore_montaggio': 0,
+                'ore_puntatura': 0,
+                'costo': 0,
+                'costo_puntatura': 0,
+                'costo_saldatura_assieme': saldatura_mt_tot * 18.0,  # default 18 EUR/ml saldatura
+                'saldatura_mt': saldatura_mt_tot,
+                'peso_kg': (tubolari_data.get('peso_totale_kg') or 0) + (piastre_data.get('peso_totale_kg') or 0),
+                'componenti_qty': {},
+            })
+
+        return jsonify({
+            'success': True,
+            'assiemi': assiemi_list,
+            'tubolari': tubolari_list,
+            'piastre': piastre_list,
+            'summary': {
+                'n_tubolari': len(tubolari_list),
+                'n_piastre': len(piastre_list),
+                'peso_totale_kg': round(((tubolari_data.get('peso_totale_kg') or 0) + (piastre_data.get('peso_totale_kg') or 0)), 2),
+                'saldatura_mt_tot': round(saldatura_mt_tot, 2),
+                'costo_totale_tubolari': tub_costi.get('totale', 0),
+                'costo_totale_piastre': pia_costi.get('totale', 0),
+            },
+        }), 200
+    except Exception as e:
+        logger.exception('preventivi import step failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/articoli/<articolo_id>/stima-base', methods=['POST'])
 def api_preventivi_stima_base(preventivo_id, articolo_id):
     """Calcola stima costo base laser per un articolo (richiede spessore+materiale).
@@ -1892,6 +2028,9 @@ def api_preventivi_accetta(preventivo_id):
             preventivo_id,
             user_id=user_id,
             articoli=data.get('articoli'),
+            assiemi=data.get('assiemi'),
+            tubolari=data.get('tubolari'),
+            piastre=data.get('piastre'),
             totali=data.get('totali'),
             note_aggiuntive=data.get('note_aggiuntive'),
             data_consegna_override=data.get('data_consegna'),
