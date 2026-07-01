@@ -1795,15 +1795,15 @@ async function openArtModal(idx) {
       const dxfH = by2 - by1;
       const scaleX = vw / dxfW;
       const scaleY = vh / dxfH;
-      // ezdxf preserva aspect ratio → scaleX ≈ scaleY (piccole discrepanze OK)
       const scale = (scaleX + scaleY) / 2;
-      // Determino se ezdxf flippa Y-axis controllando il segno di scaleY dal CTM
-      // Se il CTM del gruppo interno ha d < 0, l'asse Y è flippato
-      const dxfGroupInner = dxfSvg.querySelector('g');
-      const groupCTM = dxfGroupInner ? dxfGroupInner.getScreenCTM() : dxfSvg.getScreenCTM();
-      const flipY = groupCTM ? (groupCTM.d < 0) : false;
+      // ezdxf SVGBackend flippa Y-axis usando il viewBox (non matrix transform)
+      // DXF convention: y-up (positive verso l'alto)
+      // SVG convention: y-down (positive verso il basso)
+      // Quindi il pezzo con DXF y-grande appare NELLO SVG y-piccolo (in alto)
+      // → sempre flipY=true per convenzione standard
+      const flipY = true;
       _madSvgToDxf = { scale, ox: bx1, oy: by1, vx, vy, vw, vh, flipY, dxfBboxMm: candData.dxf_bbox_mm };
-      console.log('[DXF preview] scale=', scale, 'origin=', bx1, by1, 'flipY=', flipY, 'viewBox=', vb, 'dxfBboxMm=', candData.dxf_bbox_mm);
+      console.log('[DXF preview] scale=', scale, 'origin=(', bx1, ',', by1, ') flipY=', flipY, 'viewBox=', vb, 'dxfBboxMm=', candData.dxf_bbox_mm);
     }
 
     // NB: rimosso rendering hint auto-detectato per non confondere l'utente
