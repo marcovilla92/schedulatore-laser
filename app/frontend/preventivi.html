@@ -537,35 +537,32 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
 .mfs-costo-tot .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.6; }
 .mfs-costo-tot .val { font-family: 'Geist'; font-weight: 800; font-size: 26px; letter-spacing: -0.6px; }
 
-/* Overlay poligoni cliccabili sopra SVG DXF */
+/* Overlay poligoni cliccabili — injectati DENTRO al SVG DXF */
 #cand-svg-inner svg { width: 100%; height: 100%; display: block; }
-.cand-overlay-svg {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  pointer-events: none;
-}
-.cand-overlay-svg polygon {
-  fill: rgba(79, 70, 229, 0.08);
-  stroke: rgba(79, 70, 229, 0.7);
-  stroke-width: 2;
+#mad-preview-svg svg { width: 100%; height: 100%; display: block; }
+.cand-poly, .cand-overlay-svg polygon {
+  fill: rgba(79, 70, 229, 0.12);
+  stroke: rgba(79, 70, 229, 0.85);
+  stroke-width: 3;
   vector-effect: non-scaling-stroke;
   cursor: pointer;
   pointer-events: all;
-  transition: fill 0.15s, stroke 0.15s;
+  transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;
 }
-.cand-overlay-svg polygon:hover {
-  fill: rgba(79, 70, 229, 0.25);
+.cand-poly:hover, .cand-overlay-svg polygon:hover {
+  fill: rgba(79, 70, 229, 0.28);
   stroke: rgba(79, 70, 229, 1);
-  stroke-width: 3;
+  stroke-width: 4;
 }
-.cand-overlay-svg polygon.selected {
-  fill: rgba(34, 197, 94, 0.30);
+.cand-poly.selected, .cand-overlay-svg polygon.selected {
+  fill: rgba(34, 197, 94, 0.35);
   stroke: rgb(34, 197, 94);
-  stroke-width: 3.5;
+  stroke-width: 4.5;
 }
-.cand-overlay-svg polygon.dimmed {
-  fill: rgba(148, 163, 184, 0.05);
-  stroke: rgba(148, 163, 184, 0.4);
-  stroke-width: 1;
+.cand-poly.dimmed, .cand-overlay-svg polygon.dimmed {
+  fill: rgba(148, 163, 184, 0.06);
+  stroke: rgba(148, 163, 184, 0.5);
+  stroke-width: 1.5;
 }
 
 /* Card candidato nella lista laterale */
@@ -1806,39 +1803,33 @@ async function openArtModal(idx) {
 let _madCandData = null;
 
 function _renderMadOverlay(dxfSvg, candData) {
-  const vb = dxfSvg.getAttribute('viewBox');
-  const vbParts = vb ? vb.split(/\s+/).map(Number) : [0, 0, 100, 100];
+  // STRATEGIA ROBUSTA: injectiamo i polygon DIRETTAMENTE nel primo gruppo <g>
+  // del DXF SVG. Così ereditano automaticamente viewBox + transform ezdxf
+  // (che spesso ha matrix(1 0 0 -1 0 Y) per flip Y-axis). No mismatch possibile.
+  const dxfGroup = dxfSvg.querySelector('g') || dxfSvg;
 
-  const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  overlay.setAttribute('class', 'cand-overlay-svg');
-  overlay.setAttribute('viewBox', vb || '0 0 100 100');
-  overlay.setAttribute('preserveAspectRatio', dxfSvg.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
-
-  // Copia transform del gruppo interno del DXF (ezdxf spesso applica scale/flip)
-  const dxfGroup = dxfSvg.querySelector('g');
-  let parentEl = overlay;
-  if (dxfGroup && dxfGroup.getAttribute('transform')) {
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('transform', dxfGroup.getAttribute('transform'));
-    overlay.appendChild(g);
-    parentEl = g;
-  }
+  // Aggiungi gruppo dedicato per overlay (facile da rimuovere in refresh)
+  const overlayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  overlayGroup.setAttribute('class', 'cand-overlay-group');
+  overlayGroup.setAttribute('data-overlay', '1');
 
   candData.candidates.forEach(c => {
     const pts = c.geometry.map(p => `${p[0]},${p[1]}`).join(' ');
     const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     poly.setAttribute('points', pts);
     poly.setAttribute('data-cand-idx', c.idx);
+    poly.setAttribute('class', 'cand-poly');
     if (c.idx === candData.selected_candidate_idx) poly.classList.add('selected');
+    // Style inline per sicurezza (evitare che CSS globali interferiscano)
+    poly.style.cursor = 'pointer';
     poly.addEventListener('click', (e) => {
       e.stopPropagation();
       madSelectPolygon(c.idx);
     });
-    parentEl.appendChild(poly);
+    overlayGroup.appendChild(poly);
   });
 
-  const svgBox = document.getElementById('mad-preview-svg');
-  svgBox.appendChild(overlay);
+  dxfGroup.appendChild(overlayGroup);
 }
 
 async function madSelectPolygon(candIdx) {
@@ -1847,7 +1838,7 @@ async function madSelectPolygon(candIdx) {
   if (!a) return;
 
   // Aggiorna overlay UI (selected/dimmed)
-  document.querySelectorAll('#mad-preview-svg .cand-overlay-svg polygon').forEach(p => {
+  document.querySelectorAll('#mad-preview-svg .cand-poly').forEach(p => {
     const pidx = parseInt(p.getAttribute('data-cand-idx'), 10);
     p.classList.toggle('selected', pidx === candIdx);
     p.classList.toggle('dimmed', pidx !== candIdx);
