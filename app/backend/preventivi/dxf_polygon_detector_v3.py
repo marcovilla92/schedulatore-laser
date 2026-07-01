@@ -573,6 +573,95 @@ def _empty_result(warnings: list[str]) -> dict:
     }
 
 
+def compute_geometry_from_region(path: str, region_bbox: tuple[float, float, float, float],
+                                  config: dict | None = None) -> dict:
+    """Calcola area/perim/n_pierce prendendo tutti i poligoni chiusi la cui
+    bbox interseca (o è contenuta) nella region_bbox utente.
+
+    Il pattern d'uso è: l'utente disegna col mouse un rettangolo attorno al
+    pezzo nella preview DXF. Il backend prende tutti i contorni chiusi dentro
+    quella regione, identifica outer (area max) e inner (contenuti nell'outer),
+    calcola area netta + perimetro + n_pierce.
+
+    Args:
+        path: percorso DXF
+        region_bbox: (minx, miny, maxx, maxy) in coord DXF (mm)
+        config: dict optional (colori esclusi)
+
+    Returns:
+        dict compat con `detect_pezzo_geometry_v3` (senza candidates).
+    """
+    if not _HAS_SHAPELY:
+        return _empty_result(['Shapely non installato'])
+    cfg = config or {}
+    colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
+
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        return _empty_result([f'DXF non leggibile: {e}'])
+    msp = doc.modelspace()
+
+    # Region utente come Polygon
+    minx, miny, maxx, maxy = region_bbox
+    if minx == maxx or miny == maxy:
+        return _empty_result(['Regione degenere (larghezza o altezza = 0)'])
+    from shapely.geometry import box
+    region = box(min(minx, maxx), min(miny, maxy), max(minx, maxx), max(miny, maxy))
+
+    # Estrai poligoni + chain walking
+    closed_raw, opens = _extract_polygons(msp, colori_esclusi)
+    all_raw = closed_raw + _chain_polygons(opens)
+    all_polys = [p for p in (_to_shapely(v) for v in all_raw) if p is not None]
+
+    # Filtra poligoni la cui bbox interseca la region utente
+    # (`intersects` è più tollerante di `within` per selezioni approssimative)
+    in_region = [p for p in all_polys if p.intersects(region)]
+
+    # Escludi cartigli evidenti (ISO format o cornici che contengono tutto)
+    in_region = [p for p in in_region if not _is_iso_format(p) and not _is_cornice_cartiglio(p, all_polys)]
+
+    if not in_region:
+        return _empty_result(['Nessun contorno chiuso trovato nella regione selezionata. Prova a disegnare un\'area più ampia.'])
+
+    # Outer = poligono con area maggiore nella region
+    outer = max(in_region, key=lambda p: p.area)
+    prep_outer = prep(outer)
+    inners = [p for p in in_region if p is not outer and prep_outer.contains(p.representative_point())]
+
+    area_outer_mm2 = outer.area
+    area_inner_mm2 = sum(p.area for p in inners)
+    area_netta_mm2 = max(0.0, area_outer_mm2 - area_inner_mm2)
+    perim_outer_mm = outer.length
+    perim_inner_mm = sum(p.length for p in inners)
+    perim_totale_mm = perim_outer_mm + perim_inner_mm
+    minx_p, miny_p, maxx_p, maxy_p = outer.bounds
+    bbox_w_mm = maxx_p - minx_p
+    bbox_h_mm = maxy_p - miny_p
+    n_pierce = 1 + len(inners)
+
+    return {
+        'area_dm2': round(area_netta_mm2 / 10000.0, 4),
+        'area_lorda_dm2': round(area_outer_mm2 / 10000.0, 4),
+        'perimetro_taglio_m': round(perim_totale_mm / 1000.0, 4),
+        'n_pierce': n_pierce,
+        'n_forature': n_pierce,
+        'n_inner': len(inners),
+        'bbox_width_mm': round(bbox_w_mm, 2),
+        'bbox_height_mm': round(bbox_h_mm, 2),
+        'confidence': 1.0,
+        'confidence_label': 'manuale',
+        'needs_manual_select': False,
+        'candidates': [],
+        'selected_candidate_idx': -1,
+        'poligoni_grezzi': len(all_raw),
+        'poligoni_cartiglio_rimossi': 0,
+        'tipo_disegno': 'v3_region_manual',
+        'warnings': [f'Regione manuale utente: {len(in_region)} contorni trovati (1 outer + {len(inners)} interni)'],
+        '_engine': 'shapely-region',
+    }
+
+
 def compute_geometry_from_candidate(path: str, candidate_idx: int,
                                     config: dict | None = None) -> dict:
     """Ricalcola area/perim/n_pierce assumendo che l'utente ha scelto candidate_idx

@@ -2007,6 +2007,38 @@ def api_preventivi_dxf_candidates(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-region', methods=['POST'])
+def api_preventivi_dxf_select_region(preventivo_id, filename):
+    """Ricalcola geometria pezzo prendendo tutti i contorni chiusi nella
+    region bbox (mm) indicata dall'utente col marquee drag sulla preview.
+
+    Body: {minx, miny, maxx, maxy, articolo_id: str (opz)}
+    Response: {success, area_dm2, perimetro_taglio_m, n_pierce, ...}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        try:
+            minx = float(data.get('minx'))
+            miny = float(data.get('miny'))
+            maxx = float(data.get('maxx'))
+            maxy = float(data.get('maxy'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'minx/miny/maxx/maxy richiesti (float)'}), 400
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        from .preventivi.dxf_polygon_detector_v3 import compute_geometry_from_region
+        app_cfg = BarcodeManager.load_config() or {}
+        detection_cfg = app_cfg.get('dxf_detection', {})
+        r = compute_geometry_from_region(dxf_path, (minx, miny, maxx, maxy), detection_cfg)
+        return jsonify({'success': True, **r}), 200
+    except Exception as e:
+        logger.exception('dxf_select_region failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-polygon', methods=['POST'])
 def api_preventivi_dxf_select_polygon(preventivo_id, filename):
     """Ricalcola area/perimetro/n_pierce assumendo che l'utente ha scelto un

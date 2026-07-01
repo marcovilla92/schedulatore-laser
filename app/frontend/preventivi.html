@@ -1133,10 +1133,11 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
         <div id="mad-preview-svg" style="display:none; flex:1; overflow:hidden; position:relative; user-select:none; cursor:grab;">
           <!-- SVG DXF + overlay iniettati via JS -->
         </div>
-        <!-- Legend + confidence badge -->
+        <!-- Legend + hint -->
         <div id="mad-legend" style="display:none; position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,0.92); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; font-size:11px; box-shadow:var(--shadow-sm); display:flex; gap:14px; align-items:center;">
-          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(34,197,94,0.35);border:1.5px solid rgb(34,197,94);"></span>Pezzo selezionato</span>
-          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(79,70,229,0.10);border:1.5px solid rgba(79,70,229,0.7);"></span>Altri candidati</span>
+          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;border:1.5px dashed rgb(34,197,94);"></span>Pezzo auto-detectato</span>
+          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(79,70,229,0.15);border:1.5px dashed rgb(79,70,229);"></span>Selezione manuale</span>
+          <span style="color:var(--text-3);">💡 Trascina il mouse per selezionare</span>
         </div>
       </div>
 
@@ -1761,18 +1762,17 @@ async function openArtModal(idx) {
 
     if (!candData.success) throw new Error(candData.error || 'Errore candidati');
 
-    // Verifica banner se needs_manual_select
+    // Verifica banner in base a needs_manual_select
     if (candData.needs_manual_select) {
       banner.style.display = 'block';
       document.getElementById('mad-verify-text').innerHTML =
-        `Confidenza <b>${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b>. Click sul contorno che rappresenta il pezzo — i valori si aggiornano automaticamente.`;
+        `<b>Confidenza ${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b> — Trascina il mouse sulla preview per selezionare il pezzo. Il sistema rileverà tutti i contorni interni automaticamente.`;
     } else {
-      // Anche a confidenza alta, il commerciale può cliccare per cambiare
       banner.style.display = 'block';
       banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
       banner.style.color = '#166534';
       document.getElementById('mad-verify-text').innerHTML =
-        `Confidenza <b>${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b>. Click su un altro contorno per cambiare il pezzo scelto.`;
+        `<b>Confidenza ${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b> — Puoi comunque trascinare per selezionare manualmente un'area diversa.`;
     }
 
     // Inject SVG DXF
@@ -1783,17 +1783,16 @@ async function openArtModal(idx) {
     dxfSvg.style.height = '100%';
     dxfSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-    // Salva stato per selezione
+    // Salva stato
     _madCandData = candData;
 
-    // Aggiunge overlay poligoni cliccabili
-    _renderMadOverlay(dxfSvg, candData);
+    // Hint visivo del pezzo auto-detectato (solo bbox, non poligono completo)
+    _renderAutoDetectedHint(dxfSvg, candData);
 
-    // Legend
+    // Marquee drag: utente disegna rettangolo attorno al pezzo
+    _attachMarqueeSelection(svgBox, dxfSvg);
+
     legend.style.display = 'flex';
-
-    // Pan/Zoom base
-    _attachPanZoom(svgBox, dxfSvg);
   } catch (e) {
     svgBox.innerHTML = `<div style="padding:20px;color:var(--red);font-size:12px;">Errore preview: ${e.message}</div>`;
   }
@@ -1802,34 +1801,164 @@ async function openArtModal(idx) {
 // Stato candidati corrente (dentro il modal dettaglio)
 let _madCandData = null;
 
-function _renderMadOverlay(dxfSvg, candData) {
-  // STRATEGIA ROBUSTA: injectiamo i polygon DIRETTAMENTE nel primo gruppo <g>
-  // del DXF SVG. Così ereditano automaticamente viewBox + transform ezdxf
-  // (che spesso ha matrix(1 0 0 -1 0 Y) per flip Y-axis). No mismatch possibile.
+function _renderAutoDetectedHint(dxfSvg, candData) {
+  // Mostra un rettangolo tratteggiato verde attorno al pezzo auto-detectato
+  // (se disponibile). Non è cliccabile — è solo un hint visivo per l'utente.
+  const dxfGroup = dxfSvg.querySelector('g') || dxfSvg;
+  const oldHint = dxfGroup.querySelector('.mad-auto-hint');
+  if (oldHint) oldHint.remove();
+
+  if (!candData.candidates || !candData.candidates.length) return;
+  const selected = candData.candidates.find(c => c.idx === candData.selected_candidate_idx);
+  if (!selected || !selected.bbox) return;
+  const [minx, miny, maxx, maxy] = selected.bbox;
+
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('class', 'mad-auto-hint');
+  rect.setAttribute('x', minx);
+  rect.setAttribute('y', miny);
+  rect.setAttribute('width', maxx - minx);
+  rect.setAttribute('height', maxy - miny);
+  rect.setAttribute('fill', 'rgba(34, 197, 94, 0.06)');
+  rect.setAttribute('stroke', 'rgb(34, 197, 94)');
+  rect.setAttribute('stroke-width', '2');
+  rect.setAttribute('stroke-dasharray', '8,4');
+  rect.setAttribute('vector-effect', 'non-scaling-stroke');
+  rect.setAttribute('pointer-events', 'none');
+  dxfGroup.appendChild(rect);
+}
+
+// ═══ Marquee selection: utente disegna rettangolo attorno al pezzo ═══
+
+let _marquee = { active: false, startPt: null, rectEl: null };
+
+function _attachMarqueeSelection(container, dxfSvg) {
   const dxfGroup = dxfSvg.querySelector('g') || dxfSvg;
 
-  // Aggiungi gruppo dedicato per overlay (facile da rimuovere in refresh)
-  const overlayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  overlayGroup.setAttribute('class', 'cand-overlay-group');
-  overlayGroup.setAttribute('data-overlay', '1');
+  function screenToDxf(clientX, clientY) {
+    // Coordinate viewport → coord DXF (mm) usando CTM del gruppo interno
+    // che include tutti i transform ezdxf (viewBox + flip Y matrix)
+    const pt = dxfSvg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const CTM = dxfGroup.getScreenCTM();
+    if (!CTM) return null;
+    return pt.matrixTransform(CTM.inverse());
+  }
 
-  candData.candidates.forEach(c => {
-    const pts = c.geometry.map(p => `${p[0]},${p[1]}`).join(' ');
-    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    poly.setAttribute('points', pts);
-    poly.setAttribute('data-cand-idx', c.idx);
-    poly.setAttribute('class', 'cand-poly');
-    if (c.idx === candData.selected_candidate_idx) poly.classList.add('selected');
-    // Style inline per sicurezza (evitare che CSS globali interferiscano)
-    poly.style.cursor = 'pointer';
-    poly.addEventListener('click', (e) => {
-      e.stopPropagation();
-      madSelectPolygon(c.idx);
+  function onMouseDown(e) {
+    // Ignora se click su elementi già interattivi
+    if (e.target.closest('button, input, select')) return;
+    const p = screenToDxf(e.clientX, e.clientY);
+    if (!p) return;
+    _marquee.active = true;
+    _marquee.startPt = { x: p.x, y: p.y };
+
+    // Rimuovi eventuale rect precedente
+    const old = dxfGroup.querySelector('.mad-marquee-rect');
+    if (old) old.remove();
+
+    // Crea rect overlay
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('class', 'mad-marquee-rect');
+    rect.setAttribute('x', p.x);
+    rect.setAttribute('y', p.y);
+    rect.setAttribute('width', 0);
+    rect.setAttribute('height', 0);
+    rect.setAttribute('fill', 'rgba(79, 70, 229, 0.15)');
+    rect.setAttribute('stroke', 'rgb(79, 70, 229)');
+    rect.setAttribute('stroke-width', '2');
+    rect.setAttribute('stroke-dasharray', '6,3');
+    rect.setAttribute('vector-effect', 'non-scaling-stroke');
+    rect.setAttribute('pointer-events', 'none');
+    dxfGroup.appendChild(rect);
+    _marquee.rectEl = rect;
+
+    e.preventDefault();
+  }
+
+  function onMouseMove(e) {
+    if (!_marquee.active || !_marquee.rectEl) return;
+    const p = screenToDxf(e.clientX, e.clientY);
+    if (!p) return;
+    const x = Math.min(_marquee.startPt.x, p.x);
+    const y = Math.min(_marquee.startPt.y, p.y);
+    const w = Math.abs(p.x - _marquee.startPt.x);
+    const h = Math.abs(p.y - _marquee.startPt.y);
+    _marquee.rectEl.setAttribute('x', x);
+    _marquee.rectEl.setAttribute('y', y);
+    _marquee.rectEl.setAttribute('width', w);
+    _marquee.rectEl.setAttribute('height', h);
+  }
+
+  async function onMouseUp(e) {
+    if (!_marquee.active) return;
+    _marquee.active = false;
+    const p = screenToDxf(e.clientX, e.clientY);
+    if (!p || !_marquee.startPt) return;
+    const minx = Math.min(_marquee.startPt.x, p.x);
+    const maxx = Math.max(_marquee.startPt.x, p.x);
+    const miny = Math.min(_marquee.startPt.y, p.y);
+    const maxy = Math.max(_marquee.startPt.y, p.y);
+    _marquee.startPt = null;
+
+    // Se selezione minuscola (click accidentale) ignora
+    if ((maxx - minx) < 5 || (maxy - miny) < 5) {
+      if (_marquee.rectEl) _marquee.rectEl.remove();
+      _marquee.rectEl = null;
+      return;
+    }
+
+    // Chiama backend con la regione
+    await madSelectRegion(minx, miny, maxx, maxy);
+    // Il rect resta visibile come conferma della selezione
+  }
+
+  container.addEventListener('mousedown', onMouseDown);
+  container.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+
+  // Cleanup: salvo i listener per rimuoverli quando modal chiude
+  container._marqueeListeners = { onMouseDown, onMouseMove, onMouseUp };
+}
+
+async function madSelectRegion(minx, miny, maxx, maxy) {
+  if (_madCurrentIdx < 0) return;
+  const a = currentArticoli[_madCurrentIdx];
+  if (!a || !currentPreventivo) return;
+
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/select-region`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ minx, miny, maxx, maxy, articolo_id: a.id }),
     });
-    overlayGroup.appendChild(poly);
-  });
+    const j = await r.json();
+    if (!r.ok || !j.success) throw new Error(j.error || 'Errore server');
 
-  dxfGroup.appendChild(overlayGroup);
+    // Aggiorna currentArticoli + campi modal in-place
+    a.area_dm2 = j.area_dm2 || 0;
+    a.perimetro_taglio_m = j.perimetro_taglio_m || 0;
+    a.n_forature = j.n_pierce || j.n_forature || 0;
+    a.dxf_confidence = 1;
+    a.dxf_needs_verify = false;
+
+    document.getElementById('mad-area').value = a.area_dm2.toFixed(2);
+    document.getElementById('mad-perim').value = a.perimetro_taglio_m.toFixed(3);
+    document.getElementById('mad-forature').value = a.n_forature;
+
+    // Aggiorna banner verde
+    const banner = document.getElementById('mad-verify-banner');
+    banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
+    banner.style.color = '#166534';
+    document.getElementById('mad-verify-text').innerHTML =
+      `✓ Selezione applicata. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${a.perimetro_taglio_m.toFixed(3)} m</b>, <b>${a.n_forature}</b> forature (${(j.n_inner || 0)} interni).`;
+
+    // Aggiorna tabella + totali
+    renderArticoli();
+    recalcTotali();
+    madRefreshCosts();
+  } catch (e) {
+    alert('Errore selezione region: ' + e.message);
+  }
 }
 
 async function madSelectPolygon(candIdx) {
