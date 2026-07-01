@@ -193,6 +193,29 @@
     background: rgba(148,163,184,0.1); border-radius: 3px;
     margin-left: 4px;
   }
+
+  /* Embedded mode: usa il DXF viewer dentro iframe minimal (senza toolbar/panel/footer).
+     Attivato via ?embedded=1 nel querystring. */
+  body.embedded .header,
+  body.embedded .panel,
+  body.embedded .viewer-hint,
+  body.embedded .bg-selector {
+    display: none !important;
+  }
+  body.embedded .main {
+    display: block;
+    grid-template-columns: none !important;
+  }
+  body.embedded .viewer {
+    width: 100%; height: 100vh;
+    background: #F1F5F9 !important;
+  }
+  body.embedded #svg-container svg { width: 100% !important; height: 100% !important; }
+  body.embedded .zoom-controls {
+    top: 12px !important; right: 12px !important;
+    padding: 6px !important; gap: 4px !important;
+  }
+  body.embedded .zoom-btn { width: 26px !important; height: 26px !important; font-size: 13px !important; }
 </style>
 </head>
 <body>
@@ -320,7 +343,9 @@
 
 <script>
 // Data via URL query: ?preventivo=ID&dxf=FILE&articolo=ART&codice=COD&saldatura=N&pieghe=M&filettatura=K&svasatura=J
+// Aggiungere &embedded=1 per usare la variante embedded (senza toolbar, panel, footer).
 const _q = new URLSearchParams(window.location.search);
+if (_q.get('embedded') === '1') document.body.classList.add('embedded');
 const DATA = {
   preventivo_id: _q.get('preventivo') || '',
   dxf_filename: _q.get('dxf') || '',

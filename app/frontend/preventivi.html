@@ -748,18 +748,13 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
             <th>Codice</th>
             <th class="n">Qty</th>
             <th>Materiale</th>
-            <th class="n">Spess. (mm)</th>
-            <th class="n">Area (dm&sup2;)</th>
-            <th class="n">Perim. (m)</th>
-            <th class="n">Forat.</th>
-            <th class="n">Costo base &euro;</th>
-            <th class="n">Pieghe</th>
-            <th class="n">Sald. (ml)</th>
+            <th class="n">Spess.</th>
+            <th class="n">Costo &euro;</th>
             <th style="text-align:right;">Azioni</th>
           </tr>
         </thead>
         <tbody id="articoli-tbody">
-          <tr><td colspan="11" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>
+          <tr><td colspan="6" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1318,33 +1313,27 @@ async function saveBase() {
 function renderArticoli() {
   const tbody = document.getElementById('articoli-tbody');
   if (!currentArticoli.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>';
     return;
   }
   let html = '';
   currentArticoli.forEach((a, i) => {
     const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+    const lavorazioni = (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
+    const totRow = baseEff + lavorazioni;
     html += `<tr>
       <td><code>${escapeHtml(a.codice || '—')}</code></td>
-      <td class="n"><input type="number" class="cell-edit" value="${a.quantita || 1}" min="1" style="text-align:right;" onchange="updateArt(${i}, 'quantita', this.value, true)"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${a.quantita || 1}" min="1" style="text-align:right; max-width:56px;" onchange="updateArt(${i}, 'quantita', this.value, true)"></td>
       <td>
         <select class="cell-edit" onchange="updateArt(${i}, 'materiale', this.value)">
           ${MATERIALI.map(m => `<option value="${m}" ${a.materiale === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}
         </select>
       </td>
-      <td class="n"><input type="number" class="cell-edit" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
-      <td class="n"><input type="number" class="cell-edit" value="${(a.area_dm2||0).toFixed(2)}" step="0.01" min="0" style="text-align:right;" onchange="updateArt(${i},'area_dm2',this.value,true)" title="Area lamiera necessaria (dm²) — modifica se la stima DXF è imprecisa"></td>
-      <td class="n"><input type="number" class="cell-edit" value="${(a.perimetro_taglio_m||0).toFixed(2)}" step="0.01" min="0" style="text-align:right;" onchange="updateArt(${i},'perimetro_taglio_m',this.value,true)" title="Perimetro di taglio (m) — modifica se la stima DXF è imprecisa"></td>
-      <td class="n"><input type="number" class="cell-edit" value="${a.n_forature||0}" step="1" min="0" style="text-align:right;" onchange="updateArt(${i},'n_forature',this.value,true)"></td>
-      <td class="n">
-        <input type="number" class="cell-edit" value="${baseEff.toFixed ? baseEff.toFixed(2) : baseEff}" step="0.01" style="text-align:right; font-weight:600;" onchange="updateArt(${i}, 'costo_base_override', this.value, true)" title="Costo base (materiale + taglio). Modificabile a mano.">
-      </td>
-      <td class="n" style="color:var(--gray-text);">${a.pieghe || 0}</td>
-      <td class="n" style="color:var(--gray-text);">${(a.saldatura_ml || 0).toFixed(1)}</td>
+      <td class="n"><input type="number" class="cell-edit" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right; max-width:64px;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
+      <td class="n" style="font-weight:600; font-variant-numeric: tabular-nums;">${formatEurStr(totRow)}</td>
       <td style="text-align:right; white-space:nowrap;">
-        ${a.dxf_filename ? `<button class="btn-mini" onclick="previewDxf(${i})" title="Anteprima DXF (alta fedeltà)">👁</button>` : ''}
-        <button class="btn-mini" onclick="stimaArt(${i})" title="Ricalcola stima costo base laser">Stima</button>
-        <button class="btn-danger" onclick="removeArt(${i})">Rimuovi</button>
+        <button class="btn-mini" onclick="stimaArt(${i})" title="Ricalcola stima costo laser">Stima</button>
+        <button class="btn-danger" onclick="removeArt(${i})" title="Rimuovi">×</button>
       </td>
     </tr>`;
   });
