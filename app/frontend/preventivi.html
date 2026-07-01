@@ -1133,11 +1133,10 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
         <div id="mad-preview-svg" style="display:none; flex:1; overflow:hidden; position:relative; user-select:none; cursor:grab;">
           <!-- SVG DXF + overlay iniettati via JS -->
         </div>
-        <!-- Legend + hint -->
+        <!-- Legend -->
         <div id="mad-legend" style="display:none; position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,0.92); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; font-size:11px; box-shadow:var(--shadow-sm); display:flex; gap:14px; align-items:center;">
-          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;border:1.5px dashed rgb(34,197,94);"></span>Pezzo auto-detectato</span>
           <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(79,70,229,0.15);border:1.5px dashed rgb(79,70,229);"></span>Selezione manuale</span>
-          <span style="color:var(--text-3);">💡 Trascina il mouse per selezionare</span>
+          <span style="color:var(--text-3);">💡 Trascina il mouse per selezionare il pezzo</span>
         </div>
       </div>
 
@@ -1807,8 +1806,9 @@ async function openArtModal(idx) {
       console.log('[DXF preview] scale=', scale, 'origin=', bx1, by1, 'flipY=', flipY, 'viewBox=', vb, 'dxfBboxMm=', candData.dxf_bbox_mm);
     }
 
-    // Hint visivo del pezzo auto-detectato (solo bbox, non poligono completo)
-    _renderAutoDetectedHint(dxfSvg, candData);
+    // NB: rimosso rendering hint auto-detectato per non confondere l'utente
+    // (il rettangolo verde tratteggiato faceva sembrare che ci fosse un'area
+    // già "presa" quando in realtà il flusso è solo: utente drag → sistema calcola)
 
     // Marquee drag: utente disegna rettangolo attorno al pezzo
     _attachMarqueeSelection(svgBox, dxfSvg);
