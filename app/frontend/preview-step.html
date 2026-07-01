@@ -179,15 +179,38 @@ function showError(msg) {
   document.getElementById('loading').style.display = 'none';
 }
 
-// Legge parametri da query string: ?url=<step_url>&name=<display>&welds=<count>
+// Legge parametri da query string: ?url=<step_url>&name=<display>&welds=<count>&thumbnail=1
 const params = new URLSearchParams(window.location.search);
 const stepUrl = params.get('url');
 const displayName = params.get('name') || '';
 const weldCount = params.get('welds');
+const isThumbnail = params.get('thumbnail') === '1';
 
 if (!stepUrl) {
   showError('Parametro URL mancante (query string: ?url=/path/to/file.step)');
   throw new Error('No STEP url');
+}
+
+// Thumbnail mode: nasconde header/info-bar/controls, viewer occupa full frame,
+// nessuna interattività, background chiaro coerente col resto UI
+if (isThumbnail) {
+  document.body.classList.add('thumbnail-mode');
+  const style = document.createElement('style');
+  style.textContent = `
+    body.thumbnail-mode { overflow: hidden !important; }
+    body.thumbnail-mode .header, body.thumbnail-mode #info-bar, body.thumbnail-mode #controls-panel {
+      display: none !important;
+    }
+    body.thumbnail-mode #viewer { top: 0 !important; bottom: 0 !important; }
+    body.thumbnail-mode #loading { top: 0 !important; bottom: 0 !important; background: #FAFAFA !important; }
+    body.thumbnail-mode { cursor: pointer !important; }
+    body.thumbnail-mode #viewer canvas { pointer-events: none !important; }
+  `;
+  document.head.appendChild(style);
+  // Notifica parent con click
+  document.addEventListener('click', () => {
+    try { window.parent && window.parent.postMessage({ type: 'step-thumbnail-click' }, '*'); } catch(_) {}
+  });
 }
 
 // Mostra file name subito
@@ -253,10 +276,11 @@ if (!result || !result.meshes || result.meshes.length === 0) {
 
 loadingText.textContent = 'Rendering 3D...';
 
-// Three.js Scene Setup
+// Three.js Scene Setup — sfondo coerente col resto UI (chiaro per thumbnail, grigio per modal)
+const sceneBg = isThumbnail ? '#FAFAFA' : '#E2E8F0';
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#E2E8F0');
-scene.fog = new THREE.FogExp2('#E2E8F0', 0.00008);
+scene.background = new THREE.Color(sceneBg);
+scene.fog = new THREE.FogExp2(sceneBg, 0.00008);
 
 // Lighting — studio setup
 const ambient = new THREE.HemisphereLight(0xB0C4DE, 0x2F4F4F, 1.2);
@@ -376,6 +400,13 @@ controls.zoomSpeed = 1.2;
 controls.panSpeed = 0.8;
 controls.minDistance = maxDim * 0.1;
 controls.maxDistance = maxDim * 10;
+// Thumbnail mode: nessuna interattività, camera fissa isometrica
+if (isThumbnail) {
+  controls.enabled = false;
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.enableRotate = false;
+}
 
 document.getElementById('bodies-badge').textContent = bodyCount + ' corpi';
 document.getElementById('controls-panel').style.display = 'flex';
