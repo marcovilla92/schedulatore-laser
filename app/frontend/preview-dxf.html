@@ -214,7 +214,7 @@
     width: 100% !important;
     height: 100vh !important;
     max-height: 100vh !important;
-    background: #0F172A !important;  /* slate-900 dark premium per contrasto max linee DXF */
+    background: #FAFAFA !important;  /* off-white per contrasto pulito con linee scure */
     margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
@@ -228,13 +228,25 @@
     height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
-    /* Alta leggibilità: inverte colori scuri su sfondo bianco (default DXF)
-       → linee chiare su sfondo scuro. Contrast boost per definizione netta. */
-    filter: invert(0.92) hue-rotate(180deg) contrast(1.4) brightness(1.15) !important;
   }
-  /* Force stroke visibile e non-scaling per zoom (redundante ma robusto) */
-  body.embedded #svg-container svg * {
+  /* Force stroke nero scuro spesso su tutti gli elementi grafici del DXF.
+     I DXF esportati da CAD hanno spesso colori chiari o attributi presentation
+     stroke="..." — CSS con !important su selectors specifici vince quegli attributi. */
+  body.embedded #svg-container svg path,
+  body.embedded #svg-container svg line,
+  body.embedded #svg-container svg polyline,
+  body.embedded #svg-container svg polygon,
+  body.embedded #svg-container svg circle,
+  body.embedded #svg-container svg ellipse,
+  body.embedded #svg-container svg rect {
+    stroke: #0F172A !important;
+    stroke-width: 1.2px !important;
     vector-effect: non-scaling-stroke !important;
+    fill: none !important;
+  }
+  /* Testi/quote/annotazioni restano leggibili in grigio scuro */
+  body.embedded #svg-container svg text {
+    fill: #334155 !important;
   }
   body.embedded .zoom-controls {
     top: 8px !important; right: 8px !important; left: auto !important;
