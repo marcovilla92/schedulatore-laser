@@ -382,6 +382,185 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 /* Focus visible for accessibility - clean ring */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 button:focus, input:focus, select:focus, textarea:focus { outline: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MASTER-DETAIL LAYOUT (AlmaCAM-style) — solo per #panel-editor
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Editor header strip: dati cliente compressi in una barra orizzontale */
+.editor-strip {
+  position: sticky; top: 112px;  /* topbar + tabbar */
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--r-lg);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.editor-strip .strip-title {
+  font-family: 'Geist'; font-weight: 800; font-size: 18px;
+  letter-spacing: -0.4px; color: var(--text);
+  display: flex; align-items: center; gap: 10px;
+}
+.editor-strip .strip-title .badge { margin-left: 4px; }
+.editor-strip .strip-fields {
+  display: flex; gap: 14px; align-items: center; flex: 1; flex-wrap: wrap;
+}
+.editor-strip .strip-field {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.editor-strip .strip-field label {
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.editor-strip .strip-field input, .editor-strip .strip-field select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: 'Inter'; background: var(--white);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.editor-strip .strip-field input:focus, .editor-strip .strip-field select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.editor-strip .strip-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Master-detail container: grid 65/35 */
+.editor-body {
+  display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr);
+  gap: 20px; align-items: start;
+}
+@media (max-width: 960px) {
+  .editor-body { grid-template-columns: 1fr; }
+  .detail-panel { position: static !important; max-height: none !important; }
+}
+
+/* Master panel (sx): scorre normalmente */
+.master-panel { min-width: 0; }
+
+/* Detail panel (dx): sticky, preview + dettagli editabili */
+.detail-panel {
+  position: sticky; top: 180px;  /* topbar+tabbar+strip */
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--white);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 0;
+}
+.detail-panel::-webkit-scrollbar { width: 8px; }
+.detail-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.detail-panel::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+.detail-empty {
+  padding: 60px 24px; text-align: center; color: var(--text-3);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.detail-empty i { color: var(--text-3); }
+.detail-empty .h { font-size: 15px; font-weight: 600; color: var(--text-2); }
+.detail-empty .s { font-size: 12px; }
+
+/* Detail sections */
+.detail-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-2);
+}
+.detail-section:last-child { border-bottom: none; }
+.detail-section .sec-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text-3); margin-bottom: 10px;
+}
+.detail-section .field {
+  display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px;
+  align-items: center; margin-bottom: 8px; font-size: 13px;
+}
+.detail-section .field:last-child { margin-bottom: 0; }
+.detail-section .field label {
+  color: var(--text-2); font-weight: 500;
+}
+.detail-section .field input, .detail-section .field select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: 'Inter';
+  background: var(--white); color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.detail-section .field input:focus, .detail-section .field select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.detail-section .field .ro {
+  font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px;
+  color: var(--text); font-weight: 600; padding: 6px 0;
+}
+
+/* Preview frame */
+.detail-preview {
+  position: relative;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-2);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+.detail-preview iframe {
+  width: 100%; height: 100%; border: none; display: block;
+}
+.detail-preview-empty {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--text-3); gap: 8px; font-size: 12px;
+}
+.detail-preview-tabs {
+  display: flex; gap: 2px; padding: 8px 12px 0;
+  background: var(--white); border-bottom: 1px solid var(--border-2);
+}
+.detail-preview-tab {
+  padding: 8px 12px; font-size: 12px; font-weight: 600;
+  color: var(--text-2); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: color 0.15s;
+}
+.detail-preview-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.detail-preview-tab:hover:not(.active) { color: var(--text); }
+.detail-preview-tab.disabled { color: var(--text-3); cursor: not-allowed; opacity: 0.5; }
+
+/* Row selection state (per master table) */
+.tbl tbody tr.selected {
+  background: var(--accent-bg);
+  box-shadow: inset 3px 0 0 0 var(--accent);
+}
+.tbl tbody tr.selected:hover { background: var(--accent-bg); }
+
+/* Bottom bar sticky con totale + azioni */
+.editor-bottom {
+  position: sticky; bottom: 0; z-index: 90;
+  margin: 20px -40px 0 -40px;
+  padding: 14px 40px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.04);
+}
+.editor-bottom .totals-inline {
+  display: flex; gap: 22px; flex: 1;
+}
+.editor-bottom .totals-inline .ti {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.editor-bottom .totals-inline .ti .lbl {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-3);
+}
+.editor-bottom .totals-inline .ti .val {
+  font-family: 'Geist'; font-weight: 800; font-size: 20px;
+  letter-spacing: -0.4px; color: var(--text);
+}
+.editor-bottom .totals-inline .ti.hero .val {
+  font-size: 26px; color: var(--accent);
+}
+.editor-bottom .actions {
+  display: flex; gap: 10px; align-items: center;
+}
 </style>
 </head>
 <body>
@@ -478,79 +657,80 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
 
 <!-- ===================== PANEL: EDITOR ===================== -->
 <div class="panel" id="panel-editor">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
-    <h2 class="page-title" id="editor-title">Nuovo preventivo</h2>
-    <span class="badge gray" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">&mdash;</span>
-  </div>
-  <p class="page-sub" id="editor-sub">Compila i dati base e salva, poi importa XLSX/DXF.</p>
-
-  <!-- Dati base -->
-  <div class="card">
-    <div class="card-header"><h3>Dati base preventivo</h3></div>
-    <div class="card-body">
-      <div class="form-row">
-        <div class="form-field" style="flex:2;">
-          <label>Cliente *</label>
-          <input type="text" id="ed-cliente" placeholder="Es. Acme S.r.l.">
-        </div>
-        <div class="form-field">
-          <label>N. ord. cliente (opz)</label>
-          <input type="text" id="ed-numero-cliente" placeholder="RFQ-2026-42">
-        </div>
-        <div class="form-field" style="max-width:120px;">
-          <label>Quantit&agrave;</label>
-          <input type="number" id="ed-quantita" min="1" value="1">
-        </div>
-        <div class="form-field" style="max-width:120px;">
-          <label>Margine %</label>
-          <input type="number" id="ed-margine" min="0" max="100" step="0.5" value="25">
-        </div>
-        <div class="form-field" style="max-width:170px;">
-          <label>Data consegna proposta</label>
-          <input type="date" id="ed-data-consegna">
-        </div>
+  <!-- ═══ Editor header strip (compresso, sticky) ═══ -->
+  <div class="editor-strip" id="editor-strip">
+    <div class="strip-title">
+      <span id="editor-title">Nuovo preventivo</span>
+      <span class="badge gray" id="editor-status-badge" style="font-size:11px; padding:3px 9px;">&mdash;</span>
+    </div>
+    <div class="strip-fields">
+      <div class="strip-field" style="flex:2; min-width:180px;">
+        <label>Cliente *</label>
+        <input type="text" id="ed-cliente" placeholder="Es. Acme S.r.l.">
       </div>
-      <div class="form-row" style="margin-top:14px;">
-        <div class="form-field">
-          <label>Note interne</label>
-          <textarea id="ed-note" rows="2" placeholder="Note opzionali..."></textarea>
-        </div>
+      <div class="strip-field" style="min-width:140px;">
+        <label>N. Ord. Cliente</label>
+        <input type="text" id="ed-numero-cliente" placeholder="RFQ-2026-42">
       </div>
-      <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
-        <button class="btn-primary" onclick="saveBase()" id="btn-save-base">Salva</button>
-        <button class="btn-secondary" onclick="goStorico()">Annulla</button>
-        <span class="form-msg" id="msg-base"></span>
+      <div class="strip-field" style="width:80px;">
+        <label>Qty</label>
+        <input type="number" id="ed-quantita" min="1" value="1">
+      </div>
+      <div class="strip-field" style="width:90px;">
+        <label>Margine %</label>
+        <input type="number" id="ed-margine" min="0" max="100" step="0.5" value="25">
+      </div>
+      <div class="strip-field" style="width:150px;">
+        <label>Consegna</label>
+        <input type="date" id="ed-data-consegna">
       </div>
     </div>
-  </div>
-
-  <!-- Import file (solo dopo creazione preventivo) -->
-  <div class="card" id="card-import" style="display:none;">
-    <div class="card-header"><h3>Importa file</h3></div>
-    <div class="card-body">
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
-        <div class="dropzone" onclick="document.getElementById('inp-xlsx').click()" id="dz-xlsx">
-          <div class="icon"><i data-lucide="file-spreadsheet" style="width:32px;height:32px;"></i></div>
-          <div class="label">XLSX Lantek</div>
-          <div class="hint">Uno o più XLSX. Articoli con codice + costo materiale.</div>
-          <input type="file" id="inp-xlsx" accept=".xlsx" multiple style="display:none;" onchange="uploadFiles(this.files, 'xlsx')">
-        </div>
-        <div class="dropzone" onclick="document.getElementById('inp-dxf').click()" id="dz-dxf">
-          <div class="icon"><i data-lucide="file-code" style="width:32px;height:32px;"></i></div>
-          <div class="label">DXF / DWG cliente</div>
-          <div class="hint">Uno o più disegni 2D. <b>DWG</b>: richiede conversione a DXF (vedi messaggio).</div>
-          <input type="file" id="inp-dxf" accept=".dxf,.dwg" multiple style="display:none;" onchange="uploadFiles(this.files, 'dxf')">
-        </div>
-        <div class="dropzone" onclick="document.getElementById('inp-step').click()" id="dz-step">
-          <div class="icon"><i data-lucide="box" style="width:32px;height:32px;"></i></div>
-          <div class="label">STEP 3D</div>
-          <div class="hint">Uno o più STEP. Estrae tubolari, piastre, saldature.</div>
-          <input type="file" id="inp-step" accept=".step,.stp" multiple style="display:none;" onchange="uploadFiles(this.files, 'step')">
-        </div>
-      </div>
-      <div class="form-msg" id="msg-import"></div>
+    <div class="strip-actions">
+      <button class="btn-primary" onclick="saveBase()" id="btn-save-base">Salva</button>
+      <button class="btn-secondary" onclick="goStorico()">Annulla</button>
     </div>
   </div>
+  <div style="margin: -10px 0 12px; padding: 0 6px;">
+    <span class="form-msg" id="msg-base"></span>
+  </div>
+
+  <!-- ═══ Body Master-Detail split 65/35 ═══ -->
+  <div class="editor-body">
+
+    <!-- ─── MASTER PANEL (sinistra) ─── -->
+    <div class="master-panel">
+
+      <!-- Import file (dropzone compatte, in cima) -->
+      <div class="card" id="card-import" style="display:none;">
+        <div class="card-header"><h3>Importa file</h3></div>
+        <div class="card-body">
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px;">
+            <div class="dropzone" onclick="document.getElementById('inp-xlsx').click()" id="dz-xlsx" style="padding:18px 14px;">
+              <div class="icon"><i data-lucide="file-spreadsheet" style="width:24px;height:24px;"></i></div>
+              <div class="label" style="font-size:13px; margin-top:4px;">XLSX Lantek</div>
+              <div class="hint" style="font-size:11px;">Articoli + costo</div>
+              <input type="file" id="inp-xlsx" accept=".xlsx" multiple style="display:none;" onchange="uploadFiles(this.files, 'xlsx')">
+            </div>
+            <div class="dropzone" onclick="document.getElementById('inp-dxf').click()" id="dz-dxf" style="padding:18px 14px;">
+              <div class="icon"><i data-lucide="file-code" style="width:24px;height:24px;"></i></div>
+              <div class="label" style="font-size:13px; margin-top:4px;">DXF / DWG</div>
+              <div class="hint" style="font-size:11px;">Disegni 2D cliente</div>
+              <input type="file" id="inp-dxf" accept=".dxf,.dwg" multiple style="display:none;" onchange="uploadFiles(this.files, 'dxf')">
+            </div>
+            <div class="dropzone" onclick="document.getElementById('inp-step').click()" id="dz-step" style="padding:18px 14px;">
+              <div class="icon"><i data-lucide="box" style="width:24px;height:24px;"></i></div>
+              <div class="label" style="font-size:13px; margin-top:4px;">STEP 3D</div>
+              <div class="hint" style="font-size:11px;">Tubolari + piastre</div>
+              <input type="file" id="inp-step" accept=".step,.stp" multiple style="display:none;" onchange="uploadFiles(this.files, 'step')">
+            </div>
+          </div>
+          <div class="form-msg" id="msg-import"></div>
+          <div class="form-field" style="margin-top:12px;">
+            <label>Note interne</label>
+            <textarea id="ed-note" rows="1" placeholder="Note opzionali..." style="resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
 
   <!-- Articoli -->
   <div class="card" id="card-articoli" style="display:none;">
@@ -665,7 +845,91 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
     </div>
   </div>
 
-  <!-- Riepilogo totali -->
+    </div>
+    <!-- ─── /MASTER PANEL ─── -->
+
+    <!-- ─── DETAIL PANEL (destra, sticky) ─── -->
+    <aside class="detail-panel" id="detail-panel">
+      <div class="detail-empty" id="detail-empty">
+        <i data-lucide="mouse-pointer-click" style="width:32px; height:32px;"></i>
+        <div class="h">Seleziona un articolo o assieme</div>
+        <div class="s">Click su una riga della tabella per vedere preview e dettagli qui.</div>
+      </div>
+
+      <div id="detail-content" style="display:none;">
+        <!-- Preview area (tabs 2D/3D + iframe) -->
+        <div class="detail-preview-tabs">
+          <div class="detail-preview-tab active" id="pv-tab-2d" onclick="switchPreviewTab('2d')">2D DXF</div>
+          <div class="detail-preview-tab disabled" id="pv-tab-3d" onclick="switchPreviewTab('3d')">3D STEP</div>
+        </div>
+        <div class="detail-preview" id="detail-preview">
+          <div class="detail-preview-empty" id="detail-preview-empty">
+            <i data-lucide="image-off" style="width:28px; height:28px;"></i>
+            <span>Nessuna preview disponibile</span>
+          </div>
+          <iframe id="detail-preview-iframe" src="about:blank" style="display:none;"></iframe>
+        </div>
+
+        <!-- Sezione Generale -->
+        <div class="detail-section">
+          <div class="sec-title">Generale</div>
+          <div class="field"><label>Codice</label><div class="ro" id="d-codice">&mdash;</div></div>
+          <div class="field"><label>Tipo</label><div class="ro" id="d-tipo">&mdash;</div></div>
+          <div class="field"><label>Quantit&agrave;</label><input type="number" id="d-qty" min="1" onchange="detailUpdate('qty', this.value, true)"></div>
+          <div class="field"><label>Materiale</label>
+            <select id="d-materiale" onchange="detailUpdate('materiale', this.value)">
+              <option value=""></option>
+              <option value="S235">S235</option>
+              <option value="INOX_304">INOX 304</option>
+              <option value="INOX_316">INOX 316</option>
+              <option value="ALU_5754">ALU 5754</option>
+              <option value="ALU_5083">ALU 5083</option>
+            </select>
+          </div>
+          <div class="field"><label>Spessore (mm)</label><input type="number" id="d-spessore" step="0.1" onchange="detailUpdate('spessore_mm', this.value, true)"></div>
+        </div>
+
+        <!-- Sezione Dimensioni (readonly da DXF) -->
+        <div class="detail-section" id="d-sec-dimensioni">
+          <div class="sec-title">Dimensioni</div>
+          <div class="field"><label>Area (dm&sup2;)</label><input type="number" id="d-area" step="0.01" onchange="detailUpdate('area_dm2', this.value, true)"></div>
+          <div class="field"><label>Perim. taglio (m)</label><input type="number" id="d-perim" step="0.001" onchange="detailUpdate('perimetro_taglio_m', this.value, true)"></div>
+          <div class="field"><label>N. forature</label><input type="number" id="d-forature" min="0" onchange="detailUpdate('n_forature', this.value, true)"></div>
+        </div>
+
+        <!-- Sezione Lavorazioni -->
+        <div class="detail-section" id="d-sec-lavorazioni">
+          <div class="sec-title">Lavorazioni post-taglio</div>
+          <div class="field"><label>Pieghe</label><input type="number" id="d-pieghe" min="0" onchange="detailUpdate('pieghe', this.value, true)"></div>
+          <div class="field"><label>Saldatura (ml)</label><input type="number" id="d-saldatura" step="0.01" onchange="detailUpdate('saldatura_ml', this.value, true)"></div>
+          <div class="field"><label>Filettatura pz</label><input type="number" id="d-filettatura" min="0" onchange="detailUpdate('filettatura_pz', this.value, true)"></div>
+          <div class="field"><label>Svasatura pz</label><input type="number" id="d-svasatura" min="0" onchange="detailUpdate('svasatura_pz', this.value, true)"></div>
+        </div>
+
+        <!-- Sezione Costi (readonly) -->
+        <div class="detail-section">
+          <div class="sec-title">Costi</div>
+          <div class="field"><label>Costo base</label><div class="ro" id="d-costo-base">&mdash;</div></div>
+          <div class="field"><label>Costo piega</label><div class="ro" id="d-costo-piega">&mdash;</div></div>
+          <div class="field"><label>Costo saldatura</label><div class="ro" id="d-costo-sald">&mdash;</div></div>
+          <div class="field"><label>Costo filettatura</label><div class="ro" id="d-costo-filett">&mdash;</div></div>
+          <div class="field"><label>Costo svasatura</label><div class="ro" id="d-costo-svasat">&mdash;</div></div>
+          <div class="field" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border-2);">
+            <label style="font-weight:700; color:var(--text);">Totale articolo</label>
+            <div class="ro" id="d-costo-totale" style="font-weight:800; color:var(--text);">&mdash;</div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px;">
+            <button class="btn-primary" style="flex:1;" onclick="detailStima()" id="btn-detail-stima">Ristima costo laser</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <!-- ─── /DETAIL PANEL ─── -->
+
+  </div>
+  <!-- ═══ /Body Master-Detail ═══ -->
+
+  <!-- Riepilogo totali INLINE nel bottom bar (nascondi la card totali standalone) -->
   <div class="card" id="card-totali" style="display:none;">
     <div class="card-header"><h3>Riepilogo costi</h3></div>
     <div class="card-body no-pad">
@@ -686,30 +950,41 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
     </div>
   </div>
 
-  <!-- Azioni workflow -->
-  <div class="card" id="card-azioni" style="display:none;">
-    <div class="card-header"><h3>Azioni workflow</h3></div>
-    <div class="card-body">
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <button class="btn-secondary" onclick="exportPdf()">
-          <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> Esporta PDF
-        </button>
-        <button class="btn-primary" onclick="inviaPreventivo()" id="btn-invia">
-          Invia al cliente (BOZZA &rarr; INVIATO)
-        </button>
-        <button class="btn-primary" onclick="openAccettaModal()" id="btn-accetta" style="display:none;">
-          Accetta e manda in produzione
-        </button>
-        <button class="btn-danger" onclick="rifiutaPreventivo()" id="btn-rifiuta" style="display:none;">
-          Rifiutato dal cliente
-        </button>
-        <span class="form-msg" id="msg-workflow"></span>
+  <!-- ═══ Bottom bar sticky (totali + workflow) ═══ -->
+  <div class="editor-bottom" id="editor-bottom" style="display:none;">
+    <div class="totals-inline">
+      <div class="ti">
+        <span class="lbl">Totale pezzo</span>
+        <span class="val" id="tb-pezzo">0,00 &euro;</span>
       </div>
-      <div class="form-hint" style="margin-top:10px;">
-        Una volta inviato al cliente, il preventivo diventa <b>immutabile</b>. Per modifiche crea una nuova versione.
+      <div class="ti">
+        <span class="lbl">Con margine</span>
+        <span class="val" id="tb-margine">0,00 &euro;</span>
+      </div>
+      <div class="ti hero">
+        <span class="lbl">Totale lotto (<span id="tb-qty">1</span> pz)</span>
+        <span class="val" id="tb-lotto">0,00 &euro;</span>
       </div>
     </div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="exportPdf()">
+        <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF
+      </button>
+      <button class="btn-primary" onclick="inviaPreventivo()" id="btn-invia">
+        Invia al cliente
+      </button>
+      <button class="btn-primary" onclick="openAccettaModal()" id="btn-accetta" style="display:none;">
+        Accetta &rarr; Produzione
+      </button>
+      <button class="btn-danger" onclick="rifiutaPreventivo()" id="btn-rifiuta" style="display:none;">
+        Rifiuta
+      </button>
+      <span class="form-msg" id="msg-workflow" style="margin-left:8px;"></span>
+    </div>
   </div>
+
+  <!-- Vecchia card azioni (nascosta, mantenuta per compat JS) -->
+  <div class="card" id="card-azioni" style="display:none;"></div>
 </div>
 
 <!-- MODAL: anteprima DXF (iframe) -->
@@ -951,9 +1226,14 @@ async function openPreventivo(id) {
 }
 
 function populateEditor(p) {
-  document.getElementById('editor-title').textContent = `Preventivo per ${p.cliente}`;
-  document.getElementById('editor-status-badge').outerHTML = statusBadge(p.status).replace('class="badge', 'class="badge').replace('">', '" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">');
-  document.getElementById('editor-sub').textContent = `Versione ${p.versione} • creato il ${formatDate(p.data_creazione)}`;
+  const elTitle = document.getElementById('editor-title');
+  if (elTitle) elTitle.textContent = `Preventivo · ${p.cliente}`;
+  const elBadge = document.getElementById('editor-status-badge');
+  if (elBadge) {
+    elBadge.outerHTML = statusBadge(p.status).replace('class="badge', 'class="badge').replace('">', '" id="editor-status-badge" style="font-size:11px; padding:3px 9px;">');
+  }
+  const elSub = document.getElementById('editor-sub');
+  if (elSub) elSub.textContent = `Versione ${p.versione} • creato il ${formatDate(p.data_creazione)}`;
   document.getElementById('ed-cliente').value = p.cliente || '';
   document.getElementById('ed-numero-cliente').value = p.numero_ordine_cliente || '';
   document.getElementById('ed-quantita').value = p.quantita || 1;
@@ -1727,6 +2007,304 @@ Object.keys(_KIND_BY_DZ).forEach(id => {
 // Ricalc totali quando si cambia quantità o margine nel form base
 document.getElementById('ed-quantita').addEventListener('input', recalcTotali);
 document.getElementById('ed-margine').addEventListener('input', recalcTotali);
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  MASTER-DETAIL: selezione riga + detail panel + bottom bar sticky
+// ═══════════════════════════════════════════════════════════════════
+
+// Stato selezione corrente nel detail panel
+let _selectedRow = { kind: null, idx: -1, tab: '2d' };  // kind: 'art' | 'ass' | 'tub' | 'pia'
+
+function selectRow(kind, idx) {
+  _selectedRow.kind = kind;
+  _selectedRow.idx = idx;
+  // Aggiorna evidenziazione visiva
+  document.querySelectorAll('#panel-editor .tbl tbody tr').forEach(tr => tr.classList.remove('selected'));
+  const tbodyId = kind === 'art' ? 'articoli-tbody' : kind === 'ass' ? 'assiemi-tbody' : kind === 'tub' ? 'tubolari-tbody' : 'piastre-tbody';
+  const tbody = document.getElementById(tbodyId);
+  if (tbody && tbody.children[idx]) tbody.children[idx].classList.add('selected');
+  renderDetail();
+}
+
+function switchPreviewTab(tab) {
+  const tab3d = document.getElementById('pv-tab-3d');
+  if (tab === '3d' && tab3d.classList.contains('disabled')) return;
+  _selectedRow.tab = tab;
+  renderDetailPreview();
+}
+
+function renderDetail() {
+  const { kind, idx } = _selectedRow;
+  const empty = document.getElementById('detail-empty');
+  const content = document.getElementById('detail-content');
+  if (!kind || idx < 0) {
+    empty.style.display = 'flex';
+    content.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  content.style.display = 'block';
+
+  const item = kind === 'art' ? currentArticoli[idx]
+             : kind === 'ass' ? currentAssiemi[idx]
+             : kind === 'tub' ? currentTubolari[idx]
+             : currentPiastre[idx];
+  if (!item) { _selectedRow.kind = null; renderDetail(); return; }
+
+  // Header info
+  const codice = item.codice || item.codice_assieme || item.profilo || `#${idx+1}`;
+  const tipo = kind === 'art' ? 'Articolo (lamiera)' : kind === 'ass' ? 'Assieme 3D' : kind === 'tub' ? 'Tubolare' : 'Piastra';
+  document.getElementById('d-codice').textContent = codice;
+  document.getElementById('d-tipo').textContent = tipo;
+
+  // Campi editabili (solo se applicabili al tipo)
+  const secDim = document.getElementById('d-sec-dimensioni');
+  const secLav = document.getElementById('d-sec-lavorazioni');
+  const btnStima = document.getElementById('btn-detail-stima');
+
+  document.getElementById('d-qty').value = item.quantita || item.qty || 1;
+  document.getElementById('d-materiale').value = item.materiale || '';
+  document.getElementById('d-spessore').value = item.spessore_mm || '';
+
+  if (kind === 'art') {
+    secDim.style.display = 'block'; secLav.style.display = 'block'; btnStima.style.display = 'block';
+    document.getElementById('d-area').value = (item.area_dm2 || 0).toFixed(2);
+    document.getElementById('d-perim').value = (item.perimetro_taglio_m || 0).toFixed(3);
+    document.getElementById('d-forature').value = item.n_forature || 0;
+    document.getElementById('d-pieghe').value = item.pieghe || 0;
+    document.getElementById('d-saldatura').value = (item.saldatura_ml || 0).toFixed(2);
+    document.getElementById('d-filettatura').value = item.filettatura_pz || 0;
+    document.getElementById('d-svasatura').value = item.svasatura_pz || 0;
+    const base = (item.costo_base_override != null) ? item.costo_base_override : (item.costo_base_stimato || item.costo_materiale || 0);
+    document.getElementById('d-costo-base').textContent = formatEurStr(base);
+    document.getElementById('d-costo-piega').textContent = formatEurStr(item.costo_piega || 0);
+    document.getElementById('d-costo-sald').textContent = formatEurStr(item.costo_saldatura || 0);
+    document.getElementById('d-costo-filett').textContent = formatEurStr(item.costo_filettatura || 0);
+    document.getElementById('d-costo-svasat').textContent = formatEurStr(item.costo_svasatura || 0);
+    const totArt = base + (item.costo_piega||0) + (item.costo_saldatura||0) + (item.costo_filettatura||0) + (item.costo_svasatura||0) + (item.costo_apporto||0) + (item.costo_pulizia||0);
+    document.getElementById('d-costo-totale').textContent = formatEurStr(totArt);
+  } else {
+    secDim.style.display = 'none'; secLav.style.display = 'none'; btnStima.style.display = 'none';
+    // Per assieme/tubolare/piastra mostro solo il costo aggregato
+    const costo = kind === 'ass' ? ((item.costo||0)+(item.costo_puntatura||0)+(item.costo_saldatura_assieme||0))
+                 : kind === 'tub' ? ((item.costo_materiale||0)+(item.costo_taglio_totale||0))
+                 : (item.costo || 0);
+    document.getElementById('d-costo-base').textContent = '—';
+    document.getElementById('d-costo-piega').textContent = '—';
+    document.getElementById('d-costo-sald').textContent = '—';
+    document.getElementById('d-costo-filett').textContent = '—';
+    document.getElementById('d-costo-svasat').textContent = '—';
+    document.getElementById('d-costo-totale').textContent = formatEurStr(costo);
+  }
+
+  renderDetailPreview();
+}
+
+function renderDetailPreview() {
+  const { kind, idx, tab } = _selectedRow;
+  const iframe = document.getElementById('detail-preview-iframe');
+  const empty = document.getElementById('detail-preview-empty');
+  const tab2d = document.getElementById('pv-tab-2d');
+  const tab3d = document.getElementById('pv-tab-3d');
+
+  // Determina disponibilità 2D/3D
+  let dxfName = null, stepName = null;
+  if (kind === 'art') {
+    const a = currentArticoli[idx];
+    dxfName = a && a.dxf_filename ? a.dxf_filename : null;
+  } else if (kind === 'ass') {
+    const a = currentAssiemi[idx];
+    stepName = a && a.codice_assieme ? a.codice_assieme : null;  // basename senza estensione
+  }
+
+  tab2d.classList.toggle('disabled', !dxfName);
+  tab3d.classList.toggle('disabled', !stepName);
+  tab2d.classList.toggle('active', tab === '2d' && !!dxfName);
+  tab3d.classList.toggle('active', tab === '3d' && !!stepName);
+
+  // Auto-selezione tab in base al tipo
+  let effectiveTab = tab;
+  if (kind === 'ass' && stepName) effectiveTab = '3d';
+  else if (dxfName) effectiveTab = '2d';
+  else if (stepName) effectiveTab = '3d';
+
+  if (effectiveTab === '2d' && dxfName && currentPreventivo) {
+    empty.style.display = 'none';
+    iframe.style.display = 'block';
+    const url = '/preview-dxf.html?' + new URLSearchParams({
+      preventivo: currentPreventivo.id,
+      dxf: dxfName,
+      articolo: (currentArticoli[idx] || {}).id || '',
+      codice: (currentArticoli[idx] || {}).codice || '',
+      saldatura: (currentArticoli[idx] || {}).saldatura_ml || 0,
+      pieghe: (currentArticoli[idx] || {}).pieghe || 0,
+      filettatura: (currentArticoli[idx] || {}).filettatura_pz || 0,
+      svasatura: (currentArticoli[idx] || {}).svasatura_pz || 0,
+      embedded: '1',
+    }).toString();
+    if (iframe.dataset.currentUrl !== url) {
+      iframe.src = url;
+      iframe.dataset.currentUrl = url;
+    }
+  } else if (effectiveTab === '3d' && stepName && currentPreventivo) {
+    // Fetch lista file STEP e trova il match
+    empty.style.display = 'none';
+    iframe.style.display = 'block';
+    findStepFileFor(stepName).then(fname => {
+      if (!fname) {
+        empty.style.display = 'flex'; iframe.style.display = 'none'; iframe.src = 'about:blank';
+        return;
+      }
+      const stepUrl = `${API_URL}/api/preventivi/${currentPreventivo.id}/step/${encodeURIComponent(fname)}`;
+      const url = '/preview-step.html?' + new URLSearchParams({ url: stepUrl, name: fname }).toString();
+      if (iframe.dataset.currentUrl !== url) {
+        iframe.src = url;
+        iframe.dataset.currentUrl = url;
+      }
+    });
+  } else {
+    empty.style.display = 'flex';
+    iframe.style.display = 'none';
+    if (iframe.src && iframe.src !== 'about:blank') { iframe.src = 'about:blank'; iframe.dataset.currentUrl = ''; }
+  }
+}
+
+async function findStepFileFor(baseName) {
+  if (!currentPreventivo) return null;
+  try {
+    if (_stepFilesCache.preventivo_id !== currentPreventivo.id || _stepFilesCache.files === null) {
+      const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/step-files`);
+      const j = await r.json();
+      if (r.ok && j.success) _stepFilesCache = { preventivo_id: currentPreventivo.id, files: j.files };
+    }
+    const files = _stepFilesCache.files || [];
+    const target = (baseName || '').toLowerCase();
+    const m = files.find(f => f.filename.replace(/\.(step|stp)$/i, '').toLowerCase() === target);
+    return m ? m.filename : (files[0] ? files[0].filename : null);
+  } catch (_) { return null; }
+}
+
+function detailUpdate(field, value, numeric) {
+  const { kind, idx } = _selectedRow;
+  if (!kind || idx < 0) return;
+  const arr = kind === 'art' ? currentArticoli : kind === 'ass' ? currentAssiemi : kind === 'tub' ? currentTubolari : currentPiastre;
+  if (!arr[idx]) return;
+  // Nome campo: 'qty' sull'articolo va scritto come 'quantita'
+  const realField = (field === 'qty' && kind === 'art') ? 'quantita' : field;
+  arr[idx][realField] = numeric ? (parseFloat(value) || 0) : value;
+  // Ricalcolo + re-render tabella origine per riflettere l'update
+  if (kind === 'art') renderArticoli();
+  else if (kind === 'ass') renderAssiemi();
+  else if (kind === 'tub') renderTubolari();
+  else renderPiastre();
+  // Rimarca la riga selezionata dopo il re-render
+  selectRow(kind, idx);
+  recalcTotali();
+}
+
+async function detailStima() {
+  const { kind, idx } = _selectedRow;
+  if (kind !== 'art') return;
+  await stimaArt(idx);
+  renderDetail();
+}
+
+function formatEurStr(v) {
+  const n = Number(v || 0);
+  return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+// ─── Bottom bar sticky: aggiorna totali insieme al recalcTotali esistente ───
+const _origRecalcTotali = recalcTotali;
+recalcTotali = function() {
+  _origRecalcTotali.apply(this, arguments);
+  // Duplica valori nel bottom bar
+  const tPezzo = document.getElementById('t-pezzo').textContent;
+  const tMargine = document.getElementById('t-margine').textContent;
+  const tLotto = document.getElementById('t-lotto').textContent;
+  const tQty = document.getElementById('t-qty').textContent;
+  const bp = document.getElementById('tb-pezzo'); if (bp) bp.textContent = tPezzo;
+  const bm = document.getElementById('tb-margine'); if (bm) bm.textContent = tMargine;
+  const bl = document.getElementById('tb-lotto'); if (bl) bl.textContent = tLotto;
+  const bq = document.getElementById('tb-qty'); if (bq) bq.textContent = tQty;
+  // Se il detail panel è aperto su un articolo, aggiorna anche lì
+  if (_selectedRow.kind === 'art' && _selectedRow.idx >= 0 && currentArticoli[_selectedRow.idx]) renderDetail();
+};
+
+// ─── Wrapping delle render tabelle per aggiungere onclick riga selezionabile ───
+const _origRenderArticoli = renderArticoli;
+renderArticoli = function() {
+  _origRenderArticoli.apply(this, arguments);
+  const tbody = document.getElementById('articoli-tbody');
+  if (tbody) Array.from(tbody.children).forEach((tr, i) => {
+    if (!tr.classList.contains('clickable')) {
+      tr.classList.add('clickable');
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('input, select, button')) return;
+        selectRow('art', i);
+      });
+    }
+    if (_selectedRow.kind === 'art' && _selectedRow.idx === i) tr.classList.add('selected');
+  });
+};
+
+const _origRenderAssiemi = renderAssiemi;
+renderAssiemi = function() {
+  _origRenderAssiemi.apply(this, arguments);
+  const tbody = document.getElementById('assiemi-tbody');
+  if (tbody) Array.from(tbody.children).forEach((tr, i) => {
+    if (!tr.classList.contains('clickable')) {
+      tr.classList.add('clickable');
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('input, select, button')) return;
+        selectRow('ass', i);
+      });
+    }
+    if (_selectedRow.kind === 'ass' && _selectedRow.idx === i) tr.classList.add('selected');
+  });
+};
+
+const _origRenderTubolari = renderTubolari;
+renderTubolari = function() {
+  _origRenderTubolari.apply(this, arguments);
+  const tbody = document.getElementById('tubolari-tbody');
+  if (tbody) Array.from(tbody.children).forEach((tr, i) => {
+    if (!tr.classList.contains('clickable')) {
+      tr.classList.add('clickable');
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('input, select, button')) return;
+        selectRow('tub', i);
+      });
+    }
+    if (_selectedRow.kind === 'tub' && _selectedRow.idx === i) tr.classList.add('selected');
+  });
+};
+
+const _origRenderPiastre = renderPiastre;
+renderPiastre = function() {
+  _origRenderPiastre.apply(this, arguments);
+  const tbody = document.getElementById('piastre-tbody');
+  if (tbody) Array.from(tbody.children).forEach((tr, i) => {
+    if (!tr.classList.contains('clickable')) {
+      tr.classList.add('clickable');
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('input, select, button')) return;
+        selectRow('pia', i);
+      });
+    }
+    if (_selectedRow.kind === 'pia' && _selectedRow.idx === i) tr.classList.add('selected');
+  });
+};
+
+// ─── Show bottom bar quando preventivo è caricato + reset selezione sul cambio ───
+const _origPopulateEditor = populateEditor;
+populateEditor = function(p) {
+  _origPopulateEditor.apply(this, arguments);
+  document.getElementById('editor-bottom').style.display = 'flex';
+  _selectedRow = { kind: null, idx: -1, tab: '2d' };
+  renderDetail();
+};
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>if (window.lucide) lucide.createIcons();</script>
