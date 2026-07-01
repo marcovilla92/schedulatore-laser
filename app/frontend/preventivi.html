@@ -1122,13 +1122,25 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
       <button class="modal-close" onclick="closeArtModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <!-- SX: preview grande DXF -->
-      <div class="mfs-left">
+      <!-- SX: preview grande DXF con overlay poligoni cliccabili -->
+      <div class="mfs-left" style="position:relative;">
+        <!-- Hint utente (visibile solo se needs verify) -->
+        <div id="mad-verify-banner" style="display:none; padding:10px 14px; background:linear-gradient(90deg,rgba(217,119,6,0.12),rgba(217,119,6,0.04)); border-bottom:1px solid var(--border-2); font-size:12px; color:var(--orange); font-weight:600;">
+          <i data-lucide="info" style="width:14px;height:14px;vertical-align:-2px;"></i>
+          <span id="mad-verify-text">Click sul contorno che rappresenta il pezzo.</span>
+        </div>
         <div id="mad-preview-empty" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-3); gap:10px;">
           <i data-lucide="image-off" style="width:36px; height:36px;"></i>
           <span style="font-size:13px;">Nessun DXF associato all'articolo</span>
         </div>
-        <iframe id="mad-preview-iframe" src="about:blank" style="display:none;"></iframe>
+        <div id="mad-preview-svg" style="display:none; flex:1; overflow:hidden; position:relative; user-select:none; cursor:grab;">
+          <!-- SVG DXF + overlay iniettati via JS -->
+        </div>
+        <!-- Legend + confidence badge -->
+        <div id="mad-legend" style="display:none; position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,0.92); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; font-size:11px; box-shadow:var(--shadow-sm); display:flex; gap:14px; align-items:center;">
+          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(34,197,94,0.35);border:1.5px solid rgb(34,197,94);"></span>Pezzo selezionato</span>
+          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(79,70,229,0.10);border:1.5px solid rgba(79,70,229,0.7);"></span>Altri candidati</span>
+        </div>
       </div>
 
       <!-- DX: tutti i campi editabili -->
@@ -1695,7 +1707,7 @@ function closeStepPreview() {
 // ─── Modal dettaglio articolo (fullscreen con preview grande + tutti i campi) ───
 let _madCurrentIdx = -1;
 
-function openArtModal(idx) {
+async function openArtModal(idx) {
   const a = currentArticoli[idx];
   if (!a || !currentPreventivo) return;
   _madCurrentIdx = idx;
@@ -1703,31 +1715,16 @@ function openArtModal(idx) {
   // Titolo modal
   document.getElementById('mad-title').textContent = `Articolo · ${a.codice || '—'}`;
 
-  // Preview DXF fullscreen (iframe embedded senza toolbar)
-  const iframe = document.getElementById('mad-preview-iframe');
+  // Reset preview area
   const empty = document.getElementById('mad-preview-empty');
-  if (a.dxf_filename) {
-    empty.style.display = 'none';
-    iframe.style.display = 'block';
-    const url = '/preview-dxf.html?' + new URLSearchParams({
-      preventivo: currentPreventivo.id,
-      dxf: a.dxf_filename,
-      articolo: a.id || '',
-      codice: a.codice || '',
-      saldatura: a.saldatura_ml || 0,
-      pieghe: a.pieghe || 0,
-      filettatura: a.filettatura_pz || 0,
-      svasatura: a.svasatura_pz || 0,
-      embedded: '1',
-    }).toString();
-    iframe.src = url;
-  } else {
-    empty.style.display = 'flex';
-    iframe.style.display = 'none';
-    iframe.src = 'about:blank';
-  }
+  const svgBox = document.getElementById('mad-preview-svg');
+  const banner = document.getElementById('mad-verify-banner');
+  const legend = document.getElementById('mad-legend');
+  banner.style.display = 'none';
+  legend.style.display = 'none';
+  svgBox.innerHTML = '';
 
-  // Popola tutti i campi
+  // Popola tutti i campi (prima dell'async preview)
   document.getElementById('mad-codice').textContent = a.codice || '—';
   document.getElementById('mad-qty').value = a.quantita || 1;
   document.getElementById('mad-materiale').value = a.materiale || '';
@@ -1739,17 +1736,215 @@ function openArtModal(idx) {
   document.getElementById('mad-sald').value = (a.saldatura_ml || 0).toFixed(2);
   document.getElementById('mad-filett').value = a.filettatura_pz || 0;
   document.getElementById('mad-svas').value = a.svasatura_pz || 0;
-
   madRefreshCosts();
 
+  // Mostra il modal subito (poi carica preview)
   document.getElementById('modal-art-detail').classList.add('active');
   if (window.lucide) lucide.createIcons();
+
+  if (!a.dxf_filename) {
+    empty.style.display = 'flex';
+    svgBox.style.display = 'none';
+    return;
+  }
+
+  // Preview DXF inline con overlay poligoni cliccabili
+  empty.style.display = 'none';
+  svgBox.style.display = 'block';
+  svgBox.innerHTML = '<div style="padding:20px;color:var(--text-3);font-size:12px;">Caricamento preview…</div>';
+
+  try {
+    // Fetch SVG DXF + lista candidati in parallelo
+    const [svgResp, candResp] = await Promise.all([
+      fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/svg`),
+      fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/candidates`),
+    ]);
+    const svgText = await svgResp.text();
+    const candData = await candResp.json();
+
+    if (!candData.success) throw new Error(candData.error || 'Errore candidati');
+
+    // Verifica banner se needs_manual_select
+    if (candData.needs_manual_select) {
+      banner.style.display = 'block';
+      document.getElementById('mad-verify-text').innerHTML =
+        `Confidenza <b>${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b>. Click sul contorno che rappresenta il pezzo — i valori si aggiornano automaticamente.`;
+    } else {
+      // Anche a confidenza alta, il commerciale può cliccare per cambiare
+      banner.style.display = 'block';
+      banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
+      banner.style.color = '#166534';
+      document.getElementById('mad-verify-text').innerHTML =
+        `Confidenza <b>${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b>. Click su un altro contorno per cambiare il pezzo scelto.`;
+    }
+
+    // Inject SVG DXF
+    svgBox.innerHTML = svgText;
+    const dxfSvg = svgBox.querySelector('svg');
+    if (!dxfSvg) return;
+    dxfSvg.style.width = '100%';
+    dxfSvg.style.height = '100%';
+    dxfSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    // Salva stato per selezione
+    _madCandData = candData;
+
+    // Aggiunge overlay poligoni cliccabili
+    _renderMadOverlay(dxfSvg, candData);
+
+    // Legend
+    legend.style.display = 'flex';
+
+    // Pan/Zoom base
+    _attachPanZoom(svgBox, dxfSvg);
+  } catch (e) {
+    svgBox.innerHTML = `<div style="padding:20px;color:var(--red);font-size:12px;">Errore preview: ${e.message}</div>`;
+  }
+}
+
+// Stato candidati corrente (dentro il modal dettaglio)
+let _madCandData = null;
+
+function _renderMadOverlay(dxfSvg, candData) {
+  const vb = dxfSvg.getAttribute('viewBox');
+  const vbParts = vb ? vb.split(/\s+/).map(Number) : [0, 0, 100, 100];
+
+  const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  overlay.setAttribute('class', 'cand-overlay-svg');
+  overlay.setAttribute('viewBox', vb || '0 0 100 100');
+  overlay.setAttribute('preserveAspectRatio', dxfSvg.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+
+  // Copia transform del gruppo interno del DXF (ezdxf spesso applica scale/flip)
+  const dxfGroup = dxfSvg.querySelector('g');
+  let parentEl = overlay;
+  if (dxfGroup && dxfGroup.getAttribute('transform')) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', dxfGroup.getAttribute('transform'));
+    overlay.appendChild(g);
+    parentEl = g;
+  }
+
+  candData.candidates.forEach(c => {
+    const pts = c.geometry.map(p => `${p[0]},${p[1]}`).join(' ');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', pts);
+    poly.setAttribute('data-cand-idx', c.idx);
+    if (c.idx === candData.selected_candidate_idx) poly.classList.add('selected');
+    poly.addEventListener('click', (e) => {
+      e.stopPropagation();
+      madSelectPolygon(c.idx);
+    });
+    parentEl.appendChild(poly);
+  });
+
+  const svgBox = document.getElementById('mad-preview-svg');
+  svgBox.appendChild(overlay);
+}
+
+async function madSelectPolygon(candIdx) {
+  if (_madCurrentIdx < 0 || !_madCandData) return;
+  const a = currentArticoli[_madCurrentIdx];
+  if (!a) return;
+
+  // Aggiorna overlay UI (selected/dimmed)
+  document.querySelectorAll('#mad-preview-svg .cand-overlay-svg polygon').forEach(p => {
+    const pidx = parseInt(p.getAttribute('data-cand-idx'), 10);
+    p.classList.toggle('selected', pidx === candIdx);
+    p.classList.toggle('dimmed', pidx !== candIdx);
+  });
+
+  // Se è già il candidato auto-selezionato, non richiamare backend
+  const isAuto = (candIdx === _madCandData.selected_candidate_idx);
+  let geom;
+  if (isAuto) {
+    geom = _madCandData;
+  } else {
+    try {
+      const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/select-polygon`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ candidate_idx: candIdx, articolo_id: a.id }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.success) throw new Error(j.error || 'Errore server');
+      geom = j;
+    } catch (e) {
+      alert('Errore selezione: ' + e.message);
+      return;
+    }
+  }
+
+  // Aggiorna currentArticoli + campi modal in-place
+  a.area_dm2 = geom.area_dm2 || 0;
+  a.perimetro_taglio_m = geom.perimetro_taglio_m || 0;
+  a.n_forature = geom.n_pierce || geom.n_forature || 0;
+  a.dxf_confidence = geom.confidence || 1;
+  a.dxf_needs_verify = false;
+
+  document.getElementById('mad-area').value = a.area_dm2.toFixed(2);
+  document.getElementById('mad-perim').value = a.perimetro_taglio_m.toFixed(3);
+  document.getElementById('mad-forature').value = a.n_forature;
+
+  // Nascondi banner verifica (utente ha confermato)
+  const banner = document.getElementById('mad-verify-banner');
+  banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
+  banner.style.color = '#166534';
+  document.getElementById('mad-verify-text').innerHTML =
+    `✓ Pezzo selezionato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${a.perimetro_taglio_m.toFixed(3)} m</b>, <b>${a.n_forature}</b> forature.`;
+
+  // Aggiorna anche la tabella origine + recalc
+  renderArticoli();
+  recalcTotali();
+  madRefreshCosts();
+}
+
+// Pan/Zoom base sullo SVG DXF
+function _attachPanZoom(container, svg) {
+  let scale = 1, tx = 0, ty = 0;
+  let dragging = false, sx = 0, sy = 0;
+  const overlay = () => container.querySelector('.cand-overlay-svg');
+
+  function apply() {
+    const transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    svg.style.transform = transform;
+    svg.style.transformOrigin = '0 0';
+    const o = overlay();
+    if (o) { o.style.transform = transform; o.style.transformOrigin = '0 0'; }
+  }
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const delta = -Math.sign(e.deltaY) * 0.12;
+    const newScale = Math.max(0.2, Math.min(20, scale * (1 + delta)));
+    // Zoom centrato sul mouse
+    tx = mx - (mx - tx) * (newScale / scale);
+    ty = my - (my - ty) * (newScale / scale);
+    scale = newScale;
+    apply();
+  }, { passive: false });
+  container.addEventListener('mousedown', (e) => {
+    if (e.target.closest('polygon')) return;  // non intercettare click su overlay
+    dragging = true; sx = e.clientX - tx; sy = e.clientY - ty;
+    container.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    tx = e.clientX - sx; ty = e.clientY - sy;
+    apply();
+  });
+  window.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; container.style.cursor = 'grab'; }
+  });
+  container.addEventListener('dblclick', () => {
+    scale = 1; tx = 0; ty = 0; apply();
+  });
 }
 
 function closeArtModal() {
   document.getElementById('modal-art-detail').classList.remove('active');
-  document.getElementById('mad-preview-iframe').src = 'about:blank';
+  document.getElementById('mad-preview-svg').innerHTML = '';
   _madCurrentIdx = -1;
+  _madCandData = null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
