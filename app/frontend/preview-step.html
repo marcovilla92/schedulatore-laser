@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Anteprima 3D STEP - FerroTrack</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234F46E5'/><text x='16' y='22' text-anchor='middle' font-size='18' font-family='Arial' fill='white' font-weight='bold'>F</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --header-bg: #1E1B4B;
+    --header-h: 56px;
+    --indigo: #4F46E5;
+    --indigo-dark: #3730A3;
+    --info-h: 36px;
+  }
+  body {
+    background: #E2E8F0;
+    overflow: hidden;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  .header {
+    background: var(--header-bg); padding: 0 24px; height: var(--header-h);
+    display: flex; align-items: center; justify-content: space-between;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 34px; height: 34px; background: var(--indigo); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 800; font-size: 16px; flex-shrink: 0;
+  }
+  .header-title { color: white; font-size: 16px; font-weight: 700; }
+  .header-file {
+    color: #A5B4FC; font-size: 13px; background: rgba(255,255,255,0.08);
+    padding: 4px 12px; border-radius: 6px; max-width: 400px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .header-btn {
+    background: rgba(255,255,255,0.10); color: #E0E7FF;
+    border: 1px solid rgba(255,255,255,0.16); cursor: pointer;
+    padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .header-btn:hover { background: rgba(255,255,255,0.18); }
+  #viewer {
+    position: fixed; top: var(--header-h); left: 0; right: 0; bottom: var(--info-h);
+  }
+  #viewer canvas { display: block; }
+  #loading {
+    position: fixed; top: var(--header-h); left: 0; right: 0; bottom: var(--info-h);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #E2E8F0; color: #475569; z-index: 100; gap: 12px;
+  }
+  .spinner {
+    width: 44px; height: 44px; border: 3px solid #CBD5E1;
+    border-top-color: #4F46E5; border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-text { font-size: 14px; }
+  #info-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; height: var(--info-h);
+    background: #F1F5F9; display: flex; align-items: center; padding: 0 16px;
+    color: #64748B; font-size: 11px; gap: 12px; z-index: 200;
+    border-top: 1px solid #CBD5E1;
+  }
+  .badge {
+    padding: 2px 10px; border-radius: 4px; font-weight: 600; font-size: 10px;
+    letter-spacing: 0.3px;
+  }
+  #error-box {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: #7F1D1D; color: #FCA5A5; padding: 24px 32px; border-radius: 12px;
+    font-size: 14px; display: none; z-index: 300; max-width: 500px; text-align: center;
+  }
+  #controls-panel {
+    position: fixed; top: calc(var(--header-h) + 14px); right: 16px; z-index: 150;
+    background: rgba(15, 15, 35, 0.72);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(165, 180, 252, 0.18);
+    border-radius: 12px; padding: 14px 18px; min-width: 200px;
+    display: none; flex-direction: column; gap: 10px;
+  }
+  #controls-panel .panel-label {
+    color: #A5B4FC; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.6px; text-transform: uppercase;
+  }
+  .explode-row { display: flex; align-items: center; gap: 10px; }
+  .explode-row span {
+    color: white; font-size: 12px; font-weight: 600;
+    min-width: 28px; text-align: right;
+  }
+  input[type="range"]#explode-slider {
+    -webkit-appearance: none; appearance: none;
+    flex: 1; height: 4px; border-radius: 2px;
+    background: linear-gradient(to right,
+      #4F46E5 0%, #4F46E5 var(--pct, 0%),
+      rgba(255,255,255,0.2) var(--pct, 0%), rgba(255,255,255,0.2) 100%);
+    outline: none; cursor: pointer;
+  }
+  input[type="range"]#explode-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #818CF8; border: 2px solid white;
+    box-shadow: 0 0 6px rgba(79,70,229,0.6);
+    cursor: pointer; transition: background 0.15s;
+  }
+  input[type="range"]#explode-slider::-webkit-slider-thumb:hover { background: #6366F1; }
+  input[type="range"]#explode-slider::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #818CF8; border: 2px solid white; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">F</div>
+    <span class="header-title">FerroTrack — Anteprima 3D</span>
+    <span class="header-file" id="header-file-name"></span>
+  </div>
+  <button class="header-btn" onclick="closeViewer()">Chiudi</button>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-text">Inizializzazione engine 3D...</div>
+</div>
+<div id="error-box"></div>
+<div id="viewer"></div>
+
+<div id="controls-panel">
+  <div class="panel-label">Vista</div>
+  <div class="explode-row">
+    <span style="color:#A5B4FC;font-size:12px;font-weight:500;white-space:nowrap;min-width:auto;">Esplodi</span>
+    <input type="range" id="explode-slider" min="0" max="100" value="0" step="1">
+    <span id="explode-val">0%</span>
+  </div>
+</div>
+
+<div id="info-bar">
+  <span id="bodies-badge" class="badge" style="background:#4F46E5;color:white"></span>
+  <span id="weld-badge" class="badge" style="background:#DC2626;color:white;display:none"></span>
+  <span style="color:#334155">|</span>
+  <span>Scroll = Zoom &nbsp;&middot;&nbsp; Drag = Ruota &nbsp;&middot;&nbsp; Click destro = Panoramica</span>
+  <span style="flex:1"></span>
+  <span id="file-name" style="color:#475569"></span>
+</div>
+
+<script>
+  // Chiusura viewer: notifica parent via postMessage o chiudi window
+  function closeViewer() {
+    try { window.parent && window.parent.postMessage({ type: 'step-preview-close' }, '*'); } catch(_) {}
+    if (window.parent && window.parent !== window) return;
+    window.close();
+  }
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const loadingText = document.getElementById('loading-text');
+const errorBox = document.getElementById('error-box');
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = 'block';
+  document.getElementById('loading').style.display = 'none';
+}
+
+// Legge parametri da query string: ?url=<step_url>&name=<display>&welds=<count>
+const params = new URLSearchParams(window.location.search);
+const stepUrl = params.get('url');
+const displayName = params.get('name') || '';
+const weldCount = params.get('welds');
+
+if (!stepUrl) {
+  showError('Parametro URL mancante (query string: ?url=/path/to/file.step)');
+  throw new Error('No STEP url');
+}
+
+// Mostra file name subito
+if (displayName) {
+  document.getElementById('file-name').textContent = displayName;
+  document.getElementById('header-file-name').textContent = displayName;
+}
+if (weldCount && parseInt(weldCount, 10) > 0) {
+  const wb = document.getElementById('weld-badge');
+  wb.textContent = weldCount + ' saldature';
+  wb.style.display = 'inline';
+}
+
+// Fetch STEP file dal server
+loadingText.textContent = 'Download file STEP...';
+let stepBytes;
+try {
+  const resp = await fetch(stepUrl);
+  if (!resp.ok) {
+    showError('Errore download STEP (' + resp.status + ' ' + resp.statusText + ')');
+    throw new Error('Fetch failed');
+  }
+  stepBytes = new Uint8Array(await resp.arrayBuffer());
+} catch (e) {
+  showError('Errore fetch STEP: ' + e.message);
+  throw e;
+}
+
+loadingText.textContent = 'Caricamento engine OpenCASCADE (WASM)...';
+
+// Load occt-import-js dynamically
+const occtUrl = 'https://cdn.jsdelivr.net/npm/occt-import-js@0.0.12/dist/occt-import-js.js';
+try {
+  await new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = occtUrl;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+} catch (e) {
+  showError('Errore caricamento engine 3D. Verifica connessione internet.\n' + e.message);
+  throw e;
+}
+
+loadingText.textContent = 'Parsing file STEP...';
+
+let result;
+try {
+  const occt = await window.occtimportjs({
+    locateFile: (name) => `https://cdn.jsdelivr.net/npm/occt-import-js@0.0.12/dist/${name}`
+  });
+  result = occt.ReadStepFile(stepBytes);
+} catch (e) {
+  showError('Errore parsing STEP: ' + e.message);
+  throw e;
+}
+
+if (!result || !result.meshes || result.meshes.length === 0) {
+  showError('Nessuna geometria trovata nel file STEP.');
+  throw new Error('Empty result');
+}
+
+loadingText.textContent = 'Rendering 3D...';
+
+// Three.js Scene Setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#E2E8F0');
+scene.fog = new THREE.FogExp2('#E2E8F0', 0.00008);
+
+// Lighting — studio setup
+const ambient = new THREE.HemisphereLight(0xB0C4DE, 0x2F4F4F, 1.2);
+scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+keyLight.position.set(2, 3, 4);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x8899BB, 0.6);
+fillLight.position.set(-3, 1, -2);
+scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0xAABBCC, 0.4);
+rimLight.position.set(0, -2, -3);
+scene.add(rimLight);
+
+// Body colors — metallic dark palette
+const bodyColors = [
+  { color: 0x4A5568, specular: 0x333333 },
+  { color: 0x57534E, specular: 0x2A2724 },
+  { color: 0x525252, specular: 0x292929 },
+  { color: 0x4B5563, specular: 0x262C35 },
+  { color: 0x44403C, specular: 0x221F1C },
+  { color: 0x3F3F46, specular: 0x1F1F23 },
+];
+
+const allGroup = new THREE.Group();
+let bodyCount = 0;
+const meshList = [];
+
+for (let i = 0; i < result.meshes.length; i++) {
+  const meshData = result.meshes[i];
+  if (!meshData.attributes || !meshData.attributes.position) continue;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position',
+    new THREE.Float32BufferAttribute(meshData.attributes.position.array, 3));
+  if (meshData.attributes.normal) {
+    geometry.setAttribute('normal',
+      new THREE.Float32BufferAttribute(meshData.attributes.normal.array, 3));
+  } else {
+    geometry.computeVertexNormals();
+  }
+  if (meshData.index) {
+    geometry.setIndex(Array.from(meshData.index.array));
+  }
+  const palette = bodyColors[i % bodyColors.length];
+  const material = new THREE.MeshPhongMaterial({
+    color: palette.color,
+    specular: palette.specular,
+    shininess: 35,
+    side: THREE.DoubleSide,
+    flatShading: false,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  allGroup.add(mesh);
+  bodyCount++;
+  geometry.computeBoundingBox();
+  const meshBox = geometry.boundingBox;
+  const meshCentroid = new THREE.Vector3();
+  meshBox.getCenter(meshCentroid);
+  meshList.push({ mesh, centroid: meshCentroid, originalPos: new THREE.Vector3() });
+}
+
+scene.add(allGroup);
+
+// Center geometry
+const box = new THREE.Box3().setFromObject(allGroup);
+const center = box.getCenter(new THREE.Vector3());
+const size = box.getSize(new THREE.Vector3());
+allGroup.position.sub(center);
+
+const globalCentroid = new THREE.Vector3();
+for (const item of meshList) {
+  const worldCentroid = item.centroid.clone().sub(center);
+  item.worldCentroid = worldCentroid;
+  globalCentroid.add(worldCentroid);
+}
+if (meshList.length > 0) globalCentroid.divideScalar(meshList.length);
+
+for (const item of meshList) {
+  item.originalPos.copy(item.mesh.position);
+}
+
+const maxDim = Math.max(size.x, size.y, size.z);
+const bboxDiag = size.length();
+const explosionScale = bboxDiag * 0.5;
+
+// Grid
+const gridSize = maxDim * 3;
+const grid = new THREE.GridHelper(gridSize, 40, 0xCBD5E1, 0xD4DCE6);
+grid.position.y = -size.y / 2 - maxDim * 0.05;
+grid.material.opacity = 0.3;
+grid.material.transparent = true;
+scene.add(grid);
+
+const headerH = 56;
+const infoH = 36;
+function viewportH() { return window.innerHeight - headerH - infoH; }
+function viewportW() { return window.innerWidth; }
+
+const camera = new THREE.PerspectiveCamera(40, viewportW() / viewportH(), maxDim * 0.001, maxDim * 20);
+const dist = maxDim * 2.0;
+camera.position.set(dist * 0.7, dist * 0.4, dist * 0.9);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+renderer.setSize(viewportW(), viewportH());
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.getElementById('viewer').appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 0.8;
+controls.zoomSpeed = 1.2;
+controls.panSpeed = 0.8;
+controls.minDistance = maxDim * 0.1;
+controls.maxDistance = maxDim * 10;
+
+document.getElementById('bodies-badge').textContent = bodyCount + ' corpi';
+document.getElementById('controls-panel').style.display = 'flex';
+document.getElementById('loading').style.display = 'none';
+
+// Notifica parent che il viewer è pronto
+try { window.parent && window.parent.postMessage({ type: 'step-preview-ready', bodies: bodyCount }, '*'); } catch(_) {}
+
+// Explode slider
+const slider = document.getElementById('explode-slider');
+const explodeVal = document.getElementById('explode-val');
+function applyExplode(t) {
+  if (meshList.length <= 1) return;
+  for (const item of meshList) {
+    const dir = item.worldCentroid.clone().sub(globalCentroid);
+    if (dir.lengthSq() < 1e-10) {
+      item.mesh.position.copy(item.originalPos);
+      continue;
+    }
+    dir.normalize();
+    const offset = dir.multiplyScalar(t * explosionScale);
+    item.mesh.position.copy(item.originalPos).add(offset);
+  }
+}
+function updateSliderFill(val) {
+  slider.style.setProperty('--pct', val + '%');
+}
+slider.addEventListener('input', () => {
+  const raw = parseInt(slider.value, 10);
+  explodeVal.textContent = raw + '%';
+  updateSliderFill(raw);
+  applyExplode(raw / 100);
+});
+updateSliderFill(0);
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = viewportW() / viewportH();
+  camera.updateProjectionMatrix();
+  renderer.setSize(viewportW(), viewportH());
+});
+</script>
+
+</body>
+</html>

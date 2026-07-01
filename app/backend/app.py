@@ -21,6 +21,7 @@ from .preventivi import (
     step_assieme as _step_assieme,
     step_tubolari as _step_tubolari,
     step_piastre as _step_piastre,
+    pdf_exporter as _pdf_exporter,
 )
 import json as _json_mod
 # Carica DB profili tubolari una volta (file copiato dal Preventivatore desktop)
@@ -1897,6 +1898,46 @@ def api_preventivi_import_dxf(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/step-files', methods=['GET'])
+def api_preventivi_step_files_list(preventivo_id):
+    """Elenca i file STEP (.step/.stp) caricati per il preventivo (in preventivi_tmp/<id>/)."""
+    try:
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        if not os.path.isdir(prev_dir):
+            return jsonify({'success': True, 'files': []}), 200
+        files = []
+        for name in sorted(os.listdir(prev_dir)):
+            if name.lower().endswith(('.step', '.stp')):
+                fp = os.path.join(prev_dir, name)
+                try:
+                    size = os.path.getsize(fp)
+                except OSError:
+                    size = 0
+                files.append({'filename': name, 'size': size})
+        return jsonify({'success': True, 'files': files}), 200
+    except Exception as e:
+        logger.exception('step_files_list failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/step/<path:filename>', methods=['GET'])
+def api_preventivi_step_file(preventivo_id, filename):
+    """Serve il file STEP raw (per viewer 3D preview-step.html che lo scarica via fetch)."""
+    try:
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        step_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(step_path):
+            return jsonify({'error': 'File STEP non trovato'}), 404
+        if not safe_name.lower().endswith(('.step', '.stp')):
+            return jsonify({'error': 'Estensione file non valida'}), 400
+        return send_file(step_path, mimetype='application/octet-stream',
+                         as_attachment=False, download_name=safe_name)
+    except Exception as e:
+        logger.exception('step_file failed')
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/svg', methods=['GET'])
 def api_preventivi_dxf_svg(preventivo_id, filename):
     """Ritorna SVG ad alta fedeltà del DXF (caricato in import-dxf).
@@ -1953,15 +1994,21 @@ def api_preventivi_import_step(preventivo_id):
         if not f.filename or not f.filename.lower().endswith(('.step', '.stp')):
             return jsonify({'success': False, 'error': 'File deve essere .step o .stp'}), 400
 
-        tmp_path = os.path.join(UPLOAD_FOLDER, 'tmp_' + uuid.uuid4().hex + os.path.splitext(f.filename)[1])
-        f.save(tmp_path)
+        # Salva STEP in preventivi_tmp/<id>/ (persistente per preview 3D; cleanup su accept/reject/delete)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        os.makedirs(prev_dir, exist_ok=True)
+        safe_name = os.path.basename(f.filename)
+        step_path = os.path.join(prev_dir, safe_name)
+        f.save(step_path)
         try:
-            assieme_data = _step_assieme.analizza_step_assieme(tmp_path) or {}
-            tubolari_data = _step_tubolari.analizza_step_tubolari(tmp_path, _PROFILI_TUBOLARI_DB) or {}
-            piastre_data = _step_piastre.analizza_step_piastre(tmp_path) or {}
-        finally:
-            try: os.remove(tmp_path)
+            assieme_data = _step_assieme.analizza_step_assieme(step_path) or {}
+            tubolari_data = _step_tubolari.analizza_step_tubolari(step_path, _PROFILI_TUBOLARI_DB) or {}
+            piastre_data = _step_piastre.analizza_step_piastre(step_path) or {}
+        except Exception:
+            # Se l'analisi fallisce non lasciare il file orfano
+            try: os.remove(step_path)
             except OSError: pass
+            raise
 
         # Coefficienti da config del Preventivatore desktop (oggi inline, in futuro spostiamoli in app_config)
         config_tubolari_piastre = {
@@ -2103,18 +2150,176 @@ def api_preventivi_calcola(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _preventivo_to_pdf_dati(p: dict) -> dict:
+    """Mappa il dict serializzato PreventivoManager al formato atteso da PDFPreventivo.genera_pdf().
+
+    Differenze principali gestite:
+    - Assiemi/tubolari/piastre: DB restituisce liste, PDF vuole dict per codice_assieme
+    - Somma costi_piegatura/saldatura/filettatura/svasatura da articoli
+    - Data ISO → dd/mm/yyyy italiano
+    - Campi opzionali (azienda, logo_path) presi da app_config se disponibili
+    """
+    # Somma costi post-taglio da articoli (moltiplicati per quantità)
+    articoli = p.get('articoli') or []
+    tot_piega = sum(float(a.get('costo_piega') or 0) * int(a.get('quantita') or 1) for a in articoli)
+    tot_sald = sum(float(a.get('costo_saldatura') or 0) * int(a.get('quantita') or 1) for a in articoli)
+    tot_filett = sum(float(a.get('costo_filettatura') or 0) * int(a.get('quantita') or 1) for a in articoli)
+    tot_svasat = sum(float(a.get('costo_svasatura') or 0) * int(a.get('quantita') or 1) for a in articoli)
+
+    # Assiemi: lista → dict per codice_assieme (formato PDF)
+    assiemi_list = p.get('assiemi') or []
+    costi_montaggio = {}
+    for a in assiemi_list:
+        cod = a.get('codice_assieme') or a.get('id') or ''
+        costi_montaggio[cod] = {
+            'ore_montaggio': a.get('ore_montaggio') or 0,
+            'ore_puntatura': a.get('ore_puntatura') or 0,
+            'costo': a.get('costo') or 0,
+            'costo_puntatura': a.get('costo_puntatura') or 0,
+            'costo_saldatura_assieme': a.get('costo_saldatura_assieme') or 0,
+            'saldatura_mt': a.get('saldatura_mt') or 0,
+            'peso_kg': a.get('peso_kg') or 0,
+            'qty': a.get('qty') or 1,
+        }
+
+    # Tubolari: raggruppa per codice_assieme in dict {codice: {'analisi': {'tubi': [...]}, 'costi': {...}}}
+    tubolari_list = p.get('tubolari') or []
+    tubolari_per_assieme = {}
+    for t in tubolari_list:
+        cod = t.get('codice_assieme') or 'GENERICO'
+        node = tubolari_per_assieme.setdefault(cod, {'analisi': {'tubi': []}, 'costi': {'dettaglio_tubi': []}})
+        # Deriva stringhe taglio da conteggio dritti/obliqui
+        n_dr = int(t.get('n_tagli_dritti') or 0)
+        n_ob = int(t.get('n_tagli_obliqui') or 0)
+        # Assumiamo 2 estremi per tubo. Se ci sono obliqui, mostra "obliquo/dritto" o "obliquo/obliquo".
+        if n_ob >= 2:
+            taglio_1, taglio_2 = 'obliquo', 'obliquo'
+        elif n_ob == 1:
+            taglio_1, taglio_2 = 'obliquo', 'dritto'
+        else:
+            taglio_1, taglio_2 = 'dritto', 'dritto'
+        node['analisi']['tubi'].append({
+            'profilo': t.get('profilo') or '',
+            'lunghezza_m': float(t.get('lunghezza_m') or 0),
+            'taglio_1': taglio_1,
+            'taglio_2': taglio_2,
+            'peso_kg': float(t.get('peso_kg') or 0),
+            'costo_materiale': float(t.get('costo_materiale') or 0),
+            'costo_taglio': float(t.get('costo_taglio_totale') or 0),
+            'materiale': t.get('materiale') or '',
+        })
+
+    # Piastre: raggruppa per codice_assieme nel formato dict che pdf_exporter si aspetta:
+    # {codice: {'analisi': {'piastre': [{spessore_mm, area_dm2, peso_kg}, ...]},
+    #           'costi':   {'dettaglio_piastre': [{'costo': N}, ...], 'totale': N}}}
+    piastre_list = p.get('piastre') or []
+    piastre_per_assieme = {}
+    for pl in piastre_list:
+        cod = pl.get('codice_assieme') or 'GENERICO'
+        node = piastre_per_assieme.setdefault(cod, {
+            'analisi': {'piastre': []},
+            'costi': {'dettaglio_piastre': [], 'totale': 0.0},
+        })
+        node['analisi']['piastre'].append({
+            'spessore_mm': pl.get('spessore_mm') or 0,
+            'area_dm2': pl.get('area_dm2') or 0,
+            'peso_kg': pl.get('peso_kg') or 0,
+            'materiale': pl.get('materiale') or '',
+        })
+        costo = float(pl.get('costo') or 0)
+        node['costi']['dettaglio_piastre'].append({'costo': costo})
+        node['costi']['totale'] += costo
+
+    # Data
+    data_str = ''
+    if p.get('data_creazione'):
+        try:
+            dt = datetime.fromisoformat(p['data_creazione'])
+            data_str = dt.strftime('%d/%m/%Y')
+        except Exception:
+            data_str = p['data_creazione']
+    else:
+        data_str = datetime.now().strftime('%d/%m/%Y')
+
+    # Ogni articolo per PDF vuole 'costo' = costo unitario totale
+    articoli_pdf = []
+    for a in articoli:
+        costo_base = a.get('costo_base_override') if a.get('costo_base_override') is not None else (a.get('costo_base_stimato') or 0)
+        costo_articolo = (float(costo_base or 0)
+                          + float(a.get('costo_piega') or 0)
+                          + float(a.get('costo_saldatura') or 0)
+                          + float(a.get('costo_filettatura') or 0)
+                          + float(a.get('costo_svasatura') or 0)
+                          + float(a.get('costo_apporto') or 0)
+                          + float(a.get('costo_pulizia') or 0))
+        articoli_pdf.append({
+            'codice': a.get('codice') or '',
+            'quantita': a.get('quantita') or 1,
+            'materiale': a.get('materiale') or '',
+            'spessore_mm': a.get('spessore_mm'),
+            'area_dm2': a.get('area_dm2') or 0,
+            'costo': costo_articolo,
+            'costo_materiale': a.get('costo_materiale') or costo_base,
+            'costo_piega': a.get('costo_piega') or 0,
+            'costo_saldatura': a.get('costo_saldatura') or 0,
+            'costo_filettatura': a.get('costo_filettatura') or 0,
+            'costo_svasatura': a.get('costo_svasatura') or 0,
+            'costo_apporto': a.get('costo_apporto') or 0,
+            'costo_pulizia': a.get('costo_pulizia') or 0,
+        })
+
+    # Info azienda: da app_config sezione 'azienda' se presente
+    app_cfg = BarcodeManager.load_config() or {}
+    azienda_info = app_cfg.get('azienda') or {}
+
+    return {
+        'cliente': p.get('cliente') or '',
+        'numero_ordine': p.get('numero_ordine_cliente') or f"PREV-{p.get('id', '')[:8]}",
+        'data': data_str,
+        'articoli': articoli_pdf,
+        'quantita': p.get('quantita') or 1,
+        'margine': p.get('margine_pct') or 0,
+        'costi_montaggio': costi_montaggio,
+        'tubolari_per_assieme': tubolari_per_assieme,
+        'piastre_per_assieme': piastre_per_assieme,
+        'totale_pezzo': p.get('totale_pezzo') or 0,
+        'totale_lotto': p.get('totale_lotto') or 0,
+        'costo_piegatura': tot_piega,
+        'costo_saldatura': tot_sald,
+        'costo_filettatura': tot_filett,
+        'costo_svasatura': tot_svasat,
+        'costo_montaggio_totale': p.get('costi_montaggio_totale') or 0,
+        'costo_tubolari_totale': p.get('costi_tubolari_totale') or 0,
+        'costo_piastre_totale': p.get('costi_piastre_totale') or 0,
+        'note': p.get('note') or '',
+        'azienda': azienda_info,
+    }
+
+
 @app.route('/api/preventivi/<preventivo_id>/pdf', methods=['GET'])
 def api_preventivi_pdf(preventivo_id):
-    """Genera PDF preventivo (placeholder Fase 3 — implementazione completa con pdf_exporter)."""
+    """Genera e serve il PDF del preventivo (officina-ready) — distinta taglio inclusa."""
     try:
         p = PreventivoManager.get(preventivo_id, include_children=True)
         if not p:
             return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
-        return jsonify({
-            'success': False,
-            'error': 'PDF preventivo: implementazione completa rimandata a Fase 3',
-            'preventivo': p,
-        }), 501
+
+        dati_pdf = _preventivo_to_pdf_dati(p)
+
+        # Genera in cartella preventivi
+        pdf_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_pdf')
+        os.makedirs(pdf_dir, exist_ok=True)
+        filename = f"preventivo_{p.get('numero_ordine_cliente') or preventivo_id[:8]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        # Sanitize filename
+        filename = ''.join(c if c.isalnum() or c in '._-' else '_' for c in filename)
+        pdf_path = os.path.join(pdf_dir, filename)
+
+        app_cfg = BarcodeManager.load_config() or {}
+        exporter = _pdf_exporter.PDFPreventivo(app_cfg)
+        exporter.genera_pdf(pdf_path, dati_pdf)
+
+        return send_file(pdf_path, mimetype='application/pdf',
+                         as_attachment=True, download_name=filename)
     except Exception as e:
         logger.exception('preventivi pdf failed')
         return jsonify({'success': False, 'error': str(e)}), 500

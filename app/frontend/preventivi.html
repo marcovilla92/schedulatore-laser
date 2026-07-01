@@ -581,6 +581,19 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--bla
   </div>
 </div>
 
+<!-- MODAL: anteprima 3D STEP (iframe con Three.js + occt-import-js) -->
+<div class="modal-overlay" id="modal-step-preview" onclick="if(event.target===this)closeStepPreview()" style="z-index: 2500;">
+  <div class="modal" style="max-width: 1400px; width: 95%; height: 90vh; max-height: 90vh; padding: 0;">
+    <div class="modal-head">
+      <h3>Anteprima 3D STEP</h3>
+      <button class="modal-close" onclick="closeStepPreview()">&times;</button>
+    </div>
+    <div style="flex:1; overflow:hidden;">
+      <iframe id="step-preview-iframe" src="about:blank" style="width:100%; height:100%; border:none; display:block;"></iframe>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: accetta preventivo -->
 <div class="modal-overlay" id="modal-accetta" onclick="if(event.target===this)closeAccettaModal()">
   <div class="modal">
@@ -965,6 +978,56 @@ function closeDxfPreview() {
   document.getElementById('dxf-preview-iframe').src = 'about:blank';
 }
 
+async function previewStepFromAssieme(idx) {
+  const a = currentAssiemi[idx];
+  if (!a || !a.codice_assieme) return;
+  return previewStep(a.codice_assieme);
+}
+
+// Cache lista STEP files per preventivo (evita fetch multipli)
+let _stepFilesCache = { preventivo_id: null, files: null };
+
+async function previewStep(codice_assieme) {
+  if (!currentPreventivo) return;
+  try {
+    // Carica lista STEP files se non cached
+    if (_stepFilesCache.preventivo_id !== currentPreventivo.id || _stepFilesCache.files === null) {
+      const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/step-files`);
+      const j = await r.json();
+      if (!r.ok || !j.success) throw new Error(j.error || 'Errore caricamento file STEP');
+      _stepFilesCache = { preventivo_id: currentPreventivo.id, files: j.files };
+    }
+    const files = _stepFilesCache.files || [];
+    if (!files.length) {
+      alert('Nessun file STEP caricato per questo preventivo. Importa uno STEP dalla dropzone.');
+      return;
+    }
+    // Match: basename (senza .step/.stp) == codice_assieme, case insensitive
+    const target = (codice_assieme || '').toLowerCase();
+    const match = files.find(f => {
+      const base = f.filename.replace(/\.(step|stp)$/i, '').toLowerCase();
+      return base === target;
+    }) || files[0];  // fallback: primo file disponibile
+    const stepUrl = `${API_URL}/api/preventivi/${currentPreventivo.id}/step/${encodeURIComponent(match.filename)}`;
+    const previewUrl = '/preview-step.html?' + new URLSearchParams({
+      url: stepUrl,
+      name: match.filename,
+    }).toString();
+    document.getElementById('step-preview-iframe').src = previewUrl;
+    document.getElementById('modal-step-preview').classList.add('active');
+  } catch (e) {
+    alert('Errore apertura anteprima 3D: ' + e.message);
+  }
+}
+
+function closeStepPreview() {
+  document.getElementById('modal-step-preview').classList.remove('active');
+  document.getElementById('step-preview-iframe').src = 'about:blank';
+}
+
+// Invalida cache STEP files quando cambia preventivo (chiamare da loadPreventivo)
+function invalidateStepFilesCache() { _stepFilesCache = { preventivo_id: null, files: null }; }
+
 // Listener postMessage dalla preview-dxf.html: aggiorna valori articolo
 window.addEventListener('message', (event) => {
   const m = event.data || {};
@@ -981,6 +1044,8 @@ window.addEventListener('message', (event) => {
     closeDxfPreview();
   } else if (m.type === 'dxf-preview-cancel') {
     closeDxfPreview();
+  } else if (m.type === 'step-preview-close') {
+    closeStepPreview();
   }
 });
 
@@ -1083,7 +1148,10 @@ function renderAssiemi() {
       <td class="n" style="color:var(--gray-text);">${(a.saldatura_mt||0).toFixed(2)}</td>
       <td class="n"><input type="number" class="cell-edit" value="${(a.costo_saldatura_assieme||0).toFixed(2)}" step="0.5" style="text-align:right;" onchange="updateAss(${i},'costo_saldatura_assieme',this.value,true)"></td>
       <td class="n" style="color:var(--gray-text);">${(a.peso_kg||0).toFixed(1)}</td>
-      <td style="text-align:right;"><button class="btn-danger" onclick="removeAss(${i})">Rimuovi</button></td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn-secondary" onclick="previewStepFromAssieme(${i})" title="Anteprima 3D">3D</button>
+        <button class="btn-danger" onclick="removeAss(${i})">Rimuovi</button>
+      </td>
     </tr>`;
   });
   tbody.innerHTML = html;
@@ -1476,16 +1544,26 @@ async function rifiutaPreventivo() {
 
 async function exportPdf() {
   if (!currentPreventivo) return;
-  showMsg('msg-workflow', 'Generazione PDF (Fase 3 estesa, non implementato ancora)…', 'var(--gray-text)');
+  showMsg('msg-workflow', 'Generazione PDF in corso…', 'var(--gray-text)');
   try {
-    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/pdf`);
-    if (r.status === 501) {
-      showMsg('msg-workflow', 'PDF export: implementazione completa in arrivo (Fase 3 estesa).', 'var(--orange)');
-    } else if (r.ok) {
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url);
+    const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/pdf`;
+    const r = await fetch(url);
+    if (!r.ok) {
+      let msg = `Errore HTTP ${r.status}`;
+      try { const err = await r.json(); if (err.error) msg = err.error; } catch (_) {}
+      showMsg('msg-workflow', 'PDF: ' + msg, 'var(--red)');
+      return;
     }
+    // Download come attachment via blob + anchor invisibile
+    const blob = await r.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const cd = r.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename[^;=\n]*=(?:UTF-\d['"]*)?["']?([^;"'\n]*)["']?/i);
+    const filename = m ? m[1] : `preventivo_${currentPreventivo.id.slice(0,8)}.pdf`;
+    const a = document.createElement('a');
+    a.href = objectUrl; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(objectUrl); a.remove(); }, 200);
+    showMsg('msg-workflow', 'PDF scaricato: ' + filename, 'var(--green)');
   } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
