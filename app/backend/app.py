@@ -1874,7 +1874,16 @@ def api_preventivi_import_dxf(preventivo_id):
                 'dxf_filtra_zona_sviluppata': True,
             }
             pieghe, sald_ml, fil, svas = _dxf_scanner.scansiona_dxf_dettagli(tmp_path, dxf_cfg)
-            geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
+            # v3 detector (Shapely) — fornisce anche confidence + candidati per UI manuale
+            try:
+                from .preventivi.dxf_polygon_detector_v3 import detect_pezzo_geometry_v3
+                geo = detect_pezzo_geometry_v3(tmp_path, dxf_cfg)
+                # Se v3 non riesce, fallback a v2 legacy
+                if not geo or geo.get('area_dm2', 0) == 0:
+                    geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
+            except Exception as _v3err:
+                logger.warning('detector v3 fallito, fallback v2: %s', _v3err)
+                geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
             cartiglio = _dxf_scanner.estrai_materiale_da_cartiglio(tmp_path)
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
             # per consentire la preview successiva. Cleanup quando preventivo viene
@@ -1957,6 +1966,83 @@ def api_preventivi_dxf_svg(preventivo_id, filename):
     except Exception as e:
         logger.exception('dxf_svg failed')
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/candidates', methods=['GET'])
+def api_preventivi_dxf_candidates(preventivo_id, filename):
+    """Ritorna la lista dei poligoni candidati come pezzo (per UI selezione manuale).
+
+    Il detector v3 (Shapely) calcola uno score per ogni poligono chiuso e determina
+    il migliore + confidence. Se confidence bassa, il frontend mostra all'utente
+    tutti i candidati sovrapposti al DXF con overlay cliccabili.
+
+    Response:
+        {
+            success: bool,
+            geometry: {area_dm2, perimetro_taglio_m, n_pierce, bbox_*, ...},
+            candidates: [
+                {idx, area_dm2, perimetro_m, bbox: [minx,miny,maxx,maxy],
+                 n_circles, n_inner, score, is_selected, geometry: [[x,y], ...]},
+                ...
+            ],
+            selected_candidate_idx: int,
+            confidence: 0-1,
+            confidence_label: 'alta'|'media'|'bassa'|'nessuna',
+            needs_manual_select: bool
+        }
+    """
+    try:
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        from .preventivi.dxf_polygon_detector_v3 import detect_pezzo_geometry_v3
+        app_cfg = BarcodeManager.load_config() or {}
+        detection_cfg = app_cfg.get('dxf_detection', {})
+        r = detect_pezzo_geometry_v3(dxf_path, detection_cfg)
+        return jsonify({'success': True, **r}), 200
+    except Exception as e:
+        logger.exception('dxf_candidates failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-polygon', methods=['POST'])
+def api_preventivi_dxf_select_polygon(preventivo_id, filename):
+    """Ricalcola area/perimetro/n_pierce assumendo che l'utente ha scelto un
+    poligono specifico come outer del pezzo (invece del top-scored automatico).
+
+    Body:
+        {"candidate_idx": int, "articolo_id": str (opz — se presente aggiorna DB)}
+
+    Response:
+        {success, geometry: {area_dm2, perimetro_taglio_m, n_pierce, ...}}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        cand_idx = data.get('candidate_idx')
+        articolo_id = data.get('articolo_id') or ''
+        if cand_idx is None:
+            return jsonify({'success': False, 'error': 'candidate_idx richiesto'}), 400
+        try:
+            cand_idx = int(cand_idx)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'candidate_idx non valido'}), 400
+
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+
+        from .preventivi.dxf_polygon_detector_v3 import compute_geometry_from_candidate
+        app_cfg = BarcodeManager.load_config() or {}
+        detection_cfg = app_cfg.get('dxf_detection', {})
+        r = compute_geometry_from_candidate(dxf_path, cand_idx, detection_cfg)
+        return jsonify({'success': True, **r}), 200
+    except Exception as e:
+        logger.exception('dxf_select_polygon failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def _cleanup_preventivo_files(preventivo_id):

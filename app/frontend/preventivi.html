@@ -537,6 +537,89 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
 .mfs-costo-tot .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.6; }
 .mfs-costo-tot .val { font-family: 'Geist'; font-weight: 800; font-size: 26px; letter-spacing: -0.6px; }
 
+/* Overlay poligoni cliccabili sopra SVG DXF */
+#cand-svg-inner svg { width: 100%; height: 100%; display: block; }
+.cand-overlay-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+.cand-overlay-svg polygon {
+  fill: rgba(79, 70, 229, 0.08);
+  stroke: rgba(79, 70, 229, 0.7);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  pointer-events: all;
+  transition: fill 0.15s, stroke 0.15s;
+}
+.cand-overlay-svg polygon:hover {
+  fill: rgba(79, 70, 229, 0.25);
+  stroke: rgba(79, 70, 229, 1);
+  stroke-width: 3;
+}
+.cand-overlay-svg polygon.selected {
+  fill: rgba(34, 197, 94, 0.30);
+  stroke: rgb(34, 197, 94);
+  stroke-width: 3.5;
+}
+.cand-overlay-svg polygon.dimmed {
+  fill: rgba(148, 163, 184, 0.05);
+  stroke: rgba(148, 163, 184, 0.4);
+  stroke-width: 1;
+}
+
+/* Card candidato nella lista laterale */
+.cand-card {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--white); cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.cand-card:hover { background: var(--surface-2); border-color: var(--text-3); transform: translateY(-1px); }
+.cand-card.selected {
+  background: var(--accent-bg); border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.cand-card .cand-idx {
+  font-family: 'Geist'; font-weight: 800; font-size: 13px;
+  color: var(--accent); min-width: 24px; text-align: center;
+}
+.cand-card.selected .cand-idx { color: var(--accent-hover); }
+.cand-card .cand-info { flex: 1; min-width: 0; }
+.cand-card .cand-info .row-1 {
+  display: flex; gap: 8px; align-items: baseline; font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.cand-card .cand-info .row-1 .area { font-weight: 700; color: var(--text); }
+.cand-card .cand-info .row-1 .perim { color: var(--text-2); }
+.cand-card .cand-info .row-2 {
+  display: flex; gap: 6px; margin-top: 4px; font-size: 10px;
+}
+.cand-card .cand-info .row-2 span {
+  padding: 2px 6px; border-radius: 100px; background: var(--surface-2);
+  color: var(--text-2); font-weight: 600;
+}
+.cand-card .cand-info .row-2 span.circles { background: var(--accent-bg); color: var(--accent); }
+.cand-card.selected .cand-info .row-2 span { background: rgba(255,255,255,0.7); }
+
+/* Badge "verificare pezzo" nella tabella articoli */
+.tbl tbody tr.needs-verify {
+  background: linear-gradient(90deg, rgba(217,119,6,0.06), transparent);
+  box-shadow: inset 3px 0 0 0 var(--orange);
+}
+.tbl tbody tr.needs-verify:hover {
+  background: linear-gradient(90deg, rgba(217,119,6,0.10), rgba(217,119,6,0.02));
+}
+.verify-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 100px;
+  background: var(--orange-bg); color: var(--orange);
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; cursor: pointer;
+  transition: background 0.15s;
+}
+.verify-badge:hover { background: #FDE68A; }
+
 /* Detail panel (dx): sticky, preview + dettagli editabili */
 .detail-panel {
   position: sticky; top: 180px;  /* topbar+tabbar+strip */
@@ -1105,6 +1188,59 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
   </div>
 </div>
 
+<!-- MODAL: seleziona poligono pezzo (v3 DXF detector - conferma manuale) -->
+<div class="modal-overlay" id="modal-candidates" onclick="if(event.target===this)closeCandidatesModal()" style="z-index:2700;">
+  <div class="modal modal-fullscreen">
+    <div class="modal-head">
+      <div>
+        <h3 id="cand-title">Seleziona il pezzo da tagliare</h3>
+        <div id="cand-subtitle" style="font-size:12px; color:var(--text-2); font-weight:500; margin-top:2px;">
+          Il sistema non è sicuro di quale contorno sia il pezzo. Clicca il contorno corretto nella preview.
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeCandidatesModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- SX: preview SVG con overlay poligoni cliccabili -->
+      <div class="mfs-left" id="cand-svg-container" style="position:relative; background:#FAFAFA; padding:0;">
+        <div id="cand-svg-inner" style="width:100%; height:100%; position:relative; overflow:hidden;">
+          <!-- Verrà popolato con SVG DXF + overlay poligoni via JS -->
+        </div>
+        <div id="cand-svg-loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:13px;">
+          Caricamento preview…
+        </div>
+      </div>
+      <!-- DX: lista candidati -->
+      <div class="mfs-right">
+        <div class="mfs-section">
+          <div class="sec-title">Confidence</div>
+          <div id="cand-confidence-info" style="padding:12px 14px; border-radius:10px; background:var(--surface-2); margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div id="cand-conf-badge" style="width:12px; height:12px; border-radius:50%; background:var(--text-3);"></div>
+              <div style="flex:1;">
+                <div id="cand-conf-label" style="font-weight:700; font-size:13px;">—</div>
+                <div id="cand-conf-value" style="font-size:11px; color:var(--text-2);">—</div>
+              </div>
+            </div>
+            <div id="cand-conf-hint" style="font-size:11px; color:var(--text-2); margin-top:8px; line-height:1.4;"></div>
+          </div>
+        </div>
+        <div class="mfs-section">
+          <div class="sec-title">Candidati rilevati</div>
+          <div id="cand-list" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Popolato con card cliccabili via JS -->
+          </div>
+        </div>
+        <button id="cand-apply-btn" class="btn-primary" style="width:100%; margin-top:14px;" onclick="applyCandidateSelection()">
+          <i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:-2px;"></i>
+          Applica selezione (auto-detected)
+        </button>
+        <button class="btn-secondary" style="width:100%; margin-top:8px;" onclick="closeCandidatesModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: accetta preventivo -->
 <div class="modal-overlay" id="modal-accetta" onclick="if(event.target===this)closeAccettaModal()">
   <div class="modal">
@@ -1418,6 +1554,11 @@ function renderArticoli() {
     const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
     const lavorazioni = (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
     const totRow = baseEff + lavorazioni;
+    const needsVerify = !!a.dxf_needs_verify;
+    const rowClass = needsVerify ? ' class="needs-verify"' : '';
+    const verifyBadge = needsVerify
+      ? `<span class="verify-badge" onclick="event.stopPropagation(); openCandidatesModal(${i});" title="Il sistema non è sicuro di quale contorno sia il pezzo — click per confermare">⚠ Verifica</span>`
+      : '';
     // Thumbnail SVG DXF (se disponibile)
     const thumbHtml = (a.dxf_filename && currentPreventivo)
       ? `<div class="thumb-cell" onclick="openArtModal(${i})" title="Vedi dettaglio">
@@ -1425,9 +1566,12 @@ function renderArticoli() {
            <div class="thumb-overlay"></div>
          </div>`
       : `<div class="thumb-cell empty" onclick="openArtModal(${i})" title="Nessuna preview — click per dettagli">—</div>`;
-    html += `<tr>
+    html += `<tr${rowClass}>
       <td>${thumbHtml}</td>
-      <td><code style="cursor:pointer;" onclick="openArtModal(${i})">${escapeHtml(a.codice || '—')}</code></td>
+      <td>
+        <code style="cursor:pointer;" onclick="openArtModal(${i})">${escapeHtml(a.codice || '—')}</code>
+        ${verifyBadge ? '<br>' + verifyBadge : ''}
+      </td>
       <td class="n"><input type="number" class="cell-edit" value="${a.quantita || 1}" min="1" style="text-align:right; max-width:60px;" onchange="updateArt(${i}, 'quantita', this.value, true)"></td>
       <td>
         <select class="cell-edit" onchange="updateArt(${i}, 'materiale', this.value)">
@@ -1606,6 +1750,201 @@ function closeArtModal() {
   document.getElementById('modal-art-detail').classList.remove('active');
   document.getElementById('mad-preview-iframe').src = 'about:blank';
   _madCurrentIdx = -1;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Modal SELEZIONE POLIGONO (v3 detector - conferma manuale del pezzo)
+// ═══════════════════════════════════════════════════════════════════
+
+let _candState = { articoloIdx: -1, data: null, selectedIdx: -1 };
+
+async function openCandidatesModal(articoloIdx) {
+  const a = currentArticoli[articoloIdx];
+  if (!a || !currentPreventivo) return;
+  if (!a.dxf_filename) {
+    alert('Nessun DXF associato a questo articolo.');
+    return;
+  }
+
+  _candState = { articoloIdx, data: null, selectedIdx: -1 };
+  document.getElementById('cand-title').textContent = `Seleziona il pezzo · ${a.codice || a.dxf_filename}`;
+  document.getElementById('cand-svg-inner').innerHTML = '';
+  document.getElementById('cand-svg-loading').style.display = 'flex';
+  document.getElementById('cand-list').innerHTML = '';
+  document.getElementById('modal-candidates').classList.add('active');
+  if (window.lucide) lucide.createIcons();
+
+  try {
+    // 1. Fetch candidati
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/candidates`);
+    const j = await r.json();
+    if (!r.ok || !j.success) throw new Error(j.error || 'Errore server');
+    _candState.data = j;
+    _candState.selectedIdx = j.selected_candidate_idx;
+
+    // 2. Confidence info
+    const confLabel = j.confidence_label || 'nessuna';
+    const confVal = j.confidence || 0;
+    const confMap = {
+      alta:   { color: '#22c55e', txt: 'Alta confidenza',   hint: 'Il sistema è sicuro del pezzo detectato. Puoi applicare direttamente.' },
+      media:  { color: '#F59E0B', txt: 'Media confidenza',  hint: 'Verifica la selezione — potrebbe esserci un candidato migliore.' },
+      bassa:  { color: '#EF4444', txt: 'Bassa confidenza',  hint: 'Il sistema non è sicuro. Seleziona il contorno corretto nella preview.' },
+      nessuna:{ color: '#94A3B8', txt: 'Nessuna confidenza', hint: 'Selezione manuale richiesta.' },
+      manuale:{ color: '#4F46E5', txt: 'Selezione manuale',  hint: 'Poligono scelto manualmente.' },
+    };
+    const cm = confMap[confLabel] || confMap.nessuna;
+    document.getElementById('cand-conf-badge').style.background = cm.color;
+    document.getElementById('cand-conf-label').textContent = cm.txt;
+    document.getElementById('cand-conf-value').textContent = `${Math.round(confVal * 100)}% · ${j.candidates.length} candidati`;
+    document.getElementById('cand-conf-hint').textContent = cm.hint;
+
+    // 3. Carica SVG DXF
+    const svgResp = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/svg`);
+    const svgText = await svgResp.text();
+    document.getElementById('cand-svg-inner').innerHTML = svgText;
+
+    // 4. Aggiungi overlay SVG con poligoni cliccabili
+    _renderCandidatesOverlay();
+
+    // 5. Popola lista candidati
+    _renderCandidatesList();
+
+    document.getElementById('cand-svg-loading').style.display = 'none';
+  } catch (e) {
+    document.getElementById('cand-svg-loading').textContent = 'Errore: ' + e.message;
+  }
+}
+
+function _renderCandidatesOverlay() {
+  const d = _candState.data;
+  if (!d || !d.candidates) return;
+  const container = document.getElementById('cand-svg-inner');
+  const dxfSvg = container.querySelector('svg');
+  if (!dxfSvg) return;
+
+  // Determina viewBox del DXF (per matchare coord)
+  const vb = dxfSvg.getAttribute('viewBox');
+  let vbParts = vb ? vb.split(/\s+/).map(Number) : [0, 0, 100, 100];
+  let [vx, vy, vw, vh] = vbParts;
+
+  // Le coordinate dei candidati sono in mm DXF. Il viewBox del SVG generato da ezdxf è
+  // in unità DXF (mm generalmente). Devo mapparli.
+  // Il SVG di ezdxf ha già trasformazione: y è invertita spesso. Verifichiamo transform.
+
+  // Overlay SVG posizionato sopra
+  const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  overlay.setAttribute('class', 'cand-overlay-svg');
+  overlay.setAttribute('viewBox', vb || '0 0 100 100');
+  overlay.setAttribute('preserveAspectRatio', dxfSvg.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+  // Ottiene il transform del contenuto del DXF SVG (se ezdxf ha applicato uno)
+  const dxfGroup = dxfSvg.querySelector('g');
+  if (dxfGroup && dxfGroup.getAttribute('transform')) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', dxfGroup.getAttribute('transform'));
+    overlay.appendChild(g);
+  }
+  const parentEl = overlay.firstChild || overlay;
+
+  d.candidates.forEach(c => {
+    const pts = c.geometry.map(p => `${p[0]},${p[1]}`).join(' ');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', pts);
+    poly.setAttribute('data-idx', c.idx);
+    if (c.idx === _candState.selectedIdx) poly.classList.add('selected');
+    poly.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectCandidate(c.idx);
+    });
+    parentEl.appendChild(poly);
+  });
+  container.appendChild(overlay);
+}
+
+function _renderCandidatesList() {
+  const d = _candState.data;
+  if (!d || !d.candidates) return;
+  const listEl = document.getElementById('cand-list');
+  const sorted = [...d.candidates].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const rank = new Map(sorted.map((c, i) => [c.idx, i + 1]));
+  listEl.innerHTML = d.candidates.map(c => {
+    const r = rank.get(c.idx) || 0;
+    const rectBadge = c.is_rectangle ? '<span title="Forma rettangolare pura">■</span>' : '';
+    return `<div class="cand-card ${c.idx === _candState.selectedIdx ? 'selected' : ''}" data-idx="${c.idx}" onclick="selectCandidate(${c.idx})">
+      <div class="cand-idx">#${r}</div>
+      <div class="cand-info">
+        <div class="row-1">
+          <span class="area">${c.area_dm2.toFixed(2)} dm²</span>
+          <span class="perim">${c.perimetro_m.toFixed(2)} m</span>
+        </div>
+        <div class="row-2">
+          <span class="circles">◯ ${c.n_circles} fori</span>
+          <span>△ ${c.n_inner} interni</span>
+          ${rectBadge ? '<span>' + rectBadge + '</span>' : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectCandidate(idx) {
+  _candState.selectedIdx = idx;
+  // Aggiorna overlay SVG
+  document.querySelectorAll('.cand-overlay-svg polygon').forEach(p => {
+    const pidx = parseInt(p.getAttribute('data-idx'), 10);
+    p.classList.toggle('selected', pidx === idx);
+    p.classList.toggle('dimmed', pidx !== idx);
+  });
+  // Aggiorna card list
+  document.querySelectorAll('#cand-list .cand-card').forEach(c => {
+    const cidx = parseInt(c.getAttribute('data-idx'), 10);
+    c.classList.toggle('selected', cidx === idx);
+  });
+  // Aggiorna bottone
+  const isAuto = (idx === _candState.data.selected_candidate_idx);
+  document.getElementById('cand-apply-btn').innerHTML = isAuto
+    ? '<i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:-2px;"></i> Applica selezione (auto-detected)'
+    : '<i data-lucide="hand" style="width:14px;height:14px;vertical-align:-2px;"></i> Applica selezione manuale';
+  if (window.lucide) lucide.createIcons();
+}
+
+async function applyCandidateSelection() {
+  const { articoloIdx, selectedIdx, data } = _candState;
+  if (articoloIdx < 0 || !currentArticoli[articoloIdx]) return;
+  const a = currentArticoli[articoloIdx];
+  const isAuto = (selectedIdx === data.selected_candidate_idx);
+  try {
+    let geom;
+    if (isAuto) {
+      // Auto-detected: usa già i valori del /candidates
+      geom = data;
+    } else {
+      // Manuale: chiama /select-polygon per ricalcolare
+      const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/select-polygon`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ candidate_idx: selectedIdx, articolo_id: a.id }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.success) throw new Error(j.error || 'Errore server');
+      geom = j;
+    }
+    // Applica al currentArticoli
+    a.area_dm2 = geom.area_dm2 || 0;
+    a.perimetro_taglio_m = geom.perimetro_taglio_m || 0;
+    a.n_forature = geom.n_pierce || geom.n_forature || 0;
+    a.dxf_confidence = geom.confidence || 1;
+    a.dxf_needs_verify = false;
+    renderArticoli();
+    recalcTotali();
+    closeCandidatesModal();
+  } catch (e) {
+    alert('Errore applicazione: ' + e.message);
+  }
+}
+
+function closeCandidatesModal() {
+  document.getElementById('modal-candidates').classList.remove('active');
+  document.getElementById('cand-svg-inner').innerHTML = '';
+  _candState = { articoloIdx: -1, data: null, selectedIdx: -1 };
 }
 
 function madUpdate(field, value, numeric) {
@@ -2069,6 +2408,8 @@ async function uploadDxf(file, suppressMsg) {
       if (!ex.perimetro_taglio_m) ex.perimetro_taglio_m = d.geometria.perimetro_taglio_m || 0;
       if (!ex.area_dm2) ex.area_dm2 = d.geometria.area_dm2 || 0;
       ex.dxf_filename = d.filename || file.name;
+      ex.dxf_needs_verify = !!d.geometria.needs_manual_select;
+      ex.dxf_confidence = d.geometria.confidence || 1;
       if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente (lavorazioni aggiornate, materiale mantenuto).`, 'var(--green)');
       renderArticoli(); recalcTotali();
       return;
@@ -2092,6 +2433,8 @@ async function uploadDxf(file, suppressMsg) {
       costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
       costo_apporto: 0, costo_pulizia: 0,
       dxf_filename: d.filename || file.name,
+      dxf_needs_verify: !!d.geometria.needs_manual_select,
+      dxf_confidence: d.geometria.confidence || 1,
     });
     renderArticoli(); recalcTotali();
     if (!suppressMsg) {
