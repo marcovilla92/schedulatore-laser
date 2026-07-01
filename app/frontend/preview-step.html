@@ -374,8 +374,9 @@ grid.material.opacity = 0.3;
 grid.material.transparent = true;
 scene.add(grid);
 
-const headerH = 56;
-const infoH = 36;
+// In thumbnail mode header e info-bar sono nascosti, il viewer occupa tutto
+const headerH = isThumbnail ? 0 : 56;
+const infoH = isThumbnail ? 0 : 36;
 function viewportH() { return window.innerHeight - headerH - infoH; }
 function viewportW() { return window.innerWidth; }
 
