@@ -1789,25 +1789,43 @@ async function openArtModal(idx) {
     // Salva stato
     _madCandData = candData;
 
-    // Calcola scale SVG unit → mm DXF confrontando viewBox con dxf_bbox_mm
+    // Calcola scale SVG unit → mm DXF usando getBBox() del contenuto disegnato.
+    // NB: il viewBox di ezdxf spesso ha aspect ratio DIVERSO dal DXF bbox
+    // (padding attorno al disegno). Uso getBBox() del gruppo interno per avere
+    // la vera "impronta" del disegno nel sistema di coord SVG.
     _madSvgToDxf = null;
-    if (candData.dxf_bbox_mm && dxfSvg.getAttribute('viewBox')) {
-      const vb = dxfSvg.getAttribute('viewBox').split(/\s+/).map(Number);
-      const [vx, vy, vw, vh] = vb;
+    if (candData.dxf_bbox_mm) {
       const [bx1, by1, bx2, by2] = candData.dxf_bbox_mm;
       const dxfW = bx2 - bx1;
       const dxfH = by2 - by1;
-      const scaleX = vw / dxfW;
-      const scaleY = vh / dxfH;
-      const scale = (scaleX + scaleY) / 2;
-      // ezdxf SVGBackend flippa Y-axis usando il viewBox (non matrix transform)
-      // DXF convention: y-up (positive verso l'alto)
-      // SVG convention: y-down (positive verso il basso)
-      // Quindi il pezzo con DXF y-grande appare NELLO SVG y-piccolo (in alto)
-      // → sempre flipY=true per convenzione standard
-      const flipY = true;
-      _madSvgToDxf = { scale, ox: bx1, oy: by1, vx, vy, vw, vh, flipY, dxfBboxMm: candData.dxf_bbox_mm };
-      console.log('[DXF preview] scale=', scale, 'origin=(', bx1, ',', by1, ') flipY=', flipY, 'viewBox=', vb, 'dxfBboxMm=', candData.dxf_bbox_mm);
+      const dxfGroupInner = dxfSvg.querySelector('g') || dxfSvg;
+      // Aspetta un frame per assicurare che il layout sia calcolato
+      let contentBBox;
+      try {
+        contentBBox = dxfGroupInner.getBBox();
+      } catch (_) {
+        contentBBox = null;
+      }
+      if (contentBBox && contentBBox.width > 0 && contentBBox.height > 0) {
+        const scaleX = contentBBox.width / dxfW;
+        const scaleY = contentBBox.height / dxfH;
+        const flipY = true;
+        _madSvgToDxf = {
+          scaleX, scaleY,
+          contentX: contentBBox.x,
+          contentY: contentBBox.y,
+          contentW: contentBBox.width,
+          contentH: contentBBox.height,
+          ox: bx1, oy: by1,
+          flipY,
+          dxfBboxMm: candData.dxf_bbox_mm,
+        };
+        console.log('[DXF preview] scaleX=', scaleX.toFixed(2), 'scaleY=', scaleY.toFixed(2),
+          'contentBBox=', contentBBox.x.toFixed(0), contentBBox.y.toFixed(0), contentBBox.width.toFixed(0), contentBBox.height.toFixed(0),
+          'dxf origin=(', bx1, ',', by1, ') dxf size=', dxfW.toFixed(0), 'x', dxfH.toFixed(0));
+      } else {
+        console.warn('[DXF preview] getBBox failed — coord tracking will be inaccurate');
+      }
     }
 
     // NB: rimosso rendering hint auto-detectato per non confondere l'utente
@@ -1885,11 +1903,14 @@ function _attachMarqueeSelection(container, dxfSvg) {
     if (!CTM) return null;
     const p_svg = pt.matrixTransform(CTM.inverse());
     if (!_madSvgToDxf) return { x: p_svg.x, y: p_svg.y };
-    const { scale, ox, oy, vx, vy, vw, vh, flipY } = _madSvgToDxf;
-    const x_mm = (p_svg.x - vx) / scale + ox;
+    const { scaleX, scaleY, contentX, contentY, contentH, ox, oy, flipY } = _madSvgToDxf;
+    // Relativo alla bbox del CONTENUTO effettivamente disegnato (non il viewBox)
+    const rel_x = p_svg.x - contentX;
+    const rel_y = p_svg.y - contentY;
+    const x_mm = rel_x / scaleX + ox;
     const y_mm = flipY
-      ? (vh - (p_svg.y - vy)) / scale + oy
-      : (p_svg.y - vy) / scale + oy;
+      ? (contentH - rel_y) / scaleY + oy
+      : rel_y / scaleY + oy;
     return { x: x_mm, y: y_mm };
   }
 
