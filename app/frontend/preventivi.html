@@ -1786,6 +1786,27 @@ async function openArtModal(idx) {
     // Salva stato
     _madCandData = candData;
 
+    // Calcola scale SVG unit → mm DXF confrontando viewBox con dxf_bbox_mm
+    _madSvgToDxf = null;
+    if (candData.dxf_bbox_mm && dxfSvg.getAttribute('viewBox')) {
+      const vb = dxfSvg.getAttribute('viewBox').split(/\s+/).map(Number);
+      const [vx, vy, vw, vh] = vb;
+      const [bx1, by1, bx2, by2] = candData.dxf_bbox_mm;
+      const dxfW = bx2 - bx1;
+      const dxfH = by2 - by1;
+      const scaleX = vw / dxfW;
+      const scaleY = vh / dxfH;
+      // ezdxf preserva aspect ratio → scaleX ≈ scaleY (piccole discrepanze OK)
+      const scale = (scaleX + scaleY) / 2;
+      // Determino se ezdxf flippa Y-axis controllando il segno di scaleY dal CTM
+      // Se il CTM del gruppo interno ha d < 0, l'asse Y è flippato
+      const dxfGroupInner = dxfSvg.querySelector('g');
+      const groupCTM = dxfGroupInner ? dxfGroupInner.getScreenCTM() : dxfSvg.getScreenCTM();
+      const flipY = groupCTM ? (groupCTM.d < 0) : false;
+      _madSvgToDxf = { scale, ox: bx1, oy: by1, vx, vy, vw, vh, flipY, dxfBboxMm: candData.dxf_bbox_mm };
+      console.log('[DXF preview] scale=', scale, 'origin=', bx1, by1, 'flipY=', flipY, 'viewBox=', vb, 'dxfBboxMm=', candData.dxf_bbox_mm);
+    }
+
     // Hint visivo del pezzo auto-detectato (solo bbox, non poligono completo)
     _renderAutoDetectedHint(dxfSvg, candData);
 
@@ -1800,10 +1821,13 @@ async function openArtModal(idx) {
 
 // Stato candidati corrente (dentro il modal dettaglio)
 let _madCandData = null;
+// Scale factor per convertire coord SVG → mm DXF (calcolato dopo caricamento)
+let _madSvgToDxf = null;  // { scale: SVG unit per mm, ox, oy, flipY: bool }
 
 function _renderAutoDetectedHint(dxfSvg, candData) {
-  // Mostra un rettangolo tratteggiato verde attorno al pezzo auto-detectato
-  // (se disponibile). Non è cliccabile — è solo un hint visivo per l'utente.
+  // Rettangolo tratteggiato verde attorno al pezzo auto-detectato.
+  // Le coord del candidato sono in mm DXF ma il SVG interno usa unità
+  // proprie (ezdxf ~1M scaled). Converto mm → SVG usando lo scale calcolato.
   const dxfGroup = dxfSvg.querySelector('g') || dxfSvg;
   const oldHint = dxfGroup.querySelector('.mad-auto-hint');
   if (oldHint) oldHint.remove();
@@ -1811,7 +1835,23 @@ function _renderAutoDetectedHint(dxfSvg, candData) {
   if (!candData.candidates || !candData.candidates.length) return;
   const selected = candData.candidates.find(c => c.idx === candData.selected_candidate_idx);
   if (!selected || !selected.bbox) return;
-  const [minx, miny, maxx, maxy] = selected.bbox;
+  let [minx, miny, maxx, maxy] = selected.bbox;  // mm DXF
+
+  // Converti mm → SVG unit se ho lo scale
+  if (_madSvgToDxf) {
+    const { scale, ox, oy, vx, vy, vw, vh, flipY } = _madSvgToDxf;
+    const _mmToSvgX = mm => (mm - ox) * scale + vx;
+    const _mmToSvgY = mm => flipY ? vh - ((mm - oy) * scale) + vy : ((mm - oy) * scale + vy);
+    // Attenzione: se flipY, min_y_svg e max_y_svg si invertono
+    const x_svg_min = _mmToSvgX(minx);
+    const x_svg_max = _mmToSvgX(maxx);
+    const y_svg_a = _mmToSvgY(miny);
+    const y_svg_b = _mmToSvgY(maxy);
+    minx = Math.min(x_svg_min, x_svg_max);
+    maxx = Math.max(x_svg_min, x_svg_max);
+    miny = Math.min(y_svg_a, y_svg_b);
+    maxy = Math.max(y_svg_a, y_svg_b);
+  }
 
   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   rect.setAttribute('class', 'mad-auto-hint');
@@ -1836,8 +1876,34 @@ function _attachMarqueeSelection(container, dxfSvg) {
   const dxfGroup = dxfSvg.querySelector('g') || dxfSvg;
 
   function screenToDxf(clientX, clientY) {
-    // Coordinate viewport → coord DXF (mm) usando CTM del gruppo interno
-    // che include tutti i transform ezdxf (viewBox + flip Y matrix)
+    // Coord viewport → SVG-viewBox (via CTM) → coord mm DXF (via scale factor).
+    // ezdxf emette SVG con viewBox in "unità interne" (spesso ~1M per fit),
+    // NON in mm. Devo dividere per lo scale calcolato in openArtModal.
+    const pt = dxfSvg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const CTM = dxfGroup.getScreenCTM();
+    if (!CTM) return null;
+    const p_svg = pt.matrixTransform(CTM.inverse());  // coord SVG-viewBox
+
+    // Se non c'è scale factor, ritorna coord SVG raw (fallback)
+    if (!_madSvgToDxf) return { x: p_svg.x, y: p_svg.y };
+
+    // Converti SVG unit → mm DXF
+    const { scale, ox, oy, vx, vy, vw, vh, flipY, dxfBboxMm } = _madSvgToDxf;
+    let x_mm = (p_svg.x - vx) / scale + ox;
+    let y_mm;
+    if (flipY) {
+      // Y flippato: SVG y 0 (top) = DXF y max (top nel modo user)
+      y_mm = (vh - (p_svg.y - vy)) / scale + oy;
+    } else {
+      y_mm = (p_svg.y - vy) / scale + oy;
+    }
+    return { x: x_mm, y: y_mm };
+  }
+
+  // Coord viewport → coord SVG-viewBox (usate per rendering rect overlay,
+  // NON convertite in mm). Il rect viene disegnato in coord SVG-native.
+  function screenToSvg(clientX, clientY) {
     const pt = dxfSvg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
     const CTM = dxfGroup.getScreenCTM();
@@ -1846,22 +1912,22 @@ function _attachMarqueeSelection(container, dxfSvg) {
   }
 
   function onMouseDown(e) {
-    // Ignora se click su elementi già interattivi
     if (e.target.closest('button, input, select')) return;
-    const p = screenToDxf(e.clientX, e.clientY);
-    if (!p) return;
+    const p_svg = screenToSvg(e.clientX, e.clientY);
+    const p_mm = screenToDxf(e.clientX, e.clientY);
+    if (!p_svg || !p_mm) return;
     _marquee.active = true;
-    _marquee.startPt = { x: p.x, y: p.y };
+    // Salvo il punto iniziale in ENTRAMBE le coordinate
+    _marquee.startPt = { x: p_mm.x, y: p_mm.y };       // mm (per backend)
+    _marquee.startPtSvg = { x: p_svg.x, y: p_svg.y };  // SVG (per rendering rect)
 
-    // Rimuovi eventuale rect precedente
     const old = dxfGroup.querySelector('.mad-marquee-rect');
     if (old) old.remove();
 
-    // Crea rect overlay
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('class', 'mad-marquee-rect');
-    rect.setAttribute('x', p.x);
-    rect.setAttribute('y', p.y);
+    rect.setAttribute('x', p_svg.x);
+    rect.setAttribute('y', p_svg.y);
     rect.setAttribute('width', 0);
     rect.setAttribute('height', 0);
     rect.setAttribute('fill', 'rgba(79, 70, 229, 0.15)');
@@ -1878,12 +1944,12 @@ function _attachMarqueeSelection(container, dxfSvg) {
 
   function onMouseMove(e) {
     if (!_marquee.active || !_marquee.rectEl) return;
-    const p = screenToDxf(e.clientX, e.clientY);
-    if (!p) return;
-    const x = Math.min(_marquee.startPt.x, p.x);
-    const y = Math.min(_marquee.startPt.y, p.y);
-    const w = Math.abs(p.x - _marquee.startPt.x);
-    const h = Math.abs(p.y - _marquee.startPt.y);
+    const p_svg = screenToSvg(e.clientX, e.clientY);
+    if (!p_svg) return;
+    const x = Math.min(_marquee.startPtSvg.x, p_svg.x);
+    const y = Math.min(_marquee.startPtSvg.y, p_svg.y);
+    const w = Math.abs(p_svg.x - _marquee.startPtSvg.x);
+    const h = Math.abs(p_svg.y - _marquee.startPtSvg.y);
     _marquee.rectEl.setAttribute('x', x);
     _marquee.rectEl.setAttribute('y', y);
     _marquee.rectEl.setAttribute('width', w);

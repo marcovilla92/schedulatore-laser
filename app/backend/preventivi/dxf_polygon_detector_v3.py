@@ -538,6 +538,18 @@ def detect_pezzo_geometry_v3(path: str, config: dict | None = None) -> dict:
             'geometry': [[round(x, 2), round(y, 2)] for x, y in coords],
         })
 
+    # Bbox globale DXF in mm — usato dal frontend per calcolare scale SVG unit → mm
+    try:
+        from ezdxf.bbox import extents
+        bb = extents(msp)
+        if bb.has_data:
+            dxf_bbox_mm = [round(bb.extmin.x, 3), round(bb.extmin.y, 3),
+                            round(bb.extmax.x, 3), round(bb.extmax.y, 3)]
+        else:
+            dxf_bbox_mm = None
+    except Exception:
+        dxf_bbox_mm = None
+
     return {
         'area_dm2': round(area_netta_mm2 / 10000.0, 4),
         'area_lorda_dm2': round(area_outer_mm2 / 10000.0, 4),
@@ -556,6 +568,7 @@ def detect_pezzo_geometry_v3(path: str, config: dict | None = None) -> dict:
         'poligoni_cartiglio_rimossi': cartiglio_count,
         'tipo_disegno': 'v3_shapely',
         'warnings': warnings,
+        'dxf_bbox_mm': dxf_bbox_mm,  # [minx, miny, maxx, maxy] per scale SVG→mm
         '_engine': 'shapely-' + __import__('shapely').__version__,
     }
 
