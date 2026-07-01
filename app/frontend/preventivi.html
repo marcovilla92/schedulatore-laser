@@ -1135,8 +1135,8 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
         </div>
         <!-- Legend -->
         <div id="mad-legend" style="display:none; position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,0.92); backdrop-filter:blur(8px); padding:8px 12px; border-radius:8px; font-size:11px; box-shadow:var(--shadow-sm); display:flex; gap:14px; align-items:center;">
-          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:2px;background:rgba(79,70,229,0.15);border:1.5px dashed rgb(79,70,229);"></span>Selezione manuale</span>
-          <span style="color:var(--text-3);">💡 Trascina il mouse per selezionare il pezzo</span>
+          <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:50%;background:rgb(34,197,94);border:2px solid white;box-shadow:0 0 3px rgba(0,0,0,0.3);"></span>Punto cliccato</span>
+          <span style="color:var(--text-3);">🖱 <b>Click sul contorno</b> del pezzo → trova pezzo automaticamente</span>
         </div>
       </div>
 
@@ -1765,13 +1765,13 @@ async function openArtModal(idx) {
     if (candData.needs_manual_select) {
       banner.style.display = 'block';
       document.getElementById('mad-verify-text').innerHTML =
-        `<b>Confidenza ${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b> — Trascina il mouse sulla preview per selezionare il pezzo. Il sistema rileverà tutti i contorni interni automaticamente.`;
+        `<b>Confidenza ${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b> — 🖱 <b>Click SUL contorno</b> del pezzo. Il sistema trova automaticamente i fori/contorni interni.`;
     } else {
       banner.style.display = 'block';
       banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
       banner.style.color = '#166534';
       document.getElementById('mad-verify-text').innerHTML =
-        `<b>Confidenza ${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b> — Puoi comunque trascinare per selezionare manualmente un'area diversa.`;
+        `<b>Confidenza ${candData.confidence_label} (${Math.round(candData.confidence*100)}%)</b> — 🖱 Click su un altro contorno per cambiare la selezione.`;
     }
 
     // Inject SVG DXF
@@ -1868,139 +1868,83 @@ function _renderAutoDetectedHint(dxfSvg, candData) {
   dxfGroup.appendChild(rect);
 }
 
-// ═══ Marquee selection: utente disegna rettangolo attorno al pezzo ═══
-
-let _marquee = { active: false, startPt: null, rectEl: null };
+// ═══ "Trova pezzo" Lantek-style: click su un contorno chiuso ═══
 
 function _attachMarqueeSelection(container, dxfSvg) {
+  // Legacy name kept for compat, ora fa: click su SVG → chiama /select-point
   const dxfGroup = dxfSvg.querySelector('g') || dxfSvg;
 
   function screenToDxf(clientX, clientY) {
-    // Coord viewport → SVG-viewBox (via CTM) → coord mm DXF (via scale factor).
-    // ezdxf emette SVG con viewBox in "unità interne" (spesso ~1M per fit),
-    // NON in mm. Devo dividere per lo scale calcolato in openArtModal.
     const pt = dxfSvg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
     const CTM = dxfGroup.getScreenCTM();
     if (!CTM) return null;
-    const p_svg = pt.matrixTransform(CTM.inverse());  // coord SVG-viewBox
-
-    // Se non c'è scale factor, ritorna coord SVG raw (fallback)
+    const p_svg = pt.matrixTransform(CTM.inverse());
     if (!_madSvgToDxf) return { x: p_svg.x, y: p_svg.y };
-
-    // Converti SVG unit → mm DXF
-    const { scale, ox, oy, vx, vy, vw, vh, flipY, dxfBboxMm } = _madSvgToDxf;
-    let x_mm = (p_svg.x - vx) / scale + ox;
-    let y_mm;
-    if (flipY) {
-      // Y flippato: SVG y 0 (top) = DXF y max (top nel modo user)
-      y_mm = (vh - (p_svg.y - vy)) / scale + oy;
-    } else {
-      y_mm = (p_svg.y - vy) / scale + oy;
-    }
+    const { scale, ox, oy, vx, vy, vw, vh, flipY } = _madSvgToDxf;
+    const x_mm = (p_svg.x - vx) / scale + ox;
+    const y_mm = flipY
+      ? (vh - (p_svg.y - vy)) / scale + oy
+      : (p_svg.y - vy) / scale + oy;
     return { x: x_mm, y: y_mm };
   }
 
-  // Coord viewport → coord SVG-viewBox (usate per rendering rect overlay,
-  // NON convertite in mm). Il rect viene disegnato in coord SVG-native.
-  function screenToSvg(clientX, clientY) {
-    const pt = dxfSvg.createSVGPoint();
-    pt.x = clientX; pt.y = clientY;
-    const CTM = dxfGroup.getScreenCTM();
-    if (!CTM) return null;
-    return pt.matrixTransform(CTM.inverse());
-  }
-
-  function onMouseDown(e) {
+  async function onClick(e) {
     if (e.target.closest('button, input, select')) return;
-    const p_svg = screenToSvg(e.clientX, e.clientY);
     const p_mm = screenToDxf(e.clientX, e.clientY);
-    if (!p_svg || !p_mm) return;
-    _marquee.active = true;
-    // Salvo il punto iniziale in ENTRAMBE le coordinate
-    _marquee.startPt = { x: p_mm.x, y: p_mm.y };       // mm (per backend)
-    _marquee.startPtSvg = { x: p_svg.x, y: p_svg.y };  // SVG (per rendering rect)
+    if (!p_mm) return;
+    // Feedback visuale immediato: mostra dot verde dove è stato cliccato
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    const CTM = dxfGroup.getScreenCTM();
+    const pt = dxfSvg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p_svg = pt.matrixTransform(CTM.inverse());
+    dot.setAttribute('class', 'mad-click-dot');
+    dot.setAttribute('cx', p_svg.x);
+    dot.setAttribute('cy', p_svg.y);
+    // raggio proporzionale al viewBox (1% della larghezza)
+    const vb = dxfSvg.getAttribute('viewBox').split(/\s+/).map(Number);
+    dot.setAttribute('r', vb[2] * 0.006);
+    dot.setAttribute('fill', 'rgb(34, 197, 94)');
+    dot.setAttribute('stroke', 'white');
+    dot.setAttribute('stroke-width', '2');
+    dot.setAttribute('vector-effect', 'non-scaling-stroke');
+    dot.setAttribute('pointer-events', 'none');
+    // Rimuovi dot precedente
+    const oldDot = dxfGroup.querySelector('.mad-click-dot');
+    if (oldDot) oldDot.remove();
+    dxfGroup.appendChild(dot);
 
-    const old = dxfGroup.querySelector('.mad-marquee-rect');
-    if (old) old.remove();
-
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('class', 'mad-marquee-rect');
-    rect.setAttribute('x', p_svg.x);
-    rect.setAttribute('y', p_svg.y);
-    rect.setAttribute('width', 0);
-    rect.setAttribute('height', 0);
-    rect.setAttribute('fill', 'rgba(79, 70, 229, 0.15)');
-    rect.setAttribute('stroke', 'rgb(79, 70, 229)');
-    rect.setAttribute('stroke-width', '2');
-    rect.setAttribute('stroke-dasharray', '6,3');
-    rect.setAttribute('vector-effect', 'non-scaling-stroke');
-    rect.setAttribute('pointer-events', 'none');
-    dxfGroup.appendChild(rect);
-    _marquee.rectEl = rect;
-
-    e.preventDefault();
+    await madSelectPoint(p_mm.x, p_mm.y);
   }
 
-  function onMouseMove(e) {
-    if (!_marquee.active || !_marquee.rectEl) return;
-    const p_svg = screenToSvg(e.clientX, e.clientY);
-    if (!p_svg) return;
-    const x = Math.min(_marquee.startPtSvg.x, p_svg.x);
-    const y = Math.min(_marquee.startPtSvg.y, p_svg.y);
-    const w = Math.abs(p_svg.x - _marquee.startPtSvg.x);
-    const h = Math.abs(p_svg.y - _marquee.startPtSvg.y);
-    _marquee.rectEl.setAttribute('x', x);
-    _marquee.rectEl.setAttribute('y', y);
-    _marquee.rectEl.setAttribute('width', w);
-    _marquee.rectEl.setAttribute('height', h);
-  }
-
-  async function onMouseUp(e) {
-    if (!_marquee.active) return;
-    _marquee.active = false;
-    const p = screenToDxf(e.clientX, e.clientY);
-    if (!p || !_marquee.startPt) return;
-    const minx = Math.min(_marquee.startPt.x, p.x);
-    const maxx = Math.max(_marquee.startPt.x, p.x);
-    const miny = Math.min(_marquee.startPt.y, p.y);
-    const maxy = Math.max(_marquee.startPt.y, p.y);
-    _marquee.startPt = null;
-
-    // Se selezione minuscola (click accidentale) ignora
-    if ((maxx - minx) < 5 || (maxy - miny) < 5) {
-      if (_marquee.rectEl) _marquee.rectEl.remove();
-      _marquee.rectEl = null;
-      return;
-    }
-
-    // Chiama backend con la regione
-    await madSelectRegion(minx, miny, maxx, maxy);
-    // Il rect resta visibile come conferma della selezione
-  }
-
-  container.addEventListener('mousedown', onMouseDown);
-  container.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', onMouseUp);
-
-  // Cleanup: salvo i listener per rimuoverli quando modal chiude
-  container._marqueeListeners = { onMouseDown, onMouseMove, onMouseUp };
+  container.addEventListener('click', onClick);
+  container._pointClickListener = onClick;
 }
 
-async function madSelectRegion(minx, miny, maxx, maxy) {
+async function madSelectPoint(x_mm, y_mm) {
   if (_madCurrentIdx < 0) return;
   const a = currentArticoli[_madCurrentIdx];
   if (!a || !currentPreventivo) return;
 
   try {
-    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/select-region`, {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/select-point`, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ minx, miny, maxx, maxy, articolo_id: a.id }),
+      body: JSON.stringify({ x: x_mm, y: y_mm, articolo_id: a.id }),
     });
     const j = await r.json();
     if (!r.ok || !j.success) throw new Error(j.error || 'Errore server');
 
-    // Aggiorna currentArticoli + campi modal in-place
+    // Se area 0, click ha mancato tutti i contorni
+    if (!j.area_dm2 || j.area_dm2 === 0) {
+      const banner = document.getElementById('mad-verify-banner');
+      banner.style.background = 'linear-gradient(90deg,rgba(217,119,6,0.12),rgba(217,119,6,0.04))';
+      banner.style.color = 'var(--orange)';
+      document.getElementById('mad-verify-text').innerHTML =
+        '⚠ Nessun contorno trovato in quel punto. Clicca <b>SUL contorno</b> del pezzo (non su area vuota o sui bordi).';
+      return;
+    }
+
+    // Aggiorna currentArticoli + campi
     a.area_dm2 = j.area_dm2 || 0;
     a.perimetro_taglio_m = j.perimetro_taglio_m || 0;
     a.n_forature = j.n_pierce || j.n_forature || 0;
@@ -2011,19 +1955,18 @@ async function madSelectRegion(minx, miny, maxx, maxy) {
     document.getElementById('mad-perim').value = a.perimetro_taglio_m.toFixed(3);
     document.getElementById('mad-forature').value = a.n_forature;
 
-    // Aggiorna banner verde
+    // Banner verde conferma
     const banner = document.getElementById('mad-verify-banner');
     banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
     banner.style.color = '#166534';
     document.getElementById('mad-verify-text').innerHTML =
-      `✓ Selezione applicata. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${a.perimetro_taglio_m.toFixed(3)} m</b>, <b>${a.n_forature}</b> forature (${(j.n_inner || 0)} interni).`;
+      `✓ Pezzo trovato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${a.perimetro_taglio_m.toFixed(3)} m</b>, <b>${a.n_forature}</b> forature (${(j.n_inner || 0)} contorni interni).`;
 
-    // Aggiorna tabella + totali
     renderArticoli();
     recalcTotali();
     madRefreshCosts();
   } catch (e) {
-    alert('Errore selezione region: ' + e.message);
+    alert('Errore trova pezzo: ' + e.message);
   }
 }
 

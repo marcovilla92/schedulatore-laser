@@ -2007,6 +2007,36 @@ def api_preventivi_dxf_candidates(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-point', methods=['POST'])
+def api_preventivi_dxf_select_point(preventivo_id, filename):
+    """Pattern 'Trova pezzo' Lantek: click su un contorno chiuso → sistema
+    identifica quel poligono e i suoi contorni interni.
+
+    Body: {x: float, y: float}   (coord DXF in mm)
+    Response: {success, area_dm2, perimetro_taglio_m, n_pierce, ...}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        try:
+            x = float(data.get('x'))
+            y = float(data.get('y'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'x/y richiesti (float mm DXF)'}), 400
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        from .preventivi.dxf_polygon_detector_v3 import compute_geometry_from_point
+        app_cfg = BarcodeManager.load_config() or {}
+        detection_cfg = app_cfg.get('dxf_detection', {})
+        r = compute_geometry_from_point(dxf_path, x, y, detection_cfg)
+        return jsonify({'success': True, **r}), 200
+    except Exception as e:
+        logger.exception('dxf_select_point failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-region', methods=['POST'])
 def api_preventivi_dxf_select_region(preventivo_id, filename):
     """Ricalcola geometria pezzo prendendo tutti i contorni chiusi nella

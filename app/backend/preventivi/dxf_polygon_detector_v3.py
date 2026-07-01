@@ -716,6 +716,108 @@ def compute_geometry_from_region(path: str, region_bbox: tuple[float, float, flo
     }
 
 
+def compute_geometry_from_point(path: str, x_mm: float, y_mm: float,
+                                config: dict | None = None) -> dict:
+    """Pattern 'Trova pezzo' Lantek-style: click su un contorno chiuso →
+    sistema identifica quel poligono come outer del pezzo e trova tutti i
+    contorni chiusi contenuti al suo interno.
+
+    Args:
+        path: percorso DXF
+        x_mm, y_mm: punto cliccato in coord DXF (mm)
+        config: dict optional colori esclusi
+
+    Strategia:
+    1. Estrae tutti i poligoni chiusi (native + chain walking)
+    2. Filtra quelli che CONTENGONO il punto (x_mm, y_mm) via Shapely
+    3. Sceglie quello con area MINIMA (il più "interno" — evita cartiglio esterno)
+       tra i candidati che passano il filtro cartiglio ISO
+    4. Trova gli inner: poligoni contenuti nell'outer
+
+    Returns: dict compat con detect_pezzo_geometry_v3
+    """
+    if not _HAS_SHAPELY:
+        return _empty_result(['Shapely non installato'])
+    cfg = config or {}
+    colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
+
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        return _empty_result([f'DXF non leggibile: {e}'])
+    msp = doc.modelspace()
+
+    from shapely.geometry import Point
+    click_pt = Point(x_mm, y_mm)
+
+    # Estrai poligoni + chain walking
+    closed_raw, opens = _extract_polygons(msp, colori_esclusi)
+    all_raw = closed_raw + _chain_polygons(opens)
+    all_polys = [p for p in (_to_shapely(v) for v in all_raw) if p is not None]
+
+    # Filtra quelli che CONTENGONO il punto
+    contengono_click = [p for p in all_polys if p.contains(click_pt) or p.touches(click_pt)]
+
+    # Escludi cartigli ISO standard (mantiene comunque cornici custom che
+    # potrebbero coincidere col pezzo se l'utente ha cliccato dentro)
+    contengono_click = [p for p in contengono_click if not _is_iso_format(p)]
+
+    if not contengono_click:
+        return _empty_result([
+            f'Nessun contorno chiuso rilevato in ({x_mm:.1f}, {y_mm:.1f}). '
+            f'Clicca sul CONTORNO del pezzo (non su area vuota).'
+        ])
+
+    # Outer = poligono con AREA MINIMA che contiene il click
+    # (il più "interno" — se clicco dentro un cartiglio che contiene il pezzo,
+    # preferisco il pezzo, non il cartiglio)
+    outer = min(contengono_click, key=lambda p: p.area)
+    prep_outer = prep(outer)
+
+    # Inner: tutti i poligoni contenuti nell'outer (fori, dettagli, sub-contorni)
+    inners = [p for p in all_polys if p is not outer and prep_outer.contains(p.representative_point())]
+
+    area_outer_mm2 = outer.area
+    area_inner_mm2 = sum(p.area for p in inners)
+    area_netta_mm2 = max(0.0, area_outer_mm2 - area_inner_mm2)
+    perim_outer_mm = outer.length
+    perim_inner_mm = sum(p.length for p in inners)
+    perim_totale_mm = perim_outer_mm + perim_inner_mm
+    minx_p, miny_p, maxx_p, maxy_p = outer.bounds
+    n_pierce = 1 + len(inners)
+
+    # dxf_bbox_mm per compat con frontend scale factor
+    try:
+        from ezdxf.bbox import extents
+        bb = extents(msp)
+        dxf_bbox_mm = [round(bb.extmin.x, 3), round(bb.extmin.y, 3),
+                        round(bb.extmax.x, 3), round(bb.extmax.y, 3)] if bb.has_data else None
+    except Exception:
+        dxf_bbox_mm = None
+
+    return {
+        'area_dm2': round(area_netta_mm2 / 10000.0, 4),
+        'area_lorda_dm2': round(area_outer_mm2 / 10000.0, 4),
+        'perimetro_taglio_m': round(perim_totale_mm / 1000.0, 4),
+        'n_pierce': n_pierce,
+        'n_forature': n_pierce,
+        'n_inner': len(inners),
+        'bbox_width_mm': round(maxx_p - minx_p, 2),
+        'bbox_height_mm': round(maxy_p - miny_p, 2),
+        'confidence': 1.0,
+        'confidence_label': 'manuale',
+        'needs_manual_select': False,
+        'candidates': [],
+        'selected_candidate_idx': -1,
+        'poligoni_grezzi': len(all_raw),
+        'poligoni_cartiglio_rimossi': 0,
+        'tipo_disegno': 'v3_point_click',
+        'warnings': [f'Trova pezzo: {len(inners)} contorni interni trovati.'],
+        'dxf_bbox_mm': dxf_bbox_mm,
+        '_engine': 'shapely-point',
+    }
+
+
 def compute_geometry_from_candidate(path: str, candidate_idx: int,
                                     config: dict | None = None) -> dict:
     """Ricalcola area/perim/n_pierce assumendo che l'utente ha scelto candidate_idx
