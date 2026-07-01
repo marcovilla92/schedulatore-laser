@@ -618,11 +618,28 @@ def compute_geometry_from_region(path: str, region_bbox: tuple[float, float, flo
     # (`intersects` è più tollerante di `within` per selezioni approssimative)
     in_region = [p for p in all_polys if p.intersects(region)]
 
-    # Escludi cartigli evidenti (ISO format o cornici che contengono tutto)
-    in_region = [p for p in in_region if not _is_iso_format(p) and not _is_cornice_cartiglio(p, all_polys)]
+    # Filtri cartiglio in selezione manuale:
+    # 1. Formati ISO standard (A4/A3/...)
+    # 2. Bbox molto più grande della region utente (soglia 2x per lato o 3x area)
+    #    → cornice/cartiglio esterno alla vera intenzione dell'utente
+    region_w = maxx - minx
+    region_h = maxy - miny
+    region_area = region.area
+    MAX_BBOX_RATIO = 2.0    # bbox width/height max 2x region
+    MAX_AREA_RATIO = 3.0    # area max 3x region
+    def _too_big(p):
+        minx_p, miny_p, maxx_p, maxy_p = p.bounds
+        pw = maxx_p - minx_p
+        ph = maxy_p - miny_p
+        if pw > region_w * MAX_BBOX_RATIO or ph > region_h * MAX_BBOX_RATIO:
+            return True
+        if p.area > region_area * MAX_AREA_RATIO:
+            return True
+        return False
+    in_region = [p for p in in_region if not _is_iso_format(p) and not _too_big(p)]
 
     if not in_region:
-        return _empty_result(['Nessun contorno chiuso trovato nella regione selezionata. Prova a disegnare un\'area più ampia.'])
+        return _empty_result(['Nessun contorno chiuso trovato nella regione selezionata. Prova a disegnare un\'area più ampia (o meno ampia se hai selezionato l\'intero disegno).'])
 
     # Outer = poligono con area maggiore nella region
     outer = max(in_region, key=lambda p: p.area)
