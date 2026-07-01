@@ -654,8 +654,32 @@ def compute_geometry_from_region(path: str, region_bbox: tuple[float, float, flo
     if not in_region:
         return _empty_result(['Nessun contorno chiuso trovato nella regione selezionata. Prova a disegnare un\'area più ampia (o meno ampia se hai selezionato l\'intero disegno).'])
 
-    # Outer = poligono con area maggiore nella region
-    outer = max(in_region, key=lambda p: p.area)
+    # Raccogli centri CIRCLE nella region (per scoring)
+    circles_centri_in_region = []
+    for e in msp:
+        if e.dxftype() != 'CIRCLE':
+            continue
+        try:
+            if _layer_da_escludere(e.dxf.layer):
+                continue
+        except AttributeError:
+            pass
+        if _entity_color_excluded(e, colori_esclusi):
+            continue
+        try:
+            cx, cy = float(e.dxf.center.x), float(e.dxf.center.y)
+            if region.contains(Point(cx, cy)):
+                circles_centri_in_region.append((cx, cy))
+        except AttributeError:
+            continue
+
+    # Outer = poligono che contiene PIÙ CIRCLE (segnale forte pezzo con fori)
+    # Tie-break su area (per casi senza fori)
+    def _score(p):
+        prep_p = prep(p)
+        n_circ = sum(1 for cx, cy in circles_centri_in_region if prep_p.contains(Point(cx, cy)))
+        return (n_circ, p.area)
+    outer = max(in_region, key=_score)
     prep_outer = prep(outer)
     inners = [p for p in in_region if p is not outer and prep_outer.contains(p.representative_point())]
 
