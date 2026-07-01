@@ -214,7 +214,7 @@
     width: 100% !important;
     height: 100vh !important;
     max-height: 100vh !important;
-    background: #F1F5F9 !important;
+    background: #0F172A !important;  /* slate-900 dark premium per contrasto max linee DXF */
     margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
@@ -228,6 +228,13 @@
     height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
+    /* Alta leggibilità: inverte colori scuri su sfondo bianco (default DXF)
+       → linee chiare su sfondo scuro. Contrast boost per definizione netta. */
+    filter: invert(0.92) hue-rotate(180deg) contrast(1.4) brightness(1.15) !important;
+  }
+  /* Force stroke visibile e non-scaling per zoom (redundante ma robusto) */
+  body.embedded #svg-container svg * {
+    vector-effect: non-scaling-stroke !important;
   }
   body.embedded .zoom-controls {
     top: 8px !important; right: 8px !important; left: auto !important;
