@@ -180,7 +180,14 @@ def serve_frontend(filename):
     """Serve frontend files. Redirect su pagine legacy demolite."""
     if filename in _LEGACY_REDIRECTS:
         return redirect(_LEGACY_REDIRECTS[filename], code=302)
-    return send_from_directory(FRONTEND_FOLDER, filename)
+    resp = send_from_directory(FRONTEND_FOLDER, filename)
+    # No-cache per HTML: iterazione veloce in dev, l'utente ha sempre la
+    # versione fresca del JS/CSS (evita bug post-fix nascosti dietro cache).
+    if filename.endswith('.html'):
+        resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+    return resp
 
 # ============ API AUTH ============
 
