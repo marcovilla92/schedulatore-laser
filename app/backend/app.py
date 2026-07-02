@@ -2275,6 +2275,67 @@ def api_preventivi_stima_base(preventivo_id, articolo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/config', methods=['GET'])
+def api_preventivi_config_get():
+    """Coefficienti globali usati dallo stimatore + cost calculator.
+
+    Ritorna laser_config (costi orari, €/kg, densità) + preventivi_config
+    (costi lavorazioni post-taglio, sconti, margini default). Usato dalla tab
+    Impostazioni per il form editabile.
+
+    Accessibile a Commerciale + Amministratore + Capo.
+    """
+    try:
+        cfg = BarcodeManager.load_config()
+        return jsonify({
+            'success': True,
+            'laser_config': cfg.get('laser_config') or _laser_estimator.DEFAULT_LASER_CONFIG,
+            'preventivi_config': cfg.get('preventivi_config') or {},
+        }), 200
+    except Exception as e:
+        logger.exception('preventivi/config GET failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/config', methods=['PUT'])
+def api_preventivi_config_put():
+    """Aggiorna coefficienti globali. Salva quello che riceve senza validazione
+    stretta sui valori (l'admin è responsabile). Loggato in audit.
+
+    Body: {admin_id, laser_config?, preventivi_config?}. I singoli sub-oggetti
+    sono opzionali: se assenti si mantiene quello attuale.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        updates = {}
+        if isinstance(data.get('laser_config'), dict):
+            updates['laser_config'] = data['laser_config']
+        if isinstance(data.get('preventivi_config'), dict):
+            updates['preventivi_config'] = data['preventivi_config']
+        if not updates:
+            return jsonify({'success': False, 'error': 'Nessuna sezione da aggiornare'}), 400
+        saved = BarcodeManager.save_config(updates)
+        if 'error' in saved:
+            return jsonify({'success': False, 'error': saved['error']}), 500
+        try:
+            AuditManager.log(user_id=admin_id, action='UPDATE_PREVENTIVI_CONFIG',
+                             entity_type='config', entity_id='preventivi',
+                             detail=str(list(updates.keys())))
+        except Exception:
+            pass
+        return jsonify({
+            'success': True,
+            'laser_config': saved.get('laser_config'),
+            'preventivi_config': saved.get('preventivi_config'),
+        }), 200
+    except Exception as e:
+        logger.exception('preventivi/config PUT failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/calcola', methods=['POST'])
 def api_preventivi_calcola(preventivo_id):
     """Ricalcola totali del preventivo (chiama cost_calculator)."""

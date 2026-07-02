@@ -50,5 +50,26 @@
     "dxf_semicerchio_angolo_min": 150.0,
     "dxf_semicerchio_angolo_max": 320.0,
     "dxf_filtra_zona_sviluppata": true
+  },
+  "preventivi_config": {
+    "_note": "Coefficienti lavorazioni post-taglio (piegatura/saldatura/filettatura/svasatura) e regole margine/sconto. Editabili da UI tab Impostazioni.",
+    "costo_singola_piega": 0.5,
+    "costo_setup_piega": 15.0,
+    "soglia_setup_pieghe": 5,
+    "costo_saldatura_metro": 25.0,
+    "costo_materiale_apporto_metro": 3.0,
+    "costo_pulizia_saldatura_metro": 5.0,
+    "costo_filettatura": 0.8,
+    "costo_svasatura": 0.3,
+    "costo_movimentazione_kg": 0.05,
+    "soglia_movimentazione_kg": 25.0,
+    "margine_default_pct": 25.0,
+    "margine_su_montaggio": true,
+    "sconto_quantita": {
+      "10": 3,
+      "50": 6,
+      "100": 10,
+      "500": 15
+    }
   }
 }

@@ -770,6 +770,7 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
 <div class="tab-bar">
   <div class="tab-item active" data-tab="storico" onclick="switchTab('storico')">Storico preventivi</div>
   <div class="tab-item" data-tab="editor" onclick="switchTab('editor')" id="tab-editor">Nuovo / In modifica</div>
+  <div class="tab-item" data-tab="impostazioni" onclick="switchTab('impostazioni')">Impostazioni</div>
 </div>
 
 <!-- ===================== PANEL: STORICO ===================== -->
@@ -927,8 +928,8 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
             <th style="width:120px;">Materiale</th>
             <th class="n" style="width:56px;">Sp.</th>
             <th class="n">Area dm&sup2;</th>
-            <th class="n">Perim. m</th>
-            <th class="n" style="width:56px;">Fori</th>
+            <th class="n">Perim. mm</th>
+            <th class="n" style="width:56px;">Elem.</th>
             <th class="n" style="width:62px;">Pieghe</th>
             <th class="n" style="width:74px;">Sald. ml</th>
             <th class="n" style="width:92px;">Costo &euro;</th>
@@ -1085,6 +1086,171 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
   <div class="card" id="card-azioni" style="display:none;"></div>
 </div>
 
+<!-- ===================== PANEL: IMPOSTAZIONI ===================== -->
+<div class="panel" id="panel-impostazioni">
+  <h2 class="page-title">Impostazioni preventivi</h2>
+  <p class="page-sub">Coefficienti globali per stima costi laser + lavorazioni post-taglio. Le modifiche si applicano ai nuovi calcoli (i preventivi già salvati mantengono i costi già scritti).</p>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+
+    <!-- ═══ LASER — costi orari + materiali ═══ -->
+    <div class="card">
+      <div class="card-header"><h3>Laser fibra &mdash; costi orari</h3></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Macchina laser (&euro;/h)</label>
+            <input type="number" id="cfg-eur-h-macchina" step="0.01" min="0">
+          </div>
+          <div class="form-field">
+            <label>Operaio a bordo (&euro;/h)</label>
+            <input type="number" id="cfg-eur-h-operaio" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Setup fisso pezzo (&euro;)</label>
+          <input type="number" id="cfg-setup-default" step="0.01" min="0">
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Somma per ogni pezzo (carico foglio, avviamento).</div>
+        </div>
+        <div style="margin-top:12px; padding:8px 12px; background:#F0FDF4; border-radius:6px; font-size:12px; color:#166534;">
+          <b>Totale &euro;/h stimatore</b>: <span id="cfg-eur-h-tot">&mdash;</span> &euro;/h
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MATERIALI — €/kg + densità ═══ -->
+    <div class="card">
+      <div class="card-header"><h3>Materiali (&euro;/kg + densit&agrave;)</h3></div>
+      <div class="card-body">
+        <table class="tbl" style="font-size:13px;">
+          <thead>
+            <tr>
+              <th style="width:110px;">Materiale</th>
+              <th class="n" style="width:110px;">&euro;/kg</th>
+              <th class="n">Densit&agrave; kg/dm&sup3;</th>
+              <th class="n">Setup pezzo (&euro;)</th>
+            </tr>
+          </thead>
+          <tbody id="cfg-materiali-tbody">
+            <tr><td colspan="4" class="empty">Caricamento&hellip;</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Densit&agrave; sono valori fisici standard, cambiarle solo se serve. Il peso del pezzo si calcola come area &times; spessore &times; densit&agrave;.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+
+    <!-- ═══ PIEGATURA + FILETTATURA + SVASATURA ═══ -->
+    <div class="card">
+      <div class="card-header"><h3>Piegatura, filettatura, svasatura</h3></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Costo singola piega (&euro;)</label>
+            <input type="number" id="cfg-piega-costo" step="0.01" min="0">
+          </div>
+          <div class="form-field">
+            <label>Setup macchina piega (&euro;)</label>
+            <input type="number" id="cfg-piega-setup" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Soglia pieghe per applicare setup</label>
+          <input type="number" id="cfg-piega-soglia" step="1" min="0">
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Se il pezzo ha pi&ugrave; pieghe di questa soglia, si somma il setup (attrezzaggio macchina).</div>
+        </div>
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-field">
+            <label>Filettatura (&euro;/pz)</label>
+            <input type="number" id="cfg-filett-costo" step="0.01" min="0">
+          </div>
+          <div class="form-field">
+            <label>Svasatura (&euro;/pz)</label>
+            <input type="number" id="cfg-svas-costo" step="0.01" min="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SALDATURA ═══ -->
+    <div class="card">
+      <div class="card-header"><h3>Saldatura</h3></div>
+      <div class="card-body">
+        <div class="form-field">
+          <label>Costo saldatura (&euro;/m)</label>
+          <input type="number" id="cfg-sald-costo" step="0.01" min="0">
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Include tempo saldatore per metro di cordone.</div>
+        </div>
+        <div class="form-field">
+          <label>Materiale apporto filo+gas (&euro;/m)</label>
+          <input type="number" id="cfg-sald-apporto" step="0.01" min="0">
+        </div>
+        <div class="form-field">
+          <label>Pulizia cordoni / smerigliatura (&euro;/m)</label>
+          <input type="number" id="cfg-sald-pulizia" step="0.01" min="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+
+    <!-- ═══ MOVIMENTAZIONE ═══ -->
+    <div class="card">
+      <div class="card-header"><h3>Movimentazione (assiemi pesanti)</h3></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Costo movimentazione (&euro;/kg)</label>
+            <input type="number" id="cfg-mov-costo" step="0.01" min="0">
+          </div>
+          <div class="form-field">
+            <label>Soglia peso (kg)</label>
+            <input type="number" id="cfg-mov-soglia" step="0.1" min="0">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Applicato solo agli assiemi con peso oltre la soglia.</div>
+      </div>
+    </div>
+
+    <!-- ═══ MARGINE + SCONTI QUANTITÀ ═══ -->
+    <div class="card">
+      <div class="card-header"><h3>Margine e sconti quantit&agrave;</h3></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Margine default (%)</label>
+            <input type="number" id="cfg-margine-default" step="0.5" min="0" max="100">
+          </div>
+          <div class="form-field">
+            <label>Margine anche su montaggio?</label>
+            <select id="cfg-margine-montaggio">
+              <option value="true">S&igrave;</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field" style="margin-top:10px;">
+          <label>Sconto quantit&agrave; (formato "soglia:pct" separati da virgola)</label>
+          <input type="text" id="cfg-sconto-qty" placeholder="10:3, 50:6, 100:10, 500:15">
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Es. <code>10:3</code> = da 10 pezzi in su, sconto 3%.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ AZIONI ═══ -->
+  <div class="card">
+    <div class="card-body" style="display:flex; align-items:center; gap:12px;">
+      <button class="btn-primary" onclick="saveImpostazioni()">Salva impostazioni</button>
+      <button class="btn-secondary" onclick="loadImpostazioni()">Ricarica</button>
+      <span class="form-msg" id="msg-impostazioni"></span>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: anteprima DXF (iframe) -->
 <div class="modal-overlay" id="modal-dxf-preview" onclick="if(event.target===this)closeDxfPreview()" style="z-index: 2500;">
   <div class="modal" style="max-width: 1400px; width: 95%; height: 90vh; max-height: 90vh; padding: 0;">
@@ -1175,8 +1341,8 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
         <div class="mfs-section">
           <div class="sec-title">Dimensioni</div>
           <div class="field"><label>Area (dm&sup2;)</label><input type="number" id="mad-area" step="0.01" onchange="madUpdate('area_dm2', this.value, true)"></div>
-          <div class="field"><label>Perimetro (m)</label><input type="number" id="mad-perim" step="0.001" onchange="madUpdate('perimetro_taglio_m', this.value, true)"></div>
-          <div class="field"><label>N. forature</label><input type="number" id="mad-forature" min="0" onchange="madUpdate('n_forature', this.value, true)"></div>
+          <div class="field"><label>Perimetro (mm)</label><input type="number" id="mad-perim" step="1" onchange="madPerimUpdate(this.value)"></div>
+          <div class="field"><label>N. elementi <span style="font-weight:400;font-size:10px;color:var(--text-3);">(contorno + fori)</span></label><input type="number" id="mad-forature" min="0" onchange="madUpdate('n_forature', this.value, true)"></div>
         </div>
 
         <div class="mfs-section">
@@ -1397,7 +1563,137 @@ function switchTab(tabId) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`panel-${tabId}`).classList.add('active');
   if (tabId === 'storico') loadList();
+  if (tabId === 'impostazioni') loadImpostazioni();
   if (window.lucide) lucide.createIcons();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Tab Impostazioni: carica/salva laser_config + preventivi_config
+// ═══════════════════════════════════════════════════════════════════
+
+const MATERIALI_ORDER = ['S235', 'ZINCATO', 'INOX_304', 'ALU', 'OTTONE'];
+const MATERIALI_LABEL = { S235: 'S235 (Ferro)', ZINCATO: 'Zincato', INOX_304: 'INOX 304', ALU: 'Alluminio', OTTONE: 'Ottone' };
+
+async function loadImpostazioni() {
+  const msg = document.getElementById('msg-impostazioni');
+  msg.textContent = 'Caricamento…';
+  msg.style.color = 'var(--text-2)';
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/config`);
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Errore server');
+    const L = d.laser_config || {};
+    const P = d.preventivi_config || {};
+    // Laser
+    document.getElementById('cfg-eur-h-macchina').value = L.euro_h_macchina ?? 75;
+    document.getElementById('cfg-eur-h-operaio').value = L.euro_h_operaio ?? 25;
+    document.getElementById('cfg-setup-default').value = L.setup_eur_default ?? 0.10;
+    _cfgRecalcTotHour();
+    // Materiali
+    const tbody = document.getElementById('cfg-materiali-tbody');
+    const mats = L.materiali || {};
+    tbody.innerHTML = MATERIALI_ORDER.map(code => {
+      const m = mats[code] || { densita_kg_dm3: 7.85, euro_kg: 0, setup_eur: 0.10 };
+      return `<tr>
+        <td>${MATERIALI_LABEL[code]}</td>
+        <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:100px;" data-mat="${code}" data-field="euro_kg" value="${m.euro_kg ?? 0}"></td>
+        <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:100px;" data-mat="${code}" data-field="densita_kg_dm3" value="${m.densita_kg_dm3 ?? 7.85}"></td>
+        <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:100px;" data-mat="${code}" data-field="setup_eur" value="${m.setup_eur ?? 0.10}"></td>
+      </tr>`;
+    }).join('');
+    // Preventivi (post-taglio)
+    document.getElementById('cfg-piega-costo').value = P.costo_singola_piega ?? 0;
+    document.getElementById('cfg-piega-setup').value = P.costo_setup_piega ?? 0;
+    document.getElementById('cfg-piega-soglia').value = P.soglia_setup_pieghe ?? 5;
+    document.getElementById('cfg-filett-costo').value = P.costo_filettatura ?? 0;
+    document.getElementById('cfg-svas-costo').value = P.costo_svasatura ?? 0;
+    document.getElementById('cfg-sald-costo').value = P.costo_saldatura_metro ?? 0;
+    document.getElementById('cfg-sald-apporto').value = P.costo_materiale_apporto_metro ?? 0;
+    document.getElementById('cfg-sald-pulizia').value = P.costo_pulizia_saldatura_metro ?? 0;
+    document.getElementById('cfg-mov-costo').value = P.costo_movimentazione_kg ?? 0;
+    document.getElementById('cfg-mov-soglia').value = P.soglia_movimentazione_kg ?? 25;
+    document.getElementById('cfg-margine-default').value = P.margine_default_pct ?? 25;
+    document.getElementById('cfg-margine-montaggio').value = String(!!(P.margine_su_montaggio ?? true));
+    const sc = P.sconto_quantita || {};
+    const scStr = Object.keys(sc).sort((a,b) => parseInt(a) - parseInt(b))
+      .map(k => `${k}:${sc[k]}`).join(', ');
+    document.getElementById('cfg-sconto-qty').value = scStr;
+    msg.textContent = '';
+    // Hook: live-update del totale €/h
+    document.getElementById('cfg-eur-h-macchina').oninput = _cfgRecalcTotHour;
+    document.getElementById('cfg-eur-h-operaio').oninput = _cfgRecalcTotHour;
+  } catch (e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.style.color = 'var(--red)';
+  }
+}
+
+function _cfgRecalcTotHour() {
+  const m = parseFloat(document.getElementById('cfg-eur-h-macchina').value) || 0;
+  const o = parseFloat(document.getElementById('cfg-eur-h-operaio').value) || 0;
+  document.getElementById('cfg-eur-h-tot').textContent = (m + o).toFixed(2);
+}
+
+async function saveImpostazioni() {
+  const msg = document.getElementById('msg-impostazioni');
+  msg.textContent = 'Salvataggio…';
+  msg.style.color = 'var(--text-2)';
+  try {
+    // Ricostruisci laser_config.materiali dalla tabella
+    const mats = {};
+    document.querySelectorAll('#cfg-materiali-tbody input[data-mat]').forEach(inp => {
+      const code = inp.dataset.mat, field = inp.dataset.field;
+      if (!mats[code]) mats[code] = {};
+      mats[code][field] = parseFloat(inp.value) || 0;
+    });
+    // Parse sconto_quantita
+    const scRaw = (document.getElementById('cfg-sconto-qty').value || '').trim();
+    const sc = {};
+    if (scRaw) {
+      for (const p of scRaw.split(',')) {
+        const [k, v] = p.trim().split(':');
+        const soglia = parseInt(k), pct = parseFloat(v);
+        if (soglia > 0 && pct >= 0) sc[String(soglia)] = pct;
+      }
+    }
+    const body = {
+      admin_id: (currentUser || {}).id,
+      laser_config: {
+        euro_h_macchina: parseFloat(document.getElementById('cfg-eur-h-macchina').value) || 0,
+        euro_h_operaio: parseFloat(document.getElementById('cfg-eur-h-operaio').value) || 0,
+        setup_eur_default: parseFloat(document.getElementById('cfg-setup-default').value) || 0,
+        materiali: mats,
+      },
+      preventivi_config: {
+        costo_singola_piega: parseFloat(document.getElementById('cfg-piega-costo').value) || 0,
+        costo_setup_piega: parseFloat(document.getElementById('cfg-piega-setup').value) || 0,
+        soglia_setup_pieghe: parseInt(document.getElementById('cfg-piega-soglia').value) || 5,
+        costo_filettatura: parseFloat(document.getElementById('cfg-filett-costo').value) || 0,
+        costo_svasatura: parseFloat(document.getElementById('cfg-svas-costo').value) || 0,
+        costo_saldatura_metro: parseFloat(document.getElementById('cfg-sald-costo').value) || 0,
+        costo_materiale_apporto_metro: parseFloat(document.getElementById('cfg-sald-apporto').value) || 0,
+        costo_pulizia_saldatura_metro: parseFloat(document.getElementById('cfg-sald-pulizia').value) || 0,
+        costo_movimentazione_kg: parseFloat(document.getElementById('cfg-mov-costo').value) || 0,
+        soglia_movimentazione_kg: parseFloat(document.getElementById('cfg-mov-soglia').value) || 25,
+        margine_default_pct: parseFloat(document.getElementById('cfg-margine-default').value) || 0,
+        margine_su_montaggio: document.getElementById('cfg-margine-montaggio').value === 'true',
+        sconto_quantita: sc,
+      },
+    };
+    const r = await fetch(`${API_URL}/api/preventivi/config`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Errore server');
+    msg.textContent = '✓ Impostazioni salvate';
+    msg.style.color = 'var(--green)';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  } catch (e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.style.color = 'var(--red)';
+  }
 }
 
 function goStorico() {
@@ -1615,7 +1911,7 @@ function renderArticoli() {
       </td>
       <td class="n"><input type="number" class="cell-edit" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right; max-width:60px;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
       <td class="n"><input type="number" class="cell-edit" value="${(a.area_dm2||0).toFixed(2)}" step="0.01" min="0" style="text-align:right; max-width:80px;" onchange="updateArt(${i},'area_dm2',this.value,true)"></td>
-      <td class="n"><input type="number" class="cell-edit" value="${(a.perimetro_taglio_m||0).toFixed(2)}" step="0.01" min="0" style="text-align:right; max-width:80px;" onchange="updateArt(${i},'perimetro_taglio_m',this.value,true)"></td>
+      <td class="n"><input type="number" class="cell-edit" value="${Math.round((a.perimetro_taglio_m||0)*1000)}" step="1" min="0" style="text-align:right; max-width:80px;" onchange="updateArtPerimMm(${i}, this.value)"></td>
       <td class="n"><input type="number" class="cell-edit" value="${a.n_forature||0}" step="1" min="0" style="text-align:right; max-width:56px;" onchange="updateArt(${i},'n_forature',this.value,true)"></td>
       <td class="n" style="color:var(--text-2);">${a.pieghe || 0}</td>
       <td class="n" style="color:var(--text-2);">${(a.saldatura_ml || 0).toFixed(1)}</td>
@@ -1632,6 +1928,12 @@ function renderArticoli() {
 function updateArt(idx, field, value, numeric) {
   if (!currentArticoli[idx]) return;
   currentArticoli[idx][field] = numeric ? parseFloat(value) || 0 : value;
+  recalcTotali();
+}
+
+function updateArtPerimMm(idx, valMm) {
+  if (!currentArticoli[idx]) return;
+  currentArticoli[idx].perimetro_taglio_m = (parseFloat(valMm) || 0) / 1000.0;
   recalcTotali();
 }
 
@@ -1754,7 +2056,7 @@ async function openArtModal(idx) {
   document.getElementById('mad-spessore').value = a.spessore_mm || '';
   document.getElementById('mad-gas').value = a.gas_taglio || '';
   document.getElementById('mad-area').value = (a.area_dm2 || 0).toFixed(2);
-  document.getElementById('mad-perim').value = (a.perimetro_taglio_m || 0).toFixed(3);
+  document.getElementById('mad-perim').value = Math.round((a.perimetro_taglio_m || 0) * 1000);
   document.getElementById('mad-forature').value = a.n_forature || 0;
   document.getElementById('mad-pieghe').value = a.pieghe || 0;
   document.getElementById('mad-sald').value = (a.saldatura_ml || 0).toFixed(2);
@@ -2016,7 +2318,7 @@ async function madSelectPoint(x_mm, y_mm) {
     a.dxf_needs_verify = false;
 
     document.getElementById('mad-area').value = a.area_dm2.toFixed(2);
-    document.getElementById('mad-perim').value = a.perimetro_taglio_m.toFixed(3);
+    document.getElementById('mad-perim').value = Math.round(a.perimetro_taglio_m * 1000);
     document.getElementById('mad-forature').value = a.n_forature;
 
     // Banner verde conferma
@@ -2024,7 +2326,7 @@ async function madSelectPoint(x_mm, y_mm) {
     banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
     banner.style.color = '#166534';
     document.getElementById('mad-verify-text').innerHTML =
-      `✓ Pezzo trovato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${a.perimetro_taglio_m.toFixed(3)} m</b>, <b>${a.n_forature}</b> forature (${(j.n_inner || 0)} contorni interni).`;
+      `✓ Pezzo trovato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${Math.round(a.perimetro_taglio_m * 1000)} mm</b>, <b>${a.n_forature}</b> elementi (1 contorno + ${(j.n_inner || 0)} interni).`;
 
     renderArticoli();
     recalcTotali();
@@ -2074,7 +2376,7 @@ async function madSelectPolygon(candIdx) {
   a.dxf_needs_verify = false;
 
   document.getElementById('mad-area').value = a.area_dm2.toFixed(2);
-  document.getElementById('mad-perim').value = a.perimetro_taglio_m.toFixed(3);
+  document.getElementById('mad-perim').value = Math.round(a.perimetro_taglio_m * 1000);
   document.getElementById('mad-forature').value = a.n_forature;
 
   // Nascondi banner verifica (utente ha confermato)
@@ -2082,7 +2384,7 @@ async function madSelectPolygon(candIdx) {
   banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
   banner.style.color = '#166534';
   document.getElementById('mad-verify-text').innerHTML =
-    `✓ Pezzo selezionato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${a.perimetro_taglio_m.toFixed(3)} m</b>, <b>${a.n_forature}</b> forature.`;
+    `✓ Pezzo selezionato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${Math.round(a.perimetro_taglio_m * 1000)} mm</b>, <b>${a.n_forature}</b> elementi.`;
 
   // Aggiorna anche la tabella origine + recalc
   renderArticoli();
@@ -2343,6 +2645,16 @@ function madUpdate(field, value, numeric) {
   recalcTotali();
 }
 
+// Perimetro: UI in mm, backend in metri
+function madPerimUpdate(valMm) {
+  if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
+  const mm = parseFloat(valMm) || 0;
+  currentArticoli[_madCurrentIdx].perimetro_taglio_m = mm / 1000.0;
+  madRefreshCosts();
+  renderArticoli();
+  recalcTotali();
+}
+
 function madRefreshCosts() {
   if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
   const a = currentArticoli[_madCurrentIdx];
@@ -2411,7 +2723,7 @@ async function madStima() {
   const a = currentArticoli[_madCurrentIdx];
   if (a) {
     document.getElementById('mad-area').value = (a.area_dm2 || 0).toFixed(2);
-    document.getElementById('mad-perim').value = (a.perimetro_taglio_m || 0).toFixed(3);
+    document.getElementById('mad-perim').value = Math.round((a.perimetro_taglio_m || 0) * 1000);
     document.getElementById('mad-forature').value = a.n_forature || 0;
   }
   madRefreshCosts();
