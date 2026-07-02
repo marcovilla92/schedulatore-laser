@@ -1573,6 +1573,34 @@ function recalcLavorazioniArt(a) {
 
 function round2(v) { return Math.round((v || 0) * 100) / 100; }
 
+// ═══════════════════════════════════════════════════════════════════
+// Autosave articoli su DB — debounced, dopo qualsiasi modifica locale
+// ═══════════════════════════════════════════════════════════════════
+let _saveArticoliTimer = null;
+function scheduleSaveArticoli(delayMs = 800) {
+  if (!currentPreventivo) return;
+  if (_saveArticoliTimer) clearTimeout(_saveArticoliTimer);
+  _saveArticoliTimer = setTimeout(() => saveArticoliNow(), delayMs);
+}
+async function saveArticoliNow() {
+  if (!currentPreventivo || !currentUser) return;
+  try {
+    // Rimuovo i campi interni di UI (_prefissi) prima di inviare al server
+    const payload = currentArticoli.map(a => {
+      const out = {};
+      for (const k in a) if (!k.startsWith('_')) out[k] = a[k];
+      return out;
+    });
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/articoli`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ admin_id: currentUser.id, articoli: payload }),
+    });
+    const d = await r.json();
+    if (!d.success) console.warn('autosave articoli failed:', d.error);
+  } catch (e) { console.warn('autosave articoli network error:', e); }
+}
+
 function colorFromName(name) {
   if (!name) return '#1a7a48';
   let h = 0;
@@ -1852,17 +1880,11 @@ async function openPreventivo(id) {
     // Assicurati che i costi lavorazione siano allineati coi coefficienti correnti
     await fetchPreventiviCfg();
     currentArticoli.forEach(recalcLavorazioniArt);
-    // Ricalcolo spessore per articoli DXF che ne sono privi (batch parallelo)
-    await Promise.all(currentArticoli.map(async (a) => {
-      if (!a.spessore_mm && a.dxf_filename && a.materiale) {
-        await _ricalcolaSpessoreArt(a);
-        recalcLavorazioniArt(a);
-      }
-    }));
-    // Dopo il ricalcolo, prova auto-stima costo se tutti i dati essenziali sono presenti
-    await Promise.all(currentArticoli.map((a, i) => _autoStimaIfComplete(i)));
+    // Render immediato — non blocchiamo l'apertura del preventivo per i ricalcoli
     populateEditor(p);
     switchTab('editor');
+    // Ricalcolo spessore + auto-stima in BACKGROUND, sequenziale (dev server single-thread)
+    _backgroundEnrichArticoli();
   } catch (e) { alert('Errore: ' + e.message); }
 }
 
@@ -2021,6 +2043,7 @@ function updateArt(idx, field, value, numeric) {
     _autoStimaIfComplete(idx);
   }
   recalcTotali();
+  scheduleSaveArticoli();
 }
 
 /**
@@ -2038,7 +2061,7 @@ async function _autoStimaIfComplete(idx) {
   if (a.costo_base_override != null) return;
   if (_autoStimaInFlight.has(a.id)) return;
   _autoStimaInFlight.add(a.id);
-  try { await stimaArt(idx); }
+  try { await stimaArt(idx, { silent: true }); }
   finally { _autoStimaInFlight.delete(a.id); }
 }
 
@@ -2046,6 +2069,7 @@ function updateArtPerimMm(idx, valMm) {
   if (!currentArticoli[idx]) return;
   currentArticoli[idx].perimetro_taglio_m = (parseFloat(valMm) || 0) / 1000.0;
   recalcTotali();
+  scheduleSaveArticoli();
 }
 
 function addArticoloManuale() {
@@ -2447,6 +2471,7 @@ async function madSelectPoint(x_mm, y_mm) {
     renderArticoli();
     recalcTotali();
     madRefreshCosts();
+    scheduleSaveArticoli(200);
   } catch (e) {
     alert('Errore trova pezzo: ' + e.message);
   }
@@ -2757,6 +2782,7 @@ function madUpdate(field, value, numeric) {
   if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
   const a = currentArticoli[_madCurrentIdx];
   a[field] = numeric ? (parseFloat(value) || 0) : value;
+  scheduleSaveArticoli();
   // Se cambia una quantità lavorazione post-taglio, ricalcolo i costi relativi
   if (['pieghe', 'saldatura_ml', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
     recalcLavorazioniArt(a);
@@ -2793,6 +2819,39 @@ function madPerimUpdate(valMm) {
   madRefreshCosts();
   renderArticoli();
   recalcTotali();
+  scheduleSaveArticoli();
+}
+
+/**
+ * Ricalcolo spessore + auto-stima in background per gli articoli del preventivo
+ * appena aperto. Sequenziale (dev server = 1 thread) e con update UI incrementale
+ * dopo ogni articolo — l'utente vede i valori popolarsi progressivamente senza
+ * dover attendere che tutti siano completi.
+ */
+let _bgEnrichRunning = false;
+async function _backgroundEnrichArticoli() {
+  if (_bgEnrichRunning) return;
+  _bgEnrichRunning = true;
+  try {
+    for (let i = 0; i < currentArticoli.length; i++) {
+      const a = currentArticoli[i];
+      if (!a) continue;
+      let changed = false;
+      if (!a.spessore_mm && a.dxf_filename && a.materiale) {
+        await _ricalcolaSpessoreArt(a);
+        recalcLavorazioniArt(a);
+        changed = true;
+      }
+      // Auto-stima solo se i dati essenziali ci sono
+      if (a.materiale && (a.spessore_mm > 0) && (a.area_dm2 > 0) && (a.perimetro_taglio_m > 0)) {
+        if (a.costo_base_override == null && !a._stimaBreakdown) {
+          const res = await stimaArt(i, { silent: true });
+          if (res && res.success) changed = true;
+        }
+      }
+      if (changed) { renderArticoli(); recalcTotali(); }
+    }
+  } finally { _bgEnrichRunning = false; }
 }
 
 /**
@@ -2980,9 +3039,14 @@ window.addEventListener('message', (event) => {
   }
 });
 
-async function stimaArt(idx) {
+async function stimaArt(idx, opts = {}) {
+  const silent = opts.silent === true;
   const a = currentArticoli[idx];
-  if (!a.materiale || !a.spessore_mm) { alert('Inserisci materiale e spessore prima di stimare.'); return; }
+  if (!a) return { success: false };
+  if (!a.materiale || !a.spessore_mm) {
+    if (!silent) alert('Inserisci materiale e spessore prima di stimare.');
+    return { success: false, reason: 'incomplete' };
+  }
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/articoli/x/stima-base`, {
       method: 'POST',
@@ -2990,17 +3054,25 @@ async function stimaArt(idx) {
       body: JSON.stringify({ admin_id: currentUser.id, articolo: a }),
     });
     const d = await r.json();
-    if (!d.success) { alert('Errore: ' + d.error); return; }
+    if (!d.success) {
+      if (!silent) alert('Errore: ' + d.error);
+      return { success: false, reason: 'server', error: d.error };
+    }
     a.costo_base_stimato = d.stima.base;
-    a.costo_base_override = null;  // reset override quando si rigenera la stima
-    a._stimaBreakdown = d.stima;   // breakdown live (non persistito nel DB)
+    a.costo_base_override = null;
+    a._stimaBreakdown = d.stima;
     renderArticoli();
     recalcTotali();
     if (idx === _madCurrentIdx) madRefreshCosts();
-    if (d.stima.warnings && d.stima.warnings.length) {
+    scheduleSaveArticoli();
+    if (!silent && d.stima.warnings && d.stima.warnings.length) {
       showMsg('msg-import', '⚠ ' + d.stima.warnings.join(' | '), 'var(--orange)');
     }
-  } catch (e) { alert('Errore: ' + e.message); }
+    return { success: true, stima: d.stima };
+  } catch (e) {
+    if (!silent) alert('Errore: ' + e.message);
+    return { success: false, reason: 'network', error: e.message };
+  }
 }
 
 async function stimaTutti() {
@@ -3403,6 +3475,7 @@ async function uploadDxf(file, suppressMsg) {
       await _autoStimaIfComplete(existingIdx);
       if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente (lavorazioni aggiornate, materiale mantenuto).`, 'var(--green)');
       renderArticoli(); recalcTotali();
+      scheduleSaveArticoli(200);  // salvataggio veloce dopo import
       return;
     }
     // Articolo NUOVO da DXF puro
@@ -3437,6 +3510,7 @@ async function uploadDxf(file, suppressMsg) {
     recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
     await _autoStimaIfComplete(currentArticoli.length - 1);
     renderArticoli(); recalcTotali();
+    scheduleSaveArticoli(200);
     if (!suppressMsg) {
       const matMsg = matFromCartiglio
         ? `materiale rilevato dal cartiglio: ${matFromCartiglio} (${cartiglio.materiale_raw})`

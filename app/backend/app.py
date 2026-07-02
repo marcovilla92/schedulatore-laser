@@ -2286,6 +2286,37 @@ def api_preventivi_import_step(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/articoli', methods=['PUT'])
+def api_preventivi_articoli_replace(preventivo_id):
+    """Sostituisce l'intera lista degli articoli del preventivo (bulk replace).
+
+    Usato dal frontend come autosave dopo import DXF / cambi editor. Il
+    backend fa delete + insert atomici via PreventivoManager.replace_articoli.
+    Bloccato se preventivo INVIATO / ACCETTATO.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        articoli = data.get('articoli', [])
+        if not isinstance(articoli, list):
+            return jsonify({'success': False, 'error': 'articoli deve essere una lista'}), 400
+        result = PreventivoManager.replace_articoli(preventivo_id, articoli)
+        if isinstance(result, dict) and 'error' in result:
+            return jsonify({'success': False, 'error': result['error']}), 409
+        try:
+            AuditManager.log(user_id=admin_id, action='REPLACE_ARTICOLI',
+                             entity_type='preventivi', entity_id=preventivo_id,
+                             detail=f'n_articoli={result.get("count", 0)}')
+        except Exception:
+            pass
+        return jsonify({'success': True, 'count': result.get('count', 0)}), 200
+    except Exception as e:
+        logger.exception('replace articoli failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/articoli/<articolo_id>/stima-base', methods=['POST'])
 def api_preventivi_stima_base(preventivo_id, articolo_id):
     """Calcola stima costo base laser per un articolo (richiede spessore+materiale).
