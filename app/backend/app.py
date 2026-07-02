@@ -156,6 +156,13 @@ def index():
     """Serve login page"""
     return send_from_directory(FRONTEND_FOLDER, 'login.html')
 
+
+@app.route('/favicon.ico')
+def favicon():
+    """Evita il 500 sui browser che chiedono automaticamente il favicon."""
+    from flask import Response
+    return Response(b'', status=204, mimetype='image/x-icon')
+
 @app.route('/download-cert')
 def download_cert():
     """Scarica il certificato SSL per installazione su tablet Android."""
