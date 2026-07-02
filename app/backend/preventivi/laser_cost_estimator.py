@@ -105,7 +105,9 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
 
     densita = float(mat.get('densita_kg_dm3', 7.85))
     euro_kg = float(mat.get('euro_kg', 0.0))
-    setup_eur = float(mat.get('setup_eur', cfg.get('setup_eur_default', 0.10)))
+    # Setup pezzo unico globale (editabile da tab Impostazioni). Il valore
+    # per-materiale è mantenuto solo come fallback backward-compat.
+    setup_eur = float(cfg.get('setup_eur_default', mat.get('setup_eur', 0.10)))
 
     # --- Peso: se non passato, calcolo da area × spessore × densità ---
     if peso_kg_dato and float(peso_kg_dato) > 0:

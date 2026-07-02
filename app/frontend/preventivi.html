@@ -1126,13 +1126,12 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
           <thead>
             <tr>
               <th style="width:110px;">Materiale</th>
-              <th class="n" style="width:110px;">&euro;/kg</th>
+              <th class="n" style="width:130px;">&euro;/kg</th>
               <th class="n">Densit&agrave; kg/dm&sup3;</th>
-              <th class="n">Setup pezzo (&euro;)</th>
             </tr>
           </thead>
           <tbody id="cfg-materiali-tbody">
-            <tr><td colspan="4" class="empty">Caricamento&hellip;</td></tr>
+            <tr><td colspan="3" class="empty">Caricamento&hellip;</td></tr>
           </tbody>
         </table>
         <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Densit&agrave; sono valori fisici standard, cambiarle solo se serve. Il peso del pezzo si calcola come area &times; spessore &times; densit&agrave;.</div>
@@ -1626,12 +1625,11 @@ async function loadImpostazioni() {
     const tbody = document.getElementById('cfg-materiali-tbody');
     const mats = L.materiali || {};
     tbody.innerHTML = MATERIALI_ORDER.map(code => {
-      const m = mats[code] || { densita_kg_dm3: 7.85, euro_kg: 0, setup_eur: 0.10 };
+      const m = mats[code] || { densita_kg_dm3: 7.85, euro_kg: 0 };
       return `<tr>
         <td>${MATERIALI_LABEL[code]}</td>
-        <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:100px;" data-mat="${code}" data-field="euro_kg" value="${m.euro_kg ?? 0}"></td>
+        <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:120px;" data-mat="${code}" data-field="euro_kg" value="${m.euro_kg ?? 0}"></td>
         <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:100px;" data-mat="${code}" data-field="densita_kg_dm3" value="${m.densita_kg_dm3 ?? 7.85}"></td>
-        <td class="n"><input type="number" step="0.01" min="0" style="text-align:right; max-width:100px;" data-mat="${code}" data-field="setup_eur" value="${m.setup_eur ?? 0.10}"></td>
       </tr>`;
     }).join('');
     // Preventivi (post-taglio)
