@@ -1976,22 +1976,56 @@ def api_preventivi_step_file(preventivo_id, filename):
         return jsonify({'error': str(e)}), 500
 
 
+# Cache in-memory dei SVG generati da ezdxf. La generazione costa 0.5-1.5s
+# per DXF (ezdxf.readfile + Frontend + SVGBackend). Con più thumbnail nella
+# tabella articoli, senza cache l'apertura preventivo diventa lenta.
+# Chiave: (path, mtime). Se il file cambia (nuovo import), il mtime cambia e
+# la cache viene invalidata. Cap a 128 entry (LRU manuale) per non crescere
+# indefinitamente.
+_SVG_CACHE = {}
+_SVG_CACHE_MAX = 128
+
+
+def _get_dxf_svg_cached(dxf_path: str) -> str:
+    try:
+        mtime = os.path.getmtime(dxf_path)
+    except OSError:
+        mtime = 0
+    key = (dxf_path, mtime)
+    hit = _SVG_CACHE.get(key)
+    if hit is not None:
+        return hit
+    svg = _dxf_scanner.dxf_to_svg_string(dxf_path)
+    if len(_SVG_CACHE) >= _SVG_CACHE_MAX:
+        # Evict qualsiasi entry (dict Python mantiene insertion order, tolgo la più vecchia)
+        for old_key in list(_SVG_CACHE.keys())[:8]:
+            _SVG_CACHE.pop(old_key, None)
+    _SVG_CACHE[key] = svg
+    return svg
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/svg', methods=['GET'])
 def api_preventivi_dxf_svg(preventivo_id, filename):
     """Ritorna SVG ad alta fedeltà del DXF (caricato in import-dxf).
 
-    Usato dalla preview interattiva preview-dxf.html (pan/zoom + lavorazioni).
+    Usato dalla preview interattiva preview-dxf.html (pan/zoom + lavorazioni)
+    E dai thumbnail SVG nella tabella articoli. Cachato in memoria + header
+    HTTP per far cachare anche al browser.
     """
     try:
-        # Sicurezza: filename normalizzato, niente path traversal
         safe_name = os.path.basename(filename)
         prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
         dxf_path = os.path.join(prev_dir, safe_name)
         if not os.path.exists(dxf_path):
             return jsonify({'error': 'File DXF non trovato'}), 404
         from flask import Response
-        svg_string = _dxf_scanner.dxf_to_svg_string(dxf_path)
-        return Response(svg_string, mimetype='image/svg+xml; charset=utf-8')
+        svg_string = _get_dxf_svg_cached(dxf_path)
+        resp = Response(svg_string, mimetype='image/svg+xml; charset=utf-8')
+        # Cache lato browser (1h). Se il DXF viene ri-importato, il file cambia
+        # e il memory cache serve la nuova versione — il browser continuerà con
+        # la vecchia fino allo scadere, ma è una preview, accettabile.
+        resp.headers['Cache-Control'] = 'private, max-age=3600'
+        return resp
     except Exception as e:
         logger.exception('dxf_svg failed')
         return jsonify({'error': str(e)}), 500

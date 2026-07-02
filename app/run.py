@@ -160,4 +160,7 @@ if __name__ == '__main__':
     logger.info("Avvio SCHEDULATORE LASER su porta 5000")
     logger.info("Accedi via browser: http://localhost:5000")
     logger.info(f"Debug mode: {'ON' if debug_mode else 'OFF'}")
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+    # threaded=True: consente al server dev di gestire piu' richieste concorrenti
+    # (es. thumbnail SVG multipli, autosave in background, stima costo mentre
+    # l'utente naviga). Senza questo, ogni richiesta accoda quelle successive.
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode, threaded=True)
