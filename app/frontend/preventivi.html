@@ -1153,14 +1153,23 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
           <div class="field"><label>Materiale</label>
             <select id="mad-materiale" onchange="madUpdate('materiale', this.value)">
               <option value=""></option>
-              <option value="S235">S235</option>
+              <option value="S235">S235 (Ferro)</option>
+              <option value="ZINCATO">Zincato</option>
               <option value="INOX_304">INOX 304</option>
-              <option value="INOX_316">INOX 316</option>
-              <option value="ALU_5754">ALU 5754</option>
-              <option value="ALU_5083">ALU 5083</option>
+              <option value="ALU">Alluminio</option>
+              <option value="OTTONE">Ottone</option>
             </select>
           </div>
           <div class="field"><label>Spessore (mm)</label><input type="number" id="mad-spessore" step="0.1" onchange="madUpdate('spessore_mm', this.value, true)"></div>
+          <div class="field"><label>Gas taglio</label>
+            <select id="mad-gas" onchange="madUpdate('gas_taglio', this.value)">
+              <option value="">Auto (S235&le;3&rarr;N2, &gt;3&rarr;O2, altri&rarr;N2)</option>
+              <option value="N2">N2 (azoto)</option>
+              <option value="O2">O2 (ossigeno)</option>
+              <option value="AIR">AIR (aria)</option>
+              <option value="FIBRA">FIBRA</option>
+            </select>
+          </div>
         </div>
 
         <div class="mfs-section">
@@ -1176,6 +1185,19 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
           <div class="field"><label>Saldatura (ml)</label><input type="number" id="mad-sald" step="0.01" onchange="madUpdate('saldatura_ml', this.value, true)"></div>
           <div class="field"><label>Filettatura pz</label><input type="number" id="mad-filett" min="0" onchange="madUpdate('filettatura_pz', this.value, true)"></div>
           <div class="field"><label>Svasatura pz</label><input type="number" id="mad-svas" min="0" onchange="madUpdate('svasatura_pz', this.value, true)"></div>
+        </div>
+
+        <div class="mfs-section" id="mad-sec-stima" style="display:none;">
+          <div class="sec-title">Dettaglio stima laser <span id="mad-stima-badge" style="font-weight:500; font-size:10px; padding:2px 6px; border-radius:4px; background:#E0E7FF; color:#4338CA; margin-left:6px;"></span></div>
+          <div class="field"><label>Peso (kg)</label><div class="ro" id="mad-stima-peso">&mdash;</div></div>
+          <div class="field"><label>Ricetta laser</label><div class="ro" id="mad-stima-ricetta" style="font-size:11px;">&mdash;</div></div>
+          <div class="field"><label>Tempo taglio</label><div class="ro" id="mad-stima-tt">&mdash;</div></div>
+          <div class="field"><label>Tempo pierce</label><div class="ro" id="mad-stima-tp">&mdash;</div></div>
+          <div class="field"><label>Tempo totale</label><div class="ro" id="mad-stima-ttot" style="font-weight:600;">&mdash;</div></div>
+          <div class="field"><label>Costo materiale</label><div class="ro" id="mad-stima-mat">&mdash;</div></div>
+          <div class="field"><label>Costo lavoro</label><div class="ro" id="mad-stima-lav">&mdash;</div></div>
+          <div class="field"><label>Setup pezzo</label><div class="ro" id="mad-stima-setup">&mdash;</div></div>
+          <div id="mad-stima-warnings" style="margin-top:6px;"></div>
         </div>
 
         <div class="mfs-section">
@@ -1730,6 +1752,7 @@ async function openArtModal(idx) {
   document.getElementById('mad-qty').value = a.quantita || 1;
   document.getElementById('mad-materiale').value = a.materiale || '';
   document.getElementById('mad-spessore').value = a.spessore_mm || '';
+  document.getElementById('mad-gas').value = a.gas_taglio || '';
   document.getElementById('mad-area').value = (a.area_dm2 || 0).toFixed(2);
   document.getElementById('mad-perim').value = (a.perimetro_taglio_m || 0).toFixed(3);
   document.getElementById('mad-forature').value = a.n_forature || 0;
@@ -2331,6 +2354,55 @@ function madRefreshCosts() {
   document.getElementById('mad-c-svas').textContent = formatEurStr(a.costo_svasatura || 0);
   const tot = base + (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
   document.getElementById('mad-c-tot').textContent = formatEurStr(tot);
+  _madRefreshStimaBreakdown(a._stimaBreakdown);
+}
+
+function _madRefreshStimaBreakdown(s) {
+  const sec = document.getElementById('mad-sec-stima');
+  if (!s || !s._ricetta || (s.base || 0) <= 0) {
+    sec.style.display = 'none';
+    return;
+  }
+  sec.style.display = 'block';
+  const r = s._ricetta;
+  const badge = document.getElementById('mad-stima-badge');
+  const badgeMap = {
+    'exact': { txt: 'Ricetta esatta', bg: '#DCFCE7', col: '#166534' },
+    'interpolated': { txt: 'Interpolata', bg: '#FEF3C7', col: '#92400E' },
+    'clamped_min': { txt: 'Fuori range (min)', bg: '#FED7AA', col: '#9A3412' },
+    'clamped_max': { txt: 'Fuori range (max)', bg: '#FED7AA', col: '#9A3412' },
+    'fallback': { txt: 'Fallback gas', bg: '#E0E7FF', col: '#4338CA' },
+  };
+  const b = badgeMap[r.source] || badgeMap['exact'];
+  badge.textContent = b.txt;
+  badge.style.background = b.bg;
+  badge.style.color = b.col;
+
+  document.getElementById('mad-stima-peso').textContent = (s.peso_kg || 0).toFixed(3) + ' kg' + (s._peso_source === 'override' ? ' (override)' : '');
+  document.getElementById('mad-stima-ricetta').innerHTML =
+    `<b>${r.materiale}/${r.gas}</b> · ${Math.round(r.velocita_mm_min)} mm/min · pierce ${r.pierce_time_s.toFixed(2)}s` +
+    (r.rid ? ` <span style="opacity:.6;">(RID ${r.rid})</span>` : '');
+  document.getElementById('mad-stima-tt').textContent = (s.tempo_taglio_s || 0).toFixed(1) + ' s';
+  document.getElementById('mad-stima-tp').textContent = (s.tempo_pierce_s || 0).toFixed(1) + ' s';
+  document.getElementById('mad-stima-ttot').textContent = ((s.tempo_totale_min || 0) < 1)
+    ? Math.round((s.tempo_totale_min || 0) * 60) + ' s'
+    : (s.tempo_totale_min || 0).toFixed(2) + ' min';
+  const eurKg = (s._euro_kg || 0).toFixed(2).replace('.', ',');
+  document.getElementById('mad-stima-mat').innerHTML =
+    formatEurStr(s.costo_materiale || 0) + ` <span style="opacity:.5;font-size:10px;">${eurKg} &euro;/kg</span>`;
+  const eurH = (s._euro_h_tot || 100).toFixed(0);
+  document.getElementById('mad-stima-lav').innerHTML =
+    formatEurStr(s.costo_lavoro || 0) + ` <span style="opacity:.5;font-size:10px;">${eurH} &euro;/h</span>`;
+  document.getElementById('mad-stima-setup').textContent = formatEurStr(s.setup_eur || 0);
+
+  const wc = document.getElementById('mad-stima-warnings');
+  if (s.warnings && s.warnings.length) {
+    wc.innerHTML = s.warnings.map(w =>
+      `<div style="padding:6px 10px; background:#FEF3C7; color:#92400E; border-radius:6px; font-size:11px; margin-top:4px;">⚠ ${escapeHtml(w)}</div>`
+    ).join('');
+  } else {
+    wc.innerHTML = '';
+  }
 }
 
 async function madStima() {
@@ -2382,8 +2454,10 @@ async function stimaArt(idx) {
     if (!d.success) { alert('Errore: ' + d.error); return; }
     a.costo_base_stimato = d.stima.base;
     a.costo_base_override = null;  // reset override quando si rigenera la stima
+    a._stimaBreakdown = d.stima;   // breakdown live (non persistito nel DB)
     renderArticoli();
     recalcTotali();
+    if (idx === _madCurrentIdx) madRefreshCosts();
     if (d.stima.warnings && d.stima.warnings.length) {
       showMsg('msg-import', '⚠ ' + d.stima.warnings.join(' | '), 'var(--orange)');
     }

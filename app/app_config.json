@@ -3,27 +3,46 @@
   "sospetto_giorni_da_ultima_scan": 3,
   "_note": "Soglie per il rilevamento di 'ordini sospetti finiti' nel pannello capo/impiegata. Un ordine è considerato sospetto se taglio completato da almeno N giorni E ultima scansione officina da almeno M giorni.",
   "laser_config": {
-    "_note": "Coefficienti CALIBRATI sui dati reali Lantek (ORD.204, Fase 5 ext merge preventivatore). Modello: base = peso_kg × €/kg + perimetro_taglio × €/m(materiale,spessore) + n_forature × €/pierce + setup. Errore medio <1% sui 4 punti di calibrazione diretta, <10% per S235 2mm (sotto-determinato).",
+    "_note": "Coefficienti CALIBRATI sui dati reali del cliente (2026-07-02): 75€/h macchina + 25€/h operaio = 100€/h totale. €/kg da mercato del cliente. Velocità taglio + tempi pierce da lantek_recipes.json (116 ricette Lantek reali). Editabili da admin.",
+    "euro_h_macchina": 75.0,
+    "euro_h_operaio": 25.0,
+    "setup_eur_default": 0.1,
     "materiali": {
-      "S235":     {"densita_kg_dm3": 7.85, "euro_kg": 1.50, "setup_eur": 0.10},
-      "INOX_304": {"densita_kg_dm3": 8.00, "euro_kg": 3.53, "setup_eur": 0.26},
-      "INOX_316": {"densita_kg_dm3": 8.00, "euro_kg": 5.20, "setup_eur": 0.30},
-      "ALU_5754": {"densita_kg_dm3": 2.70, "euro_kg": 4.20, "setup_eur": 0.10},
-      "ALU_5083": {"densita_kg_dm3": 2.66, "euro_kg": 4.60, "setup_eur": 0.10}
-    },
-    "costo_taglio_eur_m": {
-      "S235":     {"1": 0.06, "2": 0.17, "3": 0.40, "4": 0.75, "5": 1.10, "6": 1.50, "8": 2.00, "10": 2.40, "12": 2.73, "15": 4.0, "20": 6.0},
-      "INOX_304": {"1": 0.40, "2": 0.70, "3": 1.06, "4": 1.50, "5": 2.00, "6": 3.00, "8": 5.00, "10": 6.50, "12": 8.50},
-      "INOX_316": {"1": 0.45, "2": 0.80, "3": 1.20, "4": 1.70, "5": 2.30, "6": 3.40, "8": 5.60, "10": 7.30, "12": 9.50},
-      "ALU_5754": {"1": 0.05, "2": 0.14, "3": 0.32, "5": 0.90, "8": 1.60, "10": 1.90, "12": 2.20},
-      "ALU_5083": {"1": 0.05, "2": 0.14, "3": 0.32, "5": 0.90, "8": 1.60, "10": 1.90, "12": 2.20}
-    },
-    "costo_pierce_eur": 0.05
+      "S235": {
+        "densita_kg_dm3": 7.85,
+        "euro_kg": 0.8,
+        "setup_eur": 0.1
+      },
+      "ZINCATO": {
+        "densita_kg_dm3": 7.85,
+        "euro_kg": 1.1,
+        "setup_eur": 0.1
+      },
+      "INOX_304": {
+        "densita_kg_dm3": 8.0,
+        "euro_kg": 3.2,
+        "setup_eur": 0.1
+      },
+      "ALU": {
+        "densita_kg_dm3": 2.7,
+        "euro_kg": 6.8,
+        "setup_eur": 0.1
+      },
+      "OTTONE": {
+        "densita_kg_dm3": 8.5,
+        "euro_kg": 12.0,
+        "setup_eur": 0.1
+      }
+    }
   },
   "dxf_detection": {
     "_note": "Parametri rilevamento pieghe/saldature/filettature/svasature da DXF — calibrati sul config reale del Preventivatore desktop.",
-    "dxf_colori_piega": [2],
-    "dxf_colori_saldatura": [1],
+    "dxf_colori_piega": [
+      2
+    ],
+    "dxf_colori_saldatura": [
+      1
+    ],
     "dxf_lunghezza_minima": 15.0,
     "dxf_tolleranza_centro": 1.0,
     "dxf_svasatura_ratio_min": 1.8,
