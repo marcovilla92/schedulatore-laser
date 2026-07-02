@@ -525,6 +525,33 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
 .mfs-section .field input:focus, .mfs-section .field select:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
 }
+/* Highlighting dati incerti / mancanti — usato in openArtModal e tabella */
+.mfs-section .field input.uncertain, .mfs-section .field select.uncertain,
+.cell-edit.uncertain, input.uncertain, select.uncertain {
+  border-color: #F59E0B !important;   /* ambra */
+  background: #FFFBEB !important;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.20) inset;
+}
+.mfs-section .field input.missing, .mfs-section .field select.missing,
+.cell-edit.missing, input.missing, select.missing {
+  border-color: #EF4444 !important;   /* rosso */
+  background: #FEF2F2 !important;
+  box-shadow: 0 0 0 1px rgba(239,68,68,0.22) inset;
+}
+.field-hint {
+  font-size: 10px; grid-column: 2; margin-top: -2px;
+  color: #92400E; font-style: italic;
+}
+.field-hint.missing { color: #991B1B; }
+tr.row-warn { background: #FFFBEB; }
+tr.row-warn:hover { background: #FEF3C7; }
+.badge-uncertain, .badge-missing {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; margin-left: 6px;
+  vertical-align: middle; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.badge-uncertain { background: #FEF3C7; color: #92400E; }
+.badge-missing { background: #FEE2E2; color: #991B1B; }
 .mfs-section .field .ro {
   font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px;
   color: var(--text); font-weight: 600; padding: 7px 0;
@@ -1948,11 +1975,11 @@ function renderArticoli() {
       </td>
       <td class="n"><input type="number" class="cell-edit" value="${a.quantita || 1}" min="1" style="text-align:right; max-width:60px;" onchange="updateArt(${i}, 'quantita', this.value, true)"></td>
       <td>
-        <select class="cell-edit" onchange="updateArt(${i}, 'materiale', this.value)">
+        <select class="cell-edit ${!a.materiale ? 'missing' : ((a._materiale_conf ?? 1) < 0.7 ? 'uncertain' : '')}" onchange="updateArt(${i}, 'materiale', this.value)">
           ${MATERIALI.map(m => `<option value="${m}" ${a.materiale === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}
         </select>
       </td>
-      <td class="n"><input type="number" class="cell-edit" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right; max-width:60px;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
+      <td class="n"><input type="number" class="cell-edit ${(!a.spessore_mm) ? 'missing' : (((a._spessore_conf ?? 1) < 0.7 || a.dxf_needs_verify) ? 'uncertain' : '')}" value="${a.spessore_mm || ''}" step="0.1" min="0" style="text-align:right; max-width:60px;" onchange="updateArt(${i}, 'spessore_mm', this.value, true)"></td>
       <td class="n"><input type="number" class="cell-edit" value="${(a.area_dm2||0).toFixed(2)}" step="0.01" min="0" style="text-align:right; max-width:80px;" onchange="updateArt(${i},'area_dm2',this.value,true)"></td>
       <td class="n"><input type="number" class="cell-edit" value="${Math.round((a.perimetro_taglio_m||0)*1000)}" step="1" min="0" style="text-align:right; max-width:80px;" onchange="updateArtPerimMm(${i}, this.value)"></td>
       <td class="n"><input type="number" class="cell-edit" value="${a.n_forature||0}" step="1" min="0" style="text-align:right; max-width:56px;" onchange="updateArt(${i},'n_forature',this.value,true)"></td>
@@ -2363,6 +2390,9 @@ async function madSelectPoint(x_mm, y_mm) {
     document.getElementById('mad-perim').value = Math.round(a.perimetro_taglio_m * 1000);
     document.getElementById('mad-forature').value = a.n_forature;
 
+    // Ricalcolo spessore con nuova area (se abbiamo peso + materiale)
+    await _ricalcolaSpessoreArt(a);
+
     // Banner verde conferma
     const banner = document.getElementById('mad-verify-banner');
     banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
@@ -2370,6 +2400,7 @@ async function madSelectPoint(x_mm, y_mm) {
     document.getElementById('mad-verify-text').innerHTML =
       `✓ Pezzo trovato. Area <b>${a.area_dm2.toFixed(2)} dm²</b>, perimetro <b>${Math.round(a.perimetro_taglio_m * 1000)} mm</b>, <b>${a.n_forature}</b> elementi (1 contorno + ${(j.n_inner || 0)} interni).`;
 
+    document.getElementById('mad-spessore').value = a.spessore_mm || '';
     renderArticoli();
     recalcTotali();
     madRefreshCosts();
@@ -2687,6 +2718,20 @@ function madUpdate(field, value, numeric) {
   if (['pieghe', 'saldatura_ml', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
     recalcLavorazioniArt(a);
   }
+  // Se l'utente ha appena scelto il materiale (o cambiato area), ricalcolo spessore
+  if (field === 'materiale' || field === 'area_dm2') {
+    _ricalcolaSpessoreArt(a).then(() => {
+      document.getElementById('mad-spessore').value = a.spessore_mm || '';
+      madRefreshCosts();
+      renderArticoli();
+    });
+  }
+  // Se l'utente ha modificato manualmente lo spessore, considera dato attendibile
+  if (field === 'spessore_mm') {
+    a._spessore_conf = 1.0;
+    a._spessore_source = 'manuale';
+    a._spessore_details = {};
+  }
   madRefreshCosts();
   renderArticoli();  // aggiorna tabella origine
   recalcTotali();
@@ -2702,9 +2747,95 @@ function madPerimUpdate(valMm) {
   recalcTotali();
 }
 
+/**
+ * Ricalcola lo spessore per un articolo dopo cambio area/materiale.
+ * Chiama backend /spessore endpoint. Aggiorna a.spessore_mm + a._spessore_conf.
+ * Non fa nulla se manca DXF o materiale.
+ */
+async function _ricalcolaSpessoreArt(a) {
+  if (!a || !a.dxf_filename || !currentPreventivo || !a.materiale) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/spessore`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ area_dm2: a.area_dm2, materiale: a.materiale }),
+    });
+    const d = await r.json();
+    if (!d.success || !d.spessore) return;
+    const sp = d.spessore;
+    if (sp.spessore_mm != null && sp.confidence >= 0.5) {
+      a.spessore_mm = sp.spessore_mm;
+    }
+    a._spessore_conf = sp.confidence;
+    a._spessore_source = sp.source;
+    a._spessore_details = sp.details || {};
+  } catch (e) { console.warn('ricalcola spessore failed', e); }
+}
+
+/**
+ * Applica classi visive .missing/.uncertain sui campi materiale + spessore
+ * del modal, in base a _materiale_conf / _spessore_conf / needs_verify.
+ * Regole:
+ *  - manca (missing): valore null/vuoto → bordo rosso
+ *  - incerto (uncertain): valore presente ma conf < 0.7 o area needs_verify → ambra
+ *  - ok: rimuove le classi
+ */
+function _madApplyFlags(a) {
+  const matSel = document.getElementById('mad-materiale');
+  const spInp = document.getElementById('mad-spessore');
+  if (!matSel || !spInp) return;
+  const matConf = a._materiale_conf ?? 1.0;
+  const spConf = a._spessore_conf ?? 1.0;
+  const areaVerify = !!a.dxf_needs_verify;
+  // Materiale
+  matSel.classList.remove('missing', 'uncertain');
+  if (!a.materiale) matSel.classList.add('missing');
+  else if (matConf < 0.7) matSel.classList.add('uncertain');
+  // Spessore
+  spInp.classList.remove('missing', 'uncertain');
+  if (a.spessore_mm == null || a.spessore_mm === '' || a.spessore_mm === 0) {
+    spInp.classList.add('missing');
+  } else if (spConf < 0.7 || areaVerify) {
+    spInp.classList.add('uncertain');
+  }
+  // Hint sotto lo spessore
+  let hint = document.getElementById('mad-sp-hint');
+  const wrap = spInp.parentElement;
+  const details = a._spessore_details || {};
+  let hintText = '';
+  if (a.spessore_mm == null || a.spessore_mm === 0) {
+    hintText = 'MANCA — inserire manualmente';
+  } else if (areaVerify) {
+    hintText = 'INCERTO — area da confermare con "Trova pezzo"';
+  } else if (spConf < 0.7) {
+    if (a._spessore_source === 'peso_area' && details.errore_std_pct != null) {
+      hintText = `INCERTO — err. ${details.errore_std_pct}% vs valore commerciale`;
+    } else if (a._spessore_source === 'filename') {
+      hintText = 'INCERTO — dedotto da nome file';
+    } else {
+      hintText = 'INCERTO — verificare';
+    }
+  } else if (a._spessore_source === 'peso_area') {
+    hintText = `✓ da peso ${details.peso_kg?.toFixed(3) || '-'}kg × area × densità`;
+  }
+  if (hintText) {
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'mad-sp-hint';
+      hint.className = 'field-hint';
+      wrap.appendChild(hint);
+    }
+    hint.className = 'field-hint' + ((a.spessore_mm == null || a.spessore_mm === 0) ? ' missing' : '');
+    hint.textContent = hintText;
+  } else if (hint) {
+    hint.remove();
+  }
+}
+
 function madRefreshCosts() {
   if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
   const a = currentArticoli[_madCurrentIdx];
+  _madApplyFlags(a);
   const base = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
   document.getElementById('mad-c-base').textContent = formatEurStr(base);
   document.getElementById('mad-c-piega').textContent = formatEurStr(a.costo_piega || 0);
@@ -3209,19 +3340,37 @@ async function uploadDxf(file, suppressMsg) {
       ex.dxf_filename = d.filename || file.name;
       ex.dxf_needs_verify = !!d.geometria.needs_manual_select;
       ex.dxf_confidence = d.geometria.confidence || 1;
+      // Se Lantek non aveva ancora impostato spessore/materiale, uso il calc DXF
+      if (!ex.materiale && d.cartiglio && d.cartiglio.materiale) {
+        ex.materiale = d.cartiglio.materiale;
+        ex._materiale_conf = d.cartiglio.confidence || 0;
+      }
+      if (!ex.spessore_mm && d.spessore && d.spessore.spessore_mm) {
+        ex.spessore_mm = d.spessore.spessore_mm;
+      }
+      ex._spessore_conf = (d.spessore || {}).confidence || 0;
+      ex._spessore_source = (d.spessore || {}).source || 'none';
+      ex._spessore_details = (d.spessore || {}).details || {};
       recalcLavorazioniArt(ex);
       if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente (lavorazioni aggiornate, materiale mantenuto).`, 'var(--green)');
       renderArticoli(); recalcTotali();
       return;
     }
-    // Articolo NUOVO da DXF puro: usa materiale dal cartiglio se rilevato (alta confidenza)
+    // Articolo NUOVO da DXF puro
     const cartiglio = d.cartiglio || {};
-    const matFromCartiglio = (cartiglio.confidence >= 0.8) ? cartiglio.materiale : '';
+    const matFromCartiglio = (cartiglio.confidence >= 0.8) ? cartiglio.materiale : (cartiglio.materiale || '');
+    const spInfo = d.spessore || {};
+    const spFromCalc = (spInfo.spessore_mm != null && spInfo.confidence >= 0.5) ? spInfo.spessore_mm : null;
     currentArticoli.push({
       id: 'tmp-' + Date.now() + '-' + Math.random(),
       codice: fname,
       quantita: 1,
-      materiale: matFromCartiglio, spessore_mm: null,  // materiale da cartiglio o vuoto; spessore sempre vuoto
+      materiale: matFromCartiglio, spessore_mm: spFromCalc,
+      // Confidence per highlighting UI (usa dal server)
+      _materiale_conf: cartiglio.confidence || 0,
+      _spessore_conf: spInfo.confidence || 0,
+      _spessore_source: spInfo.source || 'none',
+      _spessore_details: spInfo.details || {},
       area: 0, area_dm2: d.geometria.area_dm2 || 0,
       perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
       n_forature: d.geometria.n_forature || 0,

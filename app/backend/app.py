@@ -1885,6 +1885,20 @@ def api_preventivi_import_dxf(preventivo_id):
                 logger.warning('detector v3 fallito, fallback v2: %s', _v3err)
                 geo = _dxf_scanner.estrai_geometria_taglio(tmp_path, dxf_cfg)
             cartiglio = _dxf_scanner.estrai_materiale_da_cartiglio(tmp_path)
+            # Stima spessore: peso da cartiglio + area detector + materiale.
+            # Alta affidabilità quando l'area è del pezzo vero (post trova-pezzo)
+            # e materiale è stato riconosciuto. Se auto-detect ha bassa confidenza
+            # sull'area, lo spessore ritornato va marcato come incerto in UI.
+            mat_for_calc = cartiglio.get('materiale') if cartiglio.get('confidence', 0) >= 0.5 else None
+            spessore = _dxf_scanner.estrai_spessore_da_cartiglio(
+                tmp_path,
+                area_dm2=(geo or {}).get('area_dm2'),
+                materiale=mat_for_calc,
+            )
+            # Se l'area del detector è inaffidabile, abbatto la confidenza
+            # dello spessore (dipende dall'area).
+            if geo and geo.get('needs_manual_select'):
+                spessore = {**spessore, 'confidence': min(spessore.get('confidence', 0), 0.4)}
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
             # per consentire la preview successiva. Cleanup quando preventivo viene
             # accettato/rifiutato/eliminato.
@@ -1901,6 +1915,7 @@ def api_preventivi_import_dxf(preventivo_id):
             },
             'geometria': geo,
             'cartiglio': cartiglio,  # {materiale, materiale_raw, confidence}
+            'spessore': spessore,    # {spessore_mm, confidence, source, details}
         }), 200
     except Exception as e:
         logger.exception('preventivi import dxf failed')
@@ -2004,6 +2019,32 @@ def api_preventivi_dxf_candidates(preventivo_id, filename):
         return jsonify({'success': True, **r}), 200
     except Exception as e:
         logger.exception('dxf_candidates failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/spessore', methods=['POST'])
+def api_preventivi_dxf_spessore(preventivo_id, filename):
+    """Ricalcola lo spessore lamiera per un DXF dato area (dal detector/manuale)
+    e materiale (che l'utente potrebbe aver cambiato dopo l'import).
+
+    Body: {area_dm2: float, materiale: str}
+    Response: {success, spessore: {spessore_mm, confidence, source, details}}
+    """
+    try:
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        data = request.get_json(silent=True) or {}
+        area = float(data.get('area_dm2') or 0)
+        mat = (data.get('materiale') or '').strip()
+        sp = _dxf_scanner.estrai_spessore_da_cartiglio(dxf_path,
+                                                       area_dm2=area or None,
+                                                       materiale=mat or None)
+        return jsonify({'success': True, 'spessore': sp}), 200
+    except Exception as e:
+        logger.exception('dxf spessore failed')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

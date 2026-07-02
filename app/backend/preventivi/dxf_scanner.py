@@ -349,6 +349,238 @@ def estrai_materiale_da_cartiglio(path: str) -> dict:
     return {'materiale': '', 'materiale_raw': '', 'confidence': 0.0}
 
 
+def _raccogli_testi_dxf(path: str) -> list[tuple[float, float, str]]:
+    """Raccoglie TEXT/MTEXT dal DXF con pulizia codici e coordinate.
+
+    Returns lista di (x, y, testo_pulito).
+    """
+    import re
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception:
+        return []
+    testi = []
+    for e in doc.modelspace():
+        if e.dxftype() not in ('MTEXT', 'TEXT'):
+            continue
+        try:
+            t = (e.dxf.text or '').strip()
+            if not t:
+                continue
+            t_clean = re.sub(r'\\[A-Za-z][^;]*;', '', t)
+            t_clean = re.sub(r'\{|\}', '', t_clean)
+            t_clean = re.sub(r'\\U\+([0-9A-Fa-f]{4})', '', t_clean).strip()
+            if not t_clean:
+                continue
+            x = float(e.dxf.insert.x)
+            y = float(e.dxf.insert.y)
+            testi.append((x, y, t_clean))
+        except Exception:
+            continue
+    return testi
+
+
+def estrai_peso_da_cartiglio(path: str) -> dict:
+    """Estrae il peso in kg dal cartiglio del DXF.
+
+    Pattern univoco "Peso kg", "Peso (kg)", "Weight kg", "Peso:" seguito
+    da un numero (o numero vicino spazialmente se in TEXT separato).
+
+    Returns:
+        {peso_kg: float|None, peso_raw: str, confidence: 0..1,
+         source: 'inline'|'label'|'none'}
+    """
+    import re
+    import math as _math
+
+    testi = _raccogli_testi_dxf(path)
+    if not testi:
+        return {'peso_kg': None, 'peso_raw': '', 'confidence': 0.0, 'source': 'none'}
+
+    def _parse_num(s: str) -> float | None:
+        s = s.strip().replace(',', '.')
+        try:
+            v = float(s)
+            # Peso pezzo plausibile: 0.001 kg (1g) - 2000 kg
+            if 0.001 <= v <= 2000.0:
+                return v
+        except ValueError:
+            pass
+        return None
+
+    # --- 1. INLINE: "Peso Kg 0.34", "Peso: 0.34 kg", "Weight 12.5" ---
+    RX_INLINE = re.compile(
+        r'\b(?:peso|weight)\b\s*(?:\(?\s*kg\s*\)?)?\s*[:=]?\s*(\d+[.,]?\d*)\s*(?:kg)?\b',
+        re.IGNORECASE,
+    )
+    for x, y, t in testi:
+        m = RX_INLINE.search(t)
+        if m:
+            v = _parse_num(m.group(1))
+            if v is not None:
+                return {'peso_kg': v, 'peso_raw': t, 'confidence': 0.95, 'source': 'inline'}
+
+    # --- 2. LABEL + numero vicino ---
+    # Cerca TEXT che sia solo la label "Peso kg" / "Peso" / "Weight"
+    LABEL_RX = re.compile(r'^\s*(?:peso|weight)\b\s*(?:\(?\s*kg\s*\)?)?[:=]?\s*$',
+                          re.IGNORECASE)
+    label_pos = None
+    for x, y, t in testi:
+        if LABEL_RX.match(t):
+            label_pos = (x, y)
+            break
+    if label_pos:
+        lx, ly = label_pos
+        best = None
+        best_dist = float('inf')
+        NUM_ONLY_RX = re.compile(r'^\s*(\d+[.,]?\d*)\s*(?:kg)?\s*$', re.IGNORECASE)
+        for x, y, t in testi:
+            if (x, y) == label_pos:
+                continue
+            m = NUM_ONLY_RX.match(t)
+            if not m:
+                continue
+            v = _parse_num(m.group(1))
+            if v is None:
+                continue
+            d = _math.hypot(x - lx, y - ly)
+            if d < best_dist:
+                best_dist = d
+                best = (v, t, d)
+        if best:
+            # Peso in cartiglio raramente lontano dalla label. Se dist > 50 unità
+            # DXF, la confidence cala.
+            conf = max(0.5, min(0.95, 1.0 - (best[2] / 200.0)))
+            return {'peso_kg': best[0], 'peso_raw': best[1],
+                    'confidence': round(conf, 2), 'source': 'label'}
+
+    return {'peso_kg': None, 'peso_raw': '', 'confidence': 0.0, 'source': 'none'}
+
+
+# Densità standard (kg/dm3) usate per stima spessore da peso+area.
+# Aligned con laser_cost_estimator.DEFAULT_LASER_CONFIG['materiali'].
+_DENSITA_STD = {
+    'S235': 7.85, 'ZINCATO': 7.85, 'INOX_304': 8.00, 'INOX_316': 8.00,
+    'ALU': 2.70, 'ALU_5754': 2.70, 'ALU_5083': 2.66, 'OTTONE': 8.50,
+}
+
+
+def stima_spessore_da_peso(peso_kg: float, area_dm2: float,
+                            materiale: str) -> dict:
+    """Calcola spessore da peso × area × densità del materiale.
+
+    Formula: spessore_mm = peso_kg / (area_dm2 * densita_kg_dm3) * 100
+    (area in dm², spessore in dm = mm/100)
+
+    Returns:
+        {spessore_mm, confidence, source='peso_area', peso_kg, area_dm2, densita}
+        oppure vuoto se input non plausibili.
+    """
+    if not peso_kg or peso_kg <= 0 or not area_dm2 or area_dm2 <= 0:
+        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none'}
+    mat_key = (materiale or '').strip().upper()
+    densita = _DENSITA_STD.get(mat_key)
+    if not densita:
+        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none'}
+    # spessore in dm = peso / (area * densita); convert to mm
+    sp = (peso_kg / (area_dm2 * densita)) * 100.0
+    if sp <= 0 or sp > 60.0:
+        # Fuori range plausibile → probabilmente area/materiale sbagliati
+        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none'}
+    # Arrotonda ai valori commerciali standard più vicini (0.5, 0.6, 0.8, 1, 1.2, ...)
+    STD_SPESSORI = [0.5, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0,
+                    6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 25.0, 30.0]
+    nearest = min(STD_SPESSORI, key=lambda s: abs(s - sp))
+    err_pct = abs(nearest - sp) / nearest * 100
+    # Se il calcolo torna vicino a un valore commerciale (errore < 15%),
+    # confidence alta. Altrimenti media.
+    if err_pct < 5:
+        conf = 0.95
+    elif err_pct < 15:
+        conf = 0.80
+    else:
+        conf = 0.55
+    return {
+        'spessore_mm': round(nearest, 2),
+        'spessore_calc_raw': round(sp, 3),
+        'confidence': conf,
+        'source': 'peso_area',
+        'peso_kg': peso_kg,
+        'area_dm2': area_dm2,
+        'densita': densita,
+        'errore_std_pct': round(err_pct, 1),
+    }
+
+
+def estrai_spessore_da_cartiglio(path: str, area_dm2: float | None = None,
+                                  materiale: str | None = None) -> dict:
+    """Estrae/calcola lo spessore lamiera con la migliore strategia disponibile.
+
+    Priorità:
+    1. PESO + AREA + MATERIALE → calcolo fisico (più affidabile).
+       Il peso si estrae dal cartiglio con pattern univoco "Peso kg".
+    2. Fallback: nome file (`_sp3`, `_10mm`).
+
+    Non usa più la ricerca "Sp." nel testo perché è troppo ambigua
+    (matcha smussi, tolleranze, quote): dava risultati sbagliati sui 7 DXF
+    del cliente.
+
+    Returns:
+        {spessore_mm: float|None, confidence: 0..1,
+         source: 'peso_area'|'filename'|'none',
+         details: dict con peso_kg, densita, errore_std_pct, ecc. per debug UI}
+    """
+    peso_info = estrai_peso_da_cartiglio(path)
+    peso = peso_info.get('peso_kg')
+
+    if peso and area_dm2 and materiale:
+        sp_info = stima_spessore_da_peso(peso, area_dm2, materiale)
+        if sp_info.get('spessore_mm'):
+            # Confidence finale = min(peso, calc) — se peso incerto abbassa
+            conf = min(peso_info['confidence'], sp_info['confidence'])
+            return {
+                'spessore_mm': sp_info['spessore_mm'],
+                'confidence': round(conf, 2),
+                'source': 'peso_area',
+                'details': {
+                    'peso_kg': peso,
+                    'peso_source': peso_info['source'],
+                    'peso_raw': peso_info['peso_raw'],
+                    'area_dm2': area_dm2,
+                    'materiale': materiale,
+                    'densita_kg_dm3': sp_info['densita'],
+                    'spessore_calc_raw': sp_info['spessore_calc_raw'],
+                    'errore_std_pct': sp_info['errore_std_pct'],
+                },
+            }
+
+    # Fallback su filename
+    return _spessore_from_filename(path)
+
+
+def _spessore_from_filename(path: str) -> dict:
+    """Cerca spessore nel nome file: '_sp3', '_10mm', 'sp.3', 'sp3.0'."""
+    import re
+    import os
+    name = os.path.basename(path)
+    patterns = [
+        re.compile(r'[_\-\s]sp\.?[_\-\s]?(\d+[.,]?\d*)\s*(?:mm)?', re.IGNORECASE),
+        re.compile(r'[_\-\s](\d+[.,]?\d*)\s*mm(?=[_\-\.]|$)', re.IGNORECASE),
+    ]
+    for rx in patterns:
+        m = rx.search(name)
+        if m:
+            try:
+                v = float(m.group(1).replace(',', '.'))
+                if 0.3 <= v <= 30.0:
+                    return {'spessore_mm': v, 'confidence': 0.75,
+                            'source': 'filename', 'details': {'raw': m.group(0)}}
+            except ValueError:
+                pass
+    return {'spessore_mm': None, 'confidence': 0.0,
+            'source': 'none', 'details': {}}
+
+
 def dxf_to_svg_string(path: str) -> str:
     """Converte un DXF in stringa SVG ad alta fedeltà via ezdxf SVGBackend.
 
