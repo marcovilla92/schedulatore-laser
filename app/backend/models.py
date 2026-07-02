@@ -286,6 +286,7 @@ class PreventivoArticolo(Base):
     n_forature = Column(Integer, nullable=False, default=0)
     spessore_mm = Column(Float, nullable=True)  # inserito dal commerciale
     materiale = Column(String, nullable=True)  # 'S235'|'INOX_304'|'ALU_5754'|...
+    dxf_filename = Column(String, nullable=True)  # file DXF associato (per preview + trova-pezzo)
     # --- costo base (taglio + materiale) ---
     costo_materiale = Column(Float, nullable=False, default=0.0)  # da XLSX Lantek se importato
     costo_base_stimato = Column(Float, nullable=False, default=0.0)  # da laser_cost_estimator
