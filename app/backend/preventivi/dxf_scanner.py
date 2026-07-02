@@ -355,10 +355,15 @@ def dxf_to_svg_string(path: str) -> str:
     Rendering completo: colori, spessori, archi, spline, polyline complesse —
     qualunque entità DXF supportata dal `Frontend` di ezdxf viene riprodotta
     fedelmente. Usato dalla preview interattiva in `preview-dxf.html`.
+
+    Il viewBox del SVG risultante è impostato a partire dal bbox reale del DXF,
+    così che il frontend possa fare screen→DXF con una semplice trasformazione
+    affine (viewBox coord = mm DXF, a meno del flip Y-up→Y-down).
     """
     from ezdxf.addons.drawing import Frontend, RenderContext
     from ezdxf.addons.drawing.svg import SVGBackend
     from ezdxf.addons.drawing import layout
+    from ezdxf.bbox import extents
 
     doc = ezdxf.readfile(path)
     msp = doc.modelspace()
@@ -368,6 +373,23 @@ def dxf_to_svg_string(path: str) -> str:
     frontend = Frontend(ctx, backend)
     frontend.draw_layout(msp)
 
+    # Passiamo dimensioni pagina esatte in mm (senza margini) così il viewBox
+    # SVG mappa 1:1 alla bbox DXF. Se il bbox non è disponibile (DXF vuoto),
+    # fallback a layout auto (Page(0,0)).
+    try:
+        bb = extents(msp)
+        if bb.has_data:
+            w_mm = float(bb.extmax.x - bb.extmin.x)
+            h_mm = float(bb.extmax.y - bb.extmin.y)
+            if w_mm > 0 and h_mm > 0:
+                page = layout.Page(
+                    w_mm, h_mm,
+                    units=layout.Units.mm,
+                    margins=layout.Margins.all(0),
+                )
+                return backend.get_string(page)
+    except Exception:
+        pass
     return backend.get_string(layout.Page(0, 0))
 
 
