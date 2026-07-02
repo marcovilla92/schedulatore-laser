@@ -1894,11 +1894,11 @@ async function openPreventivo(id) {
     // Assicurati che i costi lavorazione siano allineati coi coefficienti correnti
     await fetchPreventiviCfg();
     currentArticoli.forEach(recalcLavorazioniArt);
-    // Render immediato — non blocchiamo l'apertura del preventivo per i ricalcoli
     populateEditor(p);
     switchTab('editor');
-    // Ricalcolo spessore + auto-stima in BACKGROUND, sequenziale (dev server single-thread)
-    _backgroundEnrichArticoli();
+    // NB: nessuna auto-stima/ricalcolo in background — l'utente clicca "Stima"
+    // manualmente. L'automazione precedente saturava il server single-thread
+    // durante l'apertura e faceva ritardare disegni + creazione preventivo.
   } catch (e) { alert('Errore: ' + e.message); }
 }
 
@@ -2047,17 +2047,13 @@ function updateArt(idx, field, value, numeric) {
   if (!currentArticoli[idx]) return;
   const a = currentArticoli[idx];
   a[field] = numeric ? parseFloat(value) || 0 : value;
-  // Se l'utente edita manualmente lo spessore, marca come dato certo
   if (field === 'spessore_mm' && a[field] > 0) {
     a._spessore_conf = 1.0;
     a._spessore_source = 'manuale';
   }
-  // Se cambia un campo essenziale + tutti i dati sono ora completi → auto-stima
-  if (['materiale', 'spessore_mm', 'area_dm2', 'perimetro_taglio_m', 'n_forature'].includes(field)) {
-    _autoStimaIfComplete(idx);
-  }
   recalcTotali();
-  scheduleSaveArticoli();
+  // Nessun autosave qui: si salva col bottone "Salva modifiche" o al termine
+  // di un'operazione esplicita (import DXF, Stima).
 }
 
 /**
@@ -2083,7 +2079,6 @@ function updateArtPerimMm(idx, valMm) {
   if (!currentArticoli[idx]) return;
   currentArticoli[idx].perimetro_taglio_m = (parseFloat(valMm) || 0) / 1000.0;
   recalcTotali();
-  scheduleSaveArticoli();
 }
 
 function addArticoloManuale() {
@@ -2469,11 +2464,6 @@ async function madSelectPoint(x_mm, y_mm) {
     document.getElementById('mad-perim').value = Math.round(a.perimetro_taglio_m * 1000);
     document.getElementById('mad-forature').value = a.n_forature;
 
-    // Ricalcolo spessore con nuova area (se abbiamo peso + materiale)
-    await _ricalcolaSpessoreArt(a);
-    // Auto-stima se ora tutti i dati sono OK
-    await _autoStimaIfComplete(_madCurrentIdx);
-
     // Banner verde conferma
     const banner = document.getElementById('mad-verify-banner');
     banner.style.background = 'linear-gradient(90deg,rgba(34,197,94,0.10),rgba(34,197,94,0.02))';
@@ -2485,7 +2475,7 @@ async function madSelectPoint(x_mm, y_mm) {
     renderArticoli();
     recalcTotali();
     madRefreshCosts();
-    scheduleSaveArticoli(200);
+    scheduleSaveArticoli(300);
   } catch (e) {
     alert('Errore trova pezzo: ' + e.message);
   }
@@ -2796,33 +2786,21 @@ function madUpdate(field, value, numeric) {
   if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
   const a = currentArticoli[_madCurrentIdx];
   a[field] = numeric ? (parseFloat(value) || 0) : value;
-  scheduleSaveArticoli();
-  // Se cambia una quantità lavorazione post-taglio, ricalcolo i costi relativi
+  // Ricalcolo dei costi di lavorazione (piega/sald/filett/svas) su cambio
   if (['pieghe', 'saldatura_ml', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
     recalcLavorazioniArt(a);
   }
-  // Se l'utente ha appena scelto il materiale (o cambiato area), ricalcolo spessore
-  if (field === 'materiale' || field === 'area_dm2') {
-    _ricalcolaSpessoreArt(a).then(async () => {
-      document.getElementById('mad-spessore').value = a.spessore_mm || '';
-      await _autoStimaIfComplete(_madCurrentIdx);
-      madRefreshCosts();
-      renderArticoli();
-    });
-  }
-  // Se l'utente ha modificato manualmente lo spessore, considera dato attendibile
+  // Spessore manuale = dato certo
   if (field === 'spessore_mm') {
     a._spessore_conf = 1.0;
     a._spessore_source = 'manuale';
     a._spessore_details = {};
   }
-  // Auto-stima se tutti i dati essenziali sono presenti
-  if (['materiale', 'spessore_mm', 'area_dm2', 'perimetro_taglio_m', 'n_forature'].includes(field)) {
-    _autoStimaIfComplete(_madCurrentIdx).then(() => { madRefreshCosts(); renderArticoli(); });
-  }
   madRefreshCosts();
-  renderArticoli();  // aggiorna tabella origine
+  renderArticoli();
   recalcTotali();
+  // NB: nessuna auto-stima né autosave a ogni edit. L'utente clicca esplicitamente
+  // "Ristima costo laser" e "Salva modifiche".
 }
 
 // Perimetro: UI in mm, backend in metri
@@ -2833,7 +2811,6 @@ function madPerimUpdate(valMm) {
   madRefreshCosts();
   renderArticoli();
   recalcTotali();
-  scheduleSaveArticoli();
 }
 
 /**
@@ -3486,10 +3463,9 @@ async function uploadDxf(file, suppressMsg) {
       ex._spessore_source = (d.spessore || {}).source || 'none';
       ex._spessore_details = (d.spessore || {}).details || {};
       recalcLavorazioniArt(ex);
-      await _autoStimaIfComplete(existingIdx);
-      if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente (lavorazioni aggiornate, materiale mantenuto).`, 'var(--green)');
+      if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente. Clicca "Stima" per calcolare il costo.`, 'var(--green)');
       renderArticoli(); recalcTotali();
-      scheduleSaveArticoli(200);  // salvataggio veloce dopo import
+      scheduleSaveArticoli(300);
       return;
     }
     // Articolo NUOVO da DXF puro
@@ -3522,9 +3498,8 @@ async function uploadDxf(file, suppressMsg) {
       dxf_confidence: d.geometria.confidence || 1,
     });
     recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
-    await _autoStimaIfComplete(currentArticoli.length - 1);
     renderArticoli(); recalcTotali();
-    scheduleSaveArticoli(200);
+    scheduleSaveArticoli(300);
     if (!suppressMsg) {
       const matMsg = matFromCartiglio
         ? `materiale rilevato dal cartiglio: ${matFromCartiglio} (${cartiglio.materiale_raw})`
