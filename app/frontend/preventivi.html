@@ -1327,15 +1327,6 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
             </select>
           </div>
           <div class="field"><label>Spessore (mm)</label><input type="number" id="mad-spessore" step="0.1" onchange="madUpdate('spessore_mm', this.value, true)"></div>
-          <div class="field"><label>Gas taglio</label>
-            <select id="mad-gas" onchange="madUpdate('gas_taglio', this.value)">
-              <option value="">Auto (S235&le;3&rarr;N2, &gt;3&rarr;O2, altri&rarr;N2)</option>
-              <option value="N2">N2 (azoto)</option>
-              <option value="O2">O2 (ossigeno)</option>
-              <option value="AIR">AIR (aria)</option>
-              <option value="FIBRA">FIBRA</option>
-            </select>
-          </div>
         </div>
 
         <div class="mfs-section">
@@ -2108,7 +2099,6 @@ async function openArtModal(idx) {
   document.getElementById('mad-qty').value = a.quantita || 1;
   document.getElementById('mad-materiale').value = a.materiale || '';
   document.getElementById('mad-spessore').value = a.spessore_mm || '';
-  document.getElementById('mad-gas').value = a.gas_taglio || '';
   document.getElementById('mad-area').value = (a.area_dm2 || 0).toFixed(2);
   document.getElementById('mad-perim').value = Math.round((a.perimetro_taglio_m || 0) * 1000);
   document.getElementById('mad-forature').value = a.n_forature || 0;
