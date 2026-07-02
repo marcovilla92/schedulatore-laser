@@ -1,0 +1,1071 @@
+{
+  "metadata": {
+    "fonte": "Lantek Expert cliente — parametri_taglio_completi_aggiornati.xlsx",
+    "importato_il": "2026-07-02",
+    "n_ricette": 116,
+    "materiali": [
+      "ALU",
+      "INOX_304",
+      "OTTONE",
+      "S235",
+      "ZINCATO"
+    ],
+    "gas": [
+      "AIR",
+      "FIBRA",
+      "N2",
+      "O2"
+    ],
+    "note": "Nome ricetta originale conservato in nome_ricetta_lantek. Encoding FIBRA ripristinato da FI[replacement].",
+    "regola_gas_default": {
+      "S235": "N2 se spessore <= 3mm, O2 se spessore > 3mm",
+      "default_altri_materiali": "N2"
+    }
+  },
+  "ricette": [
+    {
+      "rid": 165,
+      "materiale": "ALU",
+      "gas": "AIR",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 37000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_AIR"
+    },
+    {
+      "rid": 166,
+      "materiale": "ALU",
+      "gas": "AIR",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 35000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_AIR"
+    },
+    {
+      "rid": 167,
+      "materiale": "ALU",
+      "gas": "AIR",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 32000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_AIR"
+    },
+    {
+      "rid": 168,
+      "materiale": "ALU",
+      "gas": "AIR",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 29000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_AIR"
+    },
+    {
+      "rid": 169,
+      "materiale": "ALU",
+      "gas": "AIR",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 26000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_AIR"
+    },
+    {
+      "rid": 170,
+      "materiale": "ALU",
+      "gas": "AIR",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 14500.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_AIR"
+    },
+    {
+      "rid": 195,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 9500.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 196,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 8000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 197,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 7200.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 198,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 6800.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 199,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 6500.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 200,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 6000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 201,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 5500.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 202,
+      "materiale": "ALU",
+      "gas": "FIBRA",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 5000.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_FI…"
+    },
+    {
+      "rid": 55,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 32000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 56,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 57,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 28000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 58,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 26000.0,
+      "pierce_time_s": 0.9,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 59,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 23000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 60,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 13000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 61,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 15000.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 62,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 8000.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 63,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 4.0,
+      "velocita_mm_min": 4000.0,
+      "pierce_time_s": 3.0,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 64,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 5.0,
+      "velocita_mm_min": 3100.0,
+      "pierce_time_s": 3.75,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 65,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 6.0,
+      "velocita_mm_min": 2300.0,
+      "pierce_time_s": 4.5,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 66,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 8.0,
+      "velocita_mm_min": 1350.0,
+      "pierce_time_s": 6.0,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 67,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 10.0,
+      "velocita_mm_min": 900.0,
+      "pierce_time_s": 7.5,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 68,
+      "materiale": "ALU",
+      "gas": "N2",
+      "spessore_mm": 12.0,
+      "velocita_mm_min": 625.0,
+      "pierce_time_s": 9.0,
+      "nome_ricetta_lantek": "ALUMINIUM/ALLUMINIO_N2"
+    },
+    {
+      "rid": 135,
+      "materiale": "INOX_304",
+      "gas": "AIR",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_AIR"
+    },
+    {
+      "rid": 136,
+      "materiale": "INOX_304",
+      "gas": "AIR",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 28000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_AIR"
+    },
+    {
+      "rid": 137,
+      "materiale": "INOX_304",
+      "gas": "AIR",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 26000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_AIR"
+    },
+    {
+      "rid": 138,
+      "materiale": "INOX_304",
+      "gas": "AIR",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 22000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_AIR"
+    },
+    {
+      "rid": 139,
+      "materiale": "INOX_304",
+      "gas": "AIR",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 18000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_AIR"
+    },
+    {
+      "rid": 140,
+      "materiale": "INOX_304",
+      "gas": "AIR",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 15000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_AIR"
+    },
+    {
+      "rid": 180,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 9500.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 181,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 8000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 182,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 7200.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 183,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 6800.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 184,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 6500.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 185,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 6000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 186,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 5500.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 187,
+      "materiale": "INOX_304",
+      "gas": "FIBRA",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 5000.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_FI…"
+    },
+    {
+      "rid": 20,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 21,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 29000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 22,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 18000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 23,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 23000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 24,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 13500.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 25,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 9950.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 26,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 8500.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 27,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 7400.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 28,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 4.0,
+      "velocita_mm_min": 4400.0,
+      "pierce_time_s": 3.0,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 29,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 5.0,
+      "velocita_mm_min": 3000.0,
+      "pierce_time_s": 3.75,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 30,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 6.0,
+      "velocita_mm_min": 2500.0,
+      "pierce_time_s": 4.5,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 31,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 8.0,
+      "velocita_mm_min": 1100.0,
+      "pierce_time_s": 6.0,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 32,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 10.0,
+      "velocita_mm_min": 900.0,
+      "pierce_time_s": 7.5,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 33,
+      "materiale": "INOX_304",
+      "gas": "N2",
+      "spessore_mm": 12.0,
+      "velocita_mm_min": 680.0,
+      "pierce_time_s": 9.0,
+      "nome_ricetta_lantek": "STAINLESS_STEEL/ACCIAIO_N2"
+    },
+    {
+      "rid": 70,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 24000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 71,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 21000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 72,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 17600.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 73,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 16000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 74,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 14000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 75,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 9000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 76,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 6000.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 77,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 5000.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 78,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 4.0,
+      "velocita_mm_min": 2200.0,
+      "pierce_time_s": 3.0,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 79,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 5.0,
+      "velocita_mm_min": 1300.0,
+      "pierce_time_s": 3.75,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 80,
+      "materiale": "OTTONE",
+      "gas": "N2",
+      "spessore_mm": 6.0,
+      "velocita_mm_min": 600.0,
+      "pierce_time_s": 4.5,
+      "nome_ricetta_lantek": "BRASS/OTTONE_N2"
+    },
+    {
+      "rid": 120,
+      "materiale": "S235",
+      "gas": "AIR",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_AIR"
+    },
+    {
+      "rid": 121,
+      "materiale": "S235",
+      "gas": "AIR",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 28000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_AIR"
+    },
+    {
+      "rid": 122,
+      "materiale": "S235",
+      "gas": "AIR",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 26000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_AIR"
+    },
+    {
+      "rid": 123,
+      "materiale": "S235",
+      "gas": "AIR",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 22000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_AIR"
+    },
+    {
+      "rid": 124,
+      "materiale": "S235",
+      "gas": "AIR",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 18000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_AIR"
+    },
+    {
+      "rid": 125,
+      "materiale": "S235",
+      "gas": "AIR",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 14000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_AIR"
+    },
+    {
+      "rid": 100,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 31000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 101,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 102,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 23000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 103,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 24000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 104,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 15000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 105,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 8000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 106,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 6500.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 107,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 6000.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 108,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 4.0,
+      "velocita_mm_min": 4400.0,
+      "pierce_time_s": 3.0,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 109,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 5.0,
+      "velocita_mm_min": 2900.0,
+      "pierce_time_s": 3.75,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 110,
+      "materiale": "S235",
+      "gas": "N2",
+      "spessore_mm": 6.0,
+      "velocita_mm_min": 2400.0,
+      "pierce_time_s": 4.5,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_N2"
+    },
+    {
+      "rid": 1,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 9500.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 2,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 8500.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 3,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 7500.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 4,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 5600.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 5,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 4600.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 6,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 4000.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 7,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 3500.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 8,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 4.0,
+      "velocita_mm_min": 3400.0,
+      "pierce_time_s": 3.0,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 9,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 5.0,
+      "velocita_mm_min": 2700.0,
+      "pierce_time_s": 3.75,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 10,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 6.0,
+      "velocita_mm_min": 2700.0,
+      "pierce_time_s": 4.5,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 11,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 8.0,
+      "velocita_mm_min": 2000.0,
+      "pierce_time_s": 6.0,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 12,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 10.0,
+      "velocita_mm_min": 1400.0,
+      "pierce_time_s": 7.5,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 13,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 12.0,
+      "velocita_mm_min": 1300.0,
+      "pierce_time_s": 9.0,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 14,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 15.0,
+      "velocita_mm_min": 860.0,
+      "pierce_time_s": 11.25,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 15,
+      "materiale": "S235",
+      "gas": "O2",
+      "spessore_mm": 20.0,
+      "velocita_mm_min": 700.0,
+      "pierce_time_s": 15.0,
+      "nome_ricetta_lantek": "CARBON_STEEL/FERRO_O2"
+    },
+    {
+      "rid": 150,
+      "materiale": "ZINCATO",
+      "gas": "AIR",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_AIR"
+    },
+    {
+      "rid": 151,
+      "materiale": "ZINCATO",
+      "gas": "AIR",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 28000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_AIR"
+    },
+    {
+      "rid": 152,
+      "materiale": "ZINCATO",
+      "gas": "AIR",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 26000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_AIR"
+    },
+    {
+      "rid": 153,
+      "materiale": "ZINCATO",
+      "gas": "AIR",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 22000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_AIR"
+    },
+    {
+      "rid": 154,
+      "materiale": "ZINCATO",
+      "gas": "AIR",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 18000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_AIR"
+    },
+    {
+      "rid": 155,
+      "materiale": "ZINCATO",
+      "gas": "AIR",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 14000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_AIR"
+    },
+    {
+      "rid": 40,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 0.5,
+      "velocita_mm_min": 30000.0,
+      "pierce_time_s": 0.375,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 41,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 0.8,
+      "velocita_mm_min": 29000.0,
+      "pierce_time_s": 0.6000000000000001,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 42,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 1.0,
+      "velocita_mm_min": 17000.0,
+      "pierce_time_s": 0.75,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 43,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 1.2,
+      "velocita_mm_min": 23000.0,
+      "pierce_time_s": 0.8999999999999999,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 44,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 1.5,
+      "velocita_mm_min": 10000.0,
+      "pierce_time_s": 1.125,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 45,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 2.0,
+      "velocita_mm_min": 13000.0,
+      "pierce_time_s": 1.5,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 46,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 2.5,
+      "velocita_mm_min": 13000.0,
+      "pierce_time_s": 1.875,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 47,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 3.0,
+      "velocita_mm_min": 8500.0,
+      "pierce_time_s": 2.25,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 48,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 4.0,
+      "velocita_mm_min": 4300.0,
+      "pierce_time_s": 3.0,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 49,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 5.0,
+      "velocita_mm_min": 3000.0,
+      "pierce_time_s": 3.75,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    },
+    {
+      "rid": 50,
+      "materiale": "ZINCATO",
+      "gas": "N2",
+      "spessore_mm": 6.0,
+      "velocita_mm_min": 2500.0,
+      "pierce_time_s": 4.5,
+      "nome_ricetta_lantek": "GALVANIZED_STEEL/ZINCATO_N2"
+    }
+  ]
+}
