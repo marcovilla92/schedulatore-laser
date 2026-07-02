@@ -718,9 +718,16 @@ def compute_geometry_from_region(path: str, region_bbox: tuple[float, float, flo
 
 def compute_geometry_from_point(path: str, x_mm: float, y_mm: float,
                                 config: dict | None = None) -> dict:
-    """Pattern 'Trova pezzo' Lantek-style: click su un contorno chiuso →
-    sistema identifica quel poligono come outer del pezzo e trova tutti i
-    contorni chiusi contenuti al suo interno.
+    """Pattern 'Detect Part' Lantek-style: click su un ELEMENTO del contorno
+    esterno del pezzo → sistema chain-walka il perimetro completo + trova
+    tutta la geometria interna.
+
+    A differenza di 'contains(point)', qui l'utente clicca SU UNA LINEA (bordo
+    visibile), non nel vuoto interno del pezzo. Vantaggi:
+    - Non serve trovare un punto interno (in pezzi con molti fori è difficile)
+    - Funziona anche se il chain walking non chiude perfettamente il contorno
+      (basta essere abbastanza vicini a un edge conosciuto)
+    - Gesto naturale (sottolineare un bordo col mouse)
 
     Args:
         path: percorso DXF
@@ -729,10 +736,13 @@ def compute_geometry_from_point(path: str, x_mm: float, y_mm: float,
 
     Strategia:
     1. Estrae tutti i poligoni chiusi (native + chain walking)
-    2. Filtra quelli che CONTENGONO il punto (x_mm, y_mm) via Shapely
-    3. Sceglie quello con area MINIMA (il più "interno" — evita cartiglio esterno)
-       tra i candidati che passano il filtro cartiglio ISO
-    4. Trova gli inner: poligoni contenuti nell'outer
+    2. Per ogni poligono (skip cartigli ISO), calcola la distanza minima tra
+       il click point e l'exterior boundary
+    3. Filtra quelli con distanza <= TOL_EDGE_MM (click abbastanza vicino a un bordo)
+    4. Sort: (distanza in bucket da 2mm asc, area asc)
+       → il più vicino, tie-break sul più piccolo (evita cartiglio esterno)
+    5. Se nessuno entro tolleranza, fallback a "contains" per compat
+    6. Trova gli inner: poligoni contenuti nell'outer scelto
 
     Returns: dict compat con detect_pezzo_geometry_v3
     """
@@ -754,24 +764,52 @@ def compute_geometry_from_point(path: str, x_mm: float, y_mm: float,
     closed_raw, opens = _extract_polygons(msp, colori_esclusi)
     all_raw = closed_raw + _chain_polygons(opens)
     all_polys = [p for p in (_to_shapely(v) for v in all_raw) if p is not None]
+    # Escludi cartigli ISO standard (A4/A3/...)
+    non_cartiglio = [p for p in all_polys if not _is_iso_format(p)]
 
-    # Filtra quelli che CONTENGONO il punto
-    contengono_click = [p for p in all_polys if p.contains(click_pt) or p.touches(click_pt)]
-
-    # Escludi cartigli ISO standard (mantiene comunque cornici custom che
-    # potrebbero coincidere col pezzo se l'utente ha cliccato dentro)
-    contengono_click = [p for p in contengono_click if not _is_iso_format(p)]
-
-    if not contengono_click:
+    if not non_cartiglio:
         return _empty_result([
-            f'Nessun contorno chiuso rilevato in ({x_mm:.1f}, {y_mm:.1f}). '
-            f'Clicca sul CONTORNO del pezzo (non su area vuota).'
+            f'Nessun contorno rilevato (solo cartigli). '
+            f'Verifica che il DXF contenga geometria di taglio valida.'
         ])
 
-    # Outer = poligono con AREA MINIMA che contiene il click
-    # (il più "interno" — se clicco dentro un cartiglio che contiene il pezzo,
-    # preferisco il pezzo, non il cartiglio)
-    outer = min(contengono_click, key=lambda p: p.area)
+    # ---- Strategia PRIMARIA: click SU un edge del bordo esterno ----
+    # Tolleranza adattiva: 2% della dimensione minima del DXF globale, clamp [5, 30] mm
+    try:
+        from ezdxf.bbox import extents
+        bb = extents(msp)
+        if bb.has_data:
+            dxf_w = bb.extmax.x - bb.extmin.x
+            dxf_h = bb.extmax.y - bb.extmin.y
+            min_dim = min(dxf_w, dxf_h)
+        else:
+            min_dim = 200.0
+    except Exception:
+        min_dim = 200.0
+    TOL_EDGE_MM = max(5.0, min(30.0, min_dim * 0.02))
+
+    candidates_with_dist = []
+    for p in non_cartiglio:
+        d = p.exterior.distance(click_pt)
+        if d <= TOL_EDGE_MM:
+            candidates_with_dist.append((d, p))
+
+    if candidates_with_dist:
+        # Bucket distanza da 2mm — poi tie-break su area (più piccolo = pezzo, non cartiglio)
+        candidates_with_dist.sort(key=lambda item: (int(item[0] / 2.0), item[1].area))
+        outer = candidates_with_dist[0][1]
+        strategia = f'edge-click (dist={candidates_with_dist[0][0]:.1f}mm, tol={TOL_EDGE_MM:.1f}mm)'
+    else:
+        # ---- Fallback: click DENTRO il pezzo (contains) ----
+        contengono_click = [p for p in non_cartiglio if p.contains(click_pt) or p.touches(click_pt)]
+        if not contengono_click:
+            return _empty_result([
+                f'Nessun contorno vicino a ({x_mm:.1f}, {y_mm:.1f}) — tolleranza {TOL_EDGE_MM:.1f}mm. '
+                f'Clicca SU una linea del bordo esterno del pezzo.'
+            ])
+        outer = min(contengono_click, key=lambda p: p.area)
+        strategia = 'contains-fallback'
+
     prep_outer = prep(outer)
 
     # Inner: tutti i poligoni contenuti nell'outer (fori, dettagli, sub-contorni)
@@ -812,7 +850,7 @@ def compute_geometry_from_point(path: str, x_mm: float, y_mm: float,
         'poligoni_grezzi': len(all_raw),
         'poligoni_cartiglio_rimossi': 0,
         'tipo_disegno': 'v3_point_click',
-        'warnings': [f'Trova pezzo: {len(inners)} contorni interni trovati.'],
+        'warnings': [f'Trova pezzo ({strategia}): {len(inners)} contorni interni trovati.'],
         'dxf_bbox_mm': dxf_bbox_mm,
         '_engine': 'shapely-point',
     }
