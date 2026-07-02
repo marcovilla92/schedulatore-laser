@@ -3946,14 +3946,20 @@ class BarcodeManager:
                     current = json.load(f)
             except Exception:
                 pass
-        # Applica updates (solo chiavi note per sicurezza)
-        allowed_keys = {'sospetto_giorni_dal_taglio', 'sospetto_giorni_da_ultima_scan'}
+        # Applica updates (allowlist per sicurezza)
+        # - int scalar: chiavi di soglia timing
+        # - dict object: sezioni di config strutturate (laser_config, preventivi_config,
+        #   dxf_detection). Vengono sostituite in blocco.
+        int_keys = {'sospetto_giorni_dal_taglio', 'sospetto_giorni_da_ultima_scan'}
+        dict_keys = {'laser_config', 'preventivi_config', 'dxf_detection'}
         for k, v in (updates or {}).items():
-            if k in allowed_keys:
+            if k in int_keys:
                 try:
                     current[k] = int(v)
                 except (ValueError, TypeError):
                     pass
+            elif k in dict_keys and isinstance(v, dict):
+                current[k] = v
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(current, f, indent=2, ensure_ascii=False)
