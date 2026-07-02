@@ -2751,7 +2751,7 @@ function _madRefreshStimaBreakdown(s) {
 
   document.getElementById('mad-stima-peso').textContent = (s.peso_kg || 0).toFixed(3) + ' kg' + (s._peso_source === 'override' ? ' (override)' : '');
   document.getElementById('mad-stima-ricetta').innerHTML =
-    `<b>${r.materiale}/${r.gas}</b> · ${Math.round(r.velocita_mm_min)} mm/min · pierce ${r.pierce_time_s.toFixed(2)}s` +
+    `<b>${r.materiale}</b> · ${Math.round(r.velocita_mm_min)} mm/min · pierce ${r.pierce_time_s.toFixed(2)}s` +
     (r.rid ? ` <span style="opacity:.6;">(RID ${r.rid})</span>` : '');
   document.getElementById('mad-stima-tt').textContent = (s.tempo_taglio_s || 0).toFixed(1) + ' s';
   document.getElementById('mad-stima-tp').textContent = (s.tempo_pierce_s || 0).toFixed(1) + ' s';
