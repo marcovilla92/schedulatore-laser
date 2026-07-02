@@ -1577,7 +1577,7 @@ function round2(v) { return Math.round((v || 0) * 100) / 100; }
 // Autosave articoli su DB — debounced, dopo qualsiasi modifica locale
 // ═══════════════════════════════════════════════════════════════════
 let _saveArticoliTimer = null;
-function scheduleSaveArticoli(delayMs = 800) {
+function scheduleSaveArticoli(delayMs = 1500) {
   if (!currentPreventivo) return;
   if (_saveArticoliTimer) clearTimeout(_saveArticoliTimer);
   _saveArticoliTimer = setTimeout(() => saveArticoliNow(), delayMs);
