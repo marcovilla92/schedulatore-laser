@@ -1509,7 +1509,49 @@ window.addEventListener('load', () => {
   document.getElementById('user-pill-role').textContent = user.role || 'Commerciale';
   if (window.lucide) lucide.createIcons();
   switchTab('storico');
+  // Prefetch coefficienti globali per calcolo costi lavorazioni live
+  fetchPreventiviCfg();
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// Cache preventivi_config per calcolo costi lavorazioni real-time
+// ═══════════════════════════════════════════════════════════════════
+let _prevCfg = null;
+async function fetchPreventiviCfg(force = false) {
+  if (_prevCfg && !force) return _prevCfg;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/config`);
+    const d = await r.json();
+    if (d.success) _prevCfg = d.preventivi_config || {};
+  } catch (e) { console.warn('fetch preventivi_config failed', e); }
+  return _prevCfg;
+}
+
+/**
+ * Ricalcola costo_piega, costo_saldatura, costo_filettatura, costo_svasatura,
+ * costo_mat_apporto, costo_pulizia per un articolo, usando i coefficienti globali.
+ * Modifica l'articolo in-place. Chiamare dopo cambio pieghe/saldatura_ml/filettatura_pz/
+ * svasatura_pz o dopo import DXF.
+ */
+function recalcLavorazioniArt(a) {
+  if (!a || !_prevCfg) return;
+  const C = _prevCfg;
+  // Piegatura: n_pieghe × €/piega, + setup se n > soglia
+  const nP = parseInt(a.pieghe || 0);
+  let cPiega = nP * (C.costo_singola_piega || 0);
+  if (nP > (C.soglia_setup_pieghe || 5)) cPiega += (C.costo_setup_piega || 0);
+  a.costo_piega = round2(cPiega);
+  // Saldatura + apporto + pulizia
+  const sm = parseFloat(a.saldatura_ml || 0);
+  a.costo_saldatura = round2(sm * (C.costo_saldatura_metro || 0));
+  a.costo_mat_apporto = round2(sm * (C.costo_materiale_apporto_metro || 0));
+  a.costo_pulizia = round2(sm * (C.costo_pulizia_saldatura_metro || 0));
+  // Filettatura + svasatura
+  a.costo_filettatura = round2(parseInt(a.filettatura_pz || 0) * (C.costo_filettatura || 0));
+  a.costo_svasatura = round2(parseInt(a.svasatura_pz || 0) * (C.costo_svasatura || 0));
+}
+
+function round2(v) { return Math.round((v || 0) * 100) / 100; }
 
 function colorFromName(name) {
   if (!name) return '#1a7a48';
@@ -1687,6 +1729,15 @@ async function saveImpostazioni() {
     });
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'Errore server');
+    // Invalida cache così i prossimi ricalcoli usano i nuovi valori
+    _prevCfg = d.preventivi_config || null;
+    // Ricalcola i costi lavorazione di TUTTI gli articoli del preventivo aperto (se c'è)
+    if (Array.isArray(currentArticoli)) {
+      currentArticoli.forEach(recalcLavorazioniArt);
+      renderArticoli();
+      recalcTotali();
+      if (_madCurrentIdx >= 0) madRefreshCosts();
+    }
     msg.textContent = '✓ Impostazioni salvate';
     msg.style.color = 'var(--green)';
     setTimeout(() => { msg.textContent = ''; }, 3000);
@@ -1779,6 +1830,9 @@ async function openPreventivo(id) {
     currentAssiemi = p.assiemi || [];
     currentTubolari = p.tubolari || [];
     currentPiastre = p.piastre || [];
+    // Assicurati che i costi lavorazione siano allineati coi coefficienti correnti
+    await fetchPreventiviCfg();
+    currentArticoli.forEach(recalcLavorazioniArt);
     populateEditor(p);
     switchTab('editor');
   } catch (e) { alert('Errore: ' + e.message); }
@@ -2639,7 +2693,12 @@ function closeCandidatesModal() {
 
 function madUpdate(field, value, numeric) {
   if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
-  currentArticoli[_madCurrentIdx][field] = numeric ? (parseFloat(value) || 0) : value;
+  const a = currentArticoli[_madCurrentIdx];
+  a[field] = numeric ? (parseFloat(value) || 0) : value;
+  // Se cambia una quantità lavorazione post-taglio, ricalcolo i costi relativi
+  if (['pieghe', 'saldatura_ml', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
+    recalcLavorazioniArt(a);
+  }
   madRefreshCosts();
   renderArticoli();  // aggiorna tabella origine
   recalcTotali();
@@ -2742,6 +2801,7 @@ window.addEventListener('message', (event) => {
       currentArticoli[idx].pieghe = m.pieghe || 0;
       currentArticoli[idx].filettatura_pz = m.filettatura || 0;
       currentArticoli[idx].svasatura_pz = m.svasatura || 0;
+      recalcLavorazioniArt(currentArticoli[idx]);
       renderArticoli();
       recalcTotali();
     }
@@ -3161,6 +3221,7 @@ async function uploadDxf(file, suppressMsg) {
       ex.dxf_filename = d.filename || file.name;
       ex.dxf_needs_verify = !!d.geometria.needs_manual_select;
       ex.dxf_confidence = d.geometria.confidence || 1;
+      recalcLavorazioniArt(ex);
       if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente (lavorazioni aggiornate, materiale mantenuto).`, 'var(--green)');
       renderArticoli(); recalcTotali();
       return;
@@ -3187,6 +3248,7 @@ async function uploadDxf(file, suppressMsg) {
       dxf_needs_verify: !!d.geometria.needs_manual_select,
       dxf_confidence: d.geometria.confidence || 1,
     });
+    recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
     renderArticoli(); recalcTotali();
     if (!suppressMsg) {
       const matMsg = matFromCartiglio
