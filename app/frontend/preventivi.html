@@ -1848,9 +1848,12 @@ function newPreventivo() {
   currentAssiemi = [];
   currentTubolari = [];
   currentPiastre = [];
-  document.getElementById('editor-title').textContent = 'Nuovo preventivo';
-  document.getElementById('editor-status-badge').outerHTML = '<span class="badge gray" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">NUOVO</span>';
-  document.getElementById('editor-sub').textContent = 'Compila i dati base e salva, poi importa XLSX/DXF.';
+  const elTitle0 = document.getElementById('editor-title');
+  if (elTitle0) elTitle0.textContent = 'Nuovo preventivo';
+  const elBadge0 = document.getElementById('editor-status-badge');
+  if (elBadge0) elBadge0.outerHTML = '<span class="badge gray" id="editor-status-badge" style="font-size:12px; padding:5px 12px;">NUOVO</span>';
+  const elSub0 = document.getElementById('editor-sub');
+  if (elSub0) elSub0.textContent = 'Compila i dati base e salva, poi importa XLSX/DXF.';
   document.getElementById('ed-cliente').value = '';
   document.getElementById('ed-numero-cliente').value = '';
   document.getElementById('ed-quantita').value = 1;
