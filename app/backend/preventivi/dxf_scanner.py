@@ -233,42 +233,80 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
 def _normalize_materiale_cartiglio(raw: str) -> str:
     """Mappa il valore raw del cartiglio al codice del laser_estimator.
 
-    Pattern reali trovati nei DXF cliente: 'AISI 304', '1.0037 (S235JR)', 'S235JR',
-    'X5CrNi18-10', 'INOX 316', ecc.
+    Copre i 5 materiali del cliente (S235, ZINCATO, INOX_304, ALU, OTTONE)
+    con pattern noti dei principali standard: DIN/EN, ASTM/AISI, UNI, nomi
+    commerciali. Se non riconosciuto → stringa vuota (caller può fallback a LLM).
+
+    Pattern reali trovati nei DXF cliente: 'AISI 304', '1.0037 (S235JR)',
+    'S235JR', 'X5CrNi18-10', 'INOX 316', 'C75 S', 'S235JR+Z275'.
     """
+    import re as _re
     s = (raw or '').strip().upper()
     if not s:
         return ''
-    # INOX 316 (numerazione DIN 1.4401)
-    if '316' in s or '1.4401' in s or '1.4404' in s:
-        return 'INOX_316'
-    # INOX 304 (numerazione DIN 1.4301 / nome X5CrNi)
+
+    # ---- ZINCATO (prima di S235 perché ha marker aggiuntivo Z/GD) ----
+    # Lamiere pre-zincate (DIN EN 10346: DX51D+Z, DX52D+Z, DX53D+Z, DX54D+Z)
+    if _re.search(r'\bDX5[1-6]D?\s*\+?\s*Z', s):
+        return 'ZINCATO'
+    # Acciai galvanizzati per profilazione (S220GD, S250GD, S320GD, S350GD)
+    if _re.search(r'\bS[23]\d{2}GD\b', s):
+        return 'ZINCATO'
+    # S235JR + Z275 / +Z100 (rivestimento zinco su acciaio strutturale)
+    if _re.search(r'\+\s*Z\d{2,4}\b', s):
+        return 'ZINCATO'
+    if 'ZINCAT' in s or 'GALVAN' in s or 'SENDZIMIR' in s or 'ZINCK' in s:
+        return 'ZINCATO'
+
+    # ---- OTTONE ----
+    if 'OTTONE' in s or 'BRASS' in s or 'MESSING' in s or _re.search(r'\bCUZN\d', s):
+        return 'OTTONE'
+    # Codici commerciali ottone (MS58, MS63, MS72, CW508L, CW614N)
+    if _re.match(r'^MS\d{2}', s) or _re.match(r'^CW\d{3}[A-Z]?', s):
+        return 'OTTONE'
+
+    # ---- INOX 316 (numerazione DIN 1.4401/1.4404) ----
+    if '316' in s or '1.4401' in s or '1.4404' in s or 'X2CRNIMO' in s:
+        return 'INOX_304'  # mappato a 304 (no 316 in laser_config attuale)
+
+    # ---- INOX 304 (numerazione DIN 1.4301 / nome X5CrNi) ----
     if '304' in s or '1.4301' in s or 'X5CRNI' in s or 'INOX' in s or 'AISI' in s or 'STAINLESS' in s:
         return 'INOX_304'
-    # Alluminio leghe comuni
-    if '5083' in s:
-        return 'ALU_5083'
-    if 'ALLUM' in s or s.startswith('ALU') or '5754' in s or s == 'AL':
-        return 'ALU_5754'
-    # Acciai al carbonio S235/S275/S355 (codici DIN 1.0037, 1.0044, 1.0577)
+    if _re.search(r'\bX\d+CRNI\b', s):
+        return 'INOX_304'
+
+    # ---- Alluminio (tutte le leghe → ALU nel laser_config) ----
+    if 'ALLUM' in s or s.startswith('ALU') or 'ALUMIN' in s or s == 'AL':
+        return 'ALU'
+    if _re.search(r'\b5\d{3}\b', s):  # 5052, 5083, 5754, ecc.
+        return 'ALU'
+    if _re.search(r'\b(6060|6061|6082|7075|3003|1050)\b', s):
+        return 'ALU'
+    if _re.search(r'\bENAW\b', s) or _re.search(r'\bAW-?\d{4}\b', s):
+        return 'ALU'
+
+    # ---- S235 aggregato (tutti gli acciai al carbonio strutturali) ----
     if 'S235' in s or '1.0037' in s or 'ST37' in s or 'FE 37' in s or 'FE37' in s:
         return 'S235'
     if 'S275' in s or '1.0044' in s:
-        return 'S235'  # aggregato a S235 (no S275 in laser_config attuale)
-    if 'S355' in s or '1.0577' in s or 'ST52' in s:
-        return 'S235'  # aggregato a S235 (caratteristiche taglio simili)
-    if 'ACCI' in s or 'STEEL' in s or 'FERRO' in s:
         return 'S235'
-    # Acciai al carbonio per molle/lamine (C45, C50, C60, C75)
-    import re as _re
-    if _re.search(r'\bC\s*\d{2}\b', s):
-        return 'S235'  # mappato a S235 per costi taglio simili
+    if 'S355' in s or '1.0577' in s or 'ST52' in s:
+        return 'S235'
+    if 'S460' in s or 'S500' in s or 'S550' in s:
+        return 'S235'  # HSLA aggregati
+    # Acciai al carbonio per molle/lamine (C45, C50, C60, C75, C45E, C60E)
+    if _re.search(r'\bC\s*\d{2,3}[A-Z]?\b', s):
+        return 'S235'
     # Lamiere a freddo per imbutitura (DIN EN 10130: DC01..DC06)
     if _re.match(r'^DC0?\d', s) or _re.match(r'^DD1\d', s):
         return 'S235'
     # Acciai E335/E355/E360 (DIN EN 10025)
     if _re.search(r'\bE3[3-9]\d\b', s):
         return 'S235'
+    # Nomi generici acciaio
+    if 'ACCI' in s or 'STEEL' in s or 'FERRO' in s or 'STAHL' in s:
+        return 'S235'
+
     return ''
 
 
@@ -325,27 +363,71 @@ def estrai_materiale_da_cartiglio(path: str) -> dict:
             mat = _normalize_materiale_cartiglio(t)
             if mat:
                 return {'materiale': mat, 'materiale_raw': t, 'confidence': 0.5}
-        return {'materiale': '', 'materiale_raw': '', 'confidence': 0.0}
+        # LAST RESORT: se abbiamo trovato una stringa candidata ma la tabella
+        # non la riconosce, chiediamo a Gemini (se configurato)
+        return _try_llm_fallback(testi, label_pos=None)
 
     # Trova il testo più vicino spazialmente che sia un materiale valido
     import math as _math
     best = None
     best_dist = float('inf')
+    best_unmapped_raw = None  # candidato raw ma non normalizzato dalla tabella
+    best_unmapped_dist = float('inf')
     lx, ly = label_pos
     for x, y, t in testi:
         if (x, y) == label_pos and t.lower().startswith('material'):
             continue
         d = _math.hypot(x - lx, y - ly)
-        if d < best_dist:
-            mat = _normalize_materiale_cartiglio(t)
-            if mat:
+        mat = _normalize_materiale_cartiglio(t)
+        if mat:
+            if d < best_dist:
                 best_dist = d
                 best = (mat, t, d)
+        elif len(t) >= 3 and any(c.isalpha() for c in t) and d < best_unmapped_dist:
+            # Candidato non mappato dalla tabella: potrebbe essere un codice
+            # sconosciuto (es. cartiglio custom). Salviamo per fallback LLM.
+            best_unmapped_dist = d
+            best_unmapped_raw = t
     if best:
         # confidence proporzionale alla distanza (più vicino = più alta)
         # entro 50 unità DXF: 1.0, oltre 500: 0.3
         conf = max(0.3, min(1.0, 1.0 - (best[2] / 500.0)))
         return {'materiale': best[0], 'materiale_raw': best[1], 'confidence': round(conf, 2)}
+
+    # Fallback LLM: la tabella non ha riconosciuto ma abbiamo un candidato raw
+    if best_unmapped_raw:
+        llm_result = _try_llm_normalize(best_unmapped_raw)
+        if llm_result:
+            return llm_result
+
+    return {'materiale': '', 'materiale_raw': best_unmapped_raw or '', 'confidence': 0.0}
+
+
+def _try_llm_normalize(raw: str) -> dict | None:
+    """Tenta normalizzazione via LLM. Se successo, ritorna dict compat.
+    Se LLM non disponibile o fallisce, ritorna None."""
+    try:
+        from . import llm_material_normalizer
+        if not llm_material_normalizer.is_available():
+            return None
+        mat = llm_material_normalizer.normalize_via_llm(raw)
+        if mat:
+            return {
+                'materiale': mat,
+                'materiale_raw': raw,
+                'confidence': 0.75,  # confidence media: LLM ha risposto ma non è deterministico
+                '_source': 'llm',
+            }
+    except Exception as e:
+        logger.warning('LLM material fallback fallito: %s', e)
+    return None
+
+
+def _try_llm_fallback(testi: list, label_pos=None) -> dict:
+    """Fallback quando non troviamo etichetta 'Materiale': chiediamo a LLM
+    di analizzare tutti i TEXT ragionevoli. Usato solo se rules-based fallisce."""
+    # Per ora restituiamo empty result — implementazione full richiede prompt
+    # multi-text che è overhead senza copertura reale nei DXF cliente attuali
     return {'materiale': '', 'materiale_raw': '', 'confidence': 0.0}
 
 
