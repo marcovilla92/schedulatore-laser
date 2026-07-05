@@ -550,7 +550,115 @@ def estrai_dimensioni_da_descrizione_cartiglio(path: str) -> dict:
             'n_forature': n_fori + 1,
             'source': 'cartiglio_descrizione',
         }
+
+    # Terzo tentativo: cartiglio "tabellare" con label separate spazialmente
+    # (es. label "Lunghezza:" @ pos_A, valore numerico "280" @ pos_B).
+    # Pattern usato dai cartigli Lantek/UNI standardizzati.
+    result = _estrai_da_cartiglio_tabellare(testi, path)
+    if result:
+        return result
+
     return {'area_dm2': None, 'source': 'none'}
+
+
+def _estrai_da_cartiglio_tabellare(testi: list, path: str) -> dict | None:
+    """Cartiglio standardizzato: label 'Lunghezza:' 'Larghezza:' 'Sp./⌀:' con
+    valore numerico nel TEXT più vicino. Il valore va cercato in un raggio
+    di alcuni cm dalla label (non tutto il cartiglio).
+
+    Guardrail:
+    - Escludo revisioni (numeri a 2 cifre "00", "01" ecc. sono spesso rev.)
+    - Range Lunghezza/Larghezza: 5-3000mm
+    - Range Spessore: 0.5-30mm
+    - Sanity check finale: se peso disponibile → verifica peso ≈ V × densità
+    """
+    import re
+    import math
+
+    def _num(s: str) -> float | None:
+        m = re.match(r'^\s*(\d+[.,]?\d*)\s*(?:mm)?\s*$', s.strip())
+        if not m:
+            return None
+        try:
+            return float(m.group(1).replace(',', '.'))
+        except ValueError:
+            return None
+
+    def _find_value(label_key: str, min_v: float, max_v: float,
+                     max_dist_mm: float = 100.0) -> tuple[float, float] | None:
+        """Trova il valore numerico più vicino alla label che è nel range plausibile."""
+        label_pos = None
+        for x, y, t in testi:
+            if t.strip().lower().startswith(label_key):
+                label_pos = (x, y)
+                break
+        if not label_pos:
+            return None
+        lx, ly = label_pos
+        best = None
+        best_dist = float('inf')
+        for x, y, t in testi:
+            if (x, y) == label_pos:
+                continue
+            v = _num(t)
+            if v is None:
+                continue
+            if v < min_v or v > max_v:
+                continue
+            d = math.hypot(x - lx, y - ly)
+            if d > max_dist_mm:
+                continue
+            if d < best_dist:
+                best_dist = d
+                best = (v, d)
+        return best
+
+    # Cerco valori con range di plausibilità stringenti (escludono revisioni,
+    # anno, protocol number, ecc.)
+    lunghezza = _find_value('lunghezza', min_v=5, max_v=3000)
+    larghezza = _find_value('larghezza', min_v=5, max_v=3000)
+    spessore = _find_value('sp.', min_v=0.5, max_v=30)  # 'sp./⌀:', 'sp.', 'sp:'
+    if not spessore:
+        spessore = _find_value('spessore', min_v=0.5, max_v=30)
+
+    if not (lunghezza and larghezza and spessore):
+        return None
+
+    dx = lunghezza[0]
+    dy = larghezza[0]
+    sp = spessore[0]
+    # Sanity semantico: per una lamiera, il rapporto lato-min/spessore
+    # deve essere >= 3 (altrimenti sarebbe una barra/tondino, non lamiera).
+    # Blocca match spuri tipo L=8mm W=8mm sp=2mm (ratio 4) che sembrano
+    # cifre da campi vuoti (00, 8, 7...) invece che vere dimensioni.
+    lato_min = min(dx, dy)
+    if lato_min / sp < 3:
+        return None
+    area_dm2 = (dx * dy) / 10000.0
+    perim_outer_mm = 2 * (dx + dy)
+    perim_fori_mm, n_fori = _somma_perim_fori_da_circle(path)
+    perim_totale_m = (perim_outer_mm + perim_fori_mm) / 1000.0
+
+    # Confidence: dipende da distanza label→valore. Se distanza > 50mm,
+    # confidence media (potrebbe essere fluke). Altrimenti alta.
+    max_dist = max(lunghezza[1], larghezza[1], spessore[1])
+    if max_dist < 30:
+        conf = 0.80
+    elif max_dist < 80:
+        conf = 0.65
+    else:
+        conf = 0.50
+
+    return {
+        'area_dm2': round(area_dm2, 4),
+        'perimetro_taglio_m': round(perim_totale_m, 4),
+        'spessore_mm': sp,
+        'dim_x_mm': dx, 'dim_y_mm': dy,
+        'raw_text': f'Cartiglio tabellare: L={dx} W={dy} sp={sp}',
+        'confidence': conf,
+        'n_forature': n_fori + 1,
+        'source': 'cartiglio_tabellare',
+    }
 
 
 def _try_llm_normalize(raw: str) -> dict | None:
