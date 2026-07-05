@@ -76,6 +76,50 @@ def process_single_dxf(dxf_path: str, filename: str, dxf_cfg: dict) -> dict:
         if geo and geo.get('needs_manual_select'):
             spessore = {**spessore, 'confidence': min(spessore.get('confidence', 0), 0.4)}
 
+        # Fallback cartiglio-descrizione: parsing testuale "45x12 sp.3".
+        # - area/perimetro solo se detector geometrico è debole
+        # - spessore anche se il detector area è OK ma spessore diretto null
+        #   (es. 20PA00690: detector area OK, ma spessore diretto null e
+        #   cartiglio contiene 'Sp.3' → deve popolare spessore)
+        dim_info = dxf_scanner.estrai_dimensioni_da_descrizione_cartiglio(dxf_path)
+        geo_weak = geo and (geo.get('confidence', 0) < 0.5 or geo.get('area_dm2', 0) < 0.01)
+        if dim_info and dim_info.get('area_dm2') and geo_weak:
+            logger.info('[%s] cartiglio fallback area: %s', filename, dim_info.get('raw_text'))
+            geo = {
+                **(geo or {}),
+                'area_dm2': dim_info['area_dm2'],
+                'perimetro_taglio_m': dim_info['perimetro_taglio_m'],
+                'n_forature': max(
+                    dim_info.get('n_forature', 0),
+                    (geo or {}).get('n_forature', 0),
+                ),
+                'confidence': dim_info['confidence'],
+                'confidence_label': 'media (cartiglio)',
+                'needs_manual_select': False,
+                '_source': 'cartiglio_descrizione',
+                '_raw_text': dim_info['raw_text'],
+                '_dim_x_mm': dim_info['dim_x_mm'],
+                '_dim_y_mm': dim_info['dim_y_mm'],
+            }
+        # Cartiglio-descrizione (fonte esplicita "sp.3" letta dal disegno) prevale
+        # sulla stima peso_area (indiretta) quando confidence maggiore. 20PA00690:
+        # peso_area calcola 1.2mm (conf 0.4) ma cartiglio dice sp.3 (conf 0.85).
+        if dim_info and dim_info.get('spessore_mm'):
+            dim_conf = dim_info.get('confidence', 0) or 0
+            curr_sp = spessore.get('spessore_mm')
+            curr_conf = spessore.get('confidence', 0) or 0
+            if not curr_sp or dim_conf > curr_conf:
+                logger.info('[%s] cartiglio fallback spessore: %.1fmm (conf %.2f) sostituisce %s (conf %.2f)',
+                            filename, dim_info['spessore_mm'], dim_conf,
+                            curr_sp, curr_conf)
+                spessore = {
+                    'spessore_mm': dim_info['spessore_mm'],
+                    'confidence': dim_conf,
+                    'source': 'cartiglio_descrizione',
+                    'warnings': [],
+                    'details': {'raw': dim_info['raw_text']},
+                }
+
         payload = {
             'success': True,
             'filename': filename,

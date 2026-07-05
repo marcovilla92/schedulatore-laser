@@ -6,6 +6,7 @@ import os
 import sys
 import uuid
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -1976,42 +1977,54 @@ def api_preventivi_import_dxf(preventivo_id):
             # dello spessore (dipende dall'area).
             if geo and geo.get('needs_manual_select'):
                 spessore = {**spessore, 'confidence': min(spessore.get('confidence', 0), 0.4)}
-            # FALLBACK cartiglio-descrizione: se il detector confidence è bassa
-            # (contorno esterno non ricostruibile via chain walking), prova a
-            # estrarre dimensioni "45x12 sp.3" dal testo del cartiglio.
+            # FALLBACK cartiglio-descrizione: parsing testuale del cartiglio.
             # Esempio: 38APA253 ha 'Lama di contenimento 45x12 sp.3' → area 5.4 dm²
-            if geo and (geo.get('confidence', 0) < 0.5 or geo.get('area_dm2', 0) < 0.01):
-                dim_info = _dxf_scanner.estrai_dimensioni_da_descrizione_cartiglio(tmp_path)
-                if dim_info and dim_info.get('area_dm2'):
-                    logger.info('cartiglio fallback attivato per %s: %s',
-                                saved_filename, dim_info.get('raw_text'))
-                    geo = {
-                        **(geo or {}),
-                        'area_dm2': dim_info['area_dm2'],
-                        'perimetro_taglio_m': dim_info['perimetro_taglio_m'],
-                        # Prefer n_forature dal cartiglio (include fori interni),
-                        # ma tengo max col detector se aveva contato di più
-                        'n_forature': max(
-                            dim_info.get('n_forature', 0),
-                            (geo or {}).get('n_forature', 0),
-                        ),
-                        'confidence': dim_info['confidence'],
-                        'confidence_label': 'media (cartiglio)',
-                        'needs_manual_select': False,
-                        '_source': 'cartiglio_descrizione',
-                        '_raw_text': dim_info['raw_text'],
-                        '_dim_x_mm': dim_info['dim_x_mm'],
-                        '_dim_y_mm': dim_info['dim_y_mm'],
+            # + spessore 3.0. Chiamato sempre (è solo text parsing, veloce), poi
+            # applicato selettivamente:
+            #  - area/perimetro/n_forature: solo se detector geometrico è debole
+            #    (confidence < 0.5 o area quasi nulla)
+            #  - spessore: se il parsing spessore diretto è null MA il cartiglio
+            #    contiene "sp.X" (indipendente dallo stato area — es. 20PA00690
+            #    ha detector OK ma cartiglio con "Sp.3" sfugge al parser diretto)
+            dim_info = _dxf_scanner.estrai_dimensioni_da_descrizione_cartiglio(tmp_path)
+            geo_weak = geo and (geo.get('confidence', 0) < 0.5 or geo.get('area_dm2', 0) < 0.01)
+            if dim_info and dim_info.get('area_dm2') and geo_weak:
+                logger.info('cartiglio fallback area attivato per %s: %s',
+                            saved_filename, dim_info.get('raw_text'))
+                geo = {
+                    **(geo or {}),
+                    'area_dm2': dim_info['area_dm2'],
+                    'perimetro_taglio_m': dim_info['perimetro_taglio_m'],
+                    'n_forature': max(
+                        dim_info.get('n_forature', 0),
+                        (geo or {}).get('n_forature', 0),
+                    ),
+                    'confidence': dim_info['confidence'],
+                    'confidence_label': 'media (cartiglio)',
+                    'needs_manual_select': False,
+                    '_source': 'cartiglio_descrizione',
+                    '_raw_text': dim_info['raw_text'],
+                    '_dim_x_mm': dim_info['dim_x_mm'],
+                    '_dim_y_mm': dim_info['dim_y_mm'],
+                }
+            # Cartiglio-descrizione (fonte esplicita "sp.3" letta dal disegno)
+            # prevale sulla stima peso_area (indiretta) quando confidence maggiore.
+            # 20PA00690: peso_area 1.2mm (conf 0.4) vs cartiglio sp.3 (conf 0.85).
+            if dim_info and dim_info.get('spessore_mm'):
+                dim_conf = dim_info.get('confidence', 0) or 0
+                curr_sp = spessore.get('spessore_mm')
+                curr_conf = spessore.get('confidence', 0) or 0
+                if not curr_sp or dim_conf > curr_conf:
+                    logger.info('cartiglio fallback spessore per %s: %.1fmm (conf %.2f) sostituisce %s (conf %.2f)',
+                                saved_filename, dim_info['spessore_mm'], dim_conf,
+                                curr_sp, curr_conf)
+                    spessore = {
+                        'spessore_mm': dim_info['spessore_mm'],
+                        'confidence': dim_conf,
+                        'source': 'cartiglio_descrizione',
+                        'warnings': [],
+                        'details': {'raw': dim_info['raw_text']},
                     }
-                    # Se ho anche spessore dal cartiglio descrizione, lo uso
-                    if dim_info.get('spessore_mm'):
-                        spessore = {
-                            'spessore_mm': dim_info['spessore_mm'],
-                            'confidence': dim_info['confidence'],
-                            'source': 'cartiglio_descrizione',
-                            'warnings': [],
-                            'details': {'raw': dim_info['raw_text']},
-                        }
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
             # per consentire la preview successiva. Cleanup quando preventivo viene
             # accettato/rifiutato/eliminato.
@@ -2110,10 +2123,47 @@ def api_preventivi_import_dxf_batch(preventivo_id):
                 except Exception as e:
                     logger.exception('worker fail per %s', fname)
                     results.append({'success': False, 'filename': fname, 'error': str(e)})
+        # Pre-warm SVG cache in background: subito dopo la response la UI
+        # richiederà /svg per ogni file. Se la cache è fredda ezdxf ci mette
+        # 0.5-1.5s per file → il primo caricamento della tabella articoli
+        # mostra icone rotte. Popoliamo _SVG_CACHE in un thread separato senza
+        # bloccare la response (l'utente vede i risultati subito).
+        failed_fnames = {r.get('filename') for r in results if r.get('success') is False}
+        successful_paths = [(p, f) for (p, f) in saved_tasks if f not in failed_fnames]
+        if successful_paths:
+            threading.Thread(
+                target=_prewarm_svg_cache,
+                args=(successful_paths,),
+                daemon=True,
+                name=f'svg-prewarm-{preventivo_id[:8]}',
+            ).start()
         return jsonify({'success': True, 'results': results}), 200
     except Exception as e:
         logger.exception('import-dxf-batch failed')
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _prewarm_svg_cache(tasks):
+    """Rende gli SVG per una lista di (path, filename) in un thread pool.
+    Popola la _SVG_CACHE in-memory in background così quando la UI chiede i
+    thumbnail rispondono in <50ms invece di 0.5-1.5s.
+    Errori silenziati (il render live in api_preventivi_dxf_svg gestirà comunque).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    # 4 worker (non 8): ezdxf ha race condition al cold-start dei moduli con
+    # troppi thread paralleli (rilevato: primo run può perdere 1-2 file su 7).
+    # Con 4 worker + moduli caldi va sempre a 7/7. I fallimenti residui vengono
+    # comunque recuperati dal render live in api_preventivi_dxf_svg.
+    max_workers = min(4, max(1, len(tasks)))
+    def _one(item):
+        path, fname = item
+        try:
+            _get_dxf_svg_cached(path)
+        except Exception:
+            logger.warning('prewarm SVG fail per %s', fname, exc_info=False)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        list(pool.map(_one, tasks))
+    logger.info('SVG prewarm completato (%d file)', len(tasks))
 
 
 @app.route('/api/preventivi/<preventivo_id>/step-files', methods=['GET'])
@@ -2545,6 +2595,37 @@ def api_preventivi_articoli_replace(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/assiemi', methods=['PUT'])
+def api_preventivi_assiemi_replace(preventivo_id):
+    """Sostituisce l'intera lista degli assiemi del preventivo (bulk replace).
+
+    Simmetrico ad api_preventivi_articoli_replace: usato dal frontend come
+    autosave dopo modifiche editor (nuovo assieme, cambio qty/costi, link
+    articoli). Bloccato se preventivo INVIATO/ACCETTATO.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        assiemi = data.get('assiemi', [])
+        if not isinstance(assiemi, list):
+            return jsonify({'success': False, 'error': 'assiemi deve essere una lista'}), 400
+        result = PreventivoManager.replace_assiemi(preventivo_id, assiemi)
+        if isinstance(result, dict) and 'error' in result:
+            return jsonify({'success': False, 'error': result['error']}), 409
+        try:
+            AuditManager.log(user_id=admin_id, action='REPLACE_ASSIEMI',
+                             entity_type='preventivi', entity_id=preventivo_id,
+                             detail=f'n_assiemi={result.get("count", 0)}')
+        except Exception:
+            pass
+        return jsonify({'success': True, 'count': result.get('count', 0)}), 200
+    except Exception as e:
+        logger.exception('replace assiemi failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/articoli/<articolo_id>/stima-base', methods=['POST'])
 def api_preventivi_stima_base(preventivo_id, articolo_id):
     """Calcola stima costo base laser per un articolo (richiede spessore+materiale).
@@ -2678,8 +2759,43 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
     # Assiemi: lista → dict per codice_assieme (formato PDF)
     assiemi_list = p.get('assiemi') or []
     costi_montaggio = {}
+    # Densità materiali per calcolo peso al volo dei componenti DXF (idem frontend).
+    # Allineato con DEFAULT_LASER_CONFIG in laser_cost_estimator.py.
+    _DENSITA = {'S235': 7.85, 'ZINCATO': 7.85, 'INOX_304': 8.0, 'INOX_316': 8.0,
+                'ALU': 2.7, 'ALU_5754': 2.7, 'ALU_5083': 2.7, 'OTTONE': 8.5}
+    tubolari_list = p.get('tubolari') or []
+    piastre_list = p.get('piastre') or []
     for a in assiemi_list:
         cod = a.get('codice_assieme') or a.get('id') or ''
+        # BOM: articoli DXF figli di questo assieme (per stampa breakdown per componente)
+        bom_articoli = []
+        for art in articoli:
+            if (art.get('codice_assieme') or '') != cod:
+                continue
+            qty_ass = int(art.get('quantita') or 1)
+            base_pz = float(art.get('costo_base_override') if art.get('costo_base_override') is not None
+                            else (art.get('costo_base_stimato') or art.get('costo_materiale') or 0))
+            lav_pz = sum(float(art.get(k) or 0) for k in (
+                'costo_piega', 'costo_saldatura', 'costo_filettatura',
+                'costo_svasatura', 'costo_apporto', 'costo_pulizia'))
+            tot_pz = base_pz + lav_pz
+            rho = _DENSITA.get((art.get('materiale') or '').upper(), 7.85)
+            peso_pz = (float(art.get('area_dm2') or 0)
+                       * float(art.get('spessore_mm') or 0) / 100.0 * rho)
+            bom_articoli.append({
+                'codice': art.get('codice') or '',
+                'materiale': art.get('materiale') or '',
+                'spessore_mm': art.get('spessore_mm'),
+                'qty_per_ass': qty_ass,
+                'peso_kg_pz': peso_pz,
+                'costo_base_pz': base_pz,
+                'costo_lav_pz': lav_pz,
+                'costo_tot_pz': tot_pz,
+                'contributo_su_1_ass': tot_pz * qty_ass,
+            })
+        # BOM tubolari/piastre figli (contribuiscono per intero al costo assieme, no qty × per adesso)
+        bom_tubolari = [t for t in tubolari_list if (t.get('codice_assieme') or '') == cod]
+        bom_piastre = [pl for pl in piastre_list if (pl.get('codice_assieme') or '') == cod]
         costi_montaggio[cod] = {
             'ore_montaggio': a.get('ore_montaggio') or 0,
             'ore_puntatura': a.get('ore_puntatura') or 0,
@@ -2689,10 +2805,12 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
             'saldatura_mt': a.get('saldatura_mt') or 0,
             'peso_kg': a.get('peso_kg') or 0,
             'qty': a.get('qty') or 1,
+            'bom_articoli': bom_articoli,
+            'bom_tubolari': bom_tubolari,
+            'bom_piastre': bom_piastre,
         }
 
     # Tubolari: raggruppa per codice_assieme in dict {codice: {'analisi': {'tubi': [...]}, 'costi': {...}}}
-    tubolari_list = p.get('tubolari') or []
     tubolari_per_assieme = {}
     for t in tubolari_list:
         cod = t.get('codice_assieme') or 'GENERICO'
@@ -2721,7 +2839,6 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
     # Piastre: raggruppa per codice_assieme nel formato dict che pdf_exporter si aspetta:
     # {codice: {'analisi': {'piastre': [{spessore_mm, area_dm2, peso_kg}, ...]},
     #           'costi':   {'dettaglio_piastre': [{'costo': N}, ...], 'totale': N}}}
-    piastre_list = p.get('piastre') or []
     piastre_per_assieme = {}
     for pl in piastre_list:
         cod = pl.get('codice_assieme') or 'GENERICO'

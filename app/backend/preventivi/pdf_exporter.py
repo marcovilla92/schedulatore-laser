@@ -829,6 +829,187 @@ class PDFPreventivo:
         elements.append(t)
         elements.append(Spacer(1, 6 * mm))
 
+        # -- BOM per assieme -------------------------------------------------
+        # Per ogni assieme che ha almeno un componente linkato, stampa la sua
+        # BOM: articoli DXF figli con qty/pezzo, materiale, spessore, peso,
+        # costo base + lavorazioni per pezzo e contributo su 1 assieme.
+        # Chiude ogni sezione col PREZZO 1 ASSIEME (intrinseco + Σ contributi).
+        self._build_assiemi_bom(elements, costi_montaggio)
+
+    def _build_assiemi_bom(self, elements, costi_montaggio: dict) -> None:
+        """Sezione BOM per ciascun assieme (composizione + breakdown costi).
+
+        Il prezzo mostrato è sempre per UN singolo assieme (unitario). La qty
+        assieme moltiplica al livello preventivo, non nella BOM.
+        """
+        has_any_bom = any(
+            (m.get('bom_articoli') or m.get('bom_tubolari') or m.get('bom_piastre'))
+            for m in costi_montaggio.values()
+        )
+        if not has_any_bom:
+            return
+
+        elements.append(Spacer(1, 2 * mm))
+        elements.append(
+            Paragraph("BOM · composizione assiemi", self.style_heading)
+        )
+        elements.append(
+            Paragraph(
+                "Prezzo unitario per <b>1 assieme</b>. Le quantità sono la composizione "
+                "BOM (numero di pezzi in ciascun assieme).",
+                self.style_body,
+            )
+        )
+        elements.append(Spacer(1, 2 * mm))
+
+        for codice_ass, mont_data in costi_montaggio.items():
+            bom_art = mont_data.get('bom_articoli') or []
+            bom_tub = mont_data.get('bom_tubolari') or []
+            bom_pia = mont_data.get('bom_piastre') or []
+            if not (bom_art or bom_tub or bom_pia):
+                continue
+
+            # Titoletto assieme
+            elements.append(
+                Paragraph(
+                    f'<font name="Helvetica-Bold" size=10 color="#3730A3">'
+                    f'Assieme {codice_ass}</font>',
+                    self.style_body,
+                )
+            )
+            elements.append(Spacer(1, 1 * mm))
+
+            header = ["#", "Tipo", "Codice / descrizione", "Pz/ass", "Materiale",
+                      "Sp.", "Peso kg", "Mat.+base €", "Lav. €", "Tot./pz €", "Contrib. €"]
+            table_data = [header]
+            idx = 1
+            contrib_tot = 0.0
+
+            for a in bom_art:
+                contrib = float(a.get('contributo_su_1_ass') or 0)
+                contrib_tot += contrib
+                sp_str = f"{a['spessore_mm']:.1f}" if a.get('spessore_mm') else "—"
+                table_data.append([
+                    str(idx),
+                    "DXF",
+                    a.get('codice') or "—",
+                    str(a.get('qty_per_ass') or 1),
+                    a.get('materiale') or "—",
+                    sp_str,
+                    f"{a.get('peso_kg_pz', 0):.2f}",
+                    _eur_plain(a.get('costo_base_pz') or 0),
+                    _eur_plain(a.get('costo_lav_pz') or 0),
+                    _eur_plain(a.get('costo_tot_pz') or 0),
+                    _eur_plain(contrib),
+                ])
+                idx += 1
+
+            for t in bom_tub:
+                mat_c = float(t.get('costo_materiale') or 0)
+                lav_c = float(t.get('costo_taglio_totale') or 0)
+                totp = mat_c + lav_c
+                contrib_tot += totp
+                lung = f"{float(t.get('lunghezza_m') or 0):.2f}m"
+                table_data.append([
+                    str(idx),
+                    "TUB",
+                    f"{t.get('profilo') or '—'} ({lung})",
+                    "1",
+                    (t.get('materiale') or "").upper() or "—",
+                    "—",
+                    f"{float(t.get('peso_kg') or 0):.2f}",
+                    _eur_plain(mat_c),
+                    _eur_plain(lav_c),
+                    _eur_plain(totp),
+                    _eur_plain(totp),
+                ])
+                idx += 1
+
+            for pl in bom_pia:
+                cost = float(pl.get('costo') or 0)
+                contrib_tot += cost
+                sp_p = f"{float(pl.get('spessore_mm') or 0):.1f}"
+                area_p = f"{float(pl.get('area_dm2') or 0):.2f}dm²"
+                table_data.append([
+                    str(idx),
+                    "PIA",
+                    f"{area_p} ({(pl.get('materiale') or '').upper()})",
+                    "1",
+                    (pl.get('materiale') or "").upper() or "—",
+                    sp_p,
+                    f"{float(pl.get('peso_kg') or 0):.2f}",
+                    _eur_plain(cost),
+                    "—",
+                    _eur_plain(cost),
+                    _eur_plain(cost),
+                ])
+                idx += 1
+
+            # Riga intrinseco (montaggio + saldatura assieme) — non fa parte
+            # della BOM di componenti, ma va sommato per il prezzo finale
+            intrinseco = (
+                float(mont_data.get('costo') or 0)
+                + float(mont_data.get('costo_puntatura') or 0)
+                + float(mont_data.get('costo_saldatura_assieme') or 0)
+            )
+            table_data.append([
+                "—",
+                "ASS",
+                "Montaggio + puntatura + saldatura assieme",
+                "—", "—", "—", "—", "—", "—", "—",
+                _eur_plain(intrinseco),
+            ])
+
+            prezzo_1_ass = contrib_tot + intrinseco
+            table_data.append([
+                "", "", "PREZZO 1 ASSIEME (unitario)", "", "", "", "", "", "", "",
+                _eur_plain(prezzo_1_ass),
+            ])
+
+            avail = _W - 2 * _MARGIN
+            col_widths = [
+                avail * 0.04,   # #
+                avail * 0.05,   # Tipo
+                avail * 0.28,   # Codice
+                avail * 0.05,   # Pz/ass
+                avail * 0.09,   # Materiale
+                avail * 0.05,   # Sp.
+                avail * 0.06,   # Peso
+                avail * 0.09,   # Mat+base
+                avail * 0.07,   # Lav
+                avail * 0.10,   # Tot/pz
+                avail * 0.12,   # Contrib
+            ]
+            tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
+            tbl.setStyle(
+                TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.Color(238/255, 242/255, 255/255)),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.Color(55/255, 48/255, 163/255)),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7),
+                    ("FONTNAME", (0, 1), (-1, -3), "Helvetica"),
+                    # Riga intrinseco (penultima): stile stessa gerarchia
+                    ("BACKGROUND", (0, -2), (-1, -2), colors.Color(249/255, 250/255, 251/255)),
+                    ("FONTNAME", (0, -2), (-1, -2), "Helvetica-Oblique"),
+                    # Riga prezzo finale (ultima)
+                    ("BACKGROUND", (0, -1), (-1, -1), colors.Color(220/255, 252/255, 231/255)),
+                    ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                    ("TEXTCOLOR", (0, -1), (-1, -1), colors.Color(22/255, 101/255, 52/255)),
+                    ("FONTSIZE", (0, -1), (-1, -1), 8),
+                    ("LINEABOVE", (0, -1), (-1, -1), 1, colors.Color(22/255, 101/255, 52/255)),
+                    ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
+                    ("ALIGN", (0, 0), (2, -1), "LEFT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.Color(226/255, 232/255, 240/255)),
+                ])
+            )
+            elements.append(tbl)
+            elements.append(Spacer(1, 5 * mm))
+
     # ------------------------------------------------------------------
     # Tubular section
     # ------------------------------------------------------------------

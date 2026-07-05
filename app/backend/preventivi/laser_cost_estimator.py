@@ -56,7 +56,7 @@ def _empty_result(warnings: list[str]) -> dict:
     return {
         'peso_kg': 0.0, 'costo_materiale': 0.0, 'costo_lavoro': 0.0,
         'tempo_taglio_s': 0.0, 'tempo_pierce_s': 0.0, 'tempo_totale_min': 0.0,
-        'setup_eur': 0.0, 'base': 0.0, 'warnings': warnings,
+        'setup_eur': 0.0, 'base': 0.0, 'warnings': warnings, 'notes': [],
     }
 
 
@@ -81,6 +81,7 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
     eur_h_tot = eur_h_macchina + eur_h_operaio
 
     warnings: list[str] = []
+    notes: list[str] = []  # Info operative, NON allarmanti (interpolazione ricette, ecc.)
 
     area_dm2 = float(articolo.get('area_dm2') or 0.0)
     perimetro_m = float(articolo.get('perimetro_taglio_m') or 0.0)
@@ -145,7 +146,11 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
     costo_lavoro = (tempo_totale_s / 3600.0) * eur_h_tot
     base = costo_lavoro + costo_materiale + setup_eur
 
-    # Warning se ricetta clamp/interpolata (utente sappia)
+    # Segnalazione ricetta: clamp e fallback sono warning veri (fuori tabella
+    # o gas non disponibile). Interpolazione è NOTA informativa: lo spessore
+    # utente non viene modificato, sono solo velocità e pierce derivati per
+    # interpolazione lineare tra le due ricette Lantek adiacenti (prassi
+    # standard CAM). Non deve allarmare l'utente.
     src = ricetta.get('source', 'exact')
     if src in ('clamped_min', 'clamped_max'):
         warnings.append(
@@ -153,9 +158,10 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
             f'({materiale}/{ricetta["gas"]}) — usato valore limite.'
         )
     elif src == 'interpolated':
-        warnings.append(
-            f'Spessore {spessore_mm}mm interpolato tra RID {ricetta.get("rid_riferimento_min")} '
-            f'e {ricetta.get("rid_riferimento_max")}.'
+        notes.append(
+            f'Ricetta {materiale}/{ricetta["gas"]} derivata per interpolazione lineare '
+            f'tra RID {ricetta.get("rid_riferimento_min")} e {ricetta.get("rid_riferimento_max")} '
+            f'(spessore {spessore_mm}mm non presente in tabella).'
         )
     elif src == 'fallback':
         warnings.append(
@@ -182,6 +188,7 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
         'setup_eur': round(setup_eur, 4),
         'base': round(base, 2),
         'warnings': warnings,
+        'notes': notes,
         # Debug/UI breakdown
         '_peso_source': peso_source,
         '_euro_kg': euro_kg,

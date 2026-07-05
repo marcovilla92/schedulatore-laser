@@ -47,6 +47,15 @@ _CACHE_DB_PATH = os.path.join(
 _LOCK = threading.Lock()
 _INITIALIZED = False
 
+# Bump questa costante ogni volta che il pipeline di parsing (dxf_scanner,
+# dxf_batch_worker, ecc.) cambia in modo che invaliderebbe payload cachati.
+# Le entry con _parser_version < corrente vengono considerate MISS e riparsate.
+# v2 (2026-07-05): fallback cartiglio-spessore disaccoppiato dal fallback area
+#                  (20PA00690 aveva spessore null nonostante detector area OK)
+# v3 (2026-07-05): cartiglio-descrizione spessore prevale su peso_area quando
+#                  confidence maggiore (fonte esplicita vs stima indiretta)
+PARSER_VERSION = 3
+
 
 def _init_db() -> None:
     """Crea la tabella cache se non esiste (thread-safe, chiamato lazy)."""
@@ -120,6 +129,10 @@ def get(file_hash: str) -> dict | None:
         except json.JSONDecodeError:
             logger.warning('cache payload corrotto per hash %s', file_hash[:16])
             return None
+        # Invalidazione by version: se il payload è stato scritto con una versione
+        # di parser precedente, ignoralo (il worker riparsa e sovrascrive)
+        if payload.get('_parser_version', 1) != PARSER_VERSION:
+            return None
         return {'payload': payload, 'svg_string': row['svg_string']}
     finally:
         con.close()
@@ -131,6 +144,9 @@ def put(file_hash: str, filename: str, payload: dict, svg_string: str | None = N
     payload deve essere JSON-serializable. Se non lo è, log warning e skip.
     """
     _init_db()
+    # Stampigliamo la versione del parser nel payload cachato (usata da get()
+    # per invalidazione automatica quando la versione cambia)
+    payload = {**payload, '_parser_version': PARSER_VERSION}
     try:
         payload_json = json.dumps(payload, ensure_ascii=False, default=str)
     except (TypeError, ValueError) as e:
