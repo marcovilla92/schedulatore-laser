@@ -1431,6 +1431,12 @@ tr.row-warn:hover { background: #FEF3C7; }
           <div class="field"><label>Svasatura pz</label><input type="number" id="mad-svas" min="0" onchange="madUpdate('svasatura_pz', this.value, true)"></div>
         </div>
 
+        <!-- Banner source geometria (fallback cartiglio attivato) -->
+        <div id="mad-geo-source-banner" style="display:none; margin:8px 0; padding:10px 12px; background:#FEF3C7; border-left:3px solid #F59E0B; border-radius:6px; font-size:12px; color:#78350F;">
+          <div style="font-weight:600; margin-bottom:2px;"><span id="mad-geo-source-title">Dati stimati dal cartiglio</span></div>
+          <div id="mad-geo-source-desc" style="opacity:0.9;"></div>
+        </div>
+
         <div class="mfs-section" id="mad-sec-stima" style="display:none;">
           <div class="sec-title">Dettaglio stima laser <span id="mad-stima-badge" style="font-weight:500; font-size:10px; padding:2px 6px; border-radius:4px; background:#E0E7FF; color:#4338CA; margin-left:6px;"></span></div>
           <div class="field"><label>Peso (kg)</label><div class="ro" id="mad-stima-peso">&mdash;</div></div>
@@ -2320,8 +2326,29 @@ function statusDotHtml(a) {
 function _madUpdateStatus(a) {
   if (!a) return;
   const titleEl = document.getElementById('mad-title');
-  if (!titleEl) return;
-  titleEl.innerHTML = statusDotHtml(a) + `Articolo · <code style="font-size:14px; vertical-align:middle;">${escapeHtml(a.codice || '—')}</code>`;
+  if (titleEl) {
+    titleEl.innerHTML = statusDotHtml(a) + `Articolo · <code style="font-size:14px; vertical-align:middle;">${escapeHtml(a.codice || '—')}</code>`;
+  }
+  // Banner source geometria (visibile quando fallback cartiglio attivato)
+  const banner = document.getElementById('mad-geo-source-banner');
+  if (banner) {
+    const src = a._geo_source || 'detector';
+    if (src === 'cartiglio_descrizione' || src === 'cartiglio_tabellare') {
+      const titleEl = document.getElementById('mad-geo-source-title');
+      const descEl = document.getElementById('mad-geo-source-desc');
+      const srcLabel = src === 'cartiglio_descrizione' ? 'Dati dalla descrizione del cartiglio' : 'Dati dai campi tabellari del cartiglio';
+      if (titleEl) titleEl.textContent = '⚠ ' + srcLabel;
+      if (descEl) {
+        const raw = a._geo_raw_text || '';
+        descEl.innerHTML = raw
+          ? `Testo estratto: <code style="background:rgba(0,0,0,0.05); padding:1px 4px; border-radius:3px;">${escapeHtml(raw)}</code><br>Il contorno DXF non è stato ricostruito. Verifica il perimetro e l'area, se differiscono usa "Trova pezzo" o modifica manualmente.`
+          : 'Il contorno DXF non è stato ricostruito. Verifica area/perimetro e correggi manualmente se necessario.';
+      }
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
 }
 
 function updateArt(idx, field, value, numeric) {
@@ -3749,6 +3776,9 @@ function applyDxfResultToUI(d, rawFilename, opts = {}) {
     ex._spessore_source = (d.spessore || {}).source || 'none';
     ex._spessore_details = (d.spessore || {}).details || {};
     ex._spessore_warnings = (d.spessore || {}).warnings || [];
+    // Source della geometria (dxf detector vs cartiglio_descrizione / cartiglio_tabellare)
+    ex._geo_source = (d.geometria || {})._source || 'detector';
+    ex._geo_raw_text = (d.geometria || {})._raw_text || '';
     recalcLavorazioniArt(ex);
     return 'merged';
   }
@@ -3779,6 +3809,8 @@ function applyDxfResultToUI(d, rawFilename, opts = {}) {
     dxf_filename: d.filename || rawFilename,
     dxf_needs_verify: !!d.geometria.needs_manual_select,
     dxf_confidence: d.geometria.confidence || 1,
+    _geo_source: (d.geometria || {})._source || 'detector',
+    _geo_raw_text: (d.geometria || {})._raw_text || '',
   });
   recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
   return 'created';
