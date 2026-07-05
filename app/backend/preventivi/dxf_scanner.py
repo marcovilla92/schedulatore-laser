@@ -403,17 +403,63 @@ def estrai_materiale_da_cartiglio(path: str) -> dict:
     return {'materiale': '', 'materiale_raw': best_unmapped_raw or '', 'confidence': 0.0}
 
 
+def _somma_perim_fori_da_circle(path: str, min_r_mm: float = 1.0,
+                                  max_r_mm: float = 25.0,
+                                  dedup_tol_mm: float = 0.5) -> tuple[float, int]:
+    """Somma il perimetro dei CIRCLE nel DXF che sono verosimili "fori di taglio".
+
+    Politica:
+    - Include solo CIRCLE con raggio ∈ [min_r_mm, max_r_mm] (esclude marker
+      minuscoli e cerchi enormi tipo bordi decorativi).
+    - Cerchi concentrici (stesso center entro dedup_tol) sono trattati come
+      un solo foro con svasatura: si prende SOLO il raggio minimo (foro
+      passante = quello che il laser deve tagliare). La svasatura è
+      lavorazione post-taglio, non contribuisce al perimetro di taglio.
+
+    Returns:
+        (perimetro_totale_mm, n_fori)
+    """
+    import ezdxf
+    import math
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception:
+        return (0.0, 0)
+    circles_by_center: dict = {}
+    for e in doc.modelspace():
+        if e.dxftype() != 'CIRCLE':
+            continue
+        try:
+            cx = float(e.dxf.center.x)
+            cy = float(e.dxf.center.y)
+            r = float(e.dxf.radius)
+        except Exception:
+            continue
+        if r < min_r_mm or r > max_r_mm:
+            continue
+        # Chiave di clustering: centro arrotondato a dedup_tol
+        key = (round(cx / dedup_tol_mm), round(cy / dedup_tol_mm))
+        # Tieni solo il raggio più piccolo per cluster (passante)
+        if key not in circles_by_center or r < circles_by_center[key]:
+            circles_by_center[key] = r
+    perim_tot = sum(2 * math.pi * r for r in circles_by_center.values())
+    return (perim_tot, len(circles_by_center))
+
+
 def estrai_dimensioni_da_descrizione_cartiglio(path: str) -> dict:
     """Fallback per DXF dove il detector non riesce a chiudere il contorno:
     cerca nel cartiglio una descrizione tipo "Lama di contenimento 45x12 sp.3"
     o "Piastra 100x50 sp.4" e ne ricava area/perimetro/spessore rettangolari.
+
+    Perimetro di taglio: outer_rettangolo + perimetro dei fori interni
+    (rilevati come CIRCLE con raggio commerciale plausibile).
 
     Usato per pezzi rettangolari semplici dove il DXF ha contorno rotto ma il
     testo del cartiglio è esplicito.
 
     Returns:
         {area_dm2, perimetro_taglio_m, spessore_mm, dim_x_mm, dim_y_mm,
-         raw_text, confidence, source='cartiglio_descrizione'}
+         raw_text, confidence, n_forature, source='cartiglio_descrizione'}
         Oppure {area_dm2: None} se non trovato.
     """
     import re
@@ -447,14 +493,18 @@ def estrai_dimensioni_da_descrizione_cartiglio(path: str) -> dict:
                 # Sanity: pezzo lamiera plausibile
                 if 5 <= dx <= 3000 and 5 <= dy <= 3000 and 0.5 <= sp <= 30:
                     area_dm2 = (dx * dy) / 10000.0
-                    perim_m = (2 * (dx + dy)) / 1000.0
+                    perim_outer_mm = 2 * (dx + dy)
+                    # Aggiungi perimetro dei fori interni (CIRCLE clusterizzati)
+                    perim_fori_mm, n_fori = _somma_perim_fori_da_circle(path)
+                    perim_totale_m = (perim_outer_mm + perim_fori_mm) / 1000.0
                     return {
                         'area_dm2': round(area_dm2, 4),
-                        'perimetro_taglio_m': round(perim_m, 4),
+                        'perimetro_taglio_m': round(perim_totale_m, 4),
                         'spessore_mm': sp,
                         'dim_x_mm': dx, 'dim_y_mm': dy,
                         'raw_text': t,
                         'confidence': 0.85,
+                        'n_forature': n_fori + 1,  # +1 per contorno esterno (1 pierce)
                         'source': 'cartiglio_descrizione',
                     }
             except (ValueError, AttributeError):
@@ -487,14 +537,17 @@ def estrai_dimensioni_da_descrizione_cartiglio(path: str) -> dict:
     if best_rect and best_sp:
         dx, dy, raw_t = best_rect
         area_dm2 = (dx * dy) / 10000.0
-        perim_m = (2 * (dx + dy)) / 1000.0
+        perim_outer_mm = 2 * (dx + dy)
+        perim_fori_mm, n_fori = _somma_perim_fori_da_circle(path)
+        perim_totale_m = (perim_outer_mm + perim_fori_mm) / 1000.0
         return {
             'area_dm2': round(area_dm2, 4),
-            'perimetro_taglio_m': round(perim_m, 4),
+            'perimetro_taglio_m': round(perim_totale_m, 4),
             'spessore_mm': best_sp,
             'dim_x_mm': dx, 'dim_y_mm': dy,
             'raw_text': raw_t,
             'confidence': 0.65,
+            'n_forature': n_fori + 1,
             'source': 'cartiglio_descrizione',
         }
     return {'area_dm2': None, 'source': 'none'}

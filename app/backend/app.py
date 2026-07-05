@@ -1983,12 +1983,18 @@ def api_preventivi_import_dxf(preventivo_id):
             if geo and (geo.get('confidence', 0) < 0.5 or geo.get('area_dm2', 0) < 0.01):
                 dim_info = _dxf_scanner.estrai_dimensioni_da_descrizione_cartiglio(tmp_path)
                 if dim_info and dim_info.get('area_dm2'):
-                    logger.info('cartiglio fallback attivato per %s: %s', saved_filename, dim_info.get('raw_text'))
+                    logger.info('cartiglio fallback attivato per %s: %s',
+                                saved_filename, dim_info.get('raw_text'))
                     geo = {
                         **(geo or {}),
                         'area_dm2': dim_info['area_dm2'],
                         'perimetro_taglio_m': dim_info['perimetro_taglio_m'],
-                        'n_forature': (geo or {}).get('n_forature', 0),
+                        # Prefer n_forature dal cartiglio (include fori interni),
+                        # ma tengo max col detector se aveva contato di più
+                        'n_forature': max(
+                            dim_info.get('n_forature', 0),
+                            (geo or {}).get('n_forature', 0),
+                        ),
                         'confidence': dim_info['confidence'],
                         'confidence_label': 'media (cartiglio)',
                         'needs_manual_select': False,
