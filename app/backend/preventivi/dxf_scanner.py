@@ -403,6 +403,103 @@ def estrai_materiale_da_cartiglio(path: str) -> dict:
     return {'materiale': '', 'materiale_raw': best_unmapped_raw or '', 'confidence': 0.0}
 
 
+def estrai_dimensioni_da_descrizione_cartiglio(path: str) -> dict:
+    """Fallback per DXF dove il detector non riesce a chiudere il contorno:
+    cerca nel cartiglio una descrizione tipo "Lama di contenimento 45x12 sp.3"
+    o "Piastra 100x50 sp.4" e ne ricava area/perimetro/spessore rettangolari.
+
+    Usato per pezzi rettangolari semplici dove il DXF ha contorno rotto ma il
+    testo del cartiglio è esplicito.
+
+    Returns:
+        {area_dm2, perimetro_taglio_m, spessore_mm, dim_x_mm, dim_y_mm,
+         raw_text, confidence, source='cartiglio_descrizione'}
+        Oppure {area_dm2: None} se non trovato.
+    """
+    import re
+    testi = _raccogli_testi_dxf(path)
+    if not testi:
+        return {'area_dm2': None, 'source': 'none'}
+
+    # Pattern noti nelle descrizioni Lantek/cliente:
+    # "45x12 sp.3", "100x50 sp 4mm", "45x12x3", "Ø10 sp.2" (circolare)
+    RX_RECT_SP = re.compile(
+        r'\b(\d{1,4})\s*[xX×]\s*(\d{1,4})\s+(?:sp\.?\s*)?(\d+[.,]?\d*)\s*(?:mm)?\b',
+        re.IGNORECASE,
+    )
+    RX_RECT_ONLY = re.compile(
+        r'\b(\d{1,4})\s*[xX×]\s*(\d{1,4})\s*(?:mm)?\b'
+    )
+    RX_INTERNAL_SP = re.compile(
+        r'\bsp\.?\s*(\d+[.,]?\d*)\s*(?:mm)?\b', re.IGNORECASE
+    )
+
+    for x, y, t in testi:
+        # Skip cartigli standard che potrebbero avere numeri incoerenti
+        if len(t) > 200:
+            continue
+        m = RX_RECT_SP.search(t)
+        if m:
+            try:
+                dx = float(m.group(1))
+                dy = float(m.group(2))
+                sp = float(m.group(3).replace(',', '.'))
+                # Sanity: pezzo lamiera plausibile
+                if 5 <= dx <= 3000 and 5 <= dy <= 3000 and 0.5 <= sp <= 30:
+                    area_dm2 = (dx * dy) / 10000.0
+                    perim_m = (2 * (dx + dy)) / 1000.0
+                    return {
+                        'area_dm2': round(area_dm2, 4),
+                        'perimetro_taglio_m': round(perim_m, 4),
+                        'spessore_mm': sp,
+                        'dim_x_mm': dx, 'dim_y_mm': dy,
+                        'raw_text': t,
+                        'confidence': 0.85,
+                        'source': 'cartiglio_descrizione',
+                    }
+            except (ValueError, AttributeError):
+                continue
+
+    # Secondo tentativo: dimensioni rettangolari separate dallo spessore
+    # (es. "Piastra 100x50" in un TEXT + "Sp.: 3" in un altro)
+    best_rect = None
+    best_sp = None
+    for x, y, t in testi:
+        if len(t) > 200:
+            continue
+        m = RX_RECT_ONLY.search(t)
+        if m and not best_rect:
+            try:
+                dx = float(m.group(1))
+                dy = float(m.group(2))
+                if 5 <= dx <= 3000 and 5 <= dy <= 3000:
+                    best_rect = (dx, dy, t)
+            except ValueError:
+                continue
+        m2 = RX_INTERNAL_SP.search(t)
+        if m2 and not best_sp:
+            try:
+                sp = float(m2.group(1).replace(',', '.'))
+                if 0.5 <= sp <= 30:
+                    best_sp = sp
+            except ValueError:
+                continue
+    if best_rect and best_sp:
+        dx, dy, raw_t = best_rect
+        area_dm2 = (dx * dy) / 10000.0
+        perim_m = (2 * (dx + dy)) / 1000.0
+        return {
+            'area_dm2': round(area_dm2, 4),
+            'perimetro_taglio_m': round(perim_m, 4),
+            'spessore_mm': best_sp,
+            'dim_x_mm': dx, 'dim_y_mm': dy,
+            'raw_text': raw_t,
+            'confidence': 0.65,
+            'source': 'cartiglio_descrizione',
+        }
+    return {'area_dm2': None, 'source': 'none'}
+
+
 def _try_llm_normalize(raw: str) -> dict | None:
     """Tenta normalizzazione via LLM. Se successo, ritorna dict compat.
     Se LLM non disponibile o fallisce, ritorna None."""

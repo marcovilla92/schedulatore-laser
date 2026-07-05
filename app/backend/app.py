@@ -1976,6 +1976,36 @@ def api_preventivi_import_dxf(preventivo_id):
             # dello spessore (dipende dall'area).
             if geo and geo.get('needs_manual_select'):
                 spessore = {**spessore, 'confidence': min(spessore.get('confidence', 0), 0.4)}
+            # FALLBACK cartiglio-descrizione: se il detector confidence è bassa
+            # (contorno esterno non ricostruibile via chain walking), prova a
+            # estrarre dimensioni "45x12 sp.3" dal testo del cartiglio.
+            # Esempio: 38APA253 ha 'Lama di contenimento 45x12 sp.3' → area 5.4 dm²
+            if geo and (geo.get('confidence', 0) < 0.5 or geo.get('area_dm2', 0) < 0.01):
+                dim_info = _dxf_scanner.estrai_dimensioni_da_descrizione_cartiglio(tmp_path)
+                if dim_info and dim_info.get('area_dm2'):
+                    logger.info('cartiglio fallback attivato per %s: %s', saved_filename, dim_info.get('raw_text'))
+                    geo = {
+                        **(geo or {}),
+                        'area_dm2': dim_info['area_dm2'],
+                        'perimetro_taglio_m': dim_info['perimetro_taglio_m'],
+                        'n_forature': (geo or {}).get('n_forature', 0),
+                        'confidence': dim_info['confidence'],
+                        'confidence_label': 'media (cartiglio)',
+                        'needs_manual_select': False,
+                        '_source': 'cartiglio_descrizione',
+                        '_raw_text': dim_info['raw_text'],
+                        '_dim_x_mm': dim_info['dim_x_mm'],
+                        '_dim_y_mm': dim_info['dim_y_mm'],
+                    }
+                    # Se ho anche spessore dal cartiglio descrizione, lo uso
+                    if dim_info.get('spessore_mm'):
+                        spessore = {
+                            'spessore_mm': dim_info['spessore_mm'],
+                            'confidence': dim_info['confidence'],
+                            'source': 'cartiglio_descrizione',
+                            'warnings': [],
+                            'details': {'raw': dim_info['raw_text']},
+                        }
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
             # per consentire la preview successiva. Cleanup quando preventivo viene
             # accettato/rifiutato/eliminato.
