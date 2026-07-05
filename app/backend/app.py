@@ -1875,6 +1875,23 @@ def api_preventivi_import_dxf(preventivo_id):
         else:
             tmp_path = os.path.join(prev_dir, saved_filename)
             f.save(tmp_path)
+        # ---- CACHE HIT? Se il DXF è già stato parsato prima (stesso hash) restituisco
+        # subito il payload cachato — utile per commesse ripetute e batch grandi.
+        from .preventivi import dxf_cache as _dxf_cache
+        try:
+            file_hash = _dxf_cache.hash_file(tmp_path)
+            cached = _dxf_cache.get(file_hash)
+        except Exception as _cache_err:
+            logger.warning('cache lookup fallito: %s', _cache_err)
+            file_hash = None
+            cached = None
+        if cached and cached.get('payload'):
+            payload = cached['payload']
+            # Aggiorna il filename salvato con quello attuale (potrebbe differire
+            # dal precedente upload dello stesso hash)
+            payload['filename'] = saved_filename
+            payload['_cache_hit'] = True
+            return jsonify(payload), 200
         try:
             # Config minimo per dxf_scanner (colori standard Lantek)
             # Config rilevamento da app_config.json (sezione dxf_detection) — valori calibrati
@@ -1920,7 +1937,7 @@ def api_preventivi_import_dxf(preventivo_id):
             try: os.remove(tmp_path)
             except OSError: pass
             raise e
-        return jsonify({
+        payload = {
             'success': True,
             'filename': saved_filename,
             'lavorazioni': {
@@ -1930,7 +1947,14 @@ def api_preventivi_import_dxf(preventivo_id):
             'geometria': geo,
             'cartiglio': cartiglio,  # {materiale, materiale_raw, confidence}
             'spessore': spessore,    # {spessore_mm, confidence, source, details}
-        }), 200
+        }
+        # Salva in cache per hit successivi (best-effort, non blocca la response)
+        if file_hash:
+            try:
+                _dxf_cache.put(file_hash, saved_filename, payload)
+            except Exception as _put_err:
+                logger.warning('cache put fallito: %s', _put_err)
+        return jsonify(payload), 200
     except Exception as e:
         logger.exception('preventivi import dxf failed')
         return jsonify({'success': False, 'error': str(e)}), 500
