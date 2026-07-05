@@ -1960,6 +1960,80 @@ def api_preventivi_import_dxf(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/import-dxf-batch', methods=['POST'])
+def api_preventivi_import_dxf_batch(preventivo_id):
+    """Import batch di N file DXF con parsing parallelizzato.
+
+    Target scala: 100 DXF in <30s. Combina:
+    - Cache SHA256 (A5): file già visti = risposta istantanea
+    - ThreadPoolExecutor con max 8 worker: parallelismo effettivo (ezdxf+
+      Shapely rilasciano il GIL nelle chiamate C)
+    - Skip errori singoli senza far cadere l'intero batch
+
+    Body multipart/form-data:
+        files: N file .dxf (o .dwg)
+        admin_id: id utente
+
+    Response: {success: bool, results: [{filename, ...payload o {error}}]}
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from .preventivi.dxf_batch_worker import process_single_dxf
+    try:
+        admin_id = request.form.get('admin_id') or request.args.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({'success': False, 'error': 'Nessun file inviato'}), 400
+        # Salva tutti i file su disco (solo DXF; per DWG serve conversione singola)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        os.makedirs(prev_dir, exist_ok=True)
+        saved_tasks = []  # (dxf_path, filename)
+        skipped = []
+        for f in files:
+            fname_lower = (f.filename or '').lower()
+            if not fname_lower.endswith('.dxf'):
+                skipped.append({
+                    'filename': f.filename,
+                    'error': 'Batch supporta solo .dxf (per .dwg usa import single)',
+                })
+                continue
+            saved_filename = os.path.basename(f.filename)
+            tmp_path = os.path.join(prev_dir, saved_filename)
+            f.save(tmp_path)
+            saved_tasks.append((tmp_path, saved_filename))
+        if not saved_tasks:
+            return jsonify({'success': True, 'results': skipped}), 200
+        # Config DXF (una volta per tutti)
+        app_cfg = BarcodeManager.load_config()
+        dxf_cfg = app_cfg.get('dxf_detection') or {
+            'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
+            'dxf_lunghezza_minima': 15.0, 'dxf_tolleranza_centro': 1.0,
+            'dxf_svasatura_ratio_min': 1.8, 'dxf_svasatura_ratio_max': 3.0,
+            'dxf_semicerchio_angolo_min': 150.0, 'dxf_semicerchio_angolo_max': 320.0,
+            'dxf_filtra_zona_sviluppata': True,
+        }
+        # Parallelismo controllato: max 8 worker anche se ho 100 file
+        results = list(skipped)
+        max_workers = min(8, max(1, len(saved_tasks)))
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(process_single_dxf, path, fname, dxf_cfg): fname
+                for path, fname in saved_tasks
+            }
+            for fut in as_completed(futures):
+                fname = futures[fut]
+                try:
+                    results.append(fut.result())
+                except Exception as e:
+                    logger.exception('worker fail per %s', fname)
+                    results.append({'success': False, 'filename': fname, 'error': str(e)})
+        return jsonify({'success': True, 'results': results}), 200
+    except Exception as e:
+        logger.exception('import-dxf-batch failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/step-files', methods=['GET'])
 def api_preventivi_step_files_list(preventivo_id):
     """Elenca i file STEP (.step/.stp) caricati per il preventivo (in preventivi_tmp/<id>/)."""
