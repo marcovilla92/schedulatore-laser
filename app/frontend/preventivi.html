@@ -2133,6 +2133,48 @@ function renderArticoli() {
  * Ritorna {level, reasons: [str]}.
  */
 // ═══════════════════════════════════════════════════════════════════
+// B2 — Real-time recalc costo laser al cambio materiale/spessore.
+//
+// LEZIONI APPRESE 2026-07-02: l'auto-stima aggressiva ad ogni edit
+// aveva causato saturazione del server (100 fetch parallele → tutto
+// bloccato). Ora:
+// - Debounce 1500ms (l'utente ha tempo di scrivere prima)
+// - Rate limit: 1 stima in corso per articolo (skip se già in-flight)
+// - Silent errors: fallire non blocca la UI
+// - Solo se dati completi (materiale + spessore > 0)
+// - Solo su cambio materiale/spessore (no qty/area/perim che non
+//   influenzano il costo direttamente)
+// ═══════════════════════════════════════════════════════════════════
+const _realtimeStimaTimers = new Map();  // idx → timerId
+const _realtimeStimaInFlight = new Set();  // Set<id articolo>
+
+function scheduleRealtimeStima(idx, delayMs = 1500) {
+  const a = currentArticoli[idx];
+  if (!a) return;
+  const oldTimer = _realtimeStimaTimers.get(idx);
+  if (oldTimer) clearTimeout(oldTimer);
+  const tid = setTimeout(() => _realtimeStimaFire(idx), delayMs);
+  _realtimeStimaTimers.set(idx, tid);
+}
+
+async function _realtimeStimaFire(idx) {
+  _realtimeStimaTimers.delete(idx);
+  const a = currentArticoli[idx];
+  if (!a) return;
+  // Guardrail: solo se dati completi + no override manuale + no in-flight
+  if (!a.materiale || !a.spessore_mm || a.spessore_mm <= 0) return;
+  if (!a.area_dm2 || !a.perimetro_taglio_m) return;
+  if (a.costo_base_override != null) return;
+  if (_realtimeStimaInFlight.has(a.id)) return;
+  _realtimeStimaInFlight.add(a.id);
+  try {
+    // Chiamo stimaArt con silent=true — fallisce silenziosamente
+    await stimaArt(idx, { silent: true });
+  } catch (_) { /* silent */ }
+  finally { _realtimeStimaInFlight.delete(a.id); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // B1 — Bulk edit: multi-select rows + apply materiale/spessore/qty in blocco
 // ═══════════════════════════════════════════════════════════════════
 const _bulkSelected = new Set();  // Set<int> di indici selezionati in currentArticoli
@@ -2212,8 +2254,16 @@ function bulkApply() {
   renderArticoli();
   recalcTotali();
   scheduleSaveArticoli(300);
-  showMsg('msg-import', `✓ Applicato a ${applied} articoli`, 'var(--green)');
-  // Reset form ma mantieni selezione
+  // B2: se ho settato materiale o spessore, schedule stima real-time per ogni articolo
+  // Staggered start (100ms per articolo) per non saturare il server.
+  if (mat || sp) {
+    let stagger = 500;
+    for (const idx of _bulkSelected) {
+      scheduleRealtimeStima(idx, stagger);
+      stagger += 150;  // spread nel tempo per non aprire 100 fetch tutte insieme
+    }
+  }
+  showMsg('msg-import', `✓ Applicato a ${applied} articoli` + (mat || sp ? ' (stima costi in aggiornamento…)' : ''), 'var(--green)');
   document.getElementById('bulk-mat').value = '';
   document.getElementById('bulk-sp').value = '';
   document.getElementById('bulk-qty').value = '';
@@ -2281,6 +2331,10 @@ function updateArt(idx, field, value, numeric) {
   if (field === 'spessore_mm' && a[field] > 0) {
     a._spessore_conf = 1.0;
     a._spessore_source = 'manuale';
+  }
+  // B2: real-time recalc costo se cambia materiale/spessore E dati completi
+  if (['materiale', 'spessore_mm'].includes(field)) {
+    scheduleRealtimeStima(idx);
   }
   recalcTotali();
   // Nessun autosave qui: si salva col bottone "Salva modifiche" o al termine
@@ -3031,8 +3085,12 @@ function madUpdate(field, value, numeric) {
   madRefreshCosts();
   renderArticoli();
   recalcTotali();
-  // NB: nessuna auto-stima né autosave a ogni edit. L'utente clicca esplicitamente
-  // "Ristima costo laser" e "Salva modifiche".
+  // B2: real-time recalc costo se cambia materiale/spessore (debounced 1500ms)
+  if (['materiale', 'spessore_mm'].includes(field)) {
+    scheduleRealtimeStima(_madCurrentIdx);
+  }
+  // Autosave gestito col bottone "Salva modifiche" (o al termine di operazioni
+  // esplicite come import DXF, Stima, Trova pezzo).
 }
 
 // Perimetro: UI in mm, backend in metri
