@@ -1772,6 +1772,52 @@ def api_preventivi_update(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/duplica', methods=['POST'])
+def api_preventivi_duplicate(preventivo_id):
+    """Duplica un preventivo esistente in un nuovo BOZZA.
+
+    Body opzionale: {created_by, cliente (default = cliente sorgente),
+                     copy_articoli (default True)}
+    Utile per commesse ricorrenti dello stesso cliente o come template.
+    Copia anche i file DXF nella cartella del nuovo preventivo.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        created_by = data.get('created_by') or ''
+        if not _require_role(created_by, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        new_cliente = data.get('cliente') or ''
+        copy_articoli = bool(data.get('copy_articoli', True))
+        result = PreventivoManager.duplicate(
+            preventivo_id, new_cliente=new_cliente,
+            created_by=created_by, copy_articoli=copy_articoli,
+        )
+        if not result:
+            return jsonify({'success': False, 'error': 'Preventivo sorgente non trovato'}), 404
+        # Copia anche i file DXF (se presenti) nella cartella del nuovo preventivo
+        try:
+            src_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+            dst_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', result['id'])
+            if os.path.isdir(src_dir):
+                os.makedirs(dst_dir, exist_ok=True)
+                import shutil
+                for f in os.listdir(src_dir):
+                    if f.lower().endswith(('.dxf', '.step', '.stp')):
+                        shutil.copy2(os.path.join(src_dir, f), os.path.join(dst_dir, f))
+        except Exception as _copy_err:
+            logger.warning('copia file DXF durante duplica fallita: %s', _copy_err)
+        try:
+            AuditManager.log(user_id=created_by, action='DUPLICATE_PREVENTIVO',
+                             entity_type='preventivi', entity_id=result['id'],
+                             detail=f'sorgente={preventivo_id}')
+        except Exception:
+            pass
+        return jsonify({'success': True, 'preventivo': result}), 201
+    except Exception as e:
+        logger.exception('preventivi duplicate failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>', methods=['DELETE'])
 def api_preventivi_delete(preventivo_id):
     """Soft delete (is_deleted=True). Riservato a Commerciale + Admin."""

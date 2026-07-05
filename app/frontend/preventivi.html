@@ -922,6 +922,7 @@ tr.row-warn:hover { background: #FEF3C7; }
     </div>
     <div class="strip-actions">
       <button class="btn-primary" onclick="saveBase()" id="btn-save-base">Salva</button>
+      <button class="btn-secondary" onclick="duplicaPreventivo()" id="btn-duplica" title="Crea nuovo preventivo copiando articoli, materiali e configurazione" style="display:none;">Duplica</button>
       <button class="btn-secondary" onclick="goStorico()">Annulla</button>
     </div>
   </div>
@@ -1922,8 +1923,40 @@ function newPreventivo() {
   document.getElementById('card-totali').style.display = 'none';
   document.getElementById('card-azioni').style.display = 'none';
   document.getElementById('btn-save-base').textContent = 'Crea preventivo';
+  const dupBtn = document.getElementById('btn-duplica');
+  if (dupBtn) dupBtn.style.display = 'none';  // no source ancora
   showMsg('msg-base', '', '');
   switchTab('editor');
+}
+
+/** B3 — Duplica il preventivo corrente in un nuovo BOZZA.
+    L'utente conferma il nome cliente (di default lo stesso), poi apre
+    subito il nuovo preventivo pronto per essere personalizzato. */
+async function duplicaPreventivo() {
+  if (!currentPreventivo) return;
+  const suggestedCliente = currentPreventivo.cliente || '';
+  const nuovoCliente = prompt(
+    `Duplica preventivo per cliente (default: mantiene "${suggestedCliente}"):`,
+    suggestedCliente
+  );
+  if (nuovoCliente === null) return;  // annullato
+  showMsg('msg-base', 'Duplicazione in corso…', 'var(--text-2)');
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/duplica`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        created_by: currentUser.id,
+        cliente: nuovoCliente.trim() || suggestedCliente,
+        copy_articoli: true,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-base', 'Errore: ' + d.error, 'var(--red)'); return; }
+    // Apri il nuovo preventivo direttamente
+    openPreventivo(d.preventivo.id);
+    showMsg('msg-base', '✓ Preventivo duplicato', 'var(--green)');
+  } catch (e) { showMsg('msg-base', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
 async function openPreventivo(id) {
@@ -1975,6 +2008,7 @@ function populateEditor(p) {
   // Disabilita save/import se non BOZZA
   const editable = p.status === 'BOZZA';
   document.getElementById('btn-save-base').disabled = !editable;
+  document.getElementById('btn-duplica').style.display = '';  // B3: sempre attivo per preventivi esistenti
   document.getElementById('btn-invia').style.display = (p.status === 'BOZZA') ? '' : 'none';
   document.getElementById('btn-accetta').style.display = (p.status === 'INVIATO') ? '' : 'none';
   document.getElementById('btn-rifiuta').style.display = (p.status === 'INVIATO') ? '' : 'none';

@@ -4082,6 +4082,83 @@ class PreventivoManager:
             session.close()
 
     @staticmethod
+    def duplicate(source_id: str, new_cliente: str, created_by: str,
+                   *, copy_articoli: bool = True) -> dict | None:
+        """Duplica un preventivo esistente in un nuovo BOZZA per cliente ricorrente.
+
+        Args:
+            source_id: id del preventivo sorgente
+            new_cliente: nome del cliente per il nuovo preventivo (può essere lo stesso)
+            created_by: user id del creatore
+            copy_articoli: se True copia anche tutti gli articoli (default True)
+
+        Returns:
+            dict del nuovo preventivo con id, oppure None se sorgente non trovato.
+            Il nuovo preventivo eredita: quantita, margine_pct, note; NON eredita
+            numero_ordine_cliente, data_consegna_proposta (specifici alla commessa).
+        """
+        session = get_session()
+        try:
+            src = session.query(Preventivo).filter(
+                Preventivo.id == source_id, Preventivo.is_deleted == False  # noqa: E712
+            ).first()
+            if not src:
+                return None
+            new_id = str(uuid.uuid4())
+            new_p = Preventivo(
+                id=new_id,
+                cliente=(new_cliente or src.cliente).strip(),
+                numero_ordine_cliente=None,
+                quantita=src.quantita,
+                margine_pct=src.margine_pct,
+                data_consegna_proposta=None,  # nuovo preventivo, nuova data
+                status='BOZZA',
+                versione=1,
+                created_by=created_by,
+                note=f'[Duplicato da preventivo {source_id[:8]}] ' + (src.note or ''),
+            )
+            session.add(new_p)
+            session.flush()  # per avere new_id disponibile
+            if copy_articoli:
+                for src_a in session.query(PreventivoArticolo).filter(
+                    PreventivoArticolo.preventivo_id == source_id
+                ).all():
+                    session.add(PreventivoArticolo(
+                        id=str(uuid.uuid4()),
+                        preventivo_id=new_id,
+                        codice=src_a.codice,
+                        quantita=src_a.quantita,
+                        codice_assieme=src_a.codice_assieme,
+                        area=src_a.area,
+                        area_dm2=src_a.area_dm2,
+                        perimetro_taglio_m=src_a.perimetro_taglio_m,
+                        n_forature=src_a.n_forature,
+                        spessore_mm=src_a.spessore_mm,
+                        materiale=src_a.materiale,
+                        dxf_filename=src_a.dxf_filename,
+                        costo_materiale=src_a.costo_materiale,
+                        costo_base_stimato=src_a.costo_base_stimato,
+                        costo_base_override=src_a.costo_base_override,
+                        pieghe=src_a.pieghe,
+                        saldatura_ml=src_a.saldatura_ml,
+                        filettatura_pz=src_a.filettatura_pz,
+                        svasatura_pz=src_a.svasatura_pz,
+                        costo_piega=src_a.costo_piega,
+                        costo_saldatura=src_a.costo_saldatura,
+                        costo_filettatura=src_a.costo_filettatura,
+                        costo_svasatura=src_a.costo_svasatura,
+                        costo_apporto=src_a.costo_apporto,
+                        costo_pulizia=src_a.costo_pulizia,
+                    ))
+            session.commit()
+            return PreventivoManager._serialize(new_p)
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    @staticmethod
     def get(preventivo_id, include_children=True):
         """Ritorna preventivo + articoli/assiemi/tubolari/piastre (se include_children)."""
         session = get_session()
