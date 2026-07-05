@@ -658,6 +658,21 @@ tr.row-warn:hover { background: #FEF3C7; }
 }
 .verify-badge:hover { background: #FDE68A; }
 
+/* Traffic-light status dot (A2, ispirato Protolabs DFM feedback).
+   Verde = tutto OK, ambra = review needed, rosso = campi mancanti/critici. */
+.status-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  vertical-align: middle; margin-right: 6px; flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.85), 0 0 0 2.5px rgba(0,0,0,0.08);
+  cursor: help;
+  transition: transform 0.15s;
+}
+.status-dot:hover { transform: scale(1.35); }
+.status-dot.status-ok    { background: #10B981; }
+.status-dot.status-warn  { background: #F59E0B; }
+.status-dot.status-error { background: #EF4444; }
+.status-dot.status-empty { background: #D1D5DB; }
+
 /* Detail panel (dx): sticky, preview + dettagli editabili */
 .detail-panel {
   position: sticky; top: 180px;  /* topbar+tabbar+strip */
@@ -1321,7 +1336,7 @@ tr.row-warn:hover { background: #FEF3C7; }
 <div class="modal-overlay" id="modal-art-detail" onclick="if(event.target===this)closeArtModal()" style="z-index: 2600;">
   <div class="modal modal-fullscreen">
     <div class="modal-head">
-      <h3 id="mad-title">Dettaglio articolo</h3>
+      <h3 id="mad-title" style="display:flex; align-items:center;"><span id="mad-status-dot" style="margin-right:8px;"></span>Dettaglio articolo</h3>
       <button class="modal-close" onclick="closeArtModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -2018,7 +2033,7 @@ function renderArticoli() {
     html += `<tr${rowClass}>
       <td>${thumbHtml}</td>
       <td>
-        <code style="cursor:pointer;" onclick="openArtModal(${i})">${escapeHtml(a.codice || '—')}</code>
+        ${statusDotHtml(a)}<code style="cursor:pointer;" onclick="openArtModal(${i})">${escapeHtml(a.codice || '—')}</code>
         ${verifyBadge ? '<br>' + verifyBadge : ''}
       </td>
       <td class="n"><input type="number" class="cell-edit" value="${a.quantita || 1}" min="1" style="text-align:right; max-width:60px;" onchange="updateArt(${i}, 'quantita', this.value, true)"></td>
@@ -2041,6 +2056,52 @@ function renderArticoli() {
     </tr>`;
   });
   tbody.innerHTML = html;
+}
+
+/**
+ * A2 — Traffic-light status per un articolo. Ispirato Protolabs DFM:
+ *   VERDE (ok)    → dati completi + affidabili, articolo ordinabile
+ *   AMBRA (warn)  → confidence bassa o warnings da physics, review consigliata
+ *   ROSSO (error) → campi essenziali mancanti (mat/sp/area/perim) → blocco
+ *   GRIGIO (empty)→ articolo appena creato, nessun dato ancora
+ * Ritorna {level, reasons: [str]}.
+ */
+function computeArticleStatus(a) {
+  if (!a) return { level: 'empty', reasons: [] };
+  const reasons = [];
+  // ---- Errori bloccanti (rosso) ----
+  if (!a.materiale) reasons.push('Materiale mancante');
+  if (!a.spessore_mm || a.spessore_mm <= 0) reasons.push('Spessore mancante');
+  if (!a.area_dm2 || a.area_dm2 <= 0) reasons.push('Area non calcolata');
+  if (!a.perimetro_taglio_m || a.perimetro_taglio_m <= 0) reasons.push('Perimetro non calcolato');
+  if (reasons.length > 0) return { level: 'error', reasons };
+  // ---- Warning (ambra) ----
+  const matConf = a._materiale_conf ?? 1.0;
+  const spConf = a._spessore_conf ?? 1.0;
+  if (matConf < 0.7) reasons.push(`Materiale incerto (confidenza ${Math.round(matConf * 100)}%)`);
+  if (spConf < 0.7) reasons.push(`Spessore incerto (confidenza ${Math.round(spConf * 100)}%)`);
+  if (a.dxf_needs_verify) reasons.push('Contorno pezzo da confermare (Trova pezzo)');
+  const spWarn = Array.isArray(a._spessore_warnings) ? a._spessore_warnings : [];
+  spWarn.forEach(w => reasons.push(w));
+  if (reasons.length > 0) return { level: 'warn', reasons };
+  // ---- Tutto OK ----
+  return { level: 'ok', reasons: ['Dati completi e verificati'] };
+}
+
+/** Genera l'HTML del pallino status con tooltip per la tabella. */
+function statusDotHtml(a) {
+  const s = computeArticleStatus(a);
+  const title = s.reasons.join(' · ') || 'Nessun dato';
+  return `<span class="status-dot status-${s.level}" title="${escapeHtml(title)}"></span>`;
+}
+
+/** Aggiorna il titolo del modal dettaglio (chiamato da openArtModal
+    e ogni volta che cambia un dato via madRefreshCosts). */
+function _madUpdateStatus(a) {
+  if (!a) return;
+  const titleEl = document.getElementById('mad-title');
+  if (!titleEl) return;
+  titleEl.innerHTML = statusDotHtml(a) + `Articolo · <code style="font-size:14px; vertical-align:middle;">${escapeHtml(a.codice || '—')}</code>`;
 }
 
 function updateArt(idx, field, value, numeric) {
@@ -2181,8 +2242,8 @@ async function openArtModal(idx) {
   if (!a || !currentPreventivo) return;
   _madCurrentIdx = idx;
 
-  // Titolo modal
-  document.getElementById('mad-title').textContent = `Articolo · ${a.codice || '—'}`;
+  // Titolo modal (con status dot dinamico)
+  _madUpdateStatus(a);
 
   // Reset preview area
   const empty = document.getElementById('mad-preview-empty');
@@ -2934,6 +2995,7 @@ function madRefreshCosts() {
   if (_madCurrentIdx < 0 || !currentArticoli[_madCurrentIdx]) return;
   const a = currentArticoli[_madCurrentIdx];
   _madApplyFlags(a);
+  _madUpdateStatus(a);
   const base = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
   document.getElementById('mad-c-base').textContent = formatEurStr(base);
   document.getElementById('mad-c-piega').textContent = formatEurStr(a.costo_piega || 0);
@@ -3462,6 +3524,7 @@ async function uploadDxf(file, suppressMsg) {
       ex._spessore_conf = (d.spessore || {}).confidence || 0;
       ex._spessore_source = (d.spessore || {}).source || 'none';
       ex._spessore_details = (d.spessore || {}).details || {};
+      ex._spessore_warnings = (d.spessore || {}).warnings || [];
       recalcLavorazioniArt(ex);
       if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente. Clicca "Stima" per calcolare il costo.`, 'var(--green)');
       renderArticoli(); recalcTotali();
@@ -3483,6 +3546,7 @@ async function uploadDxf(file, suppressMsg) {
       _spessore_conf: spInfo.confidence || 0,
       _spessore_source: spInfo.source || 'none',
       _spessore_details: spInfo.details || {},
+      _spessore_warnings: spInfo.warnings || [],
       area: 0, area_dm2: d.geometria.area_dm2 || 0,
       perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
       n_forature: d.geometria.n_forature || 0,
