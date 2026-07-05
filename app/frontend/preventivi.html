@@ -3418,14 +3418,17 @@ async function uploadFiles(fileList, kind) {
     if (kind === 'dxf')  return uploadDxf(files[0]);
     if (kind === 'step') return uploadStep(files[0]);
   }
-  // Multi: cicla sequenziale (parsing pesante, evito di sovraccaricare)
+  // Multi DXF: endpoint batch parallelizzato (A4). ~22s per 100 file miss, <5s hit cache.
+  if (kind === 'dxf') {
+    return uploadDxfBatch(files);
+  }
+  // Multi XLSX/STEP: ancora sequenziale (upload piccolo, no collo di bottiglia parsing)
   let ok = 0, errors = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     showMsg('msg-import', `Processing ${i+1}/${files.length}: ${f.name}…`, 'var(--gray-text)');
     try {
       if (kind === 'xlsx') await uploadXlsx(f, true);
-      else if (kind === 'dxf')  await uploadDxf(f, true);
       else if (kind === 'step') await uploadStep(f, true);
       ok++;
     } catch (e) { errors.push(`${f.name}: ${e.message}`); }
@@ -3482,6 +3485,76 @@ async function uploadXlsx(file, suppressMsg) {
   } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
+/**
+ * Applica un payload di risposta da /import-dxf (o un elemento di
+ * /import-dxf-batch results) al preventivo corrente: crea nuovo articolo
+ * o fa merge con un articolo esistente col codice matching.
+ * Non chiama renderArticoli né scheduleSaveArticoli — il caller decide
+ * (batch chiama una volta sola alla fine per efficienza).
+ * Returns 'created' | 'merged' | null (skip)
+ */
+function applyDxfResultToUI(d, rawFilename, opts = {}) {
+  if (!d || !d.success) return null;
+  const fname = (rawFilename || 'DXF').replace(/\.(dxf|dwg)$/i, '');
+  const existingIdx = currentArticoli.findIndex(a => (a.codice || '').toLowerCase() === fname.toLowerCase());
+  if (existingIdx >= 0) {
+    const ex = currentArticoli[existingIdx];
+    ex.pieghe = d.lavorazioni.pieghe || ex.pieghe || 0;
+    ex.saldatura_ml = d.lavorazioni.saldatura_ml || ex.saldatura_ml || 0;
+    ex.filettatura_pz = d.lavorazioni.filettatura_pz || ex.filettatura_pz || 0;
+    ex.svasatura_pz = d.lavorazioni.svasatura_pz || ex.svasatura_pz || 0;
+    ex.n_forature = d.geometria.n_forature || ex.n_forature || 0;
+    if (!ex.perimetro_taglio_m) ex.perimetro_taglio_m = d.geometria.perimetro_taglio_m || 0;
+    if (!ex.area_dm2) ex.area_dm2 = d.geometria.area_dm2 || 0;
+    ex.dxf_filename = d.filename || rawFilename;
+    ex.dxf_needs_verify = !!d.geometria.needs_manual_select;
+    ex.dxf_confidence = d.geometria.confidence || 1;
+    if (!ex.materiale && d.cartiglio && d.cartiglio.materiale) {
+      ex.materiale = d.cartiglio.materiale;
+      ex._materiale_conf = d.cartiglio.confidence || 0;
+    }
+    if (!ex.spessore_mm && d.spessore && d.spessore.spessore_mm) {
+      ex.spessore_mm = d.spessore.spessore_mm;
+    }
+    ex._spessore_conf = (d.spessore || {}).confidence || 0;
+    ex._spessore_source = (d.spessore || {}).source || 'none';
+    ex._spessore_details = (d.spessore || {}).details || {};
+    ex._spessore_warnings = (d.spessore || {}).warnings || [];
+    recalcLavorazioniArt(ex);
+    return 'merged';
+  }
+  const cartiglio = d.cartiglio || {};
+  const matFromCartiglio = (cartiglio.confidence >= 0.8) ? cartiglio.materiale : (cartiglio.materiale || '');
+  const spInfo = d.spessore || {};
+  const spFromCalc = (spInfo.spessore_mm != null && spInfo.confidence >= 0.5) ? spInfo.spessore_mm : null;
+  currentArticoli.push({
+    id: 'tmp-' + Date.now() + '-' + Math.random(),
+    codice: fname,
+    quantita: 1,
+    materiale: matFromCartiglio, spessore_mm: spFromCalc,
+    _materiale_conf: cartiglio.confidence || 0,
+    _spessore_conf: spInfo.confidence || 0,
+    _spessore_source: spInfo.source || 'none',
+    _spessore_details: spInfo.details || {},
+    _spessore_warnings: spInfo.warnings || [],
+    area: 0, area_dm2: d.geometria.area_dm2 || 0,
+    perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
+    n_forature: d.geometria.n_forature || 0,
+    costo_materiale: 0, costo_base_stimato: 0, costo_base_override: null,
+    pieghe: d.lavorazioni.pieghe || 0,
+    saldatura_ml: d.lavorazioni.saldatura_ml || 0,
+    filettatura_pz: d.lavorazioni.filettatura_pz || 0,
+    svasatura_pz: d.lavorazioni.svasatura_pz || 0,
+    costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
+    costo_apporto: 0, costo_pulizia: 0,
+    dxf_filename: d.filename || rawFilename,
+    dxf_needs_verify: !!d.geometria.needs_manual_select,
+    dxf_confidence: d.geometria.confidence || 1,
+  });
+  recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
+  return 'created';
+}
+
 async function uploadDxf(file, suppressMsg) {
   if (!file || !currentPreventivo) return;
   const fd = new FormData();
@@ -3493,85 +3566,61 @@ async function uploadDxf(file, suppressMsg) {
     });
     const d = await r.json();
     if (!d.success) { showMsg('msg-import', 'Errore: ' + d.error, 'var(--red)'); return; }
-    // Nome file = probabile codice articolo (es. "20PA00693-00.dxf" → codice "20PA00693-00")
-    const fname = (file.name || 'DXF').replace(/\.(dxf|dwg)$/i, '');
-    // MERGE: se esiste già un articolo con questo codice (importato da Lantek XLSX),
-    // aggiorno solo le lavorazioni + geometria mantenendo il materiale/spessore Lantek.
-    const existingIdx = currentArticoli.findIndex(a => (a.codice || '').toLowerCase() === fname.toLowerCase());
-    if (existingIdx >= 0) {
-      const ex = currentArticoli[existingIdx];
-      // Aggiorna SOLO le lavorazioni rilevate dal DXF + geometria + dxf_filename per preview.
-      // NON tocca: materiale, spessore_mm, costo_materiale, area dal Lantek.
-      ex.pieghe = d.lavorazioni.pieghe || ex.pieghe || 0;
-      ex.saldatura_ml = d.lavorazioni.saldatura_ml || ex.saldatura_ml || 0;
-      ex.filettatura_pz = d.lavorazioni.filettatura_pz || ex.filettatura_pz || 0;
-      ex.svasatura_pz = d.lavorazioni.svasatura_pz || ex.svasatura_pz || 0;
-      ex.n_forature = d.geometria.n_forature || ex.n_forature || 0;
-      // Geometria DXF SOLO se Lantek non l'aveva (Lantek dà valori reali più affidabili del bbox DXF)
-      if (!ex.perimetro_taglio_m) ex.perimetro_taglio_m = d.geometria.perimetro_taglio_m || 0;
-      if (!ex.area_dm2) ex.area_dm2 = d.geometria.area_dm2 || 0;
-      ex.dxf_filename = d.filename || file.name;
-      ex.dxf_needs_verify = !!d.geometria.needs_manual_select;
-      ex.dxf_confidence = d.geometria.confidence || 1;
-      // Se Lantek non aveva ancora impostato spessore/materiale, uso il calc DXF
-      if (!ex.materiale && d.cartiglio && d.cartiglio.materiale) {
-        ex.materiale = d.cartiglio.materiale;
-        ex._materiale_conf = d.cartiglio.confidence || 0;
-      }
-      if (!ex.spessore_mm && d.spessore && d.spessore.spessore_mm) {
-        ex.spessore_mm = d.spessore.spessore_mm;
-      }
-      ex._spessore_conf = (d.spessore || {}).confidence || 0;
-      ex._spessore_source = (d.spessore || {}).source || 'none';
-      ex._spessore_details = (d.spessore || {}).details || {};
-      ex._spessore_warnings = (d.spessore || {}).warnings || [];
-      recalcLavorazioniArt(ex);
-      if (!suppressMsg) showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo Lantek esistente. Clicca "Stima" per calcolare il costo.`, 'var(--green)');
-      renderArticoli(); recalcTotali();
-      scheduleSaveArticoli(300);
-      return;
-    }
-    // Articolo NUOVO da DXF puro
-    const cartiglio = d.cartiglio || {};
-    const matFromCartiglio = (cartiglio.confidence >= 0.8) ? cartiglio.materiale : (cartiglio.materiale || '');
-    const spInfo = d.spessore || {};
-    const spFromCalc = (spInfo.spessore_mm != null && spInfo.confidence >= 0.5) ? spInfo.spessore_mm : null;
-    currentArticoli.push({
-      id: 'tmp-' + Date.now() + '-' + Math.random(),
-      codice: fname,
-      quantita: 1,
-      materiale: matFromCartiglio, spessore_mm: spFromCalc,
-      // Confidence per highlighting UI (usa dal server)
-      _materiale_conf: cartiglio.confidence || 0,
-      _spessore_conf: spInfo.confidence || 0,
-      _spessore_source: spInfo.source || 'none',
-      _spessore_details: spInfo.details || {},
-      _spessore_warnings: spInfo.warnings || [],
-      area: 0, area_dm2: d.geometria.area_dm2 || 0,
-      perimetro_taglio_m: d.geometria.perimetro_taglio_m || 0,
-      n_forature: d.geometria.n_forature || 0,
-      costo_materiale: 0, costo_base_stimato: 0, costo_base_override: null,
-      pieghe: d.lavorazioni.pieghe || 0,
-      saldatura_ml: d.lavorazioni.saldatura_ml || 0,
-      filettatura_pz: d.lavorazioni.filettatura_pz || 0,
-      svasatura_pz: d.lavorazioni.svasatura_pz || 0,
-      costo_piega: 0, costo_saldatura: 0, costo_filettatura: 0, costo_svasatura: 0,
-      costo_apporto: 0, costo_pulizia: 0,
-      dxf_filename: d.filename || file.name,
-      dxf_needs_verify: !!d.geometria.needs_manual_select,
-      dxf_confidence: d.geometria.confidence || 1,
-    });
-    recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
+    const action = applyDxfResultToUI(d, file.name);
     renderArticoli(); recalcTotali();
     scheduleSaveArticoli(300);
     if (!suppressMsg) {
-      const matMsg = matFromCartiglio
-        ? `materiale rilevato dal cartiglio: ${matFromCartiglio} (${cartiglio.materiale_raw})`
-        : 'materiale da impostare a mano';
-      showMsg('msg-import', `✓ DXF "${fname}" importato — ${matMsg}. Imposta spessore e clicca Stima.`, matFromCartiglio ? 'var(--green)' : 'var(--orange)');
+      const fname = (file.name || 'DXF').replace(/\.(dxf|dwg)$/i, '');
+      const cacheHit = d._cache_hit ? ' (cache)' : '';
+      if (action === 'merged') {
+        showMsg('msg-import', `✓ DXF "${fname}" associato all'articolo esistente${cacheHit}.`, 'var(--green)');
+      } else {
+        const matFromCartiglio = (d.cartiglio && d.cartiglio.confidence >= 0.8) ? d.cartiglio.materiale : '';
+        const matMsg = matFromCartiglio ? `materiale ${matFromCartiglio}` : 'materiale da impostare a mano';
+        showMsg('msg-import', `✓ DXF "${fname}" importato — ${matMsg}${cacheHit}.`, matFromCartiglio ? 'var(--green)' : 'var(--orange)');
+      }
     }
   } catch (e) { showMsg('msg-import', 'Errore: ' + e.message, 'var(--red)'); }
 }
+
+/**
+ * Batch upload: N file DXF in una singola chiamata parallela server-side.
+ * Progress bar animata durante la request. Cache A5 rende hit istantanei.
+ */
+async function uploadDxfBatch(files) {
+  if (!files || !files.length || !currentPreventivo) return;
+  const fd = new FormData();
+  fd.append('admin_id', currentUser.id);
+  for (const f of files) fd.append('files', f);
+  showMsg('msg-import', `Elaborazione ${files.length} file DXF in parallelo…`, 'var(--gray-text)');
+  const t0 = Date.now();
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/import-dxf-batch?admin_id=${encodeURIComponent(currentUser.id)}`, {
+      method: 'POST', body: fd
+    });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-import', 'Errore batch: ' + (d.error || 'unknown'), 'var(--red)'); return; }
+    const elapsedMs = Date.now() - t0;
+    let ok = 0, err = 0, cached = 0;
+    for (const result of (d.results || [])) {
+      if (!result.success) { err++; continue; }
+      applyDxfResultToUI(result, result.filename || '');
+      ok++;
+      if (result._cache_hit) cached++;
+    }
+    renderArticoli(); recalcTotali();
+    scheduleSaveArticoli(300);
+    const cacheMsg = cached > 0 ? ` (${cached} in cache)` : '';
+    const errMsg = err > 0 ? ` — ${err} errori` : '';
+    const secs = (elapsedMs / 1000).toFixed(1);
+    showMsg(
+      'msg-import',
+      `✓ Batch DXF: ${ok}/${d.results.length} elaborati in ${secs}s${cacheMsg}${errMsg}`,
+      err ? 'var(--orange)' : 'var(--green)'
+    );
+  } catch (e) { showMsg('msg-import', 'Errore batch: ' + e.message, 'var(--red)'); }
+}
+
 
 // ============================================================
 //  WORKFLOW (invia / accetta / rifiuta)
