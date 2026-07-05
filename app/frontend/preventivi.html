@@ -974,10 +974,41 @@ tr.row-warn:hover { background: #FEF3C7; }
         <button class="btn-mini" onclick="stimaTutti()">Stima costo laser tutti</button>
       </div>
     </div>
+    <!-- Toolbar bulk-edit (B1) — visibile solo quando ci sono righe selezionate -->
+    <div id="bulk-toolbar" style="display:none; padding:10px 16px; background:#EEF2FF; border-bottom:1px solid #C7D2FE; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span style="font-weight:600; color:#3730A3;"><span id="bulk-count">0</span> selezionati</span>
+      <span style="color:#6366F1; font-weight:500;">·</span>
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+        Materiale:
+        <select id="bulk-mat" style="padding:6px 10px; border-radius:6px; border:1px solid #C7D2FE; font-size:13px;">
+          <option value="">— non modificare —</option>
+          <option value="S235">S235 (Ferro)</option>
+          <option value="ZINCATO">Zincato</option>
+          <option value="INOX_304">INOX 304</option>
+          <option value="ALU">Alluminio</option>
+          <option value="OTTONE">Ottone</option>
+        </select>
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+        Spessore mm:
+        <input type="number" id="bulk-sp" step="0.1" min="0" placeholder="es. 3" style="width:80px; padding:6px 10px; border-radius:6px; border:1px solid #C7D2FE; font-size:13px;">
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+        Quantità:
+        <input type="number" id="bulk-qty" min="1" placeholder="opz" style="width:70px; padding:6px 10px; border-radius:6px; border:1px solid #C7D2FE; font-size:13px;">
+      </label>
+      <button class="btn-primary" style="padding:6px 14px; font-size:13px;" onclick="bulkApply()">Applica</button>
+      <button class="btn-secondary" style="padding:6px 14px; font-size:13px;" onclick="bulkClear()">Deseleziona</button>
+      <div style="flex:1;"></div>
+      <button class="btn-danger" style="padding:6px 14px; font-size:13px;" onclick="bulkDelete()" title="Rimuovi righe selezionate">Rimuovi</button>
+    </div>
     <div class="card-body no-pad">
       <table class="tbl">
         <thead>
           <tr>
+            <th style="width:36px;" title="Seleziona tutti">
+              <input type="checkbox" id="bulk-select-all" onchange="bulkSelectAll(this.checked)" style="cursor:pointer;">
+            </th>
             <th style="width:162px;">Preview</th>
             <th style="min-width:130px;">Codice</th>
             <th class="n" style="width:60px;">Qty</th>
@@ -993,7 +1024,7 @@ tr.row-warn:hover { background: #FEF3C7; }
           </tr>
         </thead>
         <tbody id="articoli-tbody">
-          <tr><td colspan="12" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>
+          <tr><td colspan="13" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>
         </tbody>
       </table>
     </div>
@@ -2010,7 +2041,7 @@ async function saveBase() {
 function renderArticoli() {
   const tbody = document.getElementById('articoli-tbody');
   if (!currentArticoli.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>';
     return;
   }
   let html = '';
@@ -2031,6 +2062,7 @@ function renderArticoli() {
          </div>`
       : `<div class="thumb-cell empty" onclick="openArtModal(${i})" title="Nessuna preview — click per dettagli">—</div>`;
     html += `<tr${rowClass}>
+      <td><input type="checkbox" class="bulk-cb" data-idx="${i}" ${_bulkSelected.has(i) ? 'checked' : ''} onchange="bulkToggleRow(${i}, this.checked)" style="cursor:pointer;"></td>
       <td>${thumbHtml}</td>
       <td>
         ${statusDotHtml(a)}<code style="cursor:pointer;" onclick="openArtModal(${i})">${escapeHtml(a.codice || '—')}</code>
@@ -2066,6 +2098,110 @@ function renderArticoli() {
  *   GRIGIO (empty)→ articolo appena creato, nessun dato ancora
  * Ritorna {level, reasons: [str]}.
  */
+// ═══════════════════════════════════════════════════════════════════
+// B1 — Bulk edit: multi-select rows + apply materiale/spessore/qty in blocco
+// ═══════════════════════════════════════════════════════════════════
+const _bulkSelected = new Set();  // Set<int> di indici selezionati in currentArticoli
+
+function bulkToggleRow(idx, checked) {
+  if (checked) _bulkSelected.add(idx);
+  else _bulkSelected.delete(idx);
+  _updateBulkToolbar();
+}
+
+function bulkSelectAll(checked) {
+  _bulkSelected.clear();
+  if (checked) {
+    for (let i = 0; i < currentArticoli.length; i++) _bulkSelected.add(i);
+  }
+  // Re-render checkbox states senza ricostruire tutto (perf)
+  document.querySelectorAll('.bulk-cb').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx, 10);
+    cb.checked = _bulkSelected.has(idx);
+  });
+  _updateBulkToolbar();
+}
+
+function bulkClear() {
+  _bulkSelected.clear();
+  document.querySelectorAll('.bulk-cb').forEach(cb => cb.checked = false);
+  const allCb = document.getElementById('bulk-select-all');
+  if (allCb) allCb.checked = false;
+  _updateBulkToolbar();
+}
+
+function _updateBulkToolbar() {
+  const toolbar = document.getElementById('bulk-toolbar');
+  const countEl = document.getElementById('bulk-count');
+  if (!toolbar || !countEl) return;
+  const n = _bulkSelected.size;
+  countEl.textContent = n;
+  toolbar.style.display = n > 0 ? 'flex' : 'none';
+  // Auto-check header if tutti selezionati
+  const allCb = document.getElementById('bulk-select-all');
+  if (allCb) {
+    allCb.checked = n === currentArticoli.length && n > 0;
+    allCb.indeterminate = n > 0 && n < currentArticoli.length;
+  }
+}
+
+function bulkApply() {
+  if (_bulkSelected.size === 0) return;
+  const mat = document.getElementById('bulk-mat').value;
+  const spRaw = document.getElementById('bulk-sp').value;
+  const qtyRaw = document.getElementById('bulk-qty').value;
+  const sp = spRaw ? parseFloat(spRaw) : null;
+  const qty = qtyRaw ? parseInt(qtyRaw, 10) : null;
+  if (!mat && sp == null && qty == null) {
+    alert('Compila almeno un campo (materiale, spessore, quantità) prima di applicare.');
+    return;
+  }
+  let applied = 0;
+  for (const idx of _bulkSelected) {
+    const a = currentArticoli[idx];
+    if (!a) continue;
+    if (mat) {
+      a.materiale = mat;
+      a._materiale_conf = 1.0;  // manuale = certo
+    }
+    if (sp != null && sp > 0) {
+      a.spessore_mm = sp;
+      a._spessore_conf = 1.0;
+      a._spessore_source = 'manuale';
+      a._spessore_warnings = [];
+    }
+    if (qty != null && qty > 0) {
+      a.quantita = qty;
+    }
+    applied++;
+  }
+  renderArticoli();
+  recalcTotali();
+  scheduleSaveArticoli(300);
+  showMsg('msg-import', `✓ Applicato a ${applied} articoli`, 'var(--green)');
+  // Reset form ma mantieni selezione
+  document.getElementById('bulk-mat').value = '';
+  document.getElementById('bulk-sp').value = '';
+  document.getElementById('bulk-qty').value = '';
+}
+
+function bulkDelete() {
+  if (_bulkSelected.size === 0) return;
+  const n = _bulkSelected.size;
+  if (!confirm(`Rimuovere ${n} articoli selezionati? L'operazione è definitiva.`)) return;
+  // Rimuovo dall'indice più alto al più basso per non invalidare gli indici
+  const sorted = [...(_bulkSelected)].sort((a, b) => b - a);
+  for (const idx of sorted) {
+    currentArticoli.splice(idx, 1);
+  }
+  _bulkSelected.clear();
+  renderArticoli();
+  recalcTotali();
+  scheduleSaveArticoli(300);
+  showMsg('msg-import', `✓ Rimossi ${n} articoli`, 'var(--green)');
+  _updateBulkToolbar();
+}
+
 function computeArticleStatus(a) {
   if (!a) return { level: 'empty', reasons: [] };
   const reasons = [];
@@ -2161,6 +2297,7 @@ function addArticoloManuale() {
 function removeArt(idx) {
   if (!confirm('Rimuovere articolo "' + (currentArticoli[idx].codice || '?') + '"?')) return;
   currentArticoli.splice(idx, 1);
+  _bulkSelected.clear();  // gli indici shift, meglio ripartire
   renderArticoli();
   recalcTotali();
 }
