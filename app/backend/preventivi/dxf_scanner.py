@@ -547,6 +547,12 @@ _DENSITA_STD = {
 }
 
 
+STD_SPESSORI_MM = [
+    0.5, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0,
+    6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 25.0, 30.0
+]
+
+
 def stima_spessore_da_peso(peso_kg: float, area_dm2: float,
                             materiale: str) -> dict:
     """Calcola spessore da peso × area × densità del materiale.
@@ -554,34 +560,58 @@ def stima_spessore_da_peso(peso_kg: float, area_dm2: float,
     Formula: spessore_mm = peso_kg / (area_dm2 * densita_kg_dm3) * 100
     (area in dm², spessore in dm = mm/100)
 
+    Include physics sanity check + warnings strutturati:
+    - Verifica materiale coerente con densità (cross-material check)
+    - Arrotondamento a valore commerciale standard più vicino
+    - Warnings esposti in `warnings` per UI traffic-light
+
     Returns:
-        {spessore_mm, confidence, source='peso_area', peso_kg, area_dm2, densita}
-        oppure vuoto se input non plausibili.
+        {spessore_mm, confidence, source, peso_kg, area_dm2, densita,
+         errore_std_pct, warnings, possibili_materiali}
+        oppure risultato "none" se input non plausibili.
     """
     if not peso_kg or peso_kg <= 0 or not area_dm2 or area_dm2 <= 0:
-        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none'}
+        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none',
+                'warnings': ['peso o area non validi']}
     mat_key = (materiale or '').strip().upper()
     densita = _DENSITA_STD.get(mat_key)
     if not densita:
-        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none'}
+        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none',
+                'warnings': [f'materiale {materiale!r} non in tabella densità']}
     # spessore in dm = peso / (area * densita); convert to mm
     sp = (peso_kg / (area_dm2 * densita)) * 100.0
+    warnings = []
     if sp <= 0 or sp > 60.0:
-        # Fuori range plausibile → probabilmente area/materiale sbagliati
-        return {'spessore_mm': None, 'confidence': 0.0, 'source': 'none'}
-    # Arrotonda ai valori commerciali standard più vicini (0.5, 0.6, 0.8, 1, 1.2, ...)
-    STD_SPESSORI = [0.5, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0,
-                    6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 25.0, 30.0]
-    nearest = min(STD_SPESSORI, key=lambda s: abs(s - sp))
+        # Physics sanity: spessore fuori range plausibile → materiale probabilmente
+        # sbagliato. Provo con altri materiali per suggerire il corretto.
+        suggested = _cross_material_suggest(peso_kg, area_dm2)
+        return {
+            'spessore_mm': None, 'confidence': 0.0, 'source': 'none',
+            'warnings': [
+                f'spessore calcolato {sp:.1f}mm fuori range plausibile (0.5-30mm)',
+                *([f'materiale probabilmente {suggested}, non {mat_key}'] if suggested else []),
+            ],
+            'possibili_materiali': suggested,
+        }
+    # Arrotonda ai valori commerciali standard più vicini
+    nearest = min(STD_SPESSORI_MM, key=lambda s: abs(s - sp))
     err_pct = abs(nearest - sp) / nearest * 100
-    # Se il calcolo torna vicino a un valore commerciale (errore < 15%),
-    # confidence alta. Altrimenti media.
+    # Confidence in base a errore vs valore commerciale
     if err_pct < 5:
         conf = 0.95
     elif err_pct < 15:
         conf = 0.80
+        warnings.append(f'spessore calcolato {sp:.2f}mm → arrotondato a {nearest}mm (err {err_pct:.0f}%)')
     else:
         conf = 0.55
+        warnings.append(
+            f'spessore calcolato {sp:.2f}mm dista {err_pct:.0f}% dal valore commerciale {nearest}mm — verificare materiale o peso'
+        )
+        # Cross-material check: c'è un altro materiale che spiega meglio il peso?
+        suggested = _cross_material_suggest(peso_kg, area_dm2, exclude=mat_key)
+        if suggested:
+            warnings.append(f'materiale potrebbe essere {suggested} invece di {mat_key}')
+
     return {
         'spessore_mm': round(nearest, 2),
         'spessore_calc_raw': round(sp, 3),
@@ -591,7 +621,37 @@ def stima_spessore_da_peso(peso_kg: float, area_dm2: float,
         'area_dm2': area_dm2,
         'densita': densita,
         'errore_std_pct': round(err_pct, 1),
+        'warnings': warnings,
     }
+
+
+def _cross_material_suggest(peso_kg: float, area_dm2: float,
+                             exclude: str = '') -> str | None:
+    """Physics sanity: quale materiale (tra i 5 noti) spiega meglio il peso
+    dato, assumendo che lo spessore sia un valore commerciale standard?
+
+    Uso: se il calcolo con materiale scelto dà spessore assurdo, controllo
+    se un altro materiale porta a uno spessore commerciale plausibile.
+    Restituisce il codice del miglior candidato oppure None.
+    """
+    if not peso_kg or peso_kg <= 0 or not area_dm2 or area_dm2 <= 0:
+        return None
+    exclude_upper = (exclude or '').upper()
+    best_score = float('inf')
+    best_mat = None
+    for mat, densita in _DENSITA_STD.items():
+        if mat == exclude_upper:
+            continue
+        sp = (peso_kg / (area_dm2 * densita)) * 100.0
+        if sp <= 0 or sp > 30.0:
+            continue
+        nearest = min(STD_SPESSORI_MM, key=lambda s: abs(s - sp))
+        err = abs(nearest - sp) / nearest * 100.0
+        # Score = err% (più basso = migliore match con valore commerciale)
+        if err < best_score and err < 10.0:  # solo se plausibile
+            best_score = err
+            best_mat = mat
+    return best_mat
 
 
 def estrai_spessore_da_cartiglio(path: str, area_dm2: float | None = None,
@@ -624,6 +684,7 @@ def estrai_spessore_da_cartiglio(path: str, area_dm2: float | None = None,
                 'spessore_mm': sp_info['spessore_mm'],
                 'confidence': round(conf, 2),
                 'source': 'peso_area',
+                'warnings': sp_info.get('warnings', []),  # esposto per UI traffic-light
                 'details': {
                     'peso_kg': peso,
                     'peso_source': peso_info['source'],
@@ -633,6 +694,16 @@ def estrai_spessore_da_cartiglio(path: str, area_dm2: float | None = None,
                     'densita_kg_dm3': sp_info['densita'],
                     'spessore_calc_raw': sp_info['spessore_calc_raw'],
                     'errore_std_pct': sp_info['errore_std_pct'],
+                },
+            }
+        # Se stima non è riuscita, propago i warning (es. cross-material suggest)
+        if sp_info.get('warnings'):
+            return {
+                'spessore_mm': None, 'confidence': 0.0, 'source': 'none',
+                'warnings': sp_info['warnings'],
+                'details': {
+                    'peso_kg': peso, 'area_dm2': area_dm2, 'materiale': materiale,
+                    'possibili_materiali': sp_info.get('possibili_materiali'),
                 },
             }
 
