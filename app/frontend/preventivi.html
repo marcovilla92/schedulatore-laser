@@ -969,8 +969,14 @@ tr.row-warn:hover { background: #FEF3C7; }
   <!-- Articoli -->
   <div class="card" id="card-articoli" style="display:none;">
     <div class="card-header">
-      <h3>Articoli</h3>
-      <div>
+      <h3>Articoli <span id="articoli-summary" style="font-weight:500; font-size:12px; color:var(--text-2); margin-left:8px;"></span></h3>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <!-- Filtro problemi (utile per preventivi grandi) -->
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-2); cursor:pointer;">
+          <input type="checkbox" id="filter-issues-only" onchange="toggleFilterIssues(this.checked)" style="cursor:pointer;">
+          Solo da rivedere
+        </label>
+        <span style="color:var(--border);">·</span>
         <button class="btn-mini" onclick="addArticoloManuale()">+ Aggiungi manuale</button>
         <button class="btn-mini" onclick="stimaTutti()">Stima costo laser tutti</button>
       </div>
@@ -2080,12 +2086,19 @@ async function saveBase() {
 // ============================================================
 function renderArticoli() {
   const tbody = document.getElementById('articoli-tbody');
+  _updateArticoliSummary();
   if (!currentArticoli.length) {
     tbody.innerHTML = '<tr><td colspan="13" class="empty">Importa XLSX/DXF o aggiungi manualmente.</td></tr>';
     return;
   }
   let html = '';
+  let hiddenCount = 0;
   currentArticoli.forEach((a, i) => {
+    // Filtro "solo da rivedere": nasconde ok, mostra warn/error/empty
+    if (_filterIssuesOnly) {
+      const s = computeArticleStatus(a);
+      if (s.level === 'ok') { hiddenCount++; return; }
+    }
     const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
     const lavorazioni = (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
     const totRow = baseEff + lavorazioni;
@@ -2127,7 +2140,15 @@ function renderArticoli() {
       </td>
     </tr>`;
   });
-  tbody.innerHTML = html;
+  // Se il filtro nasconde tutto: banner esplicativo
+  if (_filterIssuesOnly && !html) {
+    tbody.innerHTML = `<tr><td colspan="13" class="empty" style="padding:20px; text-align:center; color:#10B981;">✓ Tutti gli articoli sono OK. Disattiva il filtro per vederli.</td></tr>`;
+  } else {
+    if (_filterIssuesOnly && hiddenCount > 0) {
+      html += `<tr><td colspan="13" style="padding:10px; text-align:center; color:var(--text-2); font-size:12px; background:#F9FAFB;">${hiddenCount} articoli OK nascosti dal filtro</td></tr>`;
+    }
+    tbody.innerHTML = html;
+  }
 }
 
 /**
@@ -2138,6 +2159,36 @@ function renderArticoli() {
  *   GRIGIO (empty)→ articolo appena creato, nessun dato ancora
  * Ritorna {level, reasons: [str]}.
  */
+// ═══════════════════════════════════════════════════════════════════
+// Filtro "solo da rivedere" — nasconde articoli status OK, mostra warn+error.
+// Utile per grandi preventivi (100 DXF) dove serve focus sui problemi.
+// ═══════════════════════════════════════════════════════════════════
+let _filterIssuesOnly = false;
+function toggleFilterIssues(enabled) {
+  _filterIssuesOnly = enabled;
+  renderArticoli();
+}
+
+/** Aggiorna il summary "N articoli · X ok · Y warn · Z error" nell'header. */
+function _updateArticoliSummary() {
+  const el = document.getElementById('articoli-summary');
+  if (!el) return;
+  const total = currentArticoli.length;
+  if (total === 0) { el.textContent = ''; return; }
+  let ok = 0, warn = 0, err = 0;
+  for (const a of currentArticoli) {
+    const s = computeArticleStatus(a);
+    if (s.level === 'ok') ok++;
+    else if (s.level === 'warn') warn++;
+    else if (s.level === 'error') err++;
+  }
+  const parts = [`${total} articoli`];
+  if (ok) parts.push(`<span style="color:#10B981;">${ok} ok</span>`);
+  if (warn) parts.push(`<span style="color:#F59E0B;">${warn} da rivedere</span>`);
+  if (err) parts.push(`<span style="color:#EF4444;">${err} incompleti</span>`);
+  el.innerHTML = parts.join(' · ');
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // B2 — Real-time recalc costo laser al cambio materiale/spessore.
 //
