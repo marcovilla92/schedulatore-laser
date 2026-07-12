@@ -1518,17 +1518,61 @@ tr.row-warn:hover { background: #FEF3C7; }
             <div id="cand-conf-hint" style="font-size:11px; color:var(--text-2); margin-top:8px; line-height:1.4;"></div>
           </div>
         </div>
+        <!-- Definisci manualmente (Fase 1b): PRIMARIO, sempre visibile in alto -->
+        <div class="mfs-section" style="background:#F8FAFC; padding:12px; border-radius:8px; border:1px solid var(--border);">
+          <div style="font-size:11px; color:var(--text-2); font-weight:600; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+            Definisci il pezzo tu
+          </div>
+          <div style="font-size:11px; color:var(--text-2); line-height:1.4; margin-bottom:8px;">
+            Trascina un rettangolo attorno al pezzo sulla preview. Verrà creato un DXF pulito con solo quello.
+          </div>
+          <button id="cand-marquee-btn" class="btn-primary" style="width:100%;" onclick="toggleMarqueeMode()">
+            <i data-lucide="square-dashed-mouse-pointer" style="width:14px;height:14px;vertical-align:-2px;"></i>
+            <span id="cand-marquee-btn-txt">Attiva selezione rettangolare</span>
+          </button>
+          <div id="cand-marquee-hint" style="display:none; margin-top:8px; padding:8px 10px; background:#EDE9FE; border-radius:6px; font-size:11px; color:#5B21B6;">
+            <b>Trascina</b> col mouse sulla preview per delimitare il pezzo. Al rilascio verrà creato un DXF pulito.
+          </div>
+        </div>
         <div class="mfs-section">
-          <div class="sec-title">Candidati rilevati</div>
+          <div class="sec-title">…oppure scegli un candidato auto-rilevato</div>
           <div id="cand-list" style="display:flex; flex-direction:column; gap:8px;">
             <!-- Popolato con card cliccabili via JS -->
           </div>
         </div>
-        <button id="cand-apply-btn" class="btn-primary" style="width:100%; margin-top:14px;" onclick="applyCandidateSelection()">
+        <button id="cand-apply-btn" class="btn-secondary" style="width:100%; margin-top:14px;" onclick="applyCandidateSelection()">
           <i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:-2px;"></i>
-          Applica selezione (auto-detected)
+          Applica selezione candidato
         </button>
         <button class="btn-secondary" style="width:100%; margin-top:8px;" onclick="closeCandidatesModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: review batch post-import DXF (griglia originale vs pulito) -->
+<div class="modal-overlay" id="modal-review-batch" onclick="if(event.target===this)closeReviewBatch()" style="z-index:2660;">
+  <div class="modal modal-fullscreen">
+    <div class="modal-head">
+      <h3 id="review-batch-title" style="display:flex; align-items:center; gap:10px;">
+        <i data-lucide="scan-search" style="width:20px;height:20px;color:#4F46E5;"></i>
+        Rivedi <span id="review-batch-count">0</span> detezioni automatiche
+      </h3>
+      <button class="modal-close" onclick="closeReviewBatch()">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow:auto; padding:16px 20px; display:block !important; width:100%;">
+      <div style="font-size:12px; color:var(--text-2); margin-bottom:12px; padding:8px 12px; background:#F1F5F9; border-radius:6px;">
+        <b>Confronta originale (sinistra) e pezzo rilevato (destra).</b>
+        Se un pezzo non è corretto, click sulla card per correggerlo manualmente.
+        Puoi anche chiudere questa finestra e correggere in seguito dalla tabella.
+      </div>
+      <div id="review-batch-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:14px; width:100%; box-sizing:border-box;"></div>
+    </div>
+    <div class="modal-foot" style="padding:12px 20px; border-top:1px solid var(--border); display:flex; gap:12px; justify-content:space-between; align-items:center;">
+      <div id="review-batch-stats" style="font-size:12px; color:var(--text-2);"></div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn-secondary" onclick="closeReviewBatch()">Rivedo dopo</button>
+        <button class="btn-primary" onclick="closeReviewBatch()">✓ Tutto ok, continua</button>
       </div>
     </div>
   </div>
@@ -2267,19 +2311,29 @@ function _renderArticoloRow(i, a) {
     const verifyBadge = needsVerify
       ? `<span class="verify-badge" onclick="event.stopPropagation(); openCandidatesModal(${i});" title="Il sistema non è sicuro di quale contorno sia il pezzo — click per confermare">⚠ Verifica</span>`
       : '';
-    // Thumbnail SVG DXF (se disponibile). onerror: retry silenzioso fino a 2 volte
-    // con backoff 1.5s/4s (cache SVG server-side potrebbe essere fredda al primo
-    // caricamento post-import: il rendering ezdxf ci mette 0.5-1.5s e img loading=lazy
-    // può andare in fail visivo se scatta timeout del browser). Dopo 2 retry cade
-    // nel placeholder pulito invece dell'icona rotta.
-    const thumbSrc = a.dxf_filename && currentPreventivo
-      ? `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/svg`
+    // Thumbnail SVG DXF: preferisce il file "pulito" se auto-cleanup ha avuto
+    // successo (solo pezzo, no cartiglio). Fallback all'originale.
+    // Badge in overlay indica origine del pulito: 'auto' (verde), 'auto_review'
+    // (ambra), 'manual' (viola), nessun badge se solo originale.
+    const displayFilename = a.cleaned_dxf_filename || a.dxf_filename;
+    const thumbSrc = displayFilename && currentPreventivo
+      ? `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg`
       : '';
-    const thumbHtml = (a.dxf_filename && currentPreventivo)
-      ? `<div class="thumb-cell" onclick="openArtModal(${i})" title="Vedi dettaglio">
+    const cleanBadgeMap = {
+      auto:        { bg: '#DCFCE7', col: '#166534', txt: '✓', title: 'Pulizia automatica (alta confidenza)' },
+      auto_review: { bg: '#FEF3C7', col: '#92400E', txt: '?', title: 'Pulizia automatica (da verificare)' },
+      manual:      { bg: '#EDE9FE', col: '#5B21B6', txt: '✎', title: 'Pulito manualmente' },
+    };
+    const cb = cleanBadgeMap[a.cleaned_status] || null;
+    const cleanBadge = cb
+      ? `<span title="${cb.title}" style="position:absolute; top:2px; right:2px; background:${cb.bg}; color:${cb.col}; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1;">${cb.txt}</span>`
+      : '';
+    const thumbHtml = (displayFilename && currentPreventivo)
+      ? `<div class="thumb-cell" onclick="openArtModal(${i})" title="Vedi dettaglio" style="position:relative;">
            <img src="${thumbSrc}" alt="" loading="lazy"
                 data-retry="0" data-src="${thumbSrc}"
                 onerror="_thumbOnError(this)">
+           ${cleanBadge}
            <div class="thumb-overlay"></div>
          </div>`
       : `<div class="thumb-cell empty" onclick="openArtModal(${i})" title="Nessuna preview — click per dettagli">—</div>`;
@@ -2324,6 +2378,10 @@ function _renderArticoloRow(i, a) {
       <td class="n" style="color:var(--text-2);">${(a.saldatura_ml || 0).toFixed(1)}</td>
       <td class="n" style="font-weight:700; font-variant-numeric: tabular-nums; color:var(--text);">${formatEurStr(totRow)}</td>
       <td style="text-align:right; white-space:nowrap;">
+        ${a.dxf_filename ? (a.cleaned_dxf_filename
+          ? `<button class="btn-mini" onclick="openCandidatesModal(${i})" title="Modifica DXF pulito (già definito)" style="color:#5B21B6;">✎</button>`
+          : `<button class="btn-mini" onclick="openCandidatesModal(${i})" title="Definisci il pezzo (DXF non ancora pulito)" style="background:#EDE9FE; color:#5B21B6; font-weight:600;">Pulisci</button>`
+        ) : ''}
         <button class="btn-mini" onclick="stimaArt(${i})" title="Ricalcola stima costo laser">Stima</button>
         <button class="btn-danger" onclick="removeArt(${i})" title="Rimuovi">×</button>
       </td>
@@ -3396,6 +3454,20 @@ function closeCandidatesModal() {
   document.getElementById('modal-candidates').classList.remove('active');
   document.getElementById('cand-svg-inner').innerHTML = '';
   _candState = { articoloIdx: -1, data: null, selectedIdx: -1 };
+  // Reset marquee mode se attivo
+  if (_marqueeMode) {
+    _marqueeMode = false;
+    const container = document.getElementById('cand-svg-container');
+    _detachMarqueeHandlers(container);
+    _marqueeCleanupOverlay();
+    container.style.cursor = '';
+    const btn = document.getElementById('cand-marquee-btn');
+    const btnTxt = document.getElementById('cand-marquee-btn-txt');
+    const hint = document.getElementById('cand-marquee-hint');
+    if (btn) { btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
+    if (btnTxt) btnTxt.textContent = 'Attiva selezione rettangolare';
+    if (hint) hint.style.display = 'none';
+  }
 }
 
 function madUpdate(field, value, numeric) {
@@ -4061,6 +4133,185 @@ function _renderAssiemeBom(roll) {
     rows.length ? rows.join('') : `<tr><td colspan="10" class="empty" style="padding:24px; text-align:center; color:var(--text-2);">Nessun componente linkato. Vai in tabella articoli e seleziona questo assieme nel dropdown.</td></tr>`;
 }
 
+// ============================================================
+//  EDITOR MANUALE — drag rectangle sulla preview per definire pezzo + salvare pulito
+// ============================================================
+let _marqueeMode = false;
+let _marqueeStart = null;      // {x, y} in coord DXF (mm) al mousedown
+let _marqueeStartClient = null;// {x, y} in coord schermo (per disegno overlay)
+let _marqueeRectDiv = null;    // div overlay del rettangolo
+
+function toggleMarqueeMode() {
+  _marqueeMode = !_marqueeMode;
+  const btn = document.getElementById('cand-marquee-btn');
+  const btnTxt = document.getElementById('cand-marquee-btn-txt');
+  const hint = document.getElementById('cand-marquee-hint');
+  const container = document.getElementById('cand-svg-container');
+  if (_marqueeMode) {
+    btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
+    btnTxt.textContent = 'Annulla selezione';
+    hint.style.display = 'block';
+    container.style.cursor = 'crosshair';
+    _attachMarqueeHandlers(container);
+  } else {
+    btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary');
+    btnTxt.textContent = 'Attiva selezione rettangolare';
+    hint.style.display = 'none';
+    container.style.cursor = '';
+    _detachMarqueeHandlers(container);
+    _marqueeCleanupOverlay();
+  }
+}
+
+function _marqueeCleanupOverlay() {
+  if (_marqueeRectDiv) { _marqueeRectDiv.remove(); _marqueeRectDiv = null; }
+  _marqueeStart = null;
+  _marqueeStartClient = null;
+}
+
+/** Converte coordinate schermo (clientX/clientY) in coordinate DXF (mm).
+
+    ezdxf genera SVG con viewBox in "unità interne" (non mm) + flip Y.
+    Esempio tipico: viewBox="0 0 1000000 735610" con DXF bbox 1230×861mm.
+    Fattore ~813 unità/mm + Y invertita (in DXF Y cresce verso l'alto, in SVG
+    cresce verso il basso). Uso `dxf_bbox_mm` dal detector v3 per calcolare
+    trasformazione isotropa affine con flip Y. */
+function _clientToSvgCoords(clientX, clientY) {
+  const svg = document.querySelector('#cand-svg-inner svg');
+  if (!svg) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = clientX; pt.y = clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const local = pt.matrixTransform(ctm.inverse());
+  // Coord `local` è in unità SVG (viewBox). Devo convertirle in mm DXF.
+  const bboxDxf = _candState.data && _candState.data.dxf_bbox_mm;
+  if (!bboxDxf || bboxDxf.length !== 4) {
+    // fallback: assumo unità SVG == mm (funziona solo se viewBox è già in mm)
+    return { x: local.x, y: local.y };
+  }
+  const vb = svg.viewBox.baseVal;
+  const [minx, miny, maxx, maxy] = bboxDxf;
+  const dxfW = maxx - minx, dxfH = maxy - miny;
+  if (dxfW <= 0 || dxfH <= 0 || vb.width <= 0 || vb.height <= 0) {
+    return { x: local.x, y: local.y };
+  }
+  // Scala isotropa (fit-to-viewBox preservando aspect ratio) + flip Y
+  const scale = Math.min(vb.width / dxfW, vb.height / dxfH);
+  const cxVb = vb.x + vb.width / 2;
+  const cyVb = vb.y + vb.height / 2;
+  const cxDxf = (minx + maxx) / 2;
+  const cyDxf = (miny + maxy) / 2;
+  // Inverse: local.x = cxVb + (dxf_x - cxDxf) * scale
+  //          local.y = cyVb - (dxf_y - cyDxf) * scale  (flip Y)
+  const dxfX = (local.x - cxVb) / scale + cxDxf;
+  const dxfY = cyDxf - (local.y - cyVb) / scale;
+  return { x: dxfX, y: dxfY };
+}
+
+function _onMarqueeMouseDown(e) {
+  if (!_marqueeMode) return;
+  e.preventDefault();
+  const coords = _clientToSvgCoords(e.clientX, e.clientY);
+  if (!coords) return;
+  _marqueeStart = coords;                                // coord DXF mm (per il POST /save-cleaned)
+  _marqueeStartClient = { x: e.clientX, y: e.clientY };  // coord schermo (per disegno overlay)
+  const container = document.getElementById('cand-svg-container');
+  const cRect = container.getBoundingClientRect();
+  _marqueeRectDiv = document.createElement('div');
+  _marqueeRectDiv.style.cssText = `position:absolute; left:${e.clientX - cRect.left}px; top:${e.clientY - cRect.top}px; width:0; height:0; border:2px dashed #4F46E5; background:rgba(79,70,229,0.15); pointer-events:none; z-index:20;`;
+  container.appendChild(_marqueeRectDiv);
+}
+
+function _onMarqueeMouseMove(e) {
+  if (!_marqueeMode || !_marqueeStartClient || !_marqueeRectDiv) return;
+  const container = document.getElementById('cand-svg-container');
+  const cRect = container.getBoundingClientRect();
+  const x1 = _marqueeStartClient.x - cRect.left;
+  const y1 = _marqueeStartClient.y - cRect.top;
+  const x2 = e.clientX - cRect.left;
+  const y2 = e.clientY - cRect.top;
+  _marqueeRectDiv.style.left = Math.min(x1, x2) + 'px';
+  _marqueeRectDiv.style.top = Math.min(y1, y2) + 'px';
+  _marqueeRectDiv.style.width = Math.abs(x2 - x1) + 'px';
+  _marqueeRectDiv.style.height = Math.abs(y2 - y1) + 'px';
+}
+
+async function _onMarqueeMouseUp(e) {
+  if (!_marqueeMode || !_marqueeStart || !_marqueeStartClient) return;
+  // Soglia click accidentale: minima distanza in pixel schermo (30px)
+  const pixelDx = Math.abs(e.clientX - _marqueeStartClient.x);
+  const pixelDy = Math.abs(e.clientY - _marqueeStartClient.y);
+  if (pixelDx < 30 || pixelDy < 30) {
+    _marqueeCleanupOverlay();
+    return;
+  }
+  const end = _clientToSvgCoords(e.clientX, e.clientY);
+  if (!end) { _marqueeCleanupOverlay(); return; }
+  const bbox = {
+    minx: Math.min(_marqueeStart.x, end.x),
+    miny: Math.min(_marqueeStart.y, end.y),
+    maxx: Math.max(_marqueeStart.x, end.x),
+    maxy: Math.max(_marqueeStart.y, end.y),
+  };
+  const w = bbox.maxx - bbox.minx, h = bbox.maxy - bbox.miny;
+  if (w < 1 || h < 1) {
+    _marqueeCleanupOverlay();
+    return;  // bbox mm troppo piccolo (raro se pixel > 30, ma difesa)
+  }
+  const { articoloIdx } = _candState;
+  const a = currentArticoli[articoloIdx];
+  if (!a || !a.dxf_filename || !currentPreventivo) { _marqueeCleanupOverlay(); return; }
+
+  // Feedback visivo: rettangolo diventa verde durante il save
+  if (_marqueeRectDiv) {
+    _marqueeRectDiv.style.borderColor = '#22C55E';
+    _marqueeRectDiv.style.background = 'rgba(34,197,94,0.15)';
+  }
+
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/save-cleaned`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        admin_id: currentUser.id,
+        articolo_id: a.id,
+        minx: bbox.minx, miny: bbox.miny, maxx: bbox.maxx, maxy: bbox.maxy,
+      }),
+    });
+    const j = await r.json();
+    if (!j.success) throw new Error(j.error || 'save-cleaned fallito');
+
+    // Applica i dati aggiornati all'articolo
+    a.cleaned_dxf_filename = j.cleaned_dxf_filename;
+    a.cleaned_status = 'manual';
+    if (j.area_dm2 != null) a.area_dm2 = j.area_dm2;
+    if (j.perimetro_taglio_m != null) a.perimetro_taglio_m = j.perimetro_taglio_m;
+    if (j.n_pierce != null) a.n_forature = j.n_pierce;
+    a.dxf_needs_verify = false;
+
+    renderArticoli();
+    recalcTotali();
+    closeCandidatesModal();
+    showMsg('msg-import', `✓ DXF pulito salvato manualmente (${j.entities_copied} entità)`, 'var(--green)');
+  } catch (e) {
+    _marqueeCleanupOverlay();
+    alert('Errore salvataggio: ' + e.message);
+  }
+}
+
+function _attachMarqueeHandlers(container) {
+  container.addEventListener('mousedown', _onMarqueeMouseDown);
+  document.addEventListener('mousemove', _onMarqueeMouseMove);
+  document.addEventListener('mouseup', _onMarqueeMouseUp);
+}
+
+function _detachMarqueeHandlers(container) {
+  container.removeEventListener('mousedown', _onMarqueeMouseDown);
+  document.removeEventListener('mousemove', _onMarqueeMouseMove);
+  document.removeEventListener('mouseup', _onMarqueeMouseUp);
+}
+
 function closeAssiemeDetail() {
   document.getElementById('modal-assieme-detail').classList.remove('active');
   document.getElementById('ass-detail-3d-iframe').src = 'about:blank';
@@ -4302,6 +4553,13 @@ function applyDxfResultToUI(d, rawFilename, opts = {}) {
     ex.dxf_filename = d.filename || rawFilename;
     ex.dxf_needs_verify = !!d.geometria.needs_manual_select;
     ex.dxf_confidence = d.geometria.confidence || 1;
+    // Cleanup DXF (auto/manual): mantiene i campi popolati dal backend
+    if (d.cleanup) {
+      ex.cleaned_dxf_filename = d.cleanup.cleaned_dxf_filename || null;
+      ex.cleaned_status = d.cleanup.cleaned_status || null;
+      ex._cleanup_reason = d.cleanup.cleanup_reason || null;
+      ex._cleanup_stats = d.cleanup.cleanup_stats || null;
+    }
     if (!ex.materiale && d.cartiglio && d.cartiglio.materiale) {
       ex.materiale = d.cartiglio.materiale;
       ex._materiale_conf = d.cartiglio.confidence || 0;
@@ -4348,6 +4606,12 @@ function applyDxfResultToUI(d, rawFilename, opts = {}) {
     dxf_confidence: d.geometria.confidence || 1,
     _geo_source: (d.geometria || {})._source || 'detector',
     _geo_raw_text: (d.geometria || {})._raw_text || '',
+    // Cleanup DXF (auto/manual): filename del DXF pulito se creato, status,
+    // stats debug. Usato per thumbnail e per il passaggio a Mirko.
+    cleaned_dxf_filename: (d.cleanup || {}).cleaned_dxf_filename || null,
+    cleaned_status: (d.cleanup || {}).cleaned_status || null,
+    _cleanup_reason: (d.cleanup || {}).cleanup_reason || null,
+    _cleanup_stats: (d.cleanup || {}).cleanup_stats || null,
   });
   recalcLavorazioniArt(currentArticoli[currentArticoli.length - 1]);
   return 'created';
@@ -4416,7 +4680,116 @@ async function uploadDxfBatch(files) {
       `✓ Batch DXF: ${ok}/${d.results.length} elaborati in ${secs}s${cacheMsg}${errMsg}`,
       err ? 'var(--orange)' : 'var(--green)'
     );
+    // Apri la griglia review batch se ci sono file NON già cachati e che hanno
+    // qualcosa da verificare (auto-cleanup fatto, o cleanup fallito che richiede
+    // manuale). Serve al commerciale per confermare visivamente prima di andare.
+    const toReview = (d.results || []).filter(r =>
+      r.success && !r._cache_hit && (
+        (r.cleanup && r.cleanup.cleaned_dxf_filename) ||   // pulito → verifica
+        (r.geometria && r.geometria.needs_manual_select)  // bassa conf → serve fix
+      )
+    );
+    if (toReview.length > 0) {
+      openReviewBatch(toReview);
+    }
   } catch (e) { showMsg('msg-import', 'Errore batch: ' + e.message, 'var(--red)'); }
+}
+
+// ============================================================
+//  REVIEW BATCH — griglia post-import per verifica visiva
+// ============================================================
+let _reviewBatchItems = [];
+
+/** Apre modal griglia review. Ogni item è un result del batch import.
+    Per ogni item mostro card con: originale (mini) | pulito (grande) affiancati,
+    badge confidence, dati (materiale, spessore, area). Click card → apre editor
+    manuale del contorno (openCandidatesModal). */
+function openReviewBatch(items) {
+  _reviewBatchItems = items.slice();
+  document.getElementById('review-batch-count').textContent = items.length;
+
+  const stats = { auto: 0, auto_review: 0, needs_manual: 0 };
+  const cards = items.map((r, i) => {
+    const geo = r.geometria || {};
+    const cart = r.cartiglio || {};
+    const sp = r.spessore || {};
+    const cleanup = r.cleanup || {};
+    const conf = geo.confidence || 0;
+    const status = cleanup.cleaned_status;
+    if (geo.needs_manual_select) stats.needs_manual++;
+    else if (status === 'auto') stats.auto++;
+    else if (status === 'auto_review') stats.auto_review++;
+
+    // Border color per confidence
+    let borderColor = '#94A3B8', chipBg = '#F1F5F9', chipCol = '#475569', chipTxt = '?';
+    if (geo.needs_manual_select) {
+      borderColor = '#EF4444'; chipBg = '#FEE2E2'; chipCol = '#991B1B'; chipTxt = 'Manuale richiesta';
+    } else if (status === 'auto') {
+      borderColor = '#22C55E'; chipBg = '#DCFCE7'; chipCol = '#166534'; chipTxt = `✓ Auto ${Math.round(conf*100)}%`;
+    } else if (status === 'auto_review') {
+      borderColor = '#F59E0B'; chipBg = '#FEF3C7'; chipCol = '#92400E'; chipTxt = `⚠ Verifica ${Math.round(conf*100)}%`;
+    }
+
+    const origSrc = `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(r.filename)}/svg`;
+    const cleanSrc = cleanup.cleaned_dxf_filename
+      ? `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(cleanup.cleaned_dxf_filename)}/svg`
+      : null;
+    const cleanPreview = cleanSrc
+      ? `<img src="${cleanSrc}" loading="lazy" style="width:100%; height:100%; object-fit:contain;">`
+      : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#94A3B8; font-size:11px; text-align:center; padding:6px;">Nessun pulito<br>(fai click per definire)</div>`;
+
+    // Trova idx del pezzo in currentArticoli per aprire editor
+    const artIdx = currentArticoli.findIndex(a => (a.codice || '').toLowerCase() === (r.filename || '').replace(/\.(dxf|dwg)$/i, '').toLowerCase());
+
+    return `<div class="review-card" style="border:2px solid ${borderColor}; border-radius:8px; overflow:hidden; background:white; cursor:pointer;" onclick="reviewCardClick(${artIdx})">
+      <div style="padding:6px 10px; background:#F8FAFC; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border);">
+        <code style="font-size:12px; font-weight:600;">${escapeHtml(r.filename || '?')}</code>
+        <span style="font-size:10px; padding:2px 8px; border-radius:8px; background:${chipBg}; color:${chipCol}; font-weight:600;">${chipTxt}</span>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 2fr; gap:4px; height:150px; background:#FAFAFA;">
+        <div style="background:#F1F5F9; overflow:hidden; position:relative;">
+          <img src="${origSrc}" loading="lazy" style="width:100%; height:100%; object-fit:contain;">
+          <div style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,.6); color:white; font-size:9px; padding:1px 5px; border-radius:6px;">ORIG</div>
+        </div>
+        <div style="background:white; overflow:hidden; position:relative;">
+          ${cleanPreview}
+          ${cleanSrc ? '<div style="position:absolute; top:2px; left:2px; background:rgba(22,101,52,.85); color:white; font-size:9px; padding:1px 5px; border-radius:6px;">PULITO</div>' : ''}
+        </div>
+      </div>
+      <div style="padding:6px 10px; font-size:11px; color:var(--text-2); display:grid; grid-template-columns: 1fr 1fr; gap:4px 10px;">
+        <div><b>${cart.materiale || '—'}</b> · ${sp.spessore_mm ? sp.spessore_mm.toFixed(1) + 'mm' : 'sp.?'}</div>
+        <div style="text-align:right;">${(geo.area_dm2 || 0).toFixed(2)} dm² · ${geo.n_forature || 0} fori</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('review-batch-grid').innerHTML = cards;
+  const parts = [];
+  if (stats.auto > 0) parts.push(`<span style="color:#166534;">✓ ${stats.auto} auto</span>`);
+  if (stats.auto_review > 0) parts.push(`<span style="color:#92400E;">⚠ ${stats.auto_review} da verificare</span>`);
+  if (stats.needs_manual > 0) parts.push(`<span style="color:#991B1B;">✗ ${stats.needs_manual} da correggere</span>`);
+  document.getElementById('review-batch-stats').innerHTML = parts.join(' · ');
+
+  document.getElementById('modal-review-batch').classList.add('active');
+  if (window.lucide) lucide.createIcons();
+}
+
+/** Click su card review: se articolo esiste in currentArticoli, apre il modal
+    dettaglio articolo (che ha già l'editor candidati). Il commerciale può
+    modificare direttamente lì. */
+function reviewCardClick(artIdx) {
+  if (artIdx < 0 || !currentArticoli[artIdx]) return;
+  // Chiudi la griglia review PRIMA di aprire l'editor (z-index conflict)
+  closeReviewBatch();
+  // Apri direttamente il modal candidati (che contiene l'editor drag rettangolare
+  // + i candidati auto-rilevati). Se non ci sono candidati, l'utente ha comunque
+  // il drag manuale.
+  openCandidatesModal(artIdx);
+}
+
+function closeReviewBatch() {
+  document.getElementById('modal-review-batch').classList.remove('active');
+  _reviewBatchItems = [];
 }
 
 
@@ -4457,6 +4830,20 @@ function closeAccettaModal() {
 
 async function confermaAccetta() {
   if (!currentPreventivo) return;
+  // Pre-check DXF puliti: elenca gli articoli SENZA _cleaned. Se ce ne sono,
+  // avvisa (non blocca) — Mirko dovrà pulirli in Lantek prima di tagliare.
+  const nonPuliti = currentArticoli.filter(a => a.dxf_filename && !a.cleaned_dxf_filename);
+  if (nonPuliti.length > 0) {
+    const nomi = nonPuliti.map(a => a.codice || '?').slice(0, 8).join(', ');
+    const extra = nonPuliti.length > 8 ? ` e altri ${nonPuliti.length - 8}` : '';
+    const proceed = confirm(
+      `⚠ ${nonPuliti.length} pezzo${nonPuliti.length===1?'':'i'} senza DXF pulito:\n\n` +
+      `${nomi}${extra}\n\n` +
+      `Mirko riceverà il DXF originale (con cartiglio/quote) e dovrà pulirlo manualmente in Lantek.\n\n` +
+      `Vuoi continuare comunque? (Annulla per pulire i pezzi prima)`
+    );
+    if (!proceed) return;
+  }
   // Calcola totali correnti dal local state per inviarli al backend
   const qty = parseInt(document.getElementById('ed-quantita').value, 10) || 1;
   const margine = parseFloat(document.getElementById('ed-margine').value) || 0;
@@ -4494,9 +4881,20 @@ async function confermaAccetta() {
     closeAccettaModal();
     // Ricarica preventivo dal server per status aggiornato + articoli persistiti
     await openPreventivo(currentPreventivo.id);
+    // Costruisce messaggio + dettagli DXF transfer
+    const tr = d.dxf_transfer || {};
+    let dxfNote = '';
+    if (tr.copied_cleaned || tr.copied_original_fallback || tr.missing) {
+      const parts = [];
+      if (tr.copied_cleaned) parts.push(`${tr.copied_cleaned} pulito${tr.copied_cleaned===1?'':'i'}`);
+      if (tr.copied_original_fallback) parts.push(`${tr.copied_original_fallback} originale${tr.copied_original_fallback===1?'':'i'} (Mirko pulirà in Lantek)`);
+      if (tr.missing) parts.push(`⚠ ${tr.missing} mancanti`);
+      dxfNote = ` · DXF officina: ${parts.join(', ')}`;
+    }
     showMsg('msg-workflow',
       `✓ Preventivo accettato. Ordine ${d.numero_ordine} creato in FerroTrack. ` +
-      `Cartellino: ${d.cartellino_url}`, 'var(--green)');
+      `Cartellino: ${d.cartellino_url}${dxfNote}`,
+      tr.copied_original_fallback || tr.missing ? 'var(--orange)' : 'var(--green)');
   } catch (e) {
     showMsg('msg-accetta', 'Errore: ' + e.message, 'var(--red)');
   } finally {

@@ -287,6 +287,12 @@ class PreventivoArticolo(Base):
     spessore_mm = Column(Float, nullable=True)  # inserito dal commerciale
     materiale = Column(String, nullable=True)  # 'S235'|'INOX_304'|'ALU_5754'|...
     dxf_filename = Column(String, nullable=True)  # file DXF associato (per preview + trova-pezzo)
+    # DXF "pulito" (solo pezzo, senza cartiglio/quote/viste) — usato per thumbnail
+    # commerciale + passaggio a Mirko per il nesting Lantek. Popolato o
+    # automaticamente durante l'import batch se il detector v3 dà confidence >= 0.5
+    # (con sanity check area_ratio), oppure manualmente dall'editor.
+    cleaned_dxf_filename = Column(String, nullable=True)
+    cleaned_status = Column(String, nullable=True)  # 'auto'|'auto_review'|'manual'|None
     # --- costo base (taglio + materiale) ---
     costo_materiale = Column(Float, nullable=False, default=0.0)  # da XLSX Lantek se importato
     costo_base_stimato = Column(Float, nullable=False, default=0.0)  # da laser_cost_estimator
@@ -598,6 +604,18 @@ def initialize_database():
             if 'taglio_completato_da' not in existing_orders:
                 conn.execute(text('ALTER TABLE orders ADD COLUMN taglio_completato_da TEXT'))
                 logger.info('Aggiunta colonna taglio_completato_da a orders')
+            conn.commit()
+
+    # Migrazione: DXF cleanup su preventivo_articoli (2026-07-06)
+    if 'preventivo_articoli' in insp.get_table_names():
+        existing_prev_art = [c['name'] for c in insp.get_columns('preventivo_articoli')]
+        with engine.connect() as conn:
+            if 'cleaned_dxf_filename' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN cleaned_dxf_filename VARCHAR'))
+                logger.info('Aggiunta colonna cleaned_dxf_filename a preventivo_articoli')
+            if 'cleaned_status' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN cleaned_status VARCHAR'))
+                logger.info('Aggiunta colonna cleaned_status a preventivo_articoli')
             conn.commit()
 
     seed_users()

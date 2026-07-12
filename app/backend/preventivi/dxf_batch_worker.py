@@ -120,6 +120,42 @@ def process_single_dxf(dxf_path: str, filename: str, dxf_cfg: dict) -> dict:
                     'details': {'raw': dim_info['raw_text']},
                 }
 
+        # ---- Auto-cleanup DXF (Fase 1a) ----
+        # Se il detector ha alta confidence e sanity check ok, salva DXF pulito
+        # (solo pezzo + fori interni al bbox). Il commerciale poi lo verifica
+        # nella griglia review post-import. Salvato accanto all'originale come
+        # <name>_cleaned.dxf.
+        cleaned_info = {'cleaned_dxf_filename': None, 'cleaned_status': None,
+                        'cleanup_reason': None, 'cleanup_stats': None}
+        try:
+            from . import dxf_cleanup
+            proceed, reason = dxf_cleanup.should_cleanup(geo)
+            cleaned_info['cleanup_reason'] = reason
+            if proceed:
+                bbox = dxf_cleanup.get_pezzo_bbox(geo)
+                if bbox:
+                    base, ext = os.path.splitext(dxf_path)
+                    cleaned_path = base + '_cleaned' + ext
+                    r = dxf_cleanup.save_cleaned_dxf(dxf_path, cleaned_path, bbox)
+                    if r.get('success'):
+                        cleaned_info['cleaned_dxf_filename'] = os.path.basename(cleaned_path)
+                        # 'auto' se confidence alta, 'auto_review' se media
+                        conf = float(geo.get('confidence', 0) or 0)
+                        cleaned_info['cleaned_status'] = 'auto' if conf >= 0.7 else 'auto_review'
+                        cleaned_info['cleanup_stats'] = {
+                            'entities_copied': r['entities_copied'],
+                            'entities_source': r['entities_source'],
+                            'tolerance_mm': r['tolerance_mm'],
+                            'warnings': r.get('warnings') or [],
+                        }
+                        logger.info('[%s] cleanup auto ok: %d/%d entità (%s)',
+                                    filename, r['entities_copied'], r['entities_source'],
+                                    cleaned_info['cleaned_status'])
+                    else:
+                        logger.info('[%s] cleanup fallito: %s', filename, r.get('error'))
+        except Exception as e:
+            logger.warning('[%s] cleanup pipeline error: %s', filename, e)
+
         payload = {
             'success': True,
             'filename': filename,
@@ -130,6 +166,7 @@ def process_single_dxf(dxf_path: str, filename: str, dxf_cfg: dict) -> dict:
             'geometria': geo,
             'cartiglio': cartiglio,
             'spessore': spessore,
+            'cleanup': cleaned_info,
         }
         # Cache put (best effort)
         if file_hash:

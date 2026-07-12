@@ -2025,6 +2025,38 @@ def api_preventivi_import_dxf(preventivo_id):
                         'warnings': [],
                         'details': {'raw': dim_info['raw_text']},
                     }
+            # Auto-cleanup DXF: se il detector ha alta confidence, salva un DXF
+            # "pulito" (solo pezzo + fori interni) accanto all'originale.
+            # Il commerciale verifica poi nella griglia review post-import.
+            cleaned_info = {'cleaned_dxf_filename': None, 'cleaned_status': None,
+                            'cleanup_reason': None, 'cleanup_stats': None}
+            try:
+                from .preventivi import dxf_cleanup
+                proceed, reason = dxf_cleanup.should_cleanup(geo)
+                cleaned_info['cleanup_reason'] = reason
+                if proceed:
+                    bbox = dxf_cleanup.get_pezzo_bbox(geo)
+                    if bbox:
+                        base_p, ext_p = os.path.splitext(tmp_path)
+                        cleaned_path = base_p + '_cleaned' + ext_p
+                        r_c = dxf_cleanup.save_cleaned_dxf(tmp_path, cleaned_path, bbox)
+                        if r_c.get('success'):
+                            cleaned_info['cleaned_dxf_filename'] = os.path.basename(cleaned_path)
+                            conf = float((geo or {}).get('confidence', 0) or 0)
+                            cleaned_info['cleaned_status'] = 'auto' if conf >= 0.7 else 'auto_review'
+                            cleaned_info['cleanup_stats'] = {
+                                'entities_copied': r_c['entities_copied'],
+                                'entities_source': r_c['entities_source'],
+                                'tolerance_mm': r_c['tolerance_mm'],
+                                'warnings': r_c.get('warnings') or [],
+                            }
+                            logger.info('%s cleanup auto: %d/%d entità (%s)',
+                                        saved_filename, r_c['entities_copied'],
+                                        r_c['entities_source'], cleaned_info['cleaned_status'])
+                        else:
+                            logger.info('%s cleanup fallito: %s', saved_filename, r_c.get('error'))
+            except Exception as ce:
+                logger.warning('%s cleanup pipeline error: %s', saved_filename, ce)
             # NOTA: tmp_path resta su disco (in uploads/preventivi_tmp/<preventivo_id>/<filename>.dxf)
             # per consentire la preview successiva. Cleanup quando preventivo viene
             # accettato/rifiutato/eliminato.
@@ -2042,6 +2074,7 @@ def api_preventivi_import_dxf(preventivo_id):
             'geometria': geo,
             'cartiglio': cartiglio,  # {materiale, materiale_raw, confidence}
             'spessore': spessore,    # {spessore_mm, confidence, source, details}
+            'cleanup': cleaned_info, # {cleaned_dxf_filename, cleaned_status, cleanup_reason, cleanup_stats}
         }
         # Salva in cache per hit successivi (best-effort, non blocca la response)
         if file_hash:
@@ -2388,6 +2421,105 @@ def api_preventivi_dxf_select_region(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/save-cleaned', methods=['POST'])
+def api_preventivi_dxf_save_cleaned(preventivo_id, filename):
+    """Salva un DXF pulito manualmente definito dall'utente col drag rettangolare.
+
+    Usa lo stesso bbox del select-region per (1) generare il DXF pulito filtrando
+    le entità dentro il bbox, (2) ricalcolare area/perim/n_forature esatti.
+    Se articolo_id è fornito, aggiorna il record DB con cleaned_status='manual'.
+
+    Body: {minx, miny, maxx, maxy, articolo_id: str (opz), admin_id: str}
+    Response: {success, cleaned_dxf_filename, entities_copied, area_dm2,
+               perimetro_taglio_m, n_pierce, ...}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        try:
+            bbox = (
+                float(data.get('minx')), float(data.get('miny')),
+                float(data.get('maxx')), float(data.get('maxy')),
+            )
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'minx/miny/maxx/maxy richiesti (float)'}), 400
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+
+        # 1. Genera DXF pulito filtrando per bbox utente
+        from .preventivi import dxf_cleanup
+        base_p, ext_p = os.path.splitext(dxf_path)
+        cleaned_path = base_p + '_cleaned' + ext_p
+        cleanup_r = dxf_cleanup.save_cleaned_dxf(dxf_path, cleaned_path, bbox)
+        if not cleanup_r.get('success'):
+            return jsonify({'success': False, 'error': cleanup_r.get('error') or 'Cleanup fallito'}), 400
+
+        # 2. Ricalcola geometria (area/perim/n_forature) sul DXF pulito
+        try:
+            from .preventivi.dxf_polygon_detector_v3 import compute_geometry_from_region
+            app_cfg = BarcodeManager.load_config() or {}
+            detection_cfg = app_cfg.get('dxf_detection', {})
+            geom = compute_geometry_from_region(dxf_path, bbox, detection_cfg)
+        except Exception as ge:
+            logger.warning('geometria post-cleanup fallita: %s', ge)
+            geom = {}
+
+        cleaned_dxf_filename = os.path.basename(cleaned_path)
+
+        # 3. Se articolo_id fornito, aggiorna record DB
+        articolo_id = data.get('articolo_id')
+        if articolo_id:
+            try:
+                from .models import get_session, PreventivoArticolo
+                session = get_session()
+                try:
+                    art = session.query(PreventivoArticolo).filter_by(id=articolo_id).first()
+                    if art:
+                        art.cleaned_dxf_filename = cleaned_dxf_filename
+                        art.cleaned_status = 'manual'
+                        # Aggiorna area/perim/n_forature se disponibili
+                        if geom.get('area_dm2'):
+                            art.area_dm2 = float(geom['area_dm2'])
+                        if geom.get('perimetro_taglio_m'):
+                            art.perimetro_taglio_m = float(geom['perimetro_taglio_m'])
+                        if geom.get('n_pierce') is not None:
+                            art.n_forature = int(geom['n_pierce'])
+                        session.commit()
+                        logger.info('articolo %s aggiornato: cleaned=manual', articolo_id)
+                finally:
+                    session.close()
+            except Exception as dbe:
+                logger.warning('articolo update fallito: %s', dbe)
+
+        # 4. Invalida cache SVG server-side per il file pulito (mtime cambierà)
+        try:
+            keys_to_drop = [k for k in _SVG_CACHE if isinstance(k, tuple) and cleaned_path in k[0]]
+            for k in keys_to_drop:
+                _SVG_CACHE.pop(k, None)
+        except Exception:
+            pass
+
+        return jsonify({
+            'success': True,
+            'cleaned_dxf_filename': cleaned_dxf_filename,
+            'cleaned_status': 'manual',
+            'entities_copied': cleanup_r['entities_copied'],
+            'entities_source': cleanup_r['entities_source'],
+            'tolerance_mm': cleanup_r['tolerance_mm'],
+            'area_dm2': geom.get('area_dm2'),
+            'perimetro_taglio_m': geom.get('perimetro_taglio_m'),
+            'n_pierce': geom.get('n_pierce'),
+        }), 200
+    except Exception as e:
+        logger.exception('dxf save-cleaned failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-polygon', methods=['POST'])
 def api_preventivi_dxf_select_polygon(preventivo_id, filename):
     """Ricalcola area/perimetro/n_pierce assumendo che l'utente ha scelto un
@@ -2437,6 +2569,79 @@ def _cleanup_preventivo_files(preventivo_id):
             shutil.rmtree(d, ignore_errors=True)
     except Exception as exc:
         logger.warning('cleanup preventivo files failed for %s: %s', preventivo_id, exc)
+
+
+def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
+    """Copia i DXF PULITI (o originali con warning) da preventivi_tmp/<pid>/
+    in uploads/drawings/<order_id>/ per Mirko (nesting Lantek).
+
+    Preferenza:
+      - `cleaned_dxf_filename` se disponibile (pulito auto o manuale)
+      - fallback all'originale `dxf_filename` con warning ("cliente riceve
+        DXF sporco, cartellino segnala che va pulito in Lantek")
+
+    Ritorna stats: {copied_cleaned, copied_original_fallback, missing, warnings, drawings_dir}
+    """
+    import shutil
+    stats = {
+        'copied_cleaned': 0,
+        'copied_original_fallback': 0,
+        'missing': 0,
+        'warnings': [],
+        'articoli_da_pulire_manualmente': [],  # nomi articoli senza pulito
+        'drawings_dir': None,
+    }
+    try:
+        p = PreventivoManager.get(preventivo_id, include_children=True)
+        if not p:
+            stats['warnings'].append(f'Preventivo {preventivo_id} non trovato')
+            return stats
+        src_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dst_dir = os.path.join(UPLOAD_FOLDER, 'drawings', order_id)
+        os.makedirs(dst_dir, exist_ok=True)
+        stats['drawings_dir'] = dst_dir
+
+        articoli = p.get('articoli') or []
+        for a in articoli:
+            codice = a.get('codice') or '?'
+            cleaned = a.get('cleaned_dxf_filename')
+            original = a.get('dxf_filename')
+            src = None
+            is_cleaned = False
+            if cleaned:
+                candidate = os.path.join(src_dir, cleaned)
+                if os.path.exists(candidate):
+                    src = candidate
+                    is_cleaned = True
+            if not src and original:
+                candidate = os.path.join(src_dir, original)
+                if os.path.exists(candidate):
+                    src = candidate
+                    is_cleaned = False
+                    stats['warnings'].append(
+                        f'{codice}: nessun DXF pulito, copiato originale (Mirko deve pulirlo in Lantek)'
+                    )
+                    stats['articoli_da_pulire_manualmente'].append(codice)
+            if not src:
+                stats['missing'] += 1
+                stats['warnings'].append(f'{codice}: nessun DXF disponibile')
+                continue
+            dst_name = os.path.basename(src)
+            dst = os.path.join(dst_dir, dst_name)
+            try:
+                shutil.copy2(src, dst)
+                if is_cleaned:
+                    stats['copied_cleaned'] += 1
+                else:
+                    stats['copied_original_fallback'] += 1
+            except Exception as e:
+                logger.warning('copy dxf %s -> %s failed: %s', src, dst, e)
+                stats['warnings'].append(f'{codice}: copy fallita ({e})')
+        return stats
+    except Exception as e:
+        logger.exception('_copy_cleaned_dxf_to_drawings failed')
+        stats['warnings'].append(f'errore inatteso: {e}')
+        return stats
 
 
 @app.route('/api/preventivi/<preventivo_id>/import-step', methods=['POST'])
@@ -3009,6 +3214,22 @@ def api_preventivi_accetta(preventivo_id):
         if not result or result.get('error'):
             err = result.get('error') if result else 'Errore sconosciuto'
             return jsonify({'success': False, 'error': err}), 409
+        # Copia i DXF puliti (o originali con warning) in uploads/drawings/<order_id>/
+        # PRIMA del cleanup del tmp del preventivo. Mirko taglierà da lì.
+        dxf_stats = {}
+        order_id = result.get('order_id')
+        if order_id:
+            dxf_stats = _copy_cleaned_dxf_to_drawings(preventivo_id, order_id)
+            result['dxf_transfer'] = dxf_stats
+            # Audit log dedicato
+            try:
+                AuditManager.log(user_id=user_id, action='TRANSFER_DXF_TO_ORDER',
+                                 entity_type='orders', entity_id=order_id,
+                                 detail=f"cleaned={dxf_stats.get('copied_cleaned')} "
+                                        f"fallback_original={dxf_stats.get('copied_original_fallback')} "
+                                        f"missing={dxf_stats.get('missing')}")
+            except Exception:
+                pass
         # Cleanup DXF/STEP temporanei caricati per il preventivo
         _cleanup_preventivo_files(preventivo_id)
         return jsonify(result), 200

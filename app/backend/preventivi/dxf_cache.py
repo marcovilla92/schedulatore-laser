@@ -54,7 +54,9 @@ _INITIALIZED = False
 #                  (20PA00690 aveva spessore null nonostante detector area OK)
 # v3 (2026-07-05): cartiglio-descrizione spessore prevale su peso_area quando
 #                  confidence maggiore (fonte esplicita vs stima indiretta)
-PARSER_VERSION = 3
+# v4 (2026-07-06): auto-cleanup DXF nel batch worker (nuovo campo `cleanup`
+#                  nel payload). Bump per rigenerare i puliti sui file cachati.
+PARSER_VERSION = 4
 
 
 def _init_db() -> None:
