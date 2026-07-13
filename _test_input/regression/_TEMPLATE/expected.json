@@ -1,0 +1,18 @@
+{
+  "click_x_mm": 0.0,
+  "click_y_mm": 0.0,
+  "expected": {
+    "area_dm2": 0.0,
+    "perim_m": 0.0,
+    "n_fori": 0,
+    "materiale": "S235",
+    "spessore_mm": 0.0
+  },
+  "tolleranze": {
+    "area_dm2_pct": 0.5,
+    "perim_m_pct": 0.5,
+    "n_fori_abs": 0
+  },
+  "misurato_con": "Lantek Expert 2022 v1.4 — pannello 'Info Parte'",
+  "descrizione": "Descrivi qui il pezzo e perche' e' interessante per la regression suite"
+}

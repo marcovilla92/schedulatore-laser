@@ -12,6 +12,9 @@ debug_*.py
 analyze_*.py
 *.log
 test-results/
+# Eccezione: la regression suite ufficiale in app/tests/ va tracciata
+!app/tests/
+!app/tests/**
 
 # Python
 __pycache__/
@@ -26,7 +29,8 @@ app/uploads/
 
 # Backup files & test artifacts
 *.bak
-_test_input/
+_test_input/*
+!_test_input/regression/
 _test_pdf_preventivo.pdf
 
 # IDE & OS
