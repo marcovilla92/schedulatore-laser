@@ -2098,7 +2098,7 @@ tr.row-warn:hover { background: #FEF3C7; }
       <!-- BREAKDOWN articoli/assiemi/tubolari/piastre -->
       <div id="riep-breakdown" style="display:flex; flex-direction:column; gap:14px;"></div>
     </div>
-    <div class="modal-footer" style="padding:14px 22px; border-top:1px solid var(--border); display:flex; align-items:center; gap:10px;">
+    <div class="modal-footer" style="padding:14px 22px; border-top:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <button class="btn-secondary" onclick="closeRiepilogoModal()">
         <i data-lucide="arrow-left" style="width:14px;height:14px;vertical-align:-2px;"></i> Torna agli articoli
       </button>
@@ -2106,9 +2106,19 @@ tr.row-warn:hover { background: #FEF3C7; }
       <button class="btn-secondary" onclick="scaricaPdfRiepilogo()">
         <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF
       </button>
-      <button class="btn-primary" onclick="inviaClientRiepilogo()" id="riep-btn-invia">
+      <!-- BOZZA: Invia al cliente -->
+      <button class="btn-primary" onclick="inviaClientRiepilogo()" id="riep-btn-invia" style="display:none;">
         <i data-lucide="send" style="width:14px;height:14px;vertical-align:-2px;"></i> Invia al cliente
       </button>
+      <!-- INVIATO: Accetta / Rifiuta -->
+      <button class="btn-danger" onclick="rifiutaFromRiepilogo()" id="riep-btn-rifiuta" style="display:none;">
+        <i data-lucide="x-circle" style="width:14px;height:14px;vertical-align:-2px;"></i> Rifiuta
+      </button>
+      <button class="btn-primary" onclick="accettaFromRiepilogo()" id="riep-btn-accetta" style="display:none;">
+        <i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:-2px;"></i> Accetta → Produzione
+      </button>
+      <!-- Info status ACCETTATO/RIFIUTATO -->
+      <span id="riep-status-info" style="display:none; font-size:12px; color:var(--text-2); padding:6px 12px; background:var(--surface-2); border-radius:6px;"></span>
     </div>
   </div>
 </div>
@@ -3467,11 +3477,19 @@ function renderSplitTree() {
     const el = document.getElementById('t-lotto');
     if (el) totLottoTxt = el.textContent.replace('€','').trim() + ' €';
   } catch (_) {}
+  // Etichetta row cambia in base allo status corrente del preventivo
+  const _st = (currentPreventivo && currentPreventivo.status) || 'BOZZA';
+  const _rowLabel = {
+    'BOZZA':     'Riepilogo &amp; Invia',
+    'INVIATO':   'Riepilogo · Accetta / Rifiuta',
+    'ACCETTATO': 'Riepilogo · Ordine creato ✓',
+    'RIFIUTATO': 'Riepilogo · Rifiutato ✗',
+  }[_st] || 'Riepilogo';
   html += `<tr class="tree-riepilogo-row" onclick="openRiepilogoModal()">
     <td colspan="7" style="padding:14px 12px; text-align:center; background:#F8FAFC; border-top:1px solid var(--border);">
       <span style="display:inline-flex; align-items:center; gap:10px; color:var(--accent); font-weight:600; font-size:13px;">
         <i data-lucide="file-check-2" style="width:16px;height:16px;"></i>
-        Riepilogo &amp; Invia · <span style="color:var(--text);">${totLottoTxt}</span> totale lotto
+        ${_rowLabel} · <span style="color:var(--text);">${totLottoTxt}</span> totale lotto
         <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
       </span>
     </td>
@@ -6791,9 +6809,26 @@ function openRiepilogoModal() {
     </div>`);
   }
   bd.innerHTML = parts.join('') || '<div style="color:var(--text-3); text-align:center; padding:20px;">Nessun articolo/assieme presente</div>';
-  // Abilita/disabilita bottone Invia in base allo status
-  const btn = document.getElementById('riep-btn-invia');
-  if (btn) btn.disabled = (currentPreventivo.status !== 'BOZZA');
+  // Visibilità bottoni workflow in base allo status del preventivo
+  const st = currentPreventivo.status || 'BOZZA';
+  const _show = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? '' : 'none'; };
+  _show('riep-btn-invia',   st === 'BOZZA');
+  _show('riep-btn-accetta', st === 'INVIATO');
+  _show('riep-btn-rifiuta', st === 'INVIATO');
+  const info = document.getElementById('riep-status-info');
+  if (info) {
+    if (st === 'ACCETTATO') {
+      info.textContent = '✓ Preventivo ACCETTATO — Ordine creato in produzione';
+      info.style.display = '';
+      info.style.color = 'var(--green)';
+    } else if (st === 'RIFIUTATO') {
+      info.textContent = '✗ Preventivo RIFIUTATO dal cliente';
+      info.style.display = '';
+      info.style.color = 'var(--red)';
+    } else {
+      info.style.display = 'none';
+    }
+  }
   modal.classList.add('active');
   if (window.lucide) lucide.createIcons();
 }
@@ -6809,6 +6844,19 @@ function scaricaPdfRiepilogo() {
 function inviaClientRiepilogo() {
   closeRiepilogoModal();
   if (typeof inviaPreventivo === 'function') inviaPreventivo();
+}
+
+/** Accetta preventivo dal modal Riepilogo — apre il modal di conferma
+    dedicato con preview dell'ordine che verrà creato in FerroTrack. */
+function accettaFromRiepilogo() {
+  closeRiepilogoModal();
+  if (typeof openAccettaModal === 'function') openAccettaModal();
+}
+
+/** Rifiuta preventivo dal modal Riepilogo — marca RIFIUTATO nel DB. */
+function rifiutaFromRiepilogo() {
+  closeRiepilogoModal();
+  if (typeof rifiutaPreventivo === 'function') rifiutaPreventivo();
 }
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
