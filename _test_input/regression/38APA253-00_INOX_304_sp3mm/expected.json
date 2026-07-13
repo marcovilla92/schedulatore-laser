@@ -1,0 +1,22 @@
+{
+  "click_x_mm": null,
+  "click_y_mm": null,
+  "expected": {
+    "area_dm2": 0.0508,
+    "perim_m": 0.1423,
+    "n_fori": null,
+    "materiale": "INOX_304",
+    "spessore_mm": 3.0,
+    "peso_kg": 0.0122,
+    "bbox_lunghezza_mm": 45.0,
+    "bbox_larghezza_mm": 12.0
+  },
+  "tolleranze": {
+    "area_dm2_pct": 0.5,
+    "perim_m_pct": 0.5,
+    "n_fori_abs": 0
+  },
+  "misurato_con": "Lantek — ORD.204.xlsx (sheet 'Struttura', pezzo 38APA253-00)",
+  "descrizione": "Articolo ordine 204-26 fornitore reale. Materiale Lantek raw: 'INOX' -> normalizzato 'INOX_304'.",
+  "TODO": "Aprire pezzo.dxf in Lantek/CAD, leggere le coord (x,y) di un punto sul contorno esterno, mettere in click_x_mm/click_y_mm. Contare i fori (esclusi svasature/filettature) e mettere in expected.n_fori. Poi il caso e' attivo per la suite."
+}

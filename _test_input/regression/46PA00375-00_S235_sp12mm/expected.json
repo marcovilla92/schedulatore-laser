@@ -1,0 +1,22 @@
+{
+  "click_x_mm": null,
+  "click_y_mm": null,
+  "expected": {
+    "area_dm2": 84.1385,
+    "perim_m": 5.131,
+    "n_fori": null,
+    "materiale": "S235",
+    "spessore_mm": 12.0,
+    "peso_kg": 79.2585,
+    "bbox_lunghezza_mm": 1500.0,
+    "bbox_larghezza_mm": 600.0
+  },
+  "tolleranze": {
+    "area_dm2_pct": 0.5,
+    "perim_m_pct": 0.5,
+    "n_fori_abs": 0
+  },
+  "misurato_con": "Lantek — ORD.204.xlsx (sheet 'Struttura', pezzo 46PA00375-00)",
+  "descrizione": "Articolo ordine 204-26 fornitore reale. Materiale Lantek raw: 'FERRO' -> normalizzato 'S235'.",
+  "TODO": "Aprire pezzo.dxf in Lantek/CAD, leggere le coord (x,y) di un punto sul contorno esterno, mettere in click_x_mm/click_y_mm. Contare i fori (esclusi svasature/filettature) e mettere in expected.n_fori. Poi il caso e' attivo per la suite."
+}

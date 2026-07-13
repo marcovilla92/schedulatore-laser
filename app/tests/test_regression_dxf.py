@@ -73,6 +73,15 @@ def _run_case(case_dir: Path, verbose: bool) -> CaseResult:
             and exp.get("expected", {}).get("area_dm2", 0.0) == 0.0:
         return CaseResult(name, "SKIP", ["template non compilato (tutti 0)"])
 
+    # Skip se click coords non compilate — accade quando il caso e' stato
+    # generato dall'XLSX Lantek (che ha area/perim/mat/sp ma non click x/y).
+    # Marco deve aprire il DXF in CAD, leggere un punto sul contorno e mettere
+    # le coordinate qui prima che il test possa girare.
+    if exp.get("click_x_mm") is None or exp.get("click_y_mm") is None:
+        return CaseResult(name, "SKIP", [
+            "click_x_mm/click_y_mm mancanti — apri il DXF, leggi un punto sul contorno esterno, compila expected.json"
+        ])
+
     click_x = float(exp["click_x_mm"])
     click_y = float(exp["click_y_mm"])
     expected = exp["expected"]
@@ -101,14 +110,15 @@ def _run_case(case_dir: Path, verbose: bool) -> CaseResult:
     if "n_pierce" in result:
         actual_n_fori = max(0, int(result["n_pierce"]) - 1)
 
-    exp_area = float(expected["area_dm2"])
-    exp_perim = float(expected["perim_m"])
-    exp_n_fori = int(expected["n_fori"])
+    exp_area = expected.get("area_dm2")
+    exp_perim = expected.get("perim_m")
+    exp_n_fori = expected.get("n_fori")
 
     fails = []
 
-    # Area check
-    if exp_area > 0:
+    # Area check (solo se presente in expected)
+    if exp_area is not None and float(exp_area) > 0:
+        exp_area = float(exp_area)
         diff_area_pct = abs(actual_area - exp_area) / exp_area * 100
         if diff_area_pct > tol_area_pct:
             fails.append(
@@ -116,8 +126,9 @@ def _run_case(case_dir: Path, verbose: bool) -> CaseResult:
                 f"ottenuto {actual_area:.3f} (delta {diff_area_pct:.2f}%)"
             )
 
-    # Perim check
-    if exp_perim > 0:
+    # Perim check (solo se presente)
+    if exp_perim is not None and float(exp_perim) > 0:
+        exp_perim = float(exp_perim)
         diff_perim_pct = abs(actual_perim - exp_perim) / exp_perim * 100
         if diff_perim_pct > tol_perim_pct:
             fails.append(
@@ -125,13 +136,15 @@ def _run_case(case_dir: Path, verbose: bool) -> CaseResult:
                 f"ottenuto {actual_perim:.3f} (delta {diff_perim_pct:.2f}%)"
             )
 
-    # N fori check
-    diff_n_fori = abs(actual_n_fori - exp_n_fori)
-    if diff_n_fori > tol_n_fori_abs:
-        fails.append(
-            f"n_fori: atteso {exp_n_fori} +/- {tol_n_fori_abs}, "
-            f"ottenuto {actual_n_fori} (delta {diff_n_fori})"
-        )
+    # N fori check (solo se presente — Lantek XLSX non lo esporta, va contato a mano)
+    if exp_n_fori is not None:
+        exp_n_fori = int(exp_n_fori)
+        diff_n_fori = abs(actual_n_fori - exp_n_fori)
+        if diff_n_fori > tol_n_fori_abs:
+            fails.append(
+                f"n_fori: atteso {exp_n_fori} +/- {tol_n_fori_abs}, "
+                f"ottenuto {actual_n_fori} (delta {diff_n_fori})"
+            )
 
     details = fails if fails else []
     if verbose:
