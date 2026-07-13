@@ -45,15 +45,43 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
     min_x_global = float('inf')
     max_x_global = float('-inf')
 
+    # BUG FIX #4: escludi CIRCLE/ARC del cartiglio/logo/quote per non gonfiare
+    # il conteggio filettature/svasature con cerchi decorativi (loghi aziendali
+    # composti da cerchi concentrici erano contati come svasature spurie).
+    # Filtri applicati:
+    #  a) Layer name contiene keyword "cartig", "cartouche", "quot", "dim",
+    #     "text", "note", "logo", "frame" → skip
+    #  b) Colore in colori_piega o colori_sald → skip (queste sono lavorazioni,
+    #     non contorni di taglio)
+    _CARTIGLIO_LAYER_KEYWORDS = ('cartig', 'cartouche', 'quot', 'dim', 'text',
+                                 'note', 'logo', 'frame', 'tratteggio', 'hatch')
+    colori_lavorazione = set(colori_piega) | set(colori_sald)
+
+    def _entity_da_escludere(entity):
+        try:
+            layer = str(getattr(entity.dxf, 'layer', '') or '').lower()
+            if any(kw in layer for kw in _CARTIGLIO_LAYER_KEYWORDS):
+                return True
+            color = getattr(entity.dxf, 'color', 256)
+            if color in colori_lavorazione:
+                return True
+        except Exception:
+            pass
+        return False
+
     # === PASSO 1: Raccolta cerchi e archi ===
     for entity in msp:
         et = entity.dxftype()
         if et == 'CIRCLE':
+            if _entity_da_escludere(entity):
+                continue
             try:
                 circles.append((float(entity.dxf.center.x), float(entity.dxf.center.y), float(entity.dxf.radius)))
             except AttributeError:
                 continue
         elif et == 'ARC':
+            if _entity_da_escludere(entity):
+                continue
             try:
                 arcs.append((float(entity.dxf.center.x), float(entity.dxf.center.y), float(entity.dxf.radius),
                              float(entity.dxf.start_angle), float(entity.dxf.end_angle)))
@@ -96,6 +124,54 @@ def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, in
             if colore in colori_sald and lunghezza > 0:
                 totale_saldatura += lunghezza
         except AttributeError:
+            continue
+
+    # BUG FIX #3: la saldatura è spesso disegnata come polilinea/spline/arco
+    # (cordoni curvi, multi-tratto). Sommo anche queste se colore = colori_sald.
+    for entity in msp:
+        et = entity.dxftype()
+        if et == 'LINE':
+            continue  # già contate sopra
+        try:
+            colore = getattr(entity.dxf, 'color', 256)
+            if colore not in colori_sald:
+                continue
+            if et in ('LWPOLYLINE', 'POLYLINE'):
+                # Somma lunghezze segmenti tra vertici consecutivi
+                if et == 'LWPOLYLINE':
+                    pts = [(p[0], p[1]) for p in entity.get_points('xy')]
+                    closed = bool(entity.closed)
+                else:
+                    pts = [(v.dxf.location.x, v.dxf.location.y) for v in entity.vertices]
+                    closed = bool(getattr(entity, 'is_closed', False))
+                if len(pts) >= 2:
+                    for i in range(len(pts) - 1):
+                        dx = pts[i+1][0] - pts[i][0]
+                        dy = pts[i+1][1] - pts[i][1]
+                        totale_saldatura += (dx*dx + dy*dy) ** 0.5
+                    if closed:
+                        dx = pts[0][0] - pts[-1][0]
+                        dy = pts[0][1] - pts[-1][1]
+                        totale_saldatura += (dx*dx + dy*dy) ** 0.5
+            elif et == 'ARC':
+                r = float(getattr(entity.dxf, 'radius', 0) or 0)
+                sa = float(getattr(entity.dxf, 'start_angle', 0) or 0)
+                ea = float(getattr(entity.dxf, 'end_angle', 0) or 0)
+                # Angolo spazzato in gradi (gestisce wrap-around 360°)
+                sweep = (ea - sa) % 360.0
+                if sweep == 0: sweep = 360.0
+                arc_len = 2.0 * math.pi * r * (sweep / 360.0)
+                totale_saldatura += arc_len
+            elif et == 'SPLINE':
+                # Approssimazione: somma delle distanze tra i fit_points o control_points
+                pts = list(entity.fit_points or []) or list(entity.control_points or [])
+                if len(pts) >= 2:
+                    for i in range(len(pts) - 1):
+                        p1, p2 = pts[i], pts[i+1]
+                        dx = p2[0] - p1[0]
+                        dy = p2[1] - p1[1]
+                        totale_saldatura += (dx*dx + dy*dy) ** 0.5
+        except Exception:
             continue
 
     # === PASSO 2C: Detection pieghe ibrido ===
@@ -1006,14 +1082,23 @@ def dxf_to_svg_string(path: str) -> str:
     from ezdxf.addons.drawing import Frontend, RenderContext
     from ezdxf.addons.drawing.svg import SVGBackend
     from ezdxf.addons.drawing import layout
+    from ezdxf.addons.drawing.config import Configuration, BackgroundPolicy, ColorPolicy
     from ezdxf.bbox import extents
 
     doc = ezdxf.readfile(path)
     msp = doc.modelspace()
 
+    # Tema chiaro: sfondo BIANCO + colori scuri (leggibili nel thumbnail).
+    # ColorPolicy.MONOCHROME_LIGHT_BG converte tutti i colori in scuri.
+    # Prima usavamo BackgroundPolicy.DEFAULT che dava sfondo nero + linee bianche
+    # → poco leggibile nel thumbnail 150x100 (i pezzi sembravano macchie nere).
+    cfg = Configuration(
+        background_policy=BackgroundPolicy.WHITE,
+        color_policy=ColorPolicy.MONOCHROME_LIGHT_BG,
+    )
     backend = SVGBackend()
     ctx = RenderContext(doc)
-    frontend = Frontend(ctx, backend)
+    frontend = Frontend(ctx, backend, config=cfg)
     frontend.draw_layout(msp)
 
     # Passiamo dimensioni pagina esatte in mm (senza margini) così il viewBox

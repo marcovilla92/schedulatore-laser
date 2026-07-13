@@ -52,6 +52,50 @@ DEFAULT_LASER_CONFIG = {
 }
 
 
+# Alias map: il frontend dropdown offre varianti (INOX_316, ALU_5754, ALU_5083)
+# che non sono nella tabella coefficienti default. Mappa a materiale "canonico"
+# con densità/costo simili (INOX_316 ~ INOX_304 fisicamente identici per taglio
+# laser, ALU_5754/ALU_5083 si comportano come ALU generico).
+# BUG FIX #1: senza questo, articoli con materiale non-canonico avevano
+# costo_laser=0 silente (preventivo regalato).
+_MATERIAL_ALIASES = {
+    'INOX_316': 'INOX_304',
+    'INOX_316L': 'INOX_304',
+    'ALU_5754': 'ALU',
+    'ALU_5083': 'ALU',
+    'ALU_6082': 'ALU',
+    'ALLUMINIO': 'ALU',
+    'ACCIAIO': 'S235',
+    'FERRO': 'S235',
+}
+
+
+def _resolve_material(materiale: str, materiali_map: dict) -> tuple[str, dict | None]:
+    """Cerca il materiale nella mappa dei coefficienti risolvendo gli alias.
+    Ritorna (nome_canonico, dict_coeff) oppure (materiale, None) se non trovato."""
+    if not materiale:
+        return materiale, None
+    mat_upper = materiale.strip().upper()
+    # 1. Match esatto
+    if mat_upper in materiali_map:
+        return mat_upper, materiali_map[mat_upper]
+    # 2. Alias diretto
+    canonical = _MATERIAL_ALIASES.get(mat_upper)
+    if canonical and canonical in materiali_map:
+        return canonical, materiali_map[canonical]
+    # 3. Prefix match (es. "ALU_5754_H111" → matcha "ALU_5754" → alias → "ALU")
+    for prefix in _MATERIAL_ALIASES:
+        if mat_upper.startswith(prefix):
+            canonical = _MATERIAL_ALIASES[prefix]
+            if canonical in materiali_map:
+                return canonical, materiali_map[canonical]
+    # 4. Fallback: cerca il primo canonical che è prefix del richiesto
+    for canonical in materiali_map:
+        if mat_upper.startswith(canonical):
+            return canonical, materiali_map[canonical]
+    return mat_upper, None
+
+
 def _empty_result(warnings: list[str]) -> dict:
     return {
         'peso_kg': 0.0, 'costo_materiale': 0.0, 'costo_lavoro': 0.0,
@@ -100,9 +144,12 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
     if warnings:
         return _empty_result(warnings)
 
-    mat = materiali.get(materiale)
+    # Risolvi alias (INOX_316 → INOX_304, ALU_5754 → ALU, ecc.)
+    canonical, mat = _resolve_material(materiale, materiali)
     if not mat:
         return _empty_result([f'Materiale "{materiale}" non in tabella coefficienti'])
+    if canonical != materiale:
+        notes.append(f'Materiale "{materiale}" mappato su "{canonical}" per coefficienti')
 
     densita = float(mat.get('densita_kg_dm3', 7.85))
     euro_kg = float(mat.get('euro_kg', 0.0))

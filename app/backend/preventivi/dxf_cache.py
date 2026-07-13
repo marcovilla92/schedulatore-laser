@@ -56,7 +56,19 @@ _INITIALIZED = False
 #                  confidence maggiore (fonte esplicita vs stima indiretta)
 # v4 (2026-07-06): auto-cleanup DXF nel batch worker (nuovo campo `cleanup`
 #                  nel payload). Bump per rigenerare i puliti sui file cachati.
-PARSER_VERSION = 4
+# v5 (2026-07-12): render SVG con tema chiaro (BackgroundPolicy.WHITE +
+#                  ColorPolicy.MONOCHROME_LIGHT_BG). Bump per rigenerare
+#                  gli svg_string cachati con lo sfondo scuro.
+# v6 (2026-07-12): save_cleaned_dxf ora applica connected-components post-filter
+#                  per scartare cluster isolati (cartiglio residuo dentro bbox).
+# v7 (2026-07-12): save_cleaned_dxf refactor "a prova di stupido" — non taglia
+#                  al bbox utente, ma trova cluster spaziali su TUTTO il DXF
+#                  e prende tutto il cluster che tocca il bbox utente. Robusto
+#                  a drag rectangle imprecisi (larghi o stretti di qualche mm).
+# v8 (2026-07-12): + assorbimento fori interni (entità isolate il cui bbox è
+#                  interamente contenuto nel bbox del cluster vincente).
+#                  Risolve fori CIRCLE piccoli persi dal clustering.
+PARSER_VERSION = 8
 
 
 def _init_db() -> None:

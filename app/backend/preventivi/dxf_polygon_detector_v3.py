@@ -57,11 +57,26 @@ TIPI_ANNOTAZIONE = {
 }
 
 # Tolleranze
-TOL_ENDPOINT_MM = 0.5
+# BUG FIX #5: TOL_ENDPOINT_MM ora ADATTIVO in base alla dimensione del DXF.
+# Prima era fisso a 0.5mm → falliva su DXF con gap 0.6-1.5mm tipici di
+# SolidWorks/AutoCAD (round-off doppia precisione + import/export tra formati).
+# Alzarlo globalmente a 2mm però rompeva pezzi piccoli (chain spurie).
+# Formula: `max(0.5, min_bbox_dim * 0.002)` — 0.2% del lato più corto, minimo 0.5mm.
+# Per un pezzo 50×50mm → tol=0.5mm. Per un pezzo 1000×500mm → tol=1mm.
+# Per un pezzo 2000×1500mm → tol=3mm.
+TOL_ENDPOINT_MM = 0.5  # default (usato se DXF bbox non calcolabile)
 TOL_CARTIGLIO_PCT = 0.05
 FLATTEN_DISTANCE_MM = 0.2
 MIN_VERTICI_CHAIN = 4
 MIN_SEGMENTI_CHAIN = 3
+
+
+def _adaptive_tol(dxf_min_dim_mm: float) -> float:
+    """Ritorna tolleranza endpoint chain-walking scalata al DXF.
+    Usa 0.2% del lato più corto del bbox globale, con floor 0.5mm e ceiling 3mm."""
+    if dxf_min_dim_mm <= 0:
+        return TOL_ENDPOINT_MM
+    return max(0.5, min(3.0, dxf_min_dim_mm * 0.002))
 MIN_AREA_MM2 = 1.0                   # sotto questa area = artefatto/rumore
 RATIO_RETTANGOLO_PURO = 0.95         # ratio area/bbox_area ≥ questo = rettangolo
 MAX_VERTICI_RETTANGOLO = 12
@@ -301,18 +316,26 @@ def _is_rectangle_like(poly, ratio_min: float = RATIO_RETTANGOLO_PURO) -> bool:
 
 def _is_cornice_cartiglio(poly, all_polys: list, min_bbox_mm: float = MIN_BBOX_CORNICE_MM,
                           min_contenuti: int = MIN_CONTENUTI_CORNICE) -> bool:
-    """Cornice = rettangolo puro grande OR rettangolo che contiene molti altri."""
+    """Cornice = rettangolo puro grande che CONTIENE altri poligoni (cartiglio+pezzo).
+    Una piastra rettangolare NUDA (senza fori/dettagli) NON è cornice.
+
+    BUG FIX #6: prima marcava come cornice ogni rettangolo ≥200mm indipendentemente
+    dal contenuto → piastre lisce 300×200mm venivano scartate → detector cadeva sui
+    contenuti del cartiglio → dimensioni sbagliate. Ora richiedo sempre che la
+    "cornice" contenga almeno N altri poligoni (cioè sia effettivamente una cornice
+    esterna del disegno tecnico, non un pezzo rettangolare puro).
+    """
     if not _is_rectangle_like(poly):
         return False
     minx, miny, maxx, maxy = poly.bounds
     bw = maxx - minx
     bh = maxy - miny
-    # a) cornice grande
-    if bw >= min_bbox_mm and bh >= min_bbox_mm:
-        return True
-    # b) cornice "strana" (lunga-stretta) che contiene molte cose
     prep_poly = prep(poly)
     n_contained = sum(1 for other in all_polys if other is not poly and prep_poly.contains(other.representative_point()))
+    # a) cornice GRANDE (≥200mm) e con almeno 3 poligoni contenuti (cartiglio+pezzo+dettagli)
+    if bw >= min_bbox_mm and bh >= min_bbox_mm and n_contained >= 3:
+        return True
+    # b) cornice "strana" (lunga-stretta) con molti contenuti
     return n_contained >= min_contenuti
 
 
@@ -431,8 +454,21 @@ def detect_pezzo_geometry_v3(path: str, config: dict | None = None) -> dict:
     # ---- 1. Estrai poligoni + segmenti aperti
     closed_raw, opens = _extract_polygons(msp, colori_esclusi)
 
-    # ---- 2. Chain walking su segmenti aperti
-    chained_raw = _chain_polygons(opens)
+    # ---- 2. Chain walking: tolleranza adattiva basata sul bbox del DXF
+    #        (BUG FIX #5 — piccoli pezzi 0.5mm, grandi pezzi fino 3mm)
+    _dxf_min_dim = 0
+    try:
+        _all_verts = []
+        for _v in closed_raw + opens:
+            _all_verts.extend(_v)
+        if _all_verts:
+            _xs = [_v[0] for _v in _all_verts]
+            _ys = [_v[1] for _v in _all_verts]
+            _dxf_min_dim = min(max(_xs) - min(_xs), max(_ys) - min(_ys))
+    except Exception:
+        pass
+    _tol = _adaptive_tol(_dxf_min_dim)
+    chained_raw = _chain_polygons(opens, tol=_tol)
     all_raw = closed_raw + chained_raw
 
     if not all_raw:
