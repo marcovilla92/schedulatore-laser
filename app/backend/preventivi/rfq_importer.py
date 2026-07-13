@@ -149,19 +149,46 @@ def parse_order_pdf(pdf_bytes: bytes, filename: str = 'order.pdf') -> dict | Non
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GEMINI_MODEL)
+        # Schema JSON esplicito: Google garantisce output conforme, niente più
+        # newline grezzi dentro stringhe / trailing comma / campi mancanti.
+        response_schema = {
+            'type': 'object',
+            'properties': {
+                'cliente': {'type': 'string', 'nullable': True},
+                'numero_ordine_cliente': {'type': 'string', 'nullable': True},
+                'data_consegna': {'type': 'string', 'nullable': True},
+                'note': {'type': 'string'},
+                'articoli': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'codice': {'type': 'string'},
+                            'quantita': {'type': 'integer'},
+                            'materiale': {'type': 'string', 'nullable': True},
+                            'spessore_mm': {'type': 'number', 'nullable': True},
+                            'descrizione': {'type': 'string'},
+                        },
+                        'required': ['codice'],
+                    },
+                },
+            },
+            'required': ['articoli'],
+        }
+        model = genai.GenerativeModel(
+            GEMINI_MODEL,
+            generation_config={
+                'temperature': 0.0,
+                'response_mime_type': 'application/json',
+                'response_schema': response_schema,
+            },
+        )
 
         # Multi-modal: PDF come parte inline
         pdf_part = {'mime_type': 'application/pdf', 'data': pdf_bytes}
         prompt = _build_extraction_prompt()
 
-        response = model.generate_content(
-            [prompt, pdf_part],
-            generation_config={
-                'temperature': 0.0,      # deterministico
-                'response_mime_type': 'application/json',
-            }
-        )
+        response = model.generate_content([prompt, pdf_part])
     except Exception as e:
         # Errore lato API (rete, quota, 401, timeout, modello non disponibile)
         msg = str(e) or type(e).__name__
