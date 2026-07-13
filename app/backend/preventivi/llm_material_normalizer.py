@@ -57,7 +57,7 @@ def normalize_via_llm(raw_material: str) -> str | None:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
-            'gemini-2.0-flash-exp',
+            'gemini-flash-latest',
             generation_config={
                 'response_mime_type': 'application/json',
                 'response_schema': {

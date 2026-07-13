@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 # ─── Config ────────────────────────────────────────────────────────────────
-GEMINI_MODEL = 'gemini-2.0-flash-exp'
+GEMINI_MODEL = 'gemini-flash-latest'
 FUZZY_MATCH_THRESHOLD = 0.55  # ratio SequenceMatcher sotto cui NON matcha
 
 

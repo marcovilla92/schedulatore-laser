@@ -2272,7 +2272,7 @@ def api_preventivi_rfq_diagnostic():
         return jsonify(diag), 200
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        model = genai.GenerativeModel('gemini-flash-latest')
         r = model.generate_content(
             'Rispondi solo con la parola "OK".',
             generation_config={'temperature': 0.0},
