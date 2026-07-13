@@ -222,11 +222,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 /* TABLE */
 .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl thead th {
-  text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.4px; color: var(--gray-text); padding: 10px 18px;
+  text-align: left; font-size: 12px; font-weight: 500;
+  color: var(--text-2); padding: 6px 12px;
   border-bottom: 1px solid var(--border); background: #fafbfc;
 }
-.tbl tbody td { padding: 11px 18px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+.tbl tbody td { padding: 5px 12px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
 .tbl tbody tr:last-child td { border-bottom: none; }
 .tbl tbody tr:hover { background: #fafbfc; }
 .tbl tbody tr.clickable { cursor: pointer; }
@@ -352,6 +352,32 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .dropzone .label { color: var(--text); }
 .dropzone .hint { color: var(--text-2); }
 
+/* Import strip — versione compatta orizzontale (~40px per dropzone) */
+.import-strip {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+}
+.dz-slim {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border: 1.5px dashed var(--border);
+  border-radius: 8px; background: var(--white);
+  cursor: pointer; font-family: 'Inter', sans-serif;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left; width: 100%;
+  min-height: 42px;
+}
+.dz-slim:hover, .dz-slim.dragover {
+  border-color: var(--accent); background: var(--accent-bg);
+}
+.dz-slim i { color: var(--text-3); flex-shrink: 0; }
+.dz-slim:hover i, .dz-slim.dragover i { color: var(--accent); }
+.dz-slim .dz-slim-label {
+  font-weight: 600; font-size: 13px; color: var(--text);
+}
+.dz-slim .dz-slim-hint {
+  font-size: 11px; color: var(--text-3);
+  margin-left: auto; white-space: nowrap;
+}
+
 /* MODAL - overlay più leggero e modal cleaner */
 .modal-overlay {
   background: rgba(23, 23, 23, 0.28);
@@ -436,6 +462,92 @@ button:focus, input:focus, select:focus, textarea:focus { outline: none; }
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
 }
 .editor-strip .strip-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Focus mode: nasconde tutto tranne split articoli, topbar, totali bar.
+   Massimizza lo spazio verticale per la lista pezzi + detail panel.
+   Toggle: btn-focus-mode / ESC.
+   ═══════════════════════════════════════════════════════════════════ */
+body.focus-mode .editor-strip,
+body.focus-mode .editor-compact,
+body.focus-mode #card-import,
+body.focus-mode #card-assiemi,
+body.focus-mode #card-tubolari,
+body.focus-mode #card-piastre,
+body.focus-mode #card-totali,
+body.focus-mode #card-azioni,
+body.focus-mode .tab-bar,
+body.focus-mode #msg-base { display: none !important; }
+/* Reset padding container per usare tutto lo spazio */
+body.focus-mode .container,
+body.focus-mode .page-wrap { padding-top: 8px !important; padding-bottom: 0 !important; }
+/* CRITICO: #panel-editor ha margin-top:132px per far spazio a topbar+tabbar.
+   In focus mode la tabbar è nascosta → riduco a 68px (topbar fixed 60 + gap 8)
+   per recuperare ~60px sprecati. */
+body.focus-mode #panel-editor { margin-top: 68px !important; }
+/* Split view espansa: 100vh - topbar (60) - card-header (46) - padding (20) — bottom bar rimossa */
+body.focus-mode .split-view {
+  height: calc(100vh - 130px) !important;
+  min-height: 500px;
+}
+/* Card articoli header più compatto in focus */
+body.focus-mode #card-articoli .card-header { padding: 8px 14px; }
+body.focus-mode #card-articoli .card-header h3 { font-size: 13px; }
+
+/* Focus mode button: rosso quando attivo per essere ben visibile */
+.focus-btn i { opacity: 0.7; }
+body.focus-mode .focus-btn {
+  background: var(--text) !important;
+  color: white !important;
+  border-color: var(--text) !important;
+}
+body.focus-mode .focus-btn i { opacity: 1; }
+
+/* Card collassabili — chevron ▸/▾ nel header, click sull'header toggle */
+.card.collapsible .card-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.card.collapsible .card-header:hover { background: var(--surface-2); }
+.card.collapsible .card-header::before {
+  content: '▾';
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--text-3);
+  font-size: 10px;
+  transition: transform 0.15s;
+  width: 12px; text-align: center;
+}
+.card.collapsible.collapsed .card-header::before {
+  transform: rotate(-90deg);
+}
+.card.collapsible.collapsed > *:not(.card-header) { display: none !important; }
+
+/* Sticky compact bar — visibile dopo il primo salvataggio, occupa ~34px */
+.editor-compact {
+  position: sticky; top: 112px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.editor-compact .ec-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+}
+.editor-compact .ec-title { font-size: 13px; color: var(--text); }
+.editor-compact .ec-title b { font-family: 'Geist'; font-weight: 800; }
+.editor-compact .ec-meta { color: var(--text-3); }
+.editor-compact .ec-meta b { color: var(--text); font-weight: 700; }
+.editor-compact .ec-sep { color: var(--border); }
 
 /* Body full-width (single column, tabelle a piena larghezza) */
 .editor-body { display: block; }
@@ -660,15 +772,15 @@ tr.row-warn:hover { background: #FEF3C7; }
 
 /* Traffic-light status dot (A2, ispirato Protolabs DFM feedback).
    Verde = tutto OK, ambra = review needed, rosso = campi mancanti/critici. */
+/* Status dot: sottile e discreto (visibile solo warn/error, ok invisibile).
+   Nell'ottica AlmaCAM-clean, i "verdi" non aggiungono info visto che il default
+   è "tutto ok" → mostro solo il dot per problemi. */
 .status-dot {
-  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-  vertical-align: middle; margin-right: 6px; flex-shrink: 0;
-  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.85), 0 0 0 2.5px rgba(0,0,0,0.08);
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  vertical-align: middle; margin-right: 8px; flex-shrink: 0;
   cursor: help;
-  transition: transform 0.15s;
 }
-.status-dot:hover { transform: scale(1.35); }
-.status-dot.status-ok    { background: #10B981; }
+.status-dot.status-ok { background: transparent; }  /* invisible when all OK */
 .status-dot.status-warn  { background: #F59E0B; }
 .status-dot.status-error { background: #EF4444; }
 .status-dot.status-empty { background: #D1D5DB; }
@@ -767,33 +879,416 @@ tr.row-warn:hover { background: #FEF3C7; }
 /* Bottom bar sticky con totale + azioni */
 .editor-bottom {
   position: sticky; bottom: 0; z-index: 90;
-  margin: 20px -40px 0 -40px;
-  padding: 14px 40px;
-  background: rgba(255,255,255,0.92);
+  margin: 12px -40px 0 -40px;
+  padding: 8px 40px;
+  background: rgba(255,255,255,0.94);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
-  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.04);
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
 }
 .editor-bottom .totals-inline {
-  display: flex; gap: 22px; flex: 1;
+  display: flex; gap: 16px; flex: 1; align-items: baseline;
+  font-size: 12px; font-variant-numeric: tabular-nums;
 }
 .editor-bottom .totals-inline .ti {
-  display: flex; flex-direction: column; gap: 2px;
+  display: inline-flex; gap: 4px; align-items: baseline;
 }
 .editor-bottom .totals-inline .ti .lbl {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.5px; color: var(--text-3);
+  font-size: 11px; font-weight: 400;
+  color: var(--text-3);
 }
 .editor-bottom .totals-inline .ti .val {
-  font-family: 'Geist'; font-weight: 800; font-size: 20px;
-  letter-spacing: -0.4px; color: var(--text);
+  font-family: 'Inter'; font-weight: 600; font-size: 13px;
+  color: var(--text);
 }
 .editor-bottom .totals-inline .ti.hero .val {
-  font-size: 26px; color: var(--accent);
+  font-family: 'Geist'; font-weight: 800; font-size: 16px;
+  color: var(--accent);
 }
+/* Il totale card grande sostituito da totali-inline compact — nascondi */
+.editor-bottom .totals-grid { display: none !important; }
+/* Sempre nascosta — sostituita dal modal Riepilogo */
+.editor-bottom { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   AI RFQ Importer: dropzone gigante nel tab Storico.
+   ═══════════════════════════════════════════════════════════════════ */
+.rfq-dropzone {
+  position: relative;
+  border: 2px dashed #C4B5FD;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.04) 0%, rgba(79,70,229,0.06) 100%);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  text-align: center;
+  min-height: 130px;
+  display: flex; align-items: center; justify-content: center;
+}
+.rfq-dropzone:hover, .rfq-dropzone.dragover {
+  border-color: #7C3AED;
+  background: linear-gradient(135deg, rgba(124,58,237,0.10) 0%, rgba(79,70,229,0.14) 100%);
+}
+.rfq-dropzone.dragover {
+  transform: scale(1.01);
+}
+.rfq-dropzone.loading {
+  cursor: wait;
+  border-color: #7C3AED;
+  background: rgba(124,58,237,0.08);
+}
+.rfq-dropzone-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.rfq-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(124,58,237,0.15);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.rfq-title {
+  font-family: 'Geist'; font-weight: 700; font-size: 15px;
+  color: var(--text); letter-spacing: -0.2px;
+}
+.rfq-sub {
+  font-size: 12px; color: var(--text-2); line-height: 1.4;
+  max-width: 640px;
+}
+.rfq-dropzone-loading {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.rfq-spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid #C4B5FD;
+  border-top-color: #7C3AED;
+  animation: rfq-spin 0.7s linear infinite;
+}
+.rfq-loading-title {
+  font-family: 'Geist'; font-weight: 700; font-size: 14px; color: var(--text);
+}
+.rfq-loading-sub {
+  font-size: 11px; color: var(--text-3);
+}
+@keyframes rfq-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Bottone "← Storico" nell'header card articoli (unica via d'uscita dal focus) */
+.btn-back-storico {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--white); color: var(--text-2);
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+  font-family: 'Inter', sans-serif;
+}
+.btn-back-storico:hover {
+  background: var(--surface-2); color: var(--text);
+  border-color: var(--text-3);
+}
+.btn-back-storico i { opacity: 0.65; }
+
+/* Modal Riepilogo — box totali */
+.riep-tot {
+  padding: 14px 16px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--white);
+}
+.riep-tot-lbl {
+  font-size: 11px; color: var(--text-3);
+  font-weight: 500; margin-bottom: 4px;
+}
+.riep-tot-val {
+  font-family: 'Geist'; font-weight: 800; font-size: 22px;
+  color: var(--text); letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.riep-tot.hero {
+  background: var(--text); color: white;
+  border-color: var(--text);
+}
+.riep-tot.hero .riep-tot-lbl { color: rgba(255,255,255,0.65); }
+.riep-tot.hero .riep-tot-val { color: white; font-size: 26px; }
+.riep-section {
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.riep-section-title {
+  padding: 8px 14px; background: var(--surface-2);
+  font-size: 12px; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.riep-section-title .subtotal {
+  font-family: 'Geist'; font-weight: 700;
+  color: var(--accent);
+}
+.riep-item {
+  padding: 6px 14px; display: flex; justify-content: space-between;
+  font-size: 12px; font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--border-2);
+}
+.riep-item:first-child { border-top: 0; }
+.riep-item .lbl { color: var(--text-2); }
+.riep-item .val { color: var(--text); font-weight: 600; }
 .editor-bottom .actions {
   display: flex; gap: 10px; align-items: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Split view "Vista AlmaCAM" — master-detail layout per articoli
+   Colonna sx: tree gerarchico compatto (assiemi + parti indent)
+   Colonna dx: preview grande + form editabile del pezzo selezionato
+   ═══════════════════════════════════════════════════════════════════ */
+.split-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
+  gap: 0;
+  min-height: 640px;
+  /* Espande al massimo dello viewport disponibile (topbar+tabbar+compact ~180px) */
+  height: calc(100vh - 200px);
+  max-height: none;
+}
+.split-left {
+  overflow-y: auto;
+  border-right: 1px solid var(--border-2);
+  background: var(--white);
+}
+.split-right {
+  overflow-y: auto;
+  background: var(--surface);
+  display: flex; flex-direction: column;
+}
+.split-tree {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.split-tree thead th {
+  position: sticky; top: 0; z-index: 5;
+  background: #fafbfc;
+  padding: 6px 10px; text-align: left;
+  font-size: 12px; font-weight: 500;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+}
+.split-tree thead th.n { text-align: right; }
+.split-tree tbody tr { border-bottom: 1px solid var(--border-2); cursor: pointer; height: 28px; }
+.split-tree tbody tr:hover { background: var(--surface-2); }
+.split-tree tbody tr.selected {
+  background: rgba(79, 70, 229, 0.06);
+  box-shadow: inset 2px 0 0 0 var(--accent);
+}
+.split-tree tbody tr.selected td { color: var(--text); font-weight: 600; }
+.split-tree tbody tr.ass-header {
+  background: #F8FAFC; cursor: pointer;
+  font-weight: 600; color: var(--text-2);
+  font-size: 11px;
+}
+.split-tree tbody tr.ass-header:hover { background: #F1F5F9; }
+.split-tree tbody tr.standalone-header {
+  background: #F8FAFC;
+  font-size: 11px; font-weight: 500;
+  color: var(--text-3);
+}
+.split-tree tbody tr.tree-riepilogo-row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.split-tree tbody tr.tree-riepilogo-row:hover td {
+  background: var(--accent-bg) !important;
+}
+.split-tree tbody tr.tree-riepilogo-row:hover span { color: var(--accent-hover) !important; }
+.split-tree td {
+  padding: 4px 10px; vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+.split-tree td.n { text-align: right; }
+.split-tree td.thumb-td { width: 44px; padding: 2px 6px; }
+.split-tree td.thumb-td .thumb-mini {
+  width: 36px; height: 24px; border-radius: 3px;
+  background: white; border: 1px solid var(--border-2);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.split-tree td.thumb-td .thumb-mini img {
+  width: 100%; height: 100%; object-fit: contain;
+  /* Rende le linee sottili SVG più visibili in miniatura (contrast boost) */
+  filter: contrast(1.6) brightness(0.85);
+}
+.split-tree td.thumb-td .thumb-mini.empty { color: var(--text-3); font-size: 11px; }
+.split-tree .indent { display: inline-block; width: 14px; }
+.split-tree .toggle-ass {
+  display: inline-block; width: 12px; text-align: center;
+  color: #3730A3; font-family: monospace; font-size: 10px;
+  cursor: pointer; user-select: none;
+}
+
+/* Detail panel destro */
+.split-detail-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  color: var(--text-3); font-size: 13px; padding: 40px;
+}
+.split-detail {
+  display: flex; flex-direction: column;
+  min-height: 100%;
+}
+.split-detail-preview {
+  /* Preview 45% dell'altezza panel — lascia spazio per toolbar + hero stats sotto */
+  flex: 0 0 45%;
+  min-height: 220px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px; overflow: hidden;
+}
+.sd-preview-toolbar {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border-2);
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+/* Hero stats — riga inline compatta (stile AlmaCAM info bar) */
+.sd-hero-stats {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--border-2);
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.hero-stat {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  white-space: nowrap;
+}
+.hero-stat .hero-lbl {
+  font-size: 11px; font-weight: 400;
+  color: var(--text-3);
+}
+.hero-stat .hero-val {
+  font-weight: 600; color: var(--text);
+}
+.hero-stat.hero-dim .hero-val { font-family: 'Geist'; font-size: 13px; }
+.hero-stat.hero-price {
+  margin-left: auto;  /* spinge il totale a destra */
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--text); color: white;
+}
+.hero-stat.hero-price .hero-lbl { color: rgba(255,255,255,0.7); }
+.hero-stat.hero-price .hero-val { color: white; font-family: 'Geist'; font-weight: 700; font-size: 13px; }
+/* Traffic light per campi mancanti/incerti */
+.hero-stat.missing .hero-val { color: #DC2626; }
+.hero-stat.missing .hero-val::before { content: '⚠ '; }
+.hero-stat.zero .hero-val { color: var(--text-3); font-weight: 400; }
+
+.sd-clean-btn {
+  padding: 3px 8px; font-size: 11px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 5px;
+  border-radius: 4px; cursor: pointer;
+  background: transparent; color: var(--text-2);
+  border: 1px solid var(--border);
+  font-family: 'Inter', sans-serif;
+  transition: background 0.12s, color 0.12s;
+}
+.sd-clean-btn:hover {
+  background: var(--surface-2); color: var(--text);
+  border-color: var(--text-3);
+}
+.sd-clean-btn i { opacity: 0.6; }
+.sd-clean-hint {
+  font-size: 11px; color: var(--text-3); font-weight: 400;
+  line-height: 1.3; flex: 1; min-width: 120px;
+}
+.split-detail-preview svg { width: 100%; height: 100%; display: block; }
+.split-detail-preview .empty { color: var(--text-3); font-size: 12px; }
+.split-detail-body {
+  padding: 14px 18px 20px;
+  display: flex; flex-direction: column; gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+  background: var(--white);
+}
+/* Sezione singola colonna (stile AlmaCAM) — label + value con spazio generoso */
+.sd-section {
+  display: block;
+}
+.sd-section.grid-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;
+}
+.sd-section-title {
+  font-family: 'Geist'; font-weight: 700; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-2); margin: 0 0 8px 0;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border-2);
+  font-style: italic;
+}
+.sd-row {
+  display: grid; grid-template-columns: 110px 1fr;
+  gap: 10px; align-items: center;
+  font-size: 13px;
+  padding: 5px 0;
+}
+.sd-row + .sd-row { border-top: 1px solid var(--border-2); }
+.sd-row.wide { grid-column: 1 / -1; }
+.sd-row label {
+  color: var(--text-2); font-weight: 500; font-size: 13px;
+}
+.sd-row input, .sd-row select {
+  padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 13px; background: white;
+  font-family: 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  transition: border-color 0.12s;
+}
+.sd-row input:focus, .sd-row select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.sd-row input.readonly {
+  border: none !important; background: transparent !important;
+  padding: 6px 4px; font-weight: 600; color: var(--text);
+  cursor: default;
+}
+.sd-row input.readonly {
+  background: var(--surface-2); color: var(--text-2);
+  border-color: var(--border-2); font-weight: 600;
+}
+.sd-row input[type=number] { text-align: right; }
+.sd-costo-tot {
+  padding: 10px 14px; background: var(--black); color: white;
+  border-radius: 8px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.sd-costo-tot .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.65; }
+.sd-costo-tot .val { font-family: 'Geist'; font-weight: 800; font-size: 20px; letter-spacing: -0.4px; }
+.sd-actions {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding-top: 4px; border-top: 1px solid var(--border-2);
+  margin-top: 4px;
+}
+
+/* Toggle vista */
+.view-toggle {
+  display: inline-flex; gap: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+  font-size: 12px;
+}
+.view-toggle button {
+  padding: 6px 12px; background: transparent; border: 0;
+  color: var(--text-2); font-weight: 600; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.view-toggle button.active {
+  background: var(--white); color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 </style>
 </head>
@@ -801,7 +1296,7 @@ tr.row-warn:hover { background: #FEF3C7; }
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div class="logo-section">
+  <div class="logo-section" onclick="goStorico()" style="cursor:pointer;" title="Torna all'elenco preventivi">
     <div class="logo-icon">LS</div>
     <div>
       <div class="logo-main">FerroTrack</div>
@@ -833,6 +1328,31 @@ tr.row-warn:hover { background: #FEF3C7; }
 <div class="panel active" id="panel-storico">
   <h2 class="page-title">Storico preventivi</h2>
   <p class="page-sub">Lista preventivi recenti. Click su una riga per aprirla nell'editor.</p>
+
+  <!-- ✨ AI RFQ IMPORTER: trascina qui il pacchetto ZIP dal cliente (PDF ordine + cartella DXF)
+       L'AI legge il PDF, matcha i disegni e crea un preventivo BOZZA pre-compilato. -->
+  <div class="rfq-dropzone" id="rfq-dropzone"
+       ondragover="_rfqDragOver(event)" ondragleave="_rfqDragLeave(event)"
+       ondrop="_rfqDrop(event)"
+       onclick="document.getElementById('rfq-file-input').click()">
+    <input type="file" id="rfq-file-input" accept=".zip,application/zip" style="display:none;"
+           onchange="_rfqFileSelected(event)">
+    <div class="rfq-dropzone-inner" id="rfq-dropzone-inner">
+      <div class="rfq-icon">
+        <i data-lucide="sparkles" style="width:22px;height:22px;color:#7C3AED;"></i>
+      </div>
+      <div class="rfq-title">Importa richiesta cliente con AI</div>
+      <div class="rfq-sub">
+        Trascina qui il file <b>ZIP</b> con PDF ordine + cartella DXF.
+        <br>L'AI (Gemini) leggerà il PDF, matcherà i disegni e creerà un preventivo BOZZA pre-compilato.
+      </div>
+    </div>
+    <div class="rfq-dropzone-loading" id="rfq-dropzone-loading" style="display:none;">
+      <div class="rfq-spinner"></div>
+      <div class="rfq-loading-title">AI in analisi&hellip;</div>
+      <div class="rfq-loading-sub" id="rfq-loading-sub">Estrazione dati dal PDF ordine e matching disegni</div>
+    </div>
+  </div>
 
   <div class="card">
     <div class="card-header">
@@ -893,6 +1413,23 @@ tr.row-warn:hover { background: #FEF3C7; }
 <!-- ===================== PANEL: EDITOR ===================== -->
 <div class="panel" id="panel-editor">
   <!-- ═══ Editor header strip (compresso, sticky) ═══ -->
+  <!-- Sticky compact strip — mostrata solo dopo salvataggio; occupa 32px vs 150px del full editor -->
+  <div class="editor-compact" id="editor-compact" style="display:none;">
+    <span class="ec-dot"></span>
+    <span class="ec-title"><b id="ec-cliente">—</b></span>
+    <span class="ec-sep">·</span>
+    <span class="ec-meta">Qty <b id="ec-qty">1</b></span>
+    <span class="ec-sep">·</span>
+    <span class="ec-meta">MG <b id="ec-margine">25%</b></span>
+    <span class="ec-sep">·</span>
+    <span class="ec-meta">Consegna <b id="ec-consegna">—</b></span>
+    <span class="ec-sep">·</span>
+    <span class="badge gray" id="ec-status" style="font-size:10px; padding:2px 6px;">BOZZA</span>
+    <div style="flex:1;"></div>
+    <button class="btn-mini" onclick="toggleEditorHeader()" title="Modifica dati preventivo">✎ Modifica</button>
+    <button class="btn-mini" onclick="duplicaPreventivo()" id="btn-duplica-compact" title="Duplica preventivo">⧉</button>
+  </div>
+
   <div class="editor-strip" id="editor-strip">
     <div class="strip-title">
       <span id="editor-title">Nuovo preventivo</span>
@@ -935,33 +1472,42 @@ tr.row-warn:hover { background: #FEF3C7; }
     <div class="master-panel">
 
       <!-- Import file (dropzone compatte, in cima) -->
+      <!-- Import strip — barra compatta orizzontale (~64px) al posto della card 200px.
+           Collassata di default se ci sono già articoli/assiemi/tubolari/piastre. -->
       <div class="card" id="card-import" style="display:none;">
-        <div class="card-header"><h3>Importa file</h3></div>
-        <div class="card-body">
-          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px;">
-            <div class="dropzone" onclick="document.getElementById('inp-xlsx').click()" id="dz-xlsx" style="padding:18px 14px;">
-              <div class="icon"><i data-lucide="file-spreadsheet" style="width:24px;height:24px;"></i></div>
-              <div class="label" style="font-size:13px; margin-top:4px;">XLSX Lantek</div>
-              <div class="hint" style="font-size:11px;">Articoli + costo</div>
-              <input type="file" id="inp-xlsx" accept=".xlsx" multiple style="display:none;" onchange="uploadFiles(this.files, 'xlsx')">
-            </div>
-            <div class="dropzone" onclick="document.getElementById('inp-dxf').click()" id="dz-dxf" style="padding:18px 14px;">
-              <div class="icon"><i data-lucide="file-code" style="width:24px;height:24px;"></i></div>
-              <div class="label" style="font-size:13px; margin-top:4px;">DXF / DWG</div>
-              <div class="hint" style="font-size:11px;">Disegni 2D cliente</div>
-              <input type="file" id="inp-dxf" accept=".dxf,.dwg" multiple style="display:none;" onchange="uploadFiles(this.files, 'dxf')">
-            </div>
-            <div class="dropzone" onclick="document.getElementById('inp-step').click()" id="dz-step" style="padding:18px 14px;">
-              <div class="icon"><i data-lucide="box" style="width:24px;height:24px;"></i></div>
-              <div class="label" style="font-size:13px; margin-top:4px;">STEP 3D</div>
-              <div class="hint" style="font-size:11px;">Tubolari + piastre</div>
-              <input type="file" id="inp-step" accept=".step,.stp" multiple style="display:none;" onchange="uploadFiles(this.files, 'step')">
-            </div>
+        <div class="card-header" style="padding:10px 14px;">
+          <h3 style="font-size:13px; display:flex; align-items:center; gap:8px;">
+            <i data-lucide="upload-cloud" style="width:14px;height:14px;"></i> Importa file
+            <span id="msg-import" class="form-msg" style="margin:0; font-size:11px; font-weight:400;"></span>
+          </h3>
+          <button class="btn-mini" id="btn-toggle-import" onclick="toggleImportCollapse()" title="Mostra/nascondi note">
+            <span id="btn-toggle-import-label">Note</span>
+          </button>
+        </div>
+        <div class="card-body" style="padding:8px 14px;">
+          <div class="import-strip">
+            <button type="button" class="dz-slim" id="dz-xlsx" onclick="document.getElementById('inp-xlsx').click()" title="Trascina o clicca per caricare XLSX Lantek">
+              <i data-lucide="file-spreadsheet" style="width:16px;height:16px;"></i>
+              <span class="dz-slim-label">XLSX Lantek</span>
+              <span class="dz-slim-hint">Articoli + costo</span>
+            </button>
+            <input type="file" id="inp-xlsx" accept=".xlsx" multiple style="display:none;" onchange="uploadFiles(this.files, 'xlsx')">
+            <button type="button" class="dz-slim" id="dz-dxf" onclick="document.getElementById('inp-dxf').click()" title="Trascina o clicca per caricare DXF/DWG">
+              <i data-lucide="file-code" style="width:16px;height:16px;"></i>
+              <span class="dz-slim-label">DXF / DWG</span>
+              <span class="dz-slim-hint">Disegni 2D cliente</span>
+            </button>
+            <input type="file" id="inp-dxf" accept=".dxf,.dwg" multiple style="display:none;" onchange="uploadFiles(this.files, 'dxf')">
+            <button type="button" class="dz-slim" id="dz-step" onclick="document.getElementById('inp-step').click()" title="Trascina o clicca per caricare STEP 3D">
+              <i data-lucide="box" style="width:16px;height:16px;"></i>
+              <span class="dz-slim-label">STEP 3D</span>
+              <span class="dz-slim-hint">Tubolari + piastre</span>
+            </button>
+            <input type="file" id="inp-step" accept=".step,.stp" multiple style="display:none;" onchange="uploadFiles(this.files, 'step')">
           </div>
-          <div class="form-msg" id="msg-import"></div>
-          <div class="form-field" style="margin-top:12px;">
-            <label>Note interne</label>
-            <textarea id="ed-note" rows="1" placeholder="Note opzionali..." style="resize:vertical;"></textarea>
+          <div class="form-field" id="import-notes-row" style="margin-top:10px; display:none;">
+            <label style="font-size:11px;">Note interne</label>
+            <textarea id="ed-note" rows="1" placeholder="Note opzionali..." style="resize:vertical; font-size:12px;"></textarea>
           </div>
         </div>
       </div>
@@ -969,8 +1515,25 @@ tr.row-warn:hover { background: #FEF3C7; }
   <!-- Articoli -->
   <div class="card" id="card-articoli" style="display:none;">
     <div class="card-header">
-      <h3>Articoli <span id="articoli-summary" style="font-weight:500; font-size:12px; color:var(--text-2); margin-left:8px;"></span></h3>
+      <h3 style="display:flex; align-items:center; gap:10px;">
+        <button class="btn-back-storico" onclick="goStorico()" title="Torna all'elenco preventivi">
+          <i data-lucide="arrow-left" style="width:14px;height:14px;vertical-align:-2px;"></i>
+          Storico
+        </button>
+        <span style="color:var(--border);">·</span>
+        <span id="ec-cliente-inline" style="font-family:'Geist'; font-weight:700; color:var(--text);">—</span>
+        <span style="color:var(--text-3); font-weight:400; font-size:12px;">/ Articoli</span>
+        <span id="articoli-summary" style="font-weight:500; font-size:12px; color:var(--text-2); margin-left:4px;"></span>
+      </h3>
       <div style="display:flex; align-items:center; gap:8px;">
+        <!-- Toggle e Focus rimossi: split fullscreen è l'unica vista -->
+        <div class="view-toggle" role="tablist" style="display:none;">
+          <button id="view-btn-table" onclick="setArticoliView('table')">Tabella</button>
+          <button id="view-btn-split" class="active" onclick="setArticoliView('split')">Split</button>
+        </div>
+        <button class="btn-mini focus-btn" id="btn-focus-mode" onclick="toggleFocusMode()" style="display:none;">
+          <span id="btn-focus-label">Focus</span>
+        </button>
         <!-- Filtro problemi (utile per preventivi grandi) -->
         <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-2); cursor:pointer;">
           <input type="checkbox" id="filter-issues-only" onchange="toggleFilterIssues(this.checked)" style="cursor:pointer;">
@@ -1009,7 +1572,8 @@ tr.row-warn:hover { background: #FEF3C7; }
       <div style="flex:1;"></div>
       <button class="btn-danger" style="padding:6px 14px; font-size:13px;" onclick="bulkDelete()" title="Rimuovi righe selezionate">Rimuovi</button>
     </div>
-    <div class="card-body no-pad">
+    <!-- ═══ Vista TABELLA (default) ═══ -->
+    <div class="card-body no-pad" id="articoli-view-table">
       <table class="tbl">
         <thead>
           <tr>
@@ -1036,13 +1600,128 @@ tr.row-warn:hover { background: #FEF3C7; }
         </tbody>
       </table>
     </div>
+    <!-- ═══ Vista SPLIT (master-detail stile AlmaCAM) ═══ -->
+    <div class="card-body no-pad" id="articoli-view-split" style="display:none;">
+      <div class="split-view">
+        <!-- Colonna sx: tree gerarchico -->
+        <div class="split-left">
+          <table class="split-tree">
+            <thead>
+              <tr>
+                <th style="width:54px;">Preview</th>
+                <th>Codice / Assieme</th>
+                <th class="n" style="width:44px;">Pz</th>
+                <th class="n" style="width:60px;">Sp.</th>
+                <th style="width:80px;">Mat.</th>
+                <th class="n" style="width:70px;">Dim mm</th>
+                <th class="n" style="width:80px;">Costo &euro;</th>
+              </tr>
+            </thead>
+            <tbody id="split-tree-tbody">
+              <tr><td colspan="7" class="empty" style="padding:24px; text-align:center; color:var(--text-3);">Nessun articolo</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Colonna dx: detail panel -->
+        <div class="split-right" id="split-detail-panel">
+          <div class="split-detail-empty" id="split-detail-empty">
+            <i data-lucide="mouse-pointer-click" style="width:32px; height:32px; opacity:0.4;"></i>
+            <div>Clicca un articolo a sinistra<br>per vedere dettagli</div>
+          </div>
+          <div class="split-detail" id="split-detail-content" style="display:none;">
+            <div class="split-detail-preview" id="sd-preview">
+              <div class="empty">Nessun disegno</div>
+            </div>
+            <!-- Toolbar preview: azioni sul disegno sempre visibili -->
+            <div class="sd-preview-toolbar" id="sd-preview-toolbar">
+              <button class="btn-primary sd-clean-btn" id="sd-btn-clean-top" onclick="sdOpenCleanup()" title="Ridefinisci l'area del pezzo con drag rettangolare">
+                <i data-lucide="scissors" style="width:12px;height:12px;"></i>
+                <span id="sd-btn-clean-top-label">Ridefinisci pezzo</span>
+              </button>
+              <span class="sd-clean-hint" id="sd-clean-hint">Preview sbagliata? Click qui e traccia il rettangolo attorno al pezzo.</span>
+            </div>
+            <!-- Info bar inline: metriche chiave in singola riga, stile AlmaCAM -->
+            <div class="sd-hero-stats" id="sd-hero-stats">
+              <span class="hero-stat hero-dim">
+                <span class="hero-val" id="hero-dim">—</span>
+                <span class="hero-lbl">mm</span>
+              </span>
+              <span class="hero-stat">
+                <span class="hero-lbl">perim.</span>
+                <span class="hero-val" id="hero-perim">—</span>
+                <span class="hero-lbl">mm</span>
+              </span>
+              <span class="hero-stat">
+                <span class="hero-lbl">pieghe</span>
+                <span class="hero-val" id="hero-pieghe">—</span>
+              </span>
+              <span class="hero-stat">
+                <span class="hero-lbl">fori</span>
+                <span class="hero-val" id="hero-fori">—</span>
+              </span>
+              <span class="hero-stat">
+                <span class="hero-lbl">mat.</span>
+                <span class="hero-val" id="hero-mat">—</span>
+              </span>
+              <span class="hero-stat hero-price">
+                <span class="hero-lbl">totale</span>
+                <span class="hero-val" id="hero-costo">—</span>
+              </span>
+            </div>
+            <div class="split-detail-body">
+              <!-- GENERALE — stile AlmaCAM: label sinistra + campo destra -->
+              <div class="sd-section">
+                <h4 class="sd-section-title">Generale</h4>
+                <div class="sd-row"><label>Codice</label><input type="text" id="sd-codice" onchange="sdOnFieldChange('codice', this.value)"></div>
+                <div class="sd-row"><label>Assieme</label><select id="sd-assieme" onchange="sdOnAssiemeChange(this.value)"></select></div>
+                <div class="sd-row"><label>Quantità</label><input type="number" id="sd-qty" min="1" onchange="sdOnFieldChange('quantita', this.value, true)"></div>
+                <div class="sd-row"><label>Materiale</label><select id="sd-materiale" onchange="sdOnFieldChange('materiale', this.value)"></select></div>
+                <div class="sd-row"><label>Spessore mm</label><input type="number" id="sd-spessore" step="0.1" min="0" onchange="sdOnFieldChange('spessore_mm', this.value, true)"></div>
+              </div>
+              <!-- DIMENSIONI (da DXF) — readonly + editabili -->
+              <div class="sd-section">
+                <h4 class="sd-section-title">Dimensioni (da DXF)</h4>
+                <div class="sd-row"><label>Larghezza mm</label><input type="text" id="sd-dim-w" class="readonly" readonly></div>
+                <div class="sd-row"><label>Altezza mm</label><input type="text" id="sd-dim-h" class="readonly" readonly></div>
+                <div class="sd-row"><label>Area dm²</label><input type="number" id="sd-area" step="0.01" min="0" onchange="sdOnFieldChange('area_dm2', this.value, true)"></div>
+                <div class="sd-row"><label>Perimetro mm</label><input type="number" id="sd-perim" step="1" min="0" onchange="sdOnPerimChange(this.value)"></div>
+                <div class="sd-row"><label>N. forature</label><input type="number" id="sd-forature" step="1" min="0" onchange="sdOnFieldChange('n_forature', this.value, true)"></div>
+                <div class="sd-row"><label>Peso kg</label><input type="text" id="sd-peso" class="readonly" readonly></div>
+              </div>
+              <!-- LAVORAZIONI — auto-detected + editabili -->
+              <div class="sd-section">
+                <h4 class="sd-section-title">Lavorazioni</h4>
+                <div class="sd-row"><label>Pieghe</label><input type="number" id="sd-pieghe" step="1" min="0" onchange="sdOnFieldChange('pieghe', this.value, true)"></div>
+                <div class="sd-row"><label>Saldatura ml</label><input type="number" id="sd-sald" step="0.1" min="0" onchange="sdOnFieldChange('saldatura_ml', this.value, true)"></div>
+                <div class="sd-row"><label>Filettature</label><input type="number" id="sd-filett" step="1" min="0" onchange="sdOnFieldChange('filettatura_pz', this.value, true)"></div>
+                <div class="sd-row"><label>Svasature</label><input type="number" id="sd-svas" step="1" min="0" onchange="sdOnFieldChange('svasatura_pz', this.value, true)"></div>
+              </div>
+              <!-- COSTI — dettaglio breakdown, il totale è già nella hero bar -->
+              <div class="sd-section">
+                <h4 class="sd-section-title">Breakdown costi</h4>
+                <div class="sd-row"><label>Base laser €</label><input type="text" id="sd-costo-base" class="readonly" readonly></div>
+                <div class="sd-row"><label>Lavorazioni €</label><input type="text" id="sd-costo-lav" class="readonly" readonly></div>
+              </div>
+              <!-- Actions bar in fondo -->
+              <div class="sd-actions">
+                <button class="btn-mini" id="sd-btn-clean" onclick="sdOpenCleanup()" style="display:none;">Pulisci DXF</button>
+                <button class="btn-mini" onclick="sdStima()">Ricalcola stima</button>
+                <button class="btn-mini" onclick="sdOpenFullDetail()">Apri dettaglio &raquo;</button>
+                <div style="flex:1;"></div>
+                <button class="btn-danger" onclick="sdRemove()" title="Rimuovi articolo">Rimuovi</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Assiemi (da STEP 3D) -->
-  <div class="card" id="card-assiemi" style="display:none;">
-    <div class="card-header">
-      <h3>Assiemi 3D</h3>
-      <button class="btn-mini" onclick="addAssiemeManuale()">+ Aggiungi manuale</button>
+  <div class="card collapsible collapsed" id="card-assiemi" style="display:none;">
+    <div class="card-header" onclick="toggleCard('card-assiemi', event)">
+      <h3>Assiemi 3D <span class="card-meta" id="assiemi-count-meta"></span></h3>
+      <button class="btn-mini" onclick="event.stopPropagation(); addAssiemeManuale()">+ Aggiungi manuale</button>
     </div>
     <div class="card-body no-pad">
       <table class="tbl">
@@ -1068,10 +1747,9 @@ tr.row-warn:hover { background: #FEF3C7; }
   </div>
 
   <!-- Tubolari (da STEP 3D) -->
-  <div class="card" id="card-tubolari" style="display:none;">
-    <div class="card-header">
-      <h3>Tubolari</h3>
-      <span class="card-meta" id="tubolari-meta">&mdash;</span>
+  <div class="card collapsible collapsed" id="card-tubolari" style="display:none;">
+    <div class="card-header" onclick="toggleCard('card-tubolari', event)">
+      <h3>Tubolari <span class="card-meta" id="tubolari-meta">&mdash;</span></h3>
     </div>
     <div class="card-body no-pad">
       <table class="tbl">
@@ -1096,10 +1774,9 @@ tr.row-warn:hover { background: #FEF3C7; }
   </div>
 
   <!-- Piastre (da STEP 3D) -->
-  <div class="card" id="card-piastre" style="display:none;">
-    <div class="card-header">
-      <h3>Piastre</h3>
-      <span class="card-meta" id="piastre-meta">&mdash;</span>
+  <div class="card collapsible collapsed" id="card-piastre" style="display:none;">
+    <div class="card-header" onclick="toggleCard('card-piastre', event)">
+      <h3>Piastre <span class="card-meta" id="piastre-meta">&mdash;</span></h3>
     </div>
     <div class="card-body no-pad">
       <table class="tbl">
@@ -1125,8 +1802,8 @@ tr.row-warn:hover { background: #FEF3C7; }
   <!-- ═══ /Body full-width ═══ -->
 
   <!-- Riepilogo totali INLINE nel bottom bar (nascondi la card totali standalone) -->
-  <div class="card" id="card-totali" style="display:none;">
-    <div class="card-header"><h3>Riepilogo costi</h3></div>
+  <div class="card collapsible collapsed" id="card-totali" style="display:none;">
+    <div class="card-header" onclick="toggleCard('card-totali', event)"><h3>Riepilogo costi (breakdown)</h3></div>
     <div class="card-body no-pad">
       <div class="totals-grid">
         <div class="total-card">
@@ -1334,6 +2011,23 @@ tr.row-warn:hover { background: #FEF3C7; }
         </div>
       </div>
     </div>
+
+    <!-- Cartella disegni per Mirko -->
+    <div class="card">
+      <div class="card-header"><h3>Export disegni per officina</h3></div>
+      <div class="card-body">
+        <div class="form-field">
+          <label>Cartella disegni per Mirko</label>
+          <input type="text" id="cfg-disegni-export-root" placeholder='es. C:\Disegni  oppure  \\server\condivisa\disegni'>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px;">
+            Ogni volta che pulisci un pezzo (click "Modifica pezzo" → click sul pezzo), il DXF pulito viene copiato automaticamente in:
+            <br><code style="font-size:11px; color:var(--text-2);">&lt;cartella&gt;\&lt;nome-cliente&gt;\&lt;numero-ordine&gt;\&lt;codice-pezzo&gt;.dxf</code>
+            <br>Se il campo "Numero ordine cliente" è vuoto, viene usato <code>PREV-2026-XXXXXXXX</code> come fallback.
+            <br><b>Lascia vuoto per disabilitare l'export automatico.</b>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ═══ AZIONI ═══ -->
@@ -1368,6 +2062,53 @@ tr.row-warn:hover { background: #FEF3C7; }
     </div>
     <div style="flex:1; overflow:hidden;">
       <iframe id="step-preview-iframe" src="about:blank" style="width:100%; height:100%; border:none; display:block;"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Riepilogo & Invia — step 2 dopo lavoro articoli. Contiene totali,
+     breakdown per assieme/tubolare/piastra, azioni PDF + Invia al cliente. -->
+<div class="modal-overlay" id="modal-riepilogo" onclick="if(event.target===this)closeRiepilogoModal()" style="z-index:2600;">
+  <div class="modal" style="max-width:900px; width:92vw; max-height:92vh; display:flex; flex-direction:column;">
+    <div class="modal-header" style="padding:16px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+      <div style="flex:1; min-width:0;">
+        <h3 style="margin:0; font-family:'Geist'; font-weight:800; font-size:18px; letter-spacing:-0.3px;">
+          Riepilogo &amp; Invia
+        </h3>
+        <div id="riep-cliente" style="font-size:12px; color:var(--text-2); margin-top:2px;">—</div>
+      </div>
+      <button class="modal-close" onclick="closeRiepilogoModal()" style="position:static; margin-left:12px;">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:20px 22px; overflow-y:auto; flex:1;">
+      <!-- TOTALI in evidenza -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:20px;">
+        <div class="riep-tot">
+          <div class="riep-tot-lbl">Totale pezzo (base)</div>
+          <div class="riep-tot-val" id="riep-t-pezzo">0,00 €</div>
+        </div>
+        <div class="riep-tot">
+          <div class="riep-tot-lbl">Con margine <span id="riep-mg-pct">25%</span></div>
+          <div class="riep-tot-val" id="riep-t-margine">0,00 €</div>
+        </div>
+        <div class="riep-tot hero">
+          <div class="riep-tot-lbl">Totale lotto (<span id="riep-qty">1</span> pz)</div>
+          <div class="riep-tot-val" id="riep-t-lotto">0,00 €</div>
+        </div>
+      </div>
+      <!-- BREAKDOWN articoli/assiemi/tubolari/piastre -->
+      <div id="riep-breakdown" style="display:flex; flex-direction:column; gap:14px;"></div>
+    </div>
+    <div class="modal-footer" style="padding:14px 22px; border-top:1px solid var(--border); display:flex; align-items:center; gap:10px;">
+      <button class="btn-secondary" onclick="closeRiepilogoModal()">
+        <i data-lucide="arrow-left" style="width:14px;height:14px;vertical-align:-2px;"></i> Torna agli articoli
+      </button>
+      <div style="flex:1;"></div>
+      <button class="btn-secondary" onclick="scaricaPdfRiepilogo()">
+        <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF
+      </button>
+      <button class="btn-primary" onclick="inviaClientRiepilogo()" id="riep-btn-invia">
+        <i data-lucide="send" style="width:14px;height:14px;vertical-align:-2px;"></i> Invia al cliente
+      </button>
     </div>
   </div>
 </div>
@@ -1488,14 +2229,34 @@ tr.row-warn:hover { background: #FEF3C7; }
       <div>
         <h3 id="cand-title">Seleziona il pezzo da tagliare</h3>
         <div id="cand-subtitle" style="font-size:12px; color:var(--text-2); font-weight:500; margin-top:2px;">
-          Il sistema non è sicuro di quale contorno sia il pezzo. Clicca il contorno corretto nella preview.
+          <b>Zoom</b>: rotellina · <b>Pan</b>: tasto centrale o Shift+trascina · <b>Definisci pezzo</b>: bottone sopra la preview
         </div>
       </div>
       <button class="modal-close" onclick="closeCandidatesModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <!-- SX: preview SVG con overlay poligoni cliccabili -->
+      <!-- SX: preview SVG con overlay poligoni cliccabili + toolbar sopra -->
       <div class="mfs-left" id="cand-svg-container" style="position:relative; background:#FAFAFA; padding:0;">
+        <!-- Toolbar in alto: bottone primario "Definisci pezzo" + info dimensioni durante drag -->
+        <div id="cand-toolbar" style="position:absolute; top:10px; left:10px; right:10px; z-index:30; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.96); border:1px solid var(--border); border-radius:10px; padding:8px 12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); backdrop-filter: blur(6px);">
+          <button id="cand-click-btn" class="btn-primary" style="padding:6px 14px; font-size:13px; white-space:nowrap;" onclick="toggleClickMode()">
+            <i data-lucide="mouse-pointer-click" style="width:14px;height:14px;vertical-align:-2px;"></i>
+            <span id="cand-click-btn-txt">Click sul pezzo</span>
+          </button>
+          <div id="cand-toolbar-hint" style="flex:1; font-size:12px; color:var(--text-2); line-height:1.3;">
+            Click su una qualsiasi linea, arco, cerchio o area interna del pezzo — il sistema estrae tutto
+          </div>
+          <button id="cand-marquee-btn" class="btn-secondary" style="padding:4px 10px; font-size:11px; white-space:nowrap;" onclick="toggleMarqueeMode()" title="Modalità legacy: trascina un rettangolo attorno al pezzo">
+            <i data-lucide="square-dashed-mouse-pointer" style="width:12px;height:12px;vertical-align:-2px;"></i>
+            <span id="cand-marquee-btn-txt">Rettangolo</span>
+          </button>
+          <div id="cand-drag-info" style="display:none; padding:4px 12px; background:#EDE9FE; border-radius:6px; font-size:12px; font-weight:700; color:#5B21B6; font-variant-numeric: tabular-nums; white-space:nowrap;">
+            0 × 0 mm
+          </div>
+          <button id="cand-zoom-reset" class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="_resetZoom()" title="Reset zoom &amp; pan">
+            <i data-lucide="scan" style="width:14px;height:14px;vertical-align:-2px;"></i>
+          </button>
+        </div>
         <div id="cand-svg-inner" style="width:100%; height:100%; position:relative; overflow:hidden;">
           <!-- Verrà popolato con SVG DXF + overlay poligoni via JS -->
         </div>
@@ -1503,7 +2264,7 @@ tr.row-warn:hover { background: #FEF3C7; }
           Caricamento preview…
         </div>
       </div>
-      <!-- DX: lista candidati -->
+      <!-- DX: lista candidati auto (secondaria) -->
       <div class="mfs-right">
         <div class="mfs-section">
           <div class="sec-title">Confidence</div>
@@ -1518,24 +2279,11 @@ tr.row-warn:hover { background: #FEF3C7; }
             <div id="cand-conf-hint" style="font-size:11px; color:var(--text-2); margin-top:8px; line-height:1.4;"></div>
           </div>
         </div>
-        <!-- Definisci manualmente (Fase 1b): PRIMARIO, sempre visibile in alto -->
-        <div class="mfs-section" style="background:#F8FAFC; padding:12px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:11px; color:var(--text-2); font-weight:600; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
-            Definisci il pezzo tu
-          </div>
-          <div style="font-size:11px; color:var(--text-2); line-height:1.4; margin-bottom:8px;">
-            Trascina un rettangolo attorno al pezzo sulla preview. Verrà creato un DXF pulito con solo quello.
-          </div>
-          <button id="cand-marquee-btn" class="btn-primary" style="width:100%;" onclick="toggleMarqueeMode()">
-            <i data-lucide="square-dashed-mouse-pointer" style="width:14px;height:14px;vertical-align:-2px;"></i>
-            <span id="cand-marquee-btn-txt">Attiva selezione rettangolare</span>
-          </button>
-          <div id="cand-marquee-hint" style="display:none; margin-top:8px; padding:8px 10px; background:#EDE9FE; border-radius:6px; font-size:11px; color:#5B21B6;">
-            <b>Trascina</b> col mouse sulla preview per delimitare il pezzo. Al rilascio verrà creato un DXF pulito.
-          </div>
-        </div>
         <div class="mfs-section">
-          <div class="sec-title">…oppure scegli un candidato auto-rilevato</div>
+          <div class="sec-title">Candidati auto-rilevati</div>
+          <div style="font-size:11px; color:var(--text-2); line-height:1.4; margin-bottom:8px;">
+            Se uno di questi è il pezzo giusto, cliccalo e poi "Applica" sotto. Altrimenti usa <b>"Definisci il pezzo"</b> nella toolbar sopra la preview.
+          </div>
           <div id="cand-list" style="display:flex; flex-direction:column; gap:8px;">
             <!-- Popolato con card cliccabili via JS -->
           </div>
@@ -1920,6 +2668,9 @@ async function loadImpostazioni() {
     const scStr = Object.keys(sc).sort((a,b) => parseInt(a) - parseInt(b))
       .map(k => `${k}:${sc[k]}`).join(', ');
     document.getElementById('cfg-sconto-qty').value = scStr;
+    // Cartella export DXF puliti per Mirko (top-level config)
+    const rootField = document.getElementById('cfg-disegni-export-root');
+    if (rootField) rootField.value = d.disegni_export_root || '';
     msg.textContent = '';
     // Hook: live-update del totale €/h
     document.getElementById('cfg-eur-h-macchina').oninput = _cfgRecalcTotHour;
@@ -1981,6 +2732,7 @@ async function saveImpostazioni() {
         margine_su_montaggio: document.getElementById('cfg-margine-montaggio').value === 'true',
         sconto_quantita: sc,
       },
+      disegni_export_root: (document.getElementById('cfg-disegni-export-root') || {}).value || '',
     };
     const r = await fetch(`${API_URL}/api/preventivi/config`, {
       method: 'PUT',
@@ -2008,6 +2760,11 @@ async function saveImpostazioni() {
 }
 
 function goStorico() {
+  // Esci dal focus mode se attivo (altrimenti la tabbar resta nascosta e l'utente
+  // non vede lo switch di tab)
+  if (document.body.classList.contains('focus-mode')) {
+    document.body.classList.remove('focus-mode');
+  }
   currentPreventivo = null;
   currentArticoli = [];
   switchTab('storico');
@@ -2016,6 +2773,91 @@ function goStorico() {
 // ============================================================
 //  STORICO (LIST)
 // ============================================================
+// ═══════════════════════════════════════════════════════════════════
+// AI RFQ Importer — drop ZIP con PDF ordine + cartella DXF
+// ═══════════════════════════════════════════════════════════════════
+function _rfqDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('rfq-dropzone').classList.add('dragover');
+}
+function _rfqDragLeave(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('rfq-dropzone').classList.remove('dragover');
+}
+function _rfqDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('rfq-dropzone').classList.remove('dragover');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) _rfqUpload(file);
+}
+function _rfqFileSelected(e) {
+  const file = e.target.files && e.target.files[0];
+  if (file) _rfqUpload(file);
+  e.target.value = '';  // reset per permettere ri-selezione stesso file
+}
+
+async function _rfqUpload(file) {
+  const dz = document.getElementById('rfq-dropzone');
+  const inner = document.getElementById('rfq-dropzone-inner');
+  const loading = document.getElementById('rfq-dropzone-loading');
+  const loadingSub = document.getElementById('rfq-loading-sub');
+
+  // Sanity: solo ZIP
+  const isZip = /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+  if (!isZip) {
+    alert('Serve un file ZIP contenente PDF ordine + cartella DXF.\n\nComprimi la cartella dell\'email cliente (Windows: click destro → Invia a → Cartella compressa) e trascina qui il .zip risultante.');
+    return;
+  }
+  const sizeMb = file.size / (1024 * 1024);
+  if (sizeMb > 100) {
+    if (!confirm(`Il file è ${sizeMb.toFixed(1)}MB, l'upload potrebbe richiedere minuti. Procedere?`)) return;
+  }
+
+  // UI loading state
+  dz.classList.add('loading');
+  inner.style.display = 'none';
+  loading.style.display = 'flex';
+  loadingSub.textContent = `Upload ${file.name} (${sizeMb.toFixed(1)}MB) e analisi AI in corso…`;
+
+  try {
+    const fd = new FormData();
+    fd.append('zip', file);
+    fd.append('admin_id', currentUser.id);
+    const r = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, {
+      method: 'POST',
+      body: fd,
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Import fallito');
+
+    // Mostra brief riepilogo, poi apri il preventivo creato
+    const warnings = (d.warnings || []).join('\n· ');
+    const warnMsg = warnings ? `\n\n⚠ Warnings:\n· ${warnings}` : '';
+    const noMatchMsg = (d.dxf_no_match && d.dxf_no_match.length)
+      ? `\n\nDXF nel ZIP senza corrispondenza nel PDF (ignorati):\n· ${d.dxf_no_match.join('\n· ')}`
+      : '';
+    alert(
+      `✓ Preventivo BOZZA creato\n\n` +
+      `Cliente: ${d.cliente}\n` +
+      `Ordine: ${d.numero_ordine_cliente || '(non specificato)'}\n` +
+      `Consegna: ${d.data_consegna || '(non specificata)'}\n` +
+      `Articoli: ${d.n_articoli} (${d.n_dxf_matched} con DXF associato)` +
+      warnMsg + noMatchMsg
+    );
+    // Apri il preventivo
+    if (d.preventivo_id) {
+      await openPreventivo(d.preventivo_id);
+    }
+  } catch (err) {
+    alert('Errore import RFQ: ' + err.message);
+  } finally {
+    // Reset UI
+    dz.classList.remove('loading');
+    inner.style.display = 'flex';
+    loading.style.display = 'none';
+  }
+}
+
 async function loadList() {
   const tbody = document.getElementById('list-tbody');
   const meta = document.getElementById('list-meta');
@@ -2082,6 +2924,8 @@ function newPreventivo() {
   if (dupBtn) dupBtn.style.display = 'none';  // no source ancora
   showMsg('msg-base', '', '');
   switchTab('editor');
+  // Nuovo preventivo → mostra il full editor per compilare i campi
+  setEditorHeaderCollapsed(false);
 }
 
 /** B3 — Duplica il preventivo corrente in un nuovo BOZZA.
@@ -2174,6 +3018,15 @@ function populateEditor(p) {
   renderTubolari();
   renderPiastre();
   recalcTotali();
+  // Preventivo esistente aperto → header compact di default (recupera spazio)
+  setEditorHeaderCollapsed(true);
+  // Auto-espande card che hanno contenuto (Assiemi/Tubolari/Piastre)
+  _autoExpandCardsWithContent();
+  // Se ci sono articoli → forza SPLIT + FOCUS mode (workflow "lavoro pezzi")
+  if (currentArticoli && currentArticoli.length > 0) {
+    setArticoliView('split');
+    if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
+  }
 }
 
 async function saveBase() {
@@ -2203,6 +3056,8 @@ async function saveBase() {
       currentArticoli = [];
       populateEditor(currentPreventivo);
       showMsg('msg-base', '✓ Preventivo creato (BOZZA)', 'var(--green)');
+      // Auto-collassa header dopo primo salvataggio (recupera ~120px verticali)
+      setEditorHeaderCollapsed(true);
     } else {
       // UPDATE
       const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}`, {
@@ -2220,8 +3075,108 @@ async function saveBase() {
       populateEditor(currentPreventivo);
       recalcTotali();
       showMsg('msg-base', '✓ Modifiche salvate', 'var(--green)');
+      // Ricollassa dopo update
+      setEditorHeaderCollapsed(true);
     }
   } catch (e) { showMsg('msg-base', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+/** Focus mode: nasconde tutto tranne split articoli + topbar + totali bar.
+    Massimizza lo spazio verticale per lavorare sui pezzi senza distrazioni. */
+function toggleFocusMode() {
+  const active = document.body.classList.toggle('focus-mode');
+  const btnLabel = document.getElementById('btn-focus-label');
+  if (btnLabel) btnLabel.textContent = active ? 'Esci focus' : 'Focus';
+  // Se attivi focus mode, forza split view (fullscreen di tabella non ha senso)
+  if (active && typeof _splitView !== 'undefined' && !_splitView) {
+    setArticoliView('split');
+  }
+  try { localStorage.setItem('focus_mode', active ? '1' : '0'); } catch (_) {}
+}
+
+// ESC per uscire dal focus mode
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('focus-mode')) {
+    // Non uscire se un modal è aperto (il modal ha la sua chiusura)
+    if (document.querySelector('.modal-overlay.active')) return;
+    toggleFocusMode();
+  }
+});
+
+/** Toggle collassa/espandi di una card generica. Persistito in localStorage. */
+function toggleCard(cardId, event) {
+  if (event && event.target && event.target.closest && event.target.closest('button')) return;  // ignora click sui bottoni interni
+  const el = document.getElementById(cardId);
+  if (!el) return;
+  const willCollapse = !el.classList.contains('collapsed');
+  el.classList.toggle('collapsed', willCollapse);
+  try { localStorage.setItem('card_state_' + cardId, willCollapse ? 'collapsed' : 'open'); } catch (_) {}
+}
+
+/** Auto-espansione delle card che hanno contenuto (chiamata dopo caricamento
+    preventivo). Se la card è vuota rimane collapsed per non sprecare spazio. */
+function _autoExpandCardsWithContent() {
+  const checks = [
+    { id: 'card-assiemi', hasContent: () => currentAssiemi && currentAssiemi.length > 0 },
+    { id: 'card-tubolari', hasContent: () => currentTubolari && currentTubolari.length > 0 },
+    { id: 'card-piastre', hasContent: () => currentPiastre && currentPiastre.length > 0 },
+    { id: 'card-totali', hasContent: () => false },  // sempre collapsed di default (breakdown facoltativo)
+  ];
+  for (const { id, hasContent } of checks) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    // Preferenza utente da localStorage se presente, altrimenti auto
+    let state = null;
+    try { state = localStorage.getItem('card_state_' + id); } catch (_) {}
+    if (state === 'open') {
+      el.classList.remove('collapsed');
+    } else if (state === 'collapsed') {
+      el.classList.add('collapsed');
+    } else {
+      // Default: espandi se c'è contenuto, altrimenti collapse
+      if (hasContent()) el.classList.remove('collapsed');
+      else el.classList.add('collapsed');
+    }
+  }
+  // Aggiorna badge conta assiemi
+  const meta = document.getElementById('assiemi-count-meta');
+  if (meta && currentAssiemi) meta.textContent = currentAssiemi.length ? `· ${currentAssiemi.length}` : '';
+}
+
+/** Toggle header preventivo: full editor ↔ sticky compact bar (34px). */
+function setEditorHeaderCollapsed(collapsed) {
+  const strip = document.getElementById('editor-strip');
+  const compact = document.getElementById('editor-compact');
+  if (!strip || !compact) return;
+  strip.style.display = collapsed ? 'none' : '';
+  compact.style.display = collapsed ? 'flex' : 'none';
+  if (collapsed) updateCompactBar();
+}
+function toggleEditorHeader() {
+  const isCollapsed = document.getElementById('editor-compact').style.display === 'flex';
+  setEditorHeaderCollapsed(!isCollapsed);
+}
+/** Popola i valori nella sticky compact bar dai campi del full editor. */
+function updateCompactBar() {
+  const p = currentPreventivo;
+  const cli = document.getElementById('ed-cliente').value || (p && p.cliente) || '—';
+  const qty = document.getElementById('ed-quantita').value || (p && p.quantita) || 1;
+  const mg = document.getElementById('ed-margine').value || (p && p.margine_pct) || 0;
+  const dt = document.getElementById('ed-data-consegna').value || (p && p.data_consegna_proposta) || '';
+  const dtShort = dt ? dt.slice(0,10).split('-').reverse().join('/') : '—';
+  const status = (p && p.status) || 'BOZZA';
+  const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  _set('ec-cliente', cli);
+  _set('ec-cliente-inline', cli);  // Mostrato nell'header card-articoli
+  _set('ec-qty', qty);
+  _set('ec-margine', `${mg}%`);
+  _set('ec-consegna', dtShort);
+  const st = document.getElementById('ec-status');
+  if (st) {
+    st.textContent = status;
+    st.className = 'badge ' + (status === 'BOZZA' ? 'gray' : (status === 'INVIATO' ? 'blue' : (status === 'ACCETTATO' ? 'green' : 'gray')));
+    st.style.cssText = 'font-size:10px; padding:2px 6px;';
+  }
 }
 
 // ============================================================
@@ -2291,6 +3246,10 @@ function renderArticoli() {
     tbody.innerHTML = html;
   }
   if (window.lucide) lucide.createIcons();
+  // Se la vista split è attiva, aggiorna anche il tree gerarchico
+  if (typeof _splitView !== 'undefined' && _splitView) {
+    try { renderSplitTree(); } catch (_) {}
+  }
 }
 
 /** Apre il modal dettaglio dell'assieme con il codice indicato.
@@ -2313,8 +3272,7 @@ function _renderArticoloRow(i, a) {
       : '';
     // Thumbnail SVG DXF: preferisce il file "pulito" se auto-cleanup ha avuto
     // successo (solo pezzo, no cartiglio). Fallback all'originale.
-    // Badge in overlay indica origine del pulito: 'auto' (verde), 'auto_review'
-    // (ambra), 'manual' (viola), nessun badge se solo originale.
+    // Overlay dimensioni in mm reali (in basso) + badge origine cleanup (in alto).
     const displayFilename = a.cleaned_dxf_filename || a.dxf_filename;
     const thumbSrc = displayFilename && currentPreventivo
       ? `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg`
@@ -2326,7 +3284,30 @@ function _renderArticoloRow(i, a) {
     };
     const cb = cleanBadgeMap[a.cleaned_status] || null;
     const cleanBadge = cb
-      ? `<span title="${cb.title}" style="position:absolute; top:2px; right:2px; background:${cb.bg}; color:${cb.col}; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1;">${cb.txt}</span>`
+      ? `<span title="${cb.title}" style="position:absolute; top:2px; right:2px; background:${cb.bg}; color:${cb.col}; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1; z-index:2;">${cb.txt}</span>`
+      : '';
+    // Dimensioni: derivate da area_dm2 assumendo bbox rettangolare — meglio di niente
+    // per dare senso di scala al thumbnail. Se il DXF ha perimetro P e area A,
+    // il rettangolo equivalente ha lati (P + sqrt(P^2 - 16A))/4 e (P - sqrt(...))/4.
+    const perimM = a.perimetro_taglio_m || 0;
+    const areaDm = a.area_dm2 || 0;
+    let dimLabel = '';
+    if (perimM > 0 && areaDm > 0) {
+      const P = perimM * 1000;      // mm
+      const A = areaDm * 10000;     // mm²
+      const disc = P * P - 16 * A;
+      if (disc >= 0) {
+        const s = Math.sqrt(disc);
+        const w = (P + s) / 4;
+        const h = (P - s) / 4;
+        if (w > 0 && h > 0 && Math.min(w, h) >= 1) {
+          const big = Math.max(w, h), small = Math.min(w, h);
+          dimLabel = `${big.toFixed(0)}×${small.toFixed(0)}mm`;
+        }
+      }
+    }
+    const dimOverlay = dimLabel
+      ? `<span style="position:absolute; bottom:2px; left:2px; background:rgba(15,23,42,0.75); color:white; font-size:9px; font-weight:600; padding:1px 6px; border-radius:6px; line-height:1.2; font-variant-numeric:tabular-nums; z-index:2; letter-spacing:0.2px;">${dimLabel}</span>`
       : '';
     const thumbHtml = (displayFilename && currentPreventivo)
       ? `<div class="thumb-cell" onclick="openArtModal(${i})" title="Vedi dettaglio" style="position:relative;">
@@ -2334,6 +3315,7 @@ function _renderArticoloRow(i, a) {
                 data-retry="0" data-src="${thumbSrc}"
                 onerror="_thumbOnError(this)">
            ${cleanBadge}
+           ${dimOverlay}
            <div class="thumb-overlay"></div>
          </div>`
       : `<div class="thumb-cell empty" onclick="openArtModal(${i})" title="Nessuna preview — click per dettagli">—</div>`;
@@ -2388,6 +3370,399 @@ function _renderArticoloRow(i, a) {
     </tr>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Vista SPLIT stile AlmaCAM — master-detail (tree gerarchico a sx +
+// detail panel persistente a dx). Attivabile dal toggle "Split" nel
+// card header. Legge dallo stesso `currentArticoli` — nessun fork di
+// stato: tutte le modifiche si riflettono su entrambe le viste.
+// ═══════════════════════════════════════════════════════════════════
+let _splitView = false;
+let _splitSelectedIdx = null;
+const _splitCollapsed = new Set();  // codici assieme collassati
+
+/** Switch tra le due viste (persiste in localStorage per convenienza) */
+function setArticoliView(mode) {
+  _splitView = (mode === 'split');
+  try { localStorage.setItem('preventivi_articoli_view', mode); } catch (_) {}
+  const btnT = document.getElementById('view-btn-table');
+  const btnS = document.getElementById('view-btn-split');
+  const boxT = document.getElementById('articoli-view-table');
+  const boxS = document.getElementById('articoli-view-split');
+  if (btnT) btnT.classList.toggle('active', !_splitView);
+  if (btnS) btnS.classList.toggle('active', _splitView);
+  if (boxT) boxT.style.display = _splitView ? 'none' : '';
+  if (boxS) boxS.style.display = _splitView ? '' : 'none';
+  if (_splitView) renderSplitTree();
+}
+
+/** Ricarica preferenza vista al boot (chiamato da initPreventivi). */
+function _restoreArticoliViewPreference() {
+  try {
+    const saved = localStorage.getItem('preventivi_articoli_view');
+    if (saved === 'split') setArticoliView('split');
+  } catch (_) {}
+}
+
+/** Toggle collasso di un assieme nel tree. */
+function toggleAssiemeSplit(code) {
+  if (_splitCollapsed.has(code)) _splitCollapsed.delete(code);
+  else _splitCollapsed.add(code);
+  renderSplitTree();
+}
+
+/** Renderizza il tree sx. Righe: header standalone, articoli standalone,
+    header assiemi (collassabili) con componenti indent. */
+function renderSplitTree() {
+  const tbody = document.getElementById('split-tree-tbody');
+  if (!tbody) return;
+  if (!currentArticoli.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty" style="padding:24px; text-align:center; color:var(--text-3);">Nessun articolo. Importa DXF o aggiungi manualmente.</td></tr>';
+    return;
+  }
+  // Raggruppa per assieme
+  const groups = new Map();
+  currentArticoli.forEach((a, i) => {
+    const k = a.codice_assieme || '';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(i);
+  });
+  const orderedKeys = Array.from(groups.keys()).sort((a, b) => {
+    if (a === '') return -1;
+    if (b === '') return 1;
+    return a.localeCompare(b);
+  });
+  let html = '';
+  for (const key of orderedKeys) {
+    const idxs = groups.get(key);
+    if (key === '') {
+      html += `<tr class="standalone-header"><td colspan="7" style="padding:8px 12px;">Articoli standalone · ${idxs.length}</td></tr>`;
+      for (const i of idxs) html += _splitRowHtml(i, false);
+    } else {
+      const A = currentAssiemi.find(x => x.codice_assieme === key);
+      const collapsed = _splitCollapsed.has(key);
+      const arrow = collapsed ? '▸' : '▾';
+      const nCmp = idxs.length;
+      let pricingSuffix = '';
+      if (A) {
+        const p = computeAssiemePricing(A);
+        pricingSuffix = ` · <b>${formatEurStr(p.costoSingoloAssieme)}</b> × ${p.qty}`;
+      }
+      html += `<tr class="ass-header" onclick="toggleAssiemeSplit('${key.replace(/'/g,"\\'")}')">
+        <td colspan="7" style="padding:8px 12px;">
+          <span class="toggle-ass">${arrow}</span>
+          Assieme <code style="font-family:monospace;">${escapeHtml(key)}</code>
+          <span style="opacity:.7; font-weight:400; font-size:11px;">· ${nCmp} componenti${pricingSuffix}</span>
+        </td>
+      </tr>`;
+      if (!collapsed) {
+        for (const i of idxs) html += _splitRowHtml(i, true);
+      }
+    }
+  }
+  // Row finale: "Riepilogo & Invia" (apre modal con totali + PDF + Invia).
+  // Totale lotto letto dal DOM (aggiornato da recalcTotali) — currentPreventivo.totale_lotto
+  // è stale finché non viene fatto save-articoli sul backend.
+  let totLottoTxt = '—';
+  try {
+    const el = document.getElementById('t-lotto');
+    if (el) totLottoTxt = el.textContent.replace('€','').trim() + ' €';
+  } catch (_) {}
+  html += `<tr class="tree-riepilogo-row" onclick="openRiepilogoModal()">
+    <td colspan="7" style="padding:14px 12px; text-align:center; background:#F8FAFC; border-top:1px solid var(--border);">
+      <span style="display:inline-flex; align-items:center; gap:10px; color:var(--accent); font-weight:600; font-size:13px;">
+        <i data-lucide="file-check-2" style="width:16px;height:16px;"></i>
+        Riepilogo &amp; Invia · <span style="color:var(--text);">${totLottoTxt}</span> totale lotto
+        <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
+      </span>
+    </td>
+  </tr>`;
+  tbody.innerHTML = html;
+  // Reinstalla dot Lucide se serve
+  if (window.lucide) lucide.createIcons();
+  // Se c'è una selezione, mantienila
+  if (_splitSelectedIdx != null && currentArticoli[_splitSelectedIdx]) {
+    _highlightSplitRow(_splitSelectedIdx);
+  }
+}
+
+/** Riga singola nel tree sx (usata per standalone + componenti assieme). */
+function _splitRowHtml(i, indent) {
+  const a = currentArticoli[i];
+  const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+  const lav = (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
+  const tot = baseEff + lav;
+  const displayFilename = a.cleaned_dxf_filename || a.dxf_filename;
+  const bust = a._preview_bust || 0;
+  const thumbSrc = displayFilename && currentPreventivo
+    ? `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg${bust ? '?v=' + bust : ''}`
+    : '';
+  const thumbHtml = thumbSrc
+    ? `<div class="thumb-mini"><img src="${thumbSrc}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='—'; this.parentNode.classList.add('empty');"></div>`
+    : `<div class="thumb-mini empty">—</div>`;
+  const dim = _artDimLabel(a);
+  const indentHtml = indent ? '<span class="indent"></span>' : '';
+  return `<tr onclick="selectSplitArticolo(${i})" data-split-idx="${i}">
+    <td class="thumb-td">${thumbHtml}</td>
+    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:11px;">${escapeHtml(a.codice || '—')}</code></td>
+    <td class="n">${a.quantita || 1}</td>
+    <td class="n">${a.spessore_mm ? a.spessore_mm.toFixed(1) : '—'}</td>
+    <td>${escapeHtml(a.materiale || '—')}</td>
+    <td class="n" style="font-size:10px; color:var(--text-3);">${dim}</td>
+    <td class="n" style="font-weight:700;">${formatEurStr(tot)}</td>
+  </tr>`;
+}
+
+/** Label dimensioni compatte per il tree.
+ * Preferisce sempre le dimensioni bbox_w_mm/h_mm del cleaned DXF (precise
+ * anche con smussi). Fallback: formula matematica del rettangolo equivalente
+ * da area+perim (approssimazione ok solo per pezzi rettangolari puri). */
+function _artDimLabel(a) {
+  // 1. Se abbiamo bbox reale dal cleaned DXF, usalo (precisione al mm)
+  if (a.bbox_w_mm > 0 && a.bbox_h_mm > 0) {
+    const big = Math.max(a.bbox_w_mm, a.bbox_h_mm);
+    const small = Math.min(a.bbox_w_mm, a.bbox_h_mm);
+    return `${big.toFixed(0)}×${small.toFixed(0)}`;
+  }
+  // 2. Fallback: formula da area/perim (imprecisa con smussi)
+  const perimM = a.perimetro_taglio_m || 0;
+  const areaDm = a.area_dm2 || 0;
+  if (!(perimM > 0 && areaDm > 0)) return '—';
+  const P = perimM * 1000, A = areaDm * 10000;
+  const disc = P * P - 16 * A;
+  if (disc < 0) return '—';
+  const s = Math.sqrt(disc);
+  const w = (P + s) / 4, h = (P - s) / 4;
+  if (!(w > 0 && h > 0) || Math.min(w, h) < 1) return '—';
+  return `${Math.max(w,h).toFixed(0)}×${Math.min(w,h).toFixed(0)}`;
+}
+
+/** Evidenzia la riga selezionata nel tree sx. */
+function _highlightSplitRow(idx) {
+  document.querySelectorAll('#split-tree-tbody tr[data-split-idx]').forEach(tr => {
+    tr.classList.toggle('selected', parseInt(tr.dataset.splitIdx, 10) === idx);
+  });
+}
+
+/** Click su una riga del tree → aggiorna il detail panel dx. */
+async function selectSplitArticolo(idx) {
+  _splitSelectedIdx = idx;
+  _highlightSplitRow(idx);
+  await renderSplitDetail(idx);
+}
+
+/** Renderizza il detail panel dx per l'articolo selezionato. */
+async function renderSplitDetail(idx) {
+  const a = currentArticoli[idx];
+  if (!a) return;
+  document.getElementById('split-detail-empty').style.display = 'none';
+  document.getElementById('split-detail-content').style.display = '';
+
+  // Preview SVG. Cache-bust con timestamp per bypass della cache HTTP browser
+  // (i cleaned DXF cambiano quando l'utente ridefinisce il pezzo — la Cache-Control
+  //  1h del backend è troppo aggressiva per il detail panel dove l'utente si aspetta
+  //  di vedere subito la nuova versione).
+  const preview = document.getElementById('sd-preview');
+  const displayFilename = a.cleaned_dxf_filename || a.dxf_filename;
+  if (displayFilename && currentPreventivo) {
+    try {
+      const bust = a._preview_bust || 0;  // aggiornato da sdOpenCleanup() dopo save-cleaned
+      const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg?v=${bust}`;
+      const resp = await fetch(url);
+      const svgText = await resp.text();
+      preview.innerHTML = svgText;
+    } catch (e) {
+      preview.innerHTML = '<div class="empty">Errore preview</div>';
+    }
+  } else {
+    preview.innerHTML = '<div class="empty">Nessun DXF</div>';
+  }
+
+  // Campi form
+  document.getElementById('sd-codice').value = a.codice || '';
+  document.getElementById('sd-qty').value = a.quantita || 1;
+  document.getElementById('sd-spessore').value = a.spessore_mm || '';
+  document.getElementById('sd-area').value = (a.area_dm2 || 0).toFixed(2);
+  document.getElementById('sd-perim').value = Math.round((a.perimetro_taglio_m || 0) * 1000);
+  document.getElementById('sd-forature').value = a.n_forature || 0;
+  document.getElementById('sd-pieghe').value = a.pieghe || 0;
+  document.getElementById('sd-sald').value = (a.saldatura_ml || 0).toFixed(2);
+  document.getElementById('sd-filett').value = a.filettatura_pz || 0;
+  document.getElementById('sd-svas').value = a.svasatura_pz || 0;
+
+  // Materiali dropdown
+  const matSel = document.getElementById('sd-materiale');
+  matSel.innerHTML = MATERIALI.map(m => `<option value="${m}" ${a.materiale === m ? 'selected' : ''}>${m || '—'}</option>`).join('');
+
+  // Assiemi dropdown
+  const assSel = document.getElementById('sd-assieme');
+  const assOpts = [`<option value="">— (standalone)</option>`]
+    .concat(currentAssiemi.map(x => {
+      const c = escapeHtml(x.codice_assieme || '');
+      const sel = (a.codice_assieme === x.codice_assieme) ? 'selected' : '';
+      return `<option value="${c}" ${sel}>${c}</option>`;
+    }))
+    .concat([`<option value="__new__">+ nuovo…</option>`])
+    .join('');
+  assSel.innerHTML = assOpts;
+
+  // Dimensioni: preferisce bbox reale del cleaned DXF (precise anche con smussi)
+  let dimW = '—', dimH = '—';
+  if (a.bbox_w_mm > 0 && a.bbox_h_mm > 0) {
+    dimW = Math.max(a.bbox_w_mm, a.bbox_h_mm).toFixed(1);
+    dimH = Math.min(a.bbox_w_mm, a.bbox_h_mm).toFixed(1);
+  } else {
+    // Fallback: formula matematica da area+perim (imprecisa con smussi)
+    const dim = _artDimLabel(a);
+    if (dim !== '—') {
+      const [big, small] = dim.split('×').map(x => parseFloat(x));
+      dimW = big.toFixed(1);
+      dimH = small.toFixed(1);
+    }
+  }
+  document.getElementById('sd-dim-w').value = dimW;
+  document.getElementById('sd-dim-h').value = dimH;
+  const dens = DENSITA_MATERIALI[a.materiale] || 0;
+  const peso = (a.area_dm2 || 0) * (a.spessore_mm || 0) * dens / 100.0;  // area*sp*rho/100 = kg (dm²*mm*g/cm³ /100)
+  document.getElementById('sd-peso').value = peso > 0 ? peso.toFixed(3) : '—';
+
+  // Costi
+  const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+  const lav = (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
+  document.getElementById('sd-costo-base').value = formatEurStr(baseEff);
+  document.getElementById('sd-costo-lav').value = formatEurStr(lav);
+  // Nota: il totale è ora nella hero stats bar (hero-costo), non nel breakdown
+
+  // HERO STATS — metriche chiave a colpo d'occhio (sotto la preview)
+  _updateHeroStats(a, baseEff + lav);
+
+  // Pulisci DXF button visibility (sia toolbar sopra la preview sia nella riga azioni)
+  const cleanBtn = document.getElementById('sd-btn-clean');
+  cleanBtn.style.display = a.dxf_filename ? '' : 'none';
+  cleanBtn.textContent = a.cleaned_dxf_filename ? 'Modifica pulizia DXF' : 'Pulisci DXF';
+  const toolbar = document.getElementById('sd-preview-toolbar');
+  const topLabel = document.getElementById('sd-btn-clean-top-label');
+  const hint = document.getElementById('sd-clean-hint');
+  if (toolbar) toolbar.style.display = a.dxf_filename ? 'flex' : 'none';
+  if (topLabel && hint) {
+    if (a.cleaned_dxf_filename) {
+      topLabel.textContent = 'Modifica pezzo';
+      hint.textContent = 'Il pezzo è già stato pulito. Click per rifare la selezione.';
+    } else {
+      topLabel.textContent = 'Definisci pezzo';
+      hint.textContent = 'Il DXF non è ancora pulito. Click e traccia il rettangolo attorno al pezzo.';
+    }
+  }
+}
+
+/** Popola la hero stats bar sotto la preview con le 6 metriche chiave.
+    Applica classi 'missing' (rosso ⚠) o 'zero' (grigio) per far spiccare
+    subito i dati mancanti o zero senza dover scrollare la form.
+    Le label sono brevi ("PERIM" invece di "PERIMETRO", "TOT €" invece di
+    "TOTALE PEZZO") per evitare troncamenti nella grid di 7 colonne. */
+function _updateHeroStats(a, totale) {
+  const set = (id, val, cls) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val;
+    const stat = el.parentElement;
+    stat.classList.remove('missing', 'zero');
+    if (cls) stat.classList.add(cls);
+  };
+
+  // Dimensioni
+  let dimTxt = '— × —', dimCls = 'missing';
+  if (a.bbox_w_mm > 0 && a.bbox_h_mm > 0) {
+    const big = Math.max(a.bbox_w_mm, a.bbox_h_mm);
+    const small = Math.min(a.bbox_w_mm, a.bbox_h_mm);
+    dimTxt = `${big.toFixed(0)}×${small.toFixed(0)}`;
+    dimCls = null;
+  }
+  set('hero-dim', dimTxt, dimCls);
+
+  // Perimetro (senza unità nel val — l'unità è nella label)
+  const perimMm = Math.round((a.perimetro_taglio_m || 0) * 1000);
+  set('hero-perim', perimMm > 0 ? perimMm.toString() : '—', perimMm > 0 ? null : 'missing');
+
+  // Pieghe (green > 0, grey = 0)
+  set('hero-pieghe', a.pieghe || 0, (a.pieghe > 0) ? null : 'zero');
+
+  // Fori
+  set('hero-fori', a.n_forature || 0, (a.n_forature > 0) ? null : 'zero');
+
+  // Mat + Spessore
+  const matTxt = (a.materiale && a.spessore_mm) ? `${a.materiale}·${a.spessore_mm}` : '—';
+  set('hero-mat', matTxt, (a.materiale && a.spessore_mm) ? null : 'missing');
+
+  // Totale pezzo (sempre nero, ma se 0 sembra "no stima")
+  set('hero-costo', formatEurStr(totale || 0), null);
+}
+
+/** Callback generico per i field del detail panel — riusa updateArt esistente
+    e ridisegna sia la vista split (tree + costo riga) sia la tabella. */
+function sdOnFieldChange(field, value, numeric) {
+  if (_splitSelectedIdx == null) return;
+  updateArt(_splitSelectedIdx, field, value, numeric);
+  renderArticoli();
+  if (_splitView) {
+    renderSplitTree();
+    // Refresh soft del detail (per costi/peso derivati) senza ricaricare la preview
+    _refreshSplitDetailCosts();
+  }
+}
+
+function sdOnPerimChange(valMm) {
+  if (_splitSelectedIdx == null) return;
+  updateArtPerimMm(_splitSelectedIdx, valMm);
+  renderArticoli();
+  if (_splitView) { renderSplitTree(); _refreshSplitDetailCosts(); }
+}
+
+function sdOnAssiemeChange(value) {
+  if (_splitSelectedIdx == null) return;
+  updateArtAssieme(_splitSelectedIdx, value);
+  if (_splitView) renderSplitTree();
+}
+
+/** Aggiorna solo i campi derivati (costi/peso) senza rifetchare la preview SVG. */
+function _refreshSplitDetailCosts() {
+  const a = currentArticoli[_splitSelectedIdx];
+  if (!a) return;
+  const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+  const lav = (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0) + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
+  document.getElementById('sd-costo-base').value = formatEurStr(baseEff);
+  document.getElementById('sd-costo-lav').value = formatEurStr(lav);
+  // Nota: il totale è ora nella hero stats bar (hero-costo), non nel breakdown
+  const dens = DENSITA_MATERIALI[a.materiale] || 0;
+  const peso = (a.area_dm2 || 0) * (a.spessore_mm || 0) * dens / 100.0;
+  document.getElementById('sd-peso').value = peso > 0 ? peso.toFixed(3) : '—';
+  // Refresh hero stats (dimensioni, perimetro, pieghe, fori, mat, totale)
+  _updateHeroStats(a, baseEff + lav);
+}
+
+function sdOpenCleanup() {
+  if (_splitSelectedIdx == null) return;
+  openCandidatesModal(_splitSelectedIdx);
+}
+
+function sdOpenFullDetail() {
+  if (_splitSelectedIdx == null) return;
+  openArtModal(_splitSelectedIdx);
+}
+
+function sdStima() {
+  if (_splitSelectedIdx == null) return;
+  stimaArt(_splitSelectedIdx);
+}
+
+function sdRemove() {
+  if (_splitSelectedIdx == null) return;
+  removeArt(_splitSelectedIdx);
+  _splitSelectedIdx = null;
+  document.getElementById('split-detail-empty').style.display = '';
+  document.getElementById('split-detail-content').style.display = 'none';
+  renderSplitTree();
+}
+
 /**
  * A2 — Traffic-light status per un articolo. Ispirato Protolabs DFM:
  *   VERDE (ok)    → dati completi + affidabili, articolo ordinabile
@@ -2404,6 +3779,17 @@ let _filterIssuesOnly = false;
 function toggleFilterIssues(enabled) {
   _filterIssuesOnly = enabled;
   renderArticoli();
+}
+
+/** Toggle riga "Note interne" nella barra import (nascosta di default per
+    massimizzare lo spazio per la vista articoli). */
+function toggleImportCollapse() {
+  const row = document.getElementById('import-notes-row');
+  const btn = document.getElementById('btn-toggle-import-label');
+  if (!row) return;
+  const isHidden = row.style.display === 'none';
+  row.style.display = isHidden ? '' : 'none';
+  if (btn) btn.textContent = isHidden ? 'Nascondi note' : 'Note';
 }
 
 /** Aggiorna il summary "N articoli · X ok · Y warn · Z error" nell'header. */
@@ -3318,7 +4704,18 @@ async function openCandidatesModal(articoloIdx) {
     // 5. Popola lista candidati
     _renderCandidatesList();
 
+    // 6. Init zoom/pan state + listeners (per pezzi piccoli in disegni grandi)
+    _initZoomState();
+    const container = document.getElementById('cand-svg-container');
+    container.addEventListener('wheel', _onCandWheel, { passive: false });
+    container.addEventListener('mousedown', _onCandPanStart);
+    document.addEventListener('mousemove', _onCandPanMove);
+    document.addEventListener('mouseup', _onCandPanEnd);
+
     document.getElementById('cand-svg-loading').style.display = 'none';
+
+    // 7. Attiva CLICK MODE di default (è il metodo raccomandato)
+    if (!_clickMode) toggleClickMode();
   } catch (e) {
     document.getElementById('cand-svg-loading').textContent = 'Errore: ' + e.message;
   }
@@ -3454,6 +4851,13 @@ function closeCandidatesModal() {
   document.getElementById('modal-candidates').classList.remove('active');
   document.getElementById('cand-svg-inner').innerHTML = '';
   _candState = { articoloIdx: -1, data: null, selectedIdx: -1 };
+  // Detach zoom/pan listeners
+  const container = document.getElementById('cand-svg-container');
+  container.removeEventListener('wheel', _onCandWheel);
+  container.removeEventListener('mousedown', _onCandPanStart);
+  document.removeEventListener('mousemove', _onCandPanMove);
+  document.removeEventListener('mouseup', _onCandPanEnd);
+  _origViewBox = null; _currViewBox = null; _panning = false;
   // Reset marquee mode se attivo
   if (_marqueeMode) {
     _marqueeMode = false;
@@ -3465,8 +4869,19 @@ function closeCandidatesModal() {
     const btnTxt = document.getElementById('cand-marquee-btn-txt');
     const hint = document.getElementById('cand-marquee-hint');
     if (btn) { btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
-    if (btnTxt) btnTxt.textContent = 'Attiva selezione rettangolare';
+    if (btnTxt) btnTxt.textContent = 'Rettangolo';
     if (hint) hint.style.display = 'none';
+  }
+  // Reset click mode se attivo
+  if (typeof _clickMode !== 'undefined' && _clickMode) {
+    _clickMode = false;
+    const container = document.getElementById('cand-svg-container');
+    container.removeEventListener('click', _onCandClickPick);
+    container.style.cursor = '';
+    const btn = document.getElementById('cand-click-btn');
+    const btnTxt = document.getElementById('cand-click-btn-txt');
+    if (btn) { btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
+    if (btnTxt) btnTxt.textContent = 'Click sul pezzo';
   }
 }
 
@@ -3751,6 +5166,10 @@ async function stimaArt(idx, opts = {}) {
     a.costo_base_stimato = d.stima.base;
     a.costo_base_override = null;
     a._stimaBreakdown = d.stima;
+    // Ricalcola anche costo_piega/saldatura/filett/svasatura dai coefficienti
+    // globali (le lavorazioni possono essere cambiate dopo un re-cleanup che
+    // ha aggiornato pieghe/saldatura via testi SU/GIU nel DXF).
+    recalcLavorazioniArt(a);
     renderArticoli();
     recalcTotali();
     if (idx === _madCurrentIdx) madRefreshCosts();
@@ -3778,8 +5197,12 @@ async function stimaTutti() {
         body: JSON.stringify({ admin_id: currentUser.id, articolo: a }),
       });
       const d = await r.json();
-      if (d.success) { a.costo_base_stimato = d.stima.base; a.costo_base_override = null; stimati++; }
-      else errori++;
+      if (d.success) {
+        a.costo_base_stimato = d.stima.base;
+        a.costo_base_override = null;
+        recalcLavorazioniArt(a);
+        stimati++;
+      } else errori++;
     } catch (e) { errori++; }
   }
   renderArticoli(); recalcTotali();
@@ -4141,22 +5564,122 @@ let _marqueeStart = null;      // {x, y} in coord DXF (mm) al mousedown
 let _marqueeStartClient = null;// {x, y} in coord schermo (per disegno overlay)
 let _marqueeRectDiv = null;    // div overlay del rettangolo
 
+// Stato zoom/pan della preview (usa viewBox dinamico del SVG).
+// _origViewBox = viewBox originale ezdxf (fit-all), _currViewBox = corrente.
+let _origViewBox = null;
+let _currViewBox = null;
+let _panning = false;
+let _panStartClient = null;
+let _panStartViewBox = null;
+
+/** Ripristina il viewBox originale (fit-all del DXF). */
+function _resetZoom() {
+  const svg = document.querySelector('#cand-svg-inner svg');
+  if (!svg || !_origViewBox) return;
+  svg.setAttribute('viewBox',
+    `${_origViewBox.x} ${_origViewBox.y} ${_origViewBox.width} ${_origViewBox.height}`);
+  _currViewBox = { ..._origViewBox };
+}
+
+/** Cattura il viewBox iniziale del SVG (chiamato dopo il caricamento). */
+function _initZoomState() {
+  const svg = document.querySelector('#cand-svg-inner svg');
+  if (!svg) return;
+  const vb = svg.viewBox.baseVal;
+  _origViewBox = { x: vb.x, y: vb.y, width: vb.width, height: vb.height };
+  _currViewBox = { ..._origViewBox };
+}
+
+/** Zoom in/out con la rotella del mouse. Il puntatore rimane sopra lo stesso
+    punto DXF (zoom-to-cursor). */
+function _onCandWheel(e) {
+  const svg = document.querySelector('#cand-svg-inner svg');
+  if (!svg || !_currViewBox) return;
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 0.85 : 1.18;  // scroll-up = zoom in
+  // Punto sotto il cursore in coord viewBox
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return;
+  const p = pt.matrixTransform(ctm.inverse());
+  // Nuovo viewBox: mantieni p invariato in coord schermo
+  const newW = _currViewBox.width * factor;
+  const newH = _currViewBox.height * factor;
+  // Limita zoom (max 20x in, max 2x out rispetto originale)
+  if (_origViewBox) {
+    if (newW < _origViewBox.width / 20 || newW > _origViewBox.width * 2) return;
+  }
+  const newX = p.x - (p.x - _currViewBox.x) * factor;
+  const newY = p.y - (p.y - _currViewBox.y) * factor;
+  _currViewBox = { x: newX, y: newY, width: newW, height: newH };
+  svg.setAttribute('viewBox', `${newX} ${newY} ${newW} ${newH}`);
+}
+
+/** Pan con tasto MIDDLE (o Shift+Left). */
+function _onCandPanStart(e) {
+  const isMiddle = e.button === 1;
+  const isShiftLeft = e.button === 0 && e.shiftKey;
+  if (!isMiddle && !isShiftLeft) return;
+  const svg = document.querySelector('#cand-svg-inner svg');
+  if (!svg || !_currViewBox) return;
+  e.preventDefault();
+  _panning = true;
+  _panStartClient = { x: e.clientX, y: e.clientY };
+  _panStartViewBox = { ..._currViewBox };
+  const container = document.getElementById('cand-svg-container');
+  container.style.cursor = 'grabbing';
+}
+function _onCandPanMove(e) {
+  if (!_panning) return;
+  const svg = document.querySelector('#cand-svg-inner svg');
+  if (!svg) return;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return;
+  // Delta pixel schermo -> delta viewBox units
+  const p0 = svg.createSVGPoint(); p0.x = _panStartClient.x; p0.y = _panStartClient.y;
+  const p1 = svg.createSVGPoint(); p1.x = e.clientX; p1.y = e.clientY;
+  const inv = ctm.inverse();
+  const d0 = p0.matrixTransform(inv);
+  const d1 = p1.matrixTransform(inv);
+  const dx = d1.x - d0.x, dy = d1.y - d0.y;
+  _currViewBox = {
+    x: _panStartViewBox.x - dx,
+    y: _panStartViewBox.y - dy,
+    width: _panStartViewBox.width,
+    height: _panStartViewBox.height,
+  };
+  svg.setAttribute('viewBox',
+    `${_currViewBox.x} ${_currViewBox.y} ${_currViewBox.width} ${_currViewBox.height}`);
+}
+function _onCandPanEnd() {
+  if (!_panning) return;
+  _panning = false;
+  _panStartClient = null;
+  _panStartViewBox = null;
+  const container = document.getElementById('cand-svg-container');
+  container.style.cursor = _marqueeMode ? 'crosshair' : '';
+}
+
 function toggleMarqueeMode() {
   _marqueeMode = !_marqueeMode;
   const btn = document.getElementById('cand-marquee-btn');
   const btnTxt = document.getElementById('cand-marquee-btn-txt');
-  const hint = document.getElementById('cand-marquee-hint');
+  const hint = document.getElementById('cand-toolbar-hint');
+  const dragInfo = document.getElementById('cand-drag-info');
   const container = document.getElementById('cand-svg-container');
   if (_marqueeMode) {
     btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
-    btnTxt.textContent = 'Annulla selezione';
-    hint.style.display = 'block';
+    btnTxt.textContent = 'Annulla';
+    if (hint) hint.textContent = 'Trascina col mouse per delimitare il pezzo (rilascia per salvare)';
+    if (dragInfo) dragInfo.style.display = 'none';  // apparirà al primo mousedown
     container.style.cursor = 'crosshair';
     _attachMarqueeHandlers(container);
   } else {
     btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary');
-    btnTxt.textContent = 'Attiva selezione rettangolare';
-    hint.style.display = 'none';
+    btnTxt.textContent = 'Definisci il pezzo';
+    if (hint) hint.textContent = 'Trascina un rettangolo attorno al pezzo per creare un DXF pulito';
+    if (dragInfo) dragInfo.style.display = 'none';
     container.style.cursor = '';
     _detachMarqueeHandlers(container);
     _marqueeCleanupOverlay();
@@ -4167,6 +5690,137 @@ function _marqueeCleanupOverlay() {
   if (_marqueeRectDiv) { _marqueeRectDiv.remove(); _marqueeRectDiv = null; }
   _marqueeStart = null;
   _marqueeStartClient = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CLICK MODE — approccio "a prova di stupido" al drag rettangolare.
+// L'utente clicca UNA volta su una linea/arco/cerchio del pezzo.
+// Il backend identifica il cluster spazialmente connesso e lo salva.
+// Zero interpretazione di rettangoli approssimativi.
+// ═══════════════════════════════════════════════════════════════════
+let _clickMode = false;
+
+function toggleClickMode() {
+  _clickMode = !_clickMode;
+  // Disattiva marquee se era attivo
+  if (_marqueeMode) toggleMarqueeMode();
+
+  const btn = document.getElementById('cand-click-btn');
+  const btnTxt = document.getElementById('cand-click-btn-txt');
+  const hint = document.getElementById('cand-toolbar-hint');
+  const container = document.getElementById('cand-svg-container');
+
+  if (_clickMode) {
+    btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary');
+    btnTxt.textContent = 'Annulla';
+    if (hint) hint.innerHTML = '<b style="color:#7C3AED;">Modalità click attiva:</b> clicca una qualsiasi entità del pezzo (linea, arco, cerchio o area interna) — il sistema estrarrà il pezzo completo.';
+    container.style.cursor = 'crosshair';
+    container.addEventListener('click', _onCandClickPick);
+    // I polygon overlay auto-detected consumerebbero il click con stopPropagation().
+    // Disabilita i loro pointer-events per lasciare passare il click al container.
+    document.querySelectorAll('#cand-svg-inner .cand-poly, #cand-svg-inner .cand-overlay-svg polygon').forEach(p => {
+      p.style.pointerEvents = 'none';
+    });
+  } else {
+    btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary');
+    btnTxt.textContent = 'Click sul pezzo';
+    if (hint) hint.textContent = 'Click su una qualsiasi linea, arco, cerchio o area interna del pezzo — il sistema estrae tutto';
+    container.style.cursor = '';
+    container.removeEventListener('click', _onCandClickPick);
+    // Riabilita pointer-events sui polygon overlay
+    document.querySelectorAll('#cand-svg-inner .cand-poly, #cand-svg-inner .cand-overlay-svg polygon').forEach(p => {
+      p.style.pointerEvents = '';
+    });
+  }
+}
+
+async function _onCandClickPick(e) {
+  if (!_clickMode) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Converti click screen coords in DXF mm coords
+  const dxf = _clientToSvgCoords(e.clientX, e.clientY);
+  if (!dxf) {
+    alert('Errore conversione coordinate — controlla che il DXF sia caricato');
+    return;
+  }
+
+  // L'articolo su cui operiamo è quello del modal candidati (openCandidatesModal
+  // popola _candState.articoloIdx). NON usiamo _madCurrentIdx che appartiene
+  // al modal-art-detail (un altro modal).
+  const artIdx = _candState && _candState.articoloIdx;
+  if (artIdx == null || artIdx < 0) return;
+  const a = currentArticoli[artIdx];
+  if (!a || !currentPreventivo) return;
+
+  // Feedback visivo immediato: piccolo cerchio arancione sul click
+  const container = document.getElementById('cand-svg-container');
+  const marker = document.createElement('div');
+  marker.style.cssText = `position:absolute; left:${e.clientX - container.getBoundingClientRect().left - 10}px; top:${e.clientY - container.getBoundingClientRect().top - 10}px; width:20px; height:20px; border-radius:50%; background:rgba(124,58,237,0.35); border:2px solid #7C3AED; pointer-events:none; z-index:50; box-shadow:0 0 12px rgba(124,58,237,0.5);`;
+  container.appendChild(marker);
+
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/save-cleaned-by-click`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        admin_id: currentUser.id,
+        articolo_id: a.id,
+        x: dxf.x, y: dxf.y,
+      }),
+    });
+    const j = await r.json();
+    if (!j.success) throw new Error(j.error || 'save-cleaned-by-click fallito');
+
+    // Applica dati aggiornati
+    a.cleaned_dxf_filename = j.cleaned_dxf_filename;
+    a.cleaned_status = 'manual';
+    if (j.area_dm2 != null) a.area_dm2 = j.area_dm2;
+    if (j.perimetro_taglio_m != null) a.perimetro_taglio_m = j.perimetro_taglio_m;
+    if (j.n_pierce != null) a.n_forature = j.n_pierce;
+    if (j.bbox_w_mm != null) a.bbox_w_mm = j.bbox_w_mm;
+    if (j.bbox_h_mm != null) a.bbox_h_mm = j.bbox_h_mm;
+    // Lavorazioni ricalcolate dal file originale (testi SU/GIU per pieghe)
+    if (j.pieghe != null) a.pieghe = j.pieghe;
+    if (j.saldatura_ml != null) a.saldatura_ml = j.saldatura_ml;
+    if (j.filettatura_pz != null) a.filettatura_pz = j.filettatura_pz;
+    if (j.svasatura_pz != null) a.svasatura_pz = j.svasatura_pz;
+    // Ricalcola €costi lavorazioni dai coefficienti globali (pieghe*€/piega, ecc.)
+    recalcLavorazioniArt(a);
+    a.dxf_needs_verify = false;
+    a._preview_bust = Date.now();
+
+    renderArticoli();
+    recalcTotali();
+    closeCandidatesModal();
+    // Refresh detail panel se split view attiva
+    if (typeof _splitView !== 'undefined' && _splitView && typeof _splitSelectedIdx !== 'undefined') {
+      const currentIdx = currentArticoli.indexOf(a);
+      if (currentIdx === _splitSelectedIdx) {
+        try { await renderSplitDetail(currentIdx); } catch (_) {}
+      }
+    }
+    // Toast primario: dimensioni pezzo
+    let msg = `✓ ${(j.bbox_w_mm||0).toFixed(0)}×${(j.bbox_h_mm||0).toFixed(0)}mm (${j.entities_copied} entità)`;
+    // Aggiungi info export cartella cliente se abilitato
+    if (j.export) {
+      if (j.export.exported && j.export.path) {
+        // Estrai solo cliente/ordine dal path per un toast pulito
+        const parts = j.export.path.replace(/\\/g,'/').split('/');
+        const tail = parts.slice(-3).join('/');
+        msg += `  ·  📁 ${tail}`;
+      } else if (j.export.error) {
+        // Non-fatale: log console + hint utente
+        console.warn('Export DXF fallito:', j.export.error);
+        msg += `  ·  ⚠ Export cartella disegni fallito (vedi Impostazioni)`;
+      }
+    }
+    showMsg('msg-import', msg, 'var(--green)');
+  } catch (err) {
+    marker.remove();
+    alert('Errore: ' + err.message);
+  }
 }
 
 /** Converte coordinate schermo (clientX/clientY) in coordinate DXF (mm).
@@ -4211,6 +5865,8 @@ function _clientToSvgCoords(clientX, clientY) {
 
 function _onMarqueeMouseDown(e) {
   if (!_marqueeMode) return;
+  // Ignora middle click e shift+left (riservati al pan)
+  if (e.button !== 0 || e.shiftKey) return;
   e.preventDefault();
   const coords = _clientToSvgCoords(e.clientX, e.clientY);
   if (!coords) return;
@@ -4235,6 +5891,17 @@ function _onMarqueeMouseMove(e) {
   _marqueeRectDiv.style.top = Math.min(y1, y2) + 'px';
   _marqueeRectDiv.style.width = Math.abs(x2 - x1) + 'px';
   _marqueeRectDiv.style.height = Math.abs(y2 - y1) + 'px';
+  // Update live dimensioni in mm DXF nella toolbar
+  const endDxf = _clientToSvgCoords(e.clientX, e.clientY);
+  if (endDxf && _marqueeStart) {
+    const wMm = Math.abs(endDxf.x - _marqueeStart.x);
+    const hMm = Math.abs(endDxf.y - _marqueeStart.y);
+    const dragInfo = document.getElementById('cand-drag-info');
+    if (dragInfo) {
+      dragInfo.style.display = 'block';
+      dragInfo.textContent = `${wMm.toFixed(0)} × ${hMm.toFixed(0)} mm`;
+    }
+  }
 }
 
 async function _onMarqueeMouseUp(e) {
@@ -4288,11 +5955,22 @@ async function _onMarqueeMouseUp(e) {
     if (j.area_dm2 != null) a.area_dm2 = j.area_dm2;
     if (j.perimetro_taglio_m != null) a.perimetro_taglio_m = j.perimetro_taglio_m;
     if (j.n_pierce != null) a.n_forature = j.n_pierce;
+    if (j.bbox_w_mm != null) a.bbox_w_mm = j.bbox_w_mm;
+    if (j.bbox_h_mm != null) a.bbox_h_mm = j.bbox_h_mm;
     a.dxf_needs_verify = false;
+    // Cache-bust per le preview SVG (browser ha Cache-Control 1h dal backend)
+    a._preview_bust = Date.now();
 
     renderArticoli();
     recalcTotali();
     closeCandidatesModal();
+    // Se la vista split è attiva e questo era l'articolo selezionato, ricarica la preview
+    if (typeof _splitView !== 'undefined' && _splitView && typeof _splitSelectedIdx !== 'undefined') {
+      const currentIdx = currentArticoli.indexOf(a);
+      if (currentIdx === _splitSelectedIdx) {
+        try { await renderSplitDetail(currentIdx); } catch (_) {}
+      }
+    }
     showMsg('msg-import', `✓ DXF pulito salvato manualmente (${j.entities_copied} entità)`, 'var(--green)');
   } catch (e) {
     _marqueeCleanupOverlay();
@@ -4987,13 +6665,118 @@ recalcTotali = function() {
   if (_madCurrentIdx >= 0 && currentArticoli[_madCurrentIdx]) madRefreshCosts();
 };
 
-// Show bottom bar quando preventivo è caricato
+// Bottom bar rimossa dal workflow: i totali sono nel modal "Riepilogo & Invia"
+// che si apre dal bottone in fondo alla lista articoli.
 const _origPopulateEditor = populateEditor;
 populateEditor = function(p) {
   _origPopulateEditor.apply(this, arguments);
   const eb = document.getElementById('editor-bottom');
-  if (eb) eb.style.display = 'flex';
+  if (eb) eb.style.display = 'none';
 };
+
+/** Modal "Riepilogo & Invia" — step 2 dopo il lavoro sui pezzi.
+    Mostra totali (pezzo/margine/lotto), breakdown per articoli/assiemi/tubolari/piastre,
+    e le azioni PDF + Invia al cliente. Chiude col bottone "Torna agli articoli". */
+function openRiepilogoModal() {
+  if (!currentPreventivo) return;
+  const modal = document.getElementById('modal-riepilogo');
+  if (!modal) return;
+  // Assicurati che i totali siano freschi
+  recalcTotali();
+  // Header
+  document.getElementById('riep-cliente').textContent =
+    (currentPreventivo.cliente || '—') +
+    (currentPreventivo.numero_ordine_cliente ? ' · ' + currentPreventivo.numero_ordine_cliente : '') +
+    ' · ' + (currentPreventivo.status || 'BOZZA');
+  // Totali — leggo dai DOM element aggiornati da recalcTotali (currentPreventivo
+  // ha i valori stale finché non viene fatto save)
+  const readTot = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.textContent.replace('€','').trim() + ' €' : '—';
+  };
+  document.getElementById('riep-t-pezzo').textContent = readTot('t-pezzo');
+  document.getElementById('riep-t-margine').textContent = readTot('t-margine');
+  document.getElementById('riep-t-lotto').textContent = readTot('t-lotto');
+  document.getElementById('riep-mg-pct').textContent = (currentPreventivo.margine_pct || 0) + '%';
+  document.getElementById('riep-qty').textContent = currentPreventivo.quantita || 1;
+  // Breakdown sezioni
+  const bd = document.getElementById('riep-breakdown');
+  const parts = [];
+  // Assiemi
+  if (currentAssiemi && currentAssiemi.length) {
+    let sub = 0, rows = '';
+    for (const a of currentAssiemi) {
+      const p = computeAssiemePricing(a);
+      sub += p.costoTotale;
+      rows += `<div class="riep-item"><span class="lbl">${escapeHtml(a.codice_assieme)} × ${p.qty}</span><span class="val">${formatEurStr(p.costoTotale)}</span></div>`;
+    }
+    parts.push(`<div class="riep-section">
+      <div class="riep-section-title"><span>Assiemi · ${currentAssiemi.length}</span><span class="subtotal">${formatEurStr(sub)}</span></div>
+      ${rows}
+    </div>`);
+  }
+  // Articoli standalone (non in assieme)
+  const standalone = (currentArticoli || []).filter(x => !x.codice_assieme);
+  if (standalone.length) {
+    let sub = 0, rows = '';
+    for (const x of standalone) {
+      const baseEff = (x.costo_base_override != null) ? x.costo_base_override : (x.costo_base_stimato || x.costo_materiale || 0);
+      const lav = (x.costo_piega||0)+(x.costo_saldatura||0)+(x.costo_filettatura||0)+(x.costo_svasatura||0)+(x.costo_apporto||0)+(x.costo_pulizia||0);
+      const tot = (baseEff + lav) * (x.quantita || 1);
+      sub += tot;
+      rows += `<div class="riep-item"><span class="lbl">${escapeHtml(x.codice||'—')} × ${x.quantita||1}</span><span class="val">${formatEurStr(tot)}</span></div>`;
+    }
+    parts.push(`<div class="riep-section">
+      <div class="riep-section-title"><span>Articoli standalone · ${standalone.length}</span><span class="subtotal">${formatEurStr(sub)}</span></div>
+      ${rows}
+    </div>`);
+  }
+  // Tubolari
+  if (currentTubolari && currentTubolari.length) {
+    let sub = 0, rows = '';
+    for (const t of currentTubolari) {
+      const tot = (t.costo_materiale || 0) + (t.costo_taglio_totale || 0);
+      sub += tot;
+      rows += `<div class="riep-item"><span class="lbl">${escapeHtml(t.profilo||'—')} ${escapeHtml(t.tipo||'')}</span><span class="val">${formatEurStr(tot)}</span></div>`;
+    }
+    parts.push(`<div class="riep-section">
+      <div class="riep-section-title"><span>Tubolari · ${currentTubolari.length}</span><span class="subtotal">${formatEurStr(sub)}</span></div>
+      ${rows}
+    </div>`);
+  }
+  // Piastre
+  if (currentPiastre && currentPiastre.length) {
+    let sub = 0, rows = '';
+    for (const p of currentPiastre) {
+      const tot = p.costo || 0;
+      sub += tot;
+      rows += `<div class="riep-item"><span class="lbl">Piastra ${p.spessore_mm||'?'}mm ${p.materiale||''}</span><span class="val">${formatEurStr(tot)}</span></div>`;
+    }
+    parts.push(`<div class="riep-section">
+      <div class="riep-section-title"><span>Piastre · ${currentPiastre.length}</span><span class="subtotal">${formatEurStr(sub)}</span></div>
+      ${rows}
+    </div>`);
+  }
+  bd.innerHTML = parts.join('') || '<div style="color:var(--text-3); text-align:center; padding:20px;">Nessun articolo/assieme presente</div>';
+  // Abilita/disabilita bottone Invia in base allo status
+  const btn = document.getElementById('riep-btn-invia');
+  if (btn) btn.disabled = (currentPreventivo.status !== 'BOZZA');
+  modal.classList.add('active');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeRiepilogoModal() {
+  document.getElementById('modal-riepilogo').classList.remove('active');
+}
+
+function scaricaPdfRiepilogo() {
+  if (typeof exportPdf === 'function') exportPdf();
+}
+
+function inviaClientRiepilogo() {
+  closeRiepilogoModal();
+  if (typeof inviaPreventivo === 'function') inviaPreventivo();
+}
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>if (window.lucide) lucide.createIcons();</script>
