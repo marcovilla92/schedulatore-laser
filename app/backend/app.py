@@ -2324,22 +2324,21 @@ def api_preventivi_import_rfq_package():
             return jsonify({'success': False, 'error': result.error or 'RFQ parsing fallito'}), 400
 
         # 2. Crea preventivo BOZZA
-        prev_data = {
-            'cliente': result.cliente,
-            'numero_ordine_cliente': result.numero_ordine_cliente or None,
-            'quantita': 1,
-            'margine_pct': 25.0,
-            'created_by': admin_id,
-            'note': result.note or f'Importato via AI RFQ da {f.filename}',
-        }
+        data_consegna_dt = None
         if result.data_consegna:
             try:
-                prev_data['data_consegna_proposta'] = datetime.strptime(
-                    result.data_consegna[:10], '%Y-%m-%d'
-                )
+                data_consegna_dt = datetime.strptime(result.data_consegna[:10], '%Y-%m-%d')
             except (ValueError, TypeError):
                 pass
-        new_prev = PreventivoManager.create(prev_data)
+        new_prev = PreventivoManager.create(
+            cliente=result.cliente,
+            created_by=admin_id,
+            quantita=1,
+            numero_ordine_cliente=result.numero_ordine_cliente or None,
+            margine_pct=25.0,
+            data_consegna_proposta=data_consegna_dt,
+            note=result.note or f'Importato via AI RFQ da {f.filename}',
+        )
         if not new_prev or 'id' not in new_prev:
             return jsonify({'success': False, 'error': 'Creazione preventivo fallita'}), 500
         preventivo_id = new_prev['id']
