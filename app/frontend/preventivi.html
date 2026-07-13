@@ -6314,6 +6314,15 @@ async function uploadDxf(file, suppressMsg) {
     const action = applyDxfResultToUI(d, file.name);
     renderArticoli(); recalcTotali();
     scheduleSaveArticoli(300);
+    // Auto-stima costo laser per l'articolo appena importato (se ha dati completi).
+    // Evita il classico "0€ base laser" che confonde l'utente.
+    const last = currentArticoli[currentArticoli.length - 1];
+    if (last && last.materiale && last.spessore_mm > 0
+        && last.area_dm2 > 0 && last.perimetro_taglio_m > 0
+        && !last.costo_base_stimato) {
+      stimaArt(currentArticoli.length - 1, { silent: true })
+        .catch(e => console.warn('auto-stima single fallita:', e));
+    }
     if (!suppressMsg) {
       const fname = (file.name || 'DXF').replace(/\.(dxf|dwg)$/i, '');
       const cacheHit = d._cache_hit ? ' (cache)' : '';
@@ -6361,6 +6370,18 @@ async function uploadDxfBatch(files) {
     if (currentArticoli.length > 0) {
       if (!_splitView) setArticoliView('split');
       if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
+    }
+    // Auto-stima costi laser: post-import gli articoli hanno costo_base_stimato=0
+    // (viene calcolato solo con endpoint /stima-base). Auto-triggeriamo la stima
+    // batch per non lasciare l'utente con "0€ base laser" e doverlo cliccare a mano.
+    // Solo se ci sono articoli con dati minimi (materiale + spessore + area + perim).
+    const canStimare = currentArticoli.some(a =>
+      a.materiale && a.spessore_mm > 0 && a.area_dm2 > 0 && a.perimetro_taglio_m > 0
+      && !a.costo_base_stimato
+    );
+    if (canStimare) {
+      // fire-and-forget: stimaTutti aggiorna la UI da solo alla fine
+      stimaTutti().catch(e => console.warn('auto-stima post-import fallita:', e));
     }
     const cacheMsg = cached > 0 ? ` (${cached} in cache)` : '';
     const errMsg = err > 0 ? ` — ${err} errori` : '';
