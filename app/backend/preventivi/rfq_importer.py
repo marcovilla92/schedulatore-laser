@@ -59,6 +59,13 @@ class RFQParseResult:
     error: str | None = None
 
 
+class RFQParseError(Exception):
+    """Errore con messaggio user-friendly per il frontend.
+    Sostituisce il catch-all che nascondeva il vero motivo (chiave mancante,
+    rate limit, PDF illeggibile, JSON invalido, ecc.)."""
+    pass
+
+
 # ─── Gemini API ────────────────────────────────────────────────────────────
 
 def _get_api_key() -> str | None:
@@ -127,11 +134,20 @@ def parse_order_pdf(pdf_bytes: bytes, filename: str = 'order.pdf') -> dict | Non
     """
     api_key = _get_api_key()
     if not api_key:
-        logger.warning('GEMINI_API_KEY non configurata: skip RFQ parsing')
-        return None
+        raise RFQParseError(
+            'GEMINI_API_KEY mancante. Controlla che app/.env contenga la chiave e '
+            'RIAVVIA il backend (le env vars si caricano solo all\'avvio).'
+        )
 
     try:
         import google.generativeai as genai
+    except ImportError:
+        raise RFQParseError(
+            'Pacchetto google-generativeai non installato. '
+            'Esegui: pip install -r app/requirements.txt'
+        )
+
+    try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(GEMINI_MODEL)
 
@@ -146,22 +162,36 @@ def parse_order_pdf(pdf_bytes: bytes, filename: str = 'order.pdf') -> dict | Non
                 'response_mime_type': 'application/json',
             }
         )
-        raw = (response.text or '').strip()
+    except Exception as e:
+        # Errore lato API (rete, quota, 401, timeout, modello non disponibile)
+        msg = str(e) or type(e).__name__
+        logger.exception('RFQ Gemini call fallita: %s', msg)
+        if '429' in msg or 'quota' in msg.lower() or 'rate' in msg.lower():
+            raise RFQParseError(f'Gemini rate limit / quota superata: {msg}')
+        if '401' in msg or '403' in msg or 'api key' in msg.lower() or 'permission' in msg.lower():
+            raise RFQParseError(f'Chiave Gemini rifiutata: {msg}. Verifica GEMINI_API_KEY in app/.env.')
+        if '404' in msg or 'not found' in msg.lower():
+            raise RFQParseError(f'Modello Gemini "{GEMINI_MODEL}" non disponibile: {msg}')
+        raise RFQParseError(f'Errore chiamata Gemini: {msg}')
 
+    try:
+        raw = (response.text or '').strip()
         # Rimuovi eventuali fence markdown residui (Gemini a volte li aggiunge)
         raw = re.sub(r'^```(?:json)?\s*', '', raw)
         raw = re.sub(r'\s*```$', '', raw)
-
+        if not raw:
+            raise RFQParseError('Gemini ha risposto vuoto. Il PDF potrebbe essere una scansione illeggibile.')
         data = json.loads(raw)
         logger.info('RFQ parsed: cliente=%s, articoli=%d, filename=%s',
                     data.get('cliente'), len(data.get('articoli') or []), filename)
         return data
     except json.JSONDecodeError as je:
-        logger.warning('RFQ Gemini output non JSON valido: %s', je)
-        return None
-    except Exception as e:
-        logger.exception('RFQ parsing fallito: %s', e)
-        return None
+        preview = (raw[:200] if 'raw' in locals() else '')
+        logger.warning('RFQ Gemini output non JSON valido: %s | preview=%s', je, preview)
+        raise RFQParseError(
+            f'Gemini ha risposto con JSON invalido: {je}. '
+            f'Preview risposta: {preview[:120]}…'
+        )
 
 
 # ─── Fuzzy matching PDF articoli ↔ DXF files ──────────────────────────────
@@ -307,12 +337,13 @@ def process_rfq_package(zip_bytes: bytes) -> RFQParseResult:
         result.warnings.append('Nessun file DXF trovato nel ZIP: gli articoli verranno creati senza disegno.')
 
     # 2. Chiama Gemini per parsare il PDF
-    parsed = parse_order_pdf(pdf_bytes, pdf_filename or 'order.pdf')
+    try:
+        parsed = parse_order_pdf(pdf_bytes, pdf_filename or 'order.pdf')
+    except RFQParseError as e:
+        result.error = str(e)
+        return result
     if not parsed:
-        result.error = (
-            'AI extraction del PDF fallita. '
-            'Verifica che GEMINI_API_KEY sia configurata e che il PDF sia leggibile.'
-        )
+        result.error = 'AI extraction del PDF fallita (risposta vuota).'
         return result
 
     # 3. Popola header

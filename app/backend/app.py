@@ -2237,6 +2237,54 @@ def api_preventivi_import_dxf(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/rfq-diagnostic', methods=['GET'])
+def api_preventivi_rfq_diagnostic():
+    """Diagnostica rapida AI RFQ importer.
+
+    Ritorna:
+      - api_key_present: bool (GEMINI_API_KEY caricata?)
+      - api_key_prefix: primi 5 char (per verifica visiva)
+      - genai_installed: bool
+      - test_call_ok: bool (ha risposto Gemini a un ping test?)
+      - test_error: str (motivo se test_call_ok=False)
+
+    Da aprire nel browser: http://localhost:5000/api/preventivi/rfq-diagnostic
+    """
+    diag = {
+        'api_key_present': False,
+        'api_key_prefix': '',
+        'genai_installed': False,
+        'test_call_ok': False,
+        'test_error': '',
+    }
+    api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+    if api_key:
+        diag['api_key_present'] = True
+        diag['api_key_prefix'] = (api_key[:5] + '…') if len(api_key) > 5 else api_key
+    else:
+        diag['test_error'] = 'GEMINI_API_KEY non trovata in os.environ. Verifica app/.env + RIAVVIA backend.'
+        return jsonify(diag), 200
+    try:
+        import google.generativeai as genai
+        diag['genai_installed'] = True
+    except ImportError as e:
+        diag['test_error'] = f'google-generativeai non installato: {e}'
+        return jsonify(diag), 200
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        r = model.generate_content(
+            'Rispondi solo con la parola "OK".',
+            generation_config={'temperature': 0.0},
+        )
+        txt = (r.text or '').strip()
+        diag['test_call_ok'] = True
+        diag['test_response'] = txt[:50]
+    except Exception as e:
+        diag['test_error'] = f'{type(e).__name__}: {e}'
+    return jsonify(diag), 200
+
+
 @app.route('/api/preventivi/import-rfq-package', methods=['POST'])
 def api_preventivi_import_rfq_package():
     """AI RFQ Importer: da ZIP (PDF ordine + cartella DXF) → preventivo BOZZA pronto.
