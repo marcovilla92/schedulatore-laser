@@ -3519,14 +3519,18 @@ function _splitRowHtml(i, indent) {
     : `<div class="thumb-mini empty">—</div>`;
   const dim = _artDimLabel(a);
   const indentHtml = indent ? '<span class="indent"></span>' : '';
+  // Badge rosso "no laser" quando manca il costo base (override null/0 E stima 0)
+  const hasBase = ((a.costo_base_override != null && a.costo_base_override > 0) || (a.costo_base_stimato || 0) > 0);
+  const badgeNoBase = hasBase ? '' :
+    `<span title="Costo laser mancante — il preventivo NON si può inviare" style="display:inline-block; margin-left:6px; padding:1px 6px; background:#FEE2E2; color:#B91C1C; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:.3px;">NO €</span>`;
   return `<tr onclick="selectSplitArticolo(${i})" data-split-idx="${i}">
     <td class="thumb-td">${thumbHtml}</td>
-    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:11px;">${escapeHtml(a.codice || '—')}</code></td>
+    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:11px;">${escapeHtml(a.codice || '—')}</code>${badgeNoBase}</td>
     <td class="n">${a.quantita || 1}</td>
     <td class="n">${a.spessore_mm ? a.spessore_mm.toFixed(1) : '—'}</td>
     <td>${escapeHtml(a.materiale || '—')}</td>
     <td class="n" style="font-size:10px; color:var(--text-3);">${dim}</td>
-    <td class="n" style="font-weight:700;">${formatEurStr(tot)}</td>
+    <td class="n" style="font-weight:700; ${hasBase ? '' : 'color:#B91C1C;'}">${formatEurStr(tot)}</td>
   </tr>`;
 }
 
@@ -6525,8 +6529,110 @@ function closeReviewBatch() {
 // ============================================================
 //  WORKFLOW (invia / accetta / rifiuta)
 // ============================================================
+
+/**
+ * Verifica critica anti-catastrofe: NESSUN articolo può avere costo base=0.
+ * Ritorna {ok: bool, articoli_no_stima: [{codice, motivo}], articoli_no_dati: [...]}
+ *
+ * Chiamata OBBLIGATORIAMENTE prima di:
+ *  - inviaPreventivo (bloccante)
+ *  - openAccettaModal (bloccante)
+ *  - exportPdf (warning, non bloccante)
+ *
+ * Un articolo è VALIDO se:
+ *   costo_base_override != null   (utente ha inserito prezzo manuale)
+ *  OPPURE
+ *   costo_base_stimato > 0       (stima laser eseguita con successo)
+ *
+ * Se un articolo ha dati completi ma stima non eseguita → tenta auto-stima.
+ * Se un articolo ha dati mancanti → segnala come "non stimabile" per fix manuale.
+ */
+async function validaCostiCompletamente() {
+  const articoli_no_stima = [];   // dati completi ma stima non fatta
+  const articoli_no_dati  = [];   // manca materiale/spessore/area/perim → non stimabile
+
+  for (const a of currentArticoli) {
+    const overr = a.costo_base_override;
+    const stim = a.costo_base_stimato || 0;
+    // Se ha override manuale, ok
+    if (overr != null && overr > 0) continue;
+    // Se ha stima > 0, ok
+    if (stim > 0) continue;
+    // Non ha né override né stima > 0 → problema
+    if (!a.materiale || !a.spessore_mm || !a.area_dm2 || !a.perimetro_taglio_m) {
+      articoli_no_dati.push({
+        codice: a.codice || 'senza codice',
+        mancanti: [
+          !a.materiale && 'materiale',
+          !a.spessore_mm && 'spessore',
+          !a.area_dm2 && 'area',
+          !a.perimetro_taglio_m && 'perimetro',
+        ].filter(Boolean).join(', ')
+      });
+    } else {
+      articoli_no_stima.push({ codice: a.codice || 'senza codice' });
+    }
+  }
+
+  // Se ci sono articoli non stimati ma stimabili, tentiamo auto-stima e ricontrolliamo
+  if (articoli_no_stima.length > 0) {
+    showMsg('msg-workflow', `Stima automatica di ${articoli_no_stima.length} articoli in corso…`, 'var(--text-2)');
+    try {
+      await stimaTutti();
+      // Ricontrolla: dopo stimaTutti, articoli_no_stima dovrebbe essere vuoto
+      // (ma alcuni possono aver fallito per motivi backend).
+      const residui = [];
+      for (const a of currentArticoli) {
+        const overr = a.costo_base_override;
+        const stim = a.costo_base_stimato || 0;
+        if ((overr != null && overr > 0) || stim > 0) continue;
+        if (a.materiale && a.spessore_mm && a.area_dm2 && a.perimetro_taglio_m) {
+          residui.push({ codice: a.codice || 'senza codice' });
+        }
+      }
+      articoli_no_stima.length = 0;
+      articoli_no_stima.push(...residui);
+    } catch (e) {
+      console.warn('auto-stima in valida fallita:', e);
+    }
+  }
+
+  const ok = articoli_no_dati.length === 0 && articoli_no_stima.length === 0;
+  return { ok, articoli_no_stima, articoli_no_dati };
+}
+
+/** Costruisce messaggio user-friendly per la validazione fallita. */
+function _validazioneErrorMessage(v) {
+  const parts = [];
+  if (v.articoli_no_dati.length > 0) {
+    parts.push('⚠ Articoli senza dati sufficienti per stimare il costo laser:');
+    for (const a of v.articoli_no_dati) {
+      parts.push(`   • ${a.codice} — manca: ${a.mancanti}`);
+    }
+    parts.push('');
+    parts.push('AZIONE: apri il pezzo, compila i campi mancanti (materiale/spessore/area/perimetro), poi clicca "Stima" o "Stima costo laser tutti".');
+  }
+  if (v.articoli_no_stima.length > 0) {
+    parts.push('⚠ Articoli con dati completi ma senza costo laser stimato (probabile errore backend):');
+    for (const a of v.articoli_no_stima) {
+      parts.push(`   • ${a.codice}`);
+    }
+    parts.push('');
+    parts.push('AZIONE: clicca "Stima costo laser tutti" nell\'header, oppure inserisci un prezzo manuale.');
+  }
+  return parts.join('\n');
+}
+
 async function inviaPreventivo() {
   if (!currentPreventivo) return;
+  // GUARDIA CRITICA: nessun articolo può avere costo base 0
+  const validazione = await validaCostiCompletamente();
+  if (!validazione.ok) {
+    alert('IMPOSSIBILE INVIARE — costo laser mancante su alcuni articoli.\n\n' +
+          _validazioneErrorMessage(validazione) +
+          '\n\nIl preventivo NON è stato inviato. Correggi e riprova.');
+    return;
+  }
   if (!confirm('Inviare preventivo al cliente?\n\nDopo l\'invio diventa IMMUTABILE.')) return;
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/invia`, {
@@ -6542,8 +6648,16 @@ async function inviaPreventivo() {
   } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
-function openAccettaModal() {
+async function openAccettaModal() {
   if (!currentPreventivo) return;
+  // GUARDIA CRITICA: prima di creare l'ordine in produzione, verifica costi
+  const validazione = await validaCostiCompletamente();
+  if (!validazione.ok) {
+    alert('IMPOSSIBILE ACCETTARE — costo laser mancante su alcuni articoli.\n\n' +
+          _validazioneErrorMessage(validazione) +
+          '\n\nCorreggi prima di accettare il preventivo.');
+    return;
+  }
   document.getElementById('ap-cliente').textContent = currentPreventivo.cliente;
   document.getElementById('ap-data').textContent = formatDate(currentPreventivo.data_consegna_proposta);
   document.getElementById('ap-qty').textContent = currentPreventivo.quantita;
@@ -6650,6 +6764,16 @@ async function rifiutaPreventivo() {
 
 async function exportPdf() {
   if (!currentPreventivo) return;
+  // Warning non bloccante: se ci sono articoli senza costo laser, avverti
+  // (per PDF preview è tollerato; il blocco vero è su Invia/Accetta)
+  const validazione = await validaCostiCompletamente();
+  if (!validazione.ok) {
+    const proceed = confirm('⚠ ATTENZIONE — alcuni articoli hanno costo laser mancante:\n\n' +
+      _validazioneErrorMessage(validazione) +
+      '\n\nGenerare comunque il PDF (con costi parziali)?\n\n' +
+      'Consigliato: annulla, correggi i costi, poi rigenera.');
+    if (!proceed) return;
+  }
   showMsg('msg-workflow', 'Generazione PDF in corso…', 'var(--gray-text)');
   try {
     const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/pdf`;

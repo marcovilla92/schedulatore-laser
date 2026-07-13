@@ -3835,6 +3835,32 @@ def api_preventivi_pdf(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _valida_costi_preventivo(preventivo_id):
+    """GUARDIA CRITICA server-side: verifica che nessun articolo abbia costo base 0.
+
+    Un articolo è valido se ha `costo_base_override > 0` OPPURE `costo_base_stimato > 0`.
+    Ritorna lista di dict {codice, motivo} per gli articoli invalidi (vuota se tutto ok).
+    Difesa in profondità: il frontend blocca già ma un client custom o bug JS potrebbe
+    aggirare la validazione; qui è invalicabile.
+    """
+    prev = PreventivoManager.get(preventivo_id, include_children=True)
+    if not prev:
+        return []  # non trovato → l'endpoint darà 404 da sé
+    invalidi = []
+    for a in (prev.get('articoli') or []):
+        overr = a.get('costo_base_override')
+        stim = a.get('costo_base_stimato') or 0
+        if (overr is not None and overr > 0) or (stim and stim > 0):
+            continue
+        codice = a.get('codice') or '(senza codice)'
+        if not (a.get('materiale') and a.get('spessore_mm')
+                and a.get('area_dm2') and a.get('perimetro_taglio_m')):
+            invalidi.append({'codice': codice, 'motivo': 'dati mancanti (materiale/spessore/area/perimetro)'})
+        else:
+            invalidi.append({'codice': codice, 'motivo': 'stima laser non eseguita'})
+    return invalidi
+
+
 @app.route('/api/preventivi/<preventivo_id>/invia', methods=['POST'])
 def api_preventivi_invia(preventivo_id):
     """Transizione BOZZA → INVIATO. (Snapshot versioning sarà aggiunto in Fase 3.)"""
@@ -3843,6 +3869,14 @@ def api_preventivi_invia(preventivo_id):
         user_id = data.get('user_id') or ''
         if not _require_role(user_id, _PREV_WRITE_ROLES):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        invalidi = _valida_costi_preventivo(preventivo_id)
+        if invalidi:
+            details = '; '.join(f"{x['codice']}: {x['motivo']}" for x in invalidi[:5])
+            return jsonify({
+                'success': False,
+                'error': f'Impossibile inviare: {len(invalidi)} articoli senza costo laser ({details})',
+                'articoli_invalidi': invalidi,
+            }), 400
         result = PreventivoManager.transition_status(preventivo_id, 'INVIATO', user_id=user_id)
         if result is None:
             return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
@@ -3879,6 +3913,21 @@ def api_preventivi_accetta(preventivo_id):
         user_id = data.get('user_id') or ''
         if not _require_role(user_id, _PREV_WRITE_ROLES):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        # Se il payload include articoli override, prima li salva così la validazione
+        # server-side controlla lo stato AGGIORNATO (evita race con edit non salvato).
+        if data.get('articoli'):
+            try:
+                PreventivoManager.replace_articoli(preventivo_id, data['articoli'])
+            except Exception:
+                pass  # se fallisce, la validazione userà i dati DB e comunque bloccherà
+        invalidi = _valida_costi_preventivo(preventivo_id)
+        if invalidi:
+            details = '; '.join(f"{x['codice']}: {x['motivo']}" for x in invalidi[:5])
+            return jsonify({
+                'success': False,
+                'error': f'Impossibile accettare: {len(invalidi)} articoli senza costo laser ({details})',
+                'articoli_invalidi': invalidi,
+            }), 400
         result = PreventivoManager.accetta_e_crea_ordine(
             preventivo_id,
             user_id=user_id,
