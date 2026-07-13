@@ -1460,6 +1460,7 @@ tr.row-warn:hover { background: #FEF3C7; }
     <div class="strip-actions">
       <button class="btn-primary" onclick="saveBase()" id="btn-save-base">Salva</button>
       <button class="btn-secondary" onclick="duplicaPreventivo()" id="btn-duplica" title="Crea nuovo preventivo copiando articoli, materiali e configurazione" style="display:none;">Duplica</button>
+      <button class="btn-danger" onclick="eliminaPreventivo()" id="btn-elimina" title="Elimina questo preventivo (soft delete)" style="display:none;">Elimina</button>
       <button class="btn-secondary" onclick="goStorico()">Annulla</button>
     </div>
   </div>
@@ -2968,6 +2969,30 @@ async function duplicaPreventivo() {
   } catch (e) { showMsg('msg-base', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
+/** Elimina (soft delete) il preventivo corrente e torna a Storico.
+    Bloccato lato UI per INVIATO/ACCETTATO (protezione documenti finali). */
+async function eliminaPreventivo() {
+  if (!currentPreventivo) return;
+  const cliente = currentPreventivo.cliente || '(senza cliente)';
+  const status = currentPreventivo.status || 'BOZZA';
+  if (status === 'INVIATO' || status === 'ACCETTATO') {
+    alert(`Impossibile eliminare un preventivo ${status}.\n\nSono documenti già inviati/ordini creati — non si eliminano per tracciabilità.`);
+    return;
+  }
+  if (!confirm(`Eliminare il preventivo di "${cliente}" (${status})?\n\nL'eliminazione è recuperabile dal DB ma NON dall'interfaccia.`)) return;
+  try {
+    const url = `${API_URL}/api/preventivi/${currentPreventivo.id}?deleted_by=${encodeURIComponent(currentUser.id)}`;
+    const r = await fetch(url, { method: 'DELETE' });
+    const d = await r.json();
+    if (!d.success) { showMsg('msg-base', 'Errore: ' + (d.error || 'delete fallito'), 'var(--red)'); return; }
+    // Reset stato + torna a Storico + refresh lista
+    currentPreventivo = null;
+    currentArticoli = []; currentAssiemi = []; currentTubolari = []; currentPiastre = [];
+    goStorico();
+    if (typeof loadPreventivi === 'function') loadPreventivi();
+  } catch (e) { showMsg('msg-base', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
 async function openPreventivo(id) {
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${id}`);
@@ -3018,6 +3043,8 @@ function populateEditor(p) {
   const editable = p.status === 'BOZZA';
   document.getElementById('btn-save-base').disabled = !editable;
   document.getElementById('btn-duplica').style.display = '';  // B3: sempre attivo per preventivi esistenti
+  // Elimina disponibile solo per BOZZA / RIFIUTATO (proteggiamo INVIATO / ACCETTATO)
+  document.getElementById('btn-elimina').style.display = (p.status === 'BOZZA' || p.status === 'RIFIUTATO') ? '' : 'none';
   document.getElementById('btn-invia').style.display = (p.status === 'BOZZA') ? '' : 'none';
   document.getElementById('btn-accetta').style.display = (p.status === 'INVIATO') ? '' : 'none';
   document.getElementById('btn-rifiuta').style.display = (p.status === 'INVIATO') ? '' : 'none';
