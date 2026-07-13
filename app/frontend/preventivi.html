@@ -6201,6 +6201,11 @@ async function uploadXlsx(file, suppressMsg) {
       });
     }
     renderArticoli(); recalcTotali();
+    // Post-import: se ci sono articoli, entra in split+focus (workflow atteso)
+    if (currentArticoli.length > 0) {
+      if (!_splitView) setArticoliView('split');
+      if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
+    }
     let msg = `✓ Importati ${d.count} articoli da Lantek con materiale + spessore + area + perimetro + costi.`;
     if (nNoMaterial > 0) msg += ` ${nNoMaterial} articolo/i senza materiale riconosciuto (default S235, modifica via dropdown).`;
     showMsg('msg-import', msg, nNoMaterial > 0 ? 'var(--orange)' : 'var(--green)');
@@ -6350,6 +6355,13 @@ async function uploadDxfBatch(files) {
     }
     renderArticoli(); recalcTotali();
     scheduleSaveArticoli(300);
+    // Se dopo l'upload ci sono articoli e siamo ancora in vista tabella / non-focus,
+    // forziamo split view + focus mode (allineato al comportamento di populateEditor
+    // quando si apre un preventivo esistente con articoli).
+    if (currentArticoli.length > 0) {
+      if (!_splitView) setArticoliView('split');
+      if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
+    }
     const cacheMsg = cached > 0 ? ` (${cached} in cache)` : '';
     const errMsg = err > 0 ? ` — ${err} errori` : '';
     const secs = (elapsedMs / 1000).toFixed(1);
