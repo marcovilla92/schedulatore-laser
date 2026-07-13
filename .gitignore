@@ -22,8 +22,12 @@ venv/
 
 # Database & uploads (auto-created)
 app/database/
-app/uploads/pdfs/
-app/uploads/drawings/
+app/uploads/
+
+# Backup files & test artifacts
+*.bak
+_test_input/
+_test_pdf_preventivo.pdf
 
 # IDE & OS
 .DS_Store

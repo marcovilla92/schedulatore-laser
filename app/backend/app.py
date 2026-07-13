@@ -908,9 +908,13 @@ def get_ordini_da_fatturare_count():
 
 @app.route('/api/orders/<order_id>/salva-bozza-fattura', methods=['PUT'])
 def salva_bozza_fattura(order_id):
-    """Salva dati DDT/fattura come bozza senza chiudere l'ordine"""
+    """Salva dati DDT/fattura come bozza senza chiudere l'ordine.
+    Autorizzato: Impiegata, Capi, Amministratore."""
     try:
         data = request.get_json() or {}
+        user_id = (data.get('user_id') or '').strip()
+        if not _require_role(user_id, ['Impiegata', 'CAPO']):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         result = FatturazioneManager.salva_bozza(order_id, data)
         if not result['success']:
             return jsonify(result), 400
@@ -921,10 +925,13 @@ def salva_bozza_fattura(order_id):
 
 @app.route('/api/orders/<order_id>/chiudi-amministrativo', methods=['POST'])
 def chiudi_ordine_amministrativo(order_id):
-    """Chiude ordine amministrativamente — status → CHIUSO"""
+    """Chiude ordine amministrativamente — status → CHIUSO.
+    Autorizzato: Impiegata, Capi, Amministratore."""
     try:
         data = request.get_json() or {}
         user_id = data.get('user_id', '')
+        if not _require_role(user_id, ['Impiegata', 'CAPO']):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         result = FatturazioneManager.chiudi_ordine(order_id, data, user_id)
         if not result['success']:
             return jsonify(result), 400
@@ -946,10 +953,13 @@ def chiudi_ordine_amministrativo(order_id):
 
 @app.route('/api/orders/<order_id>/riapri', methods=['POST'])
 def riapri_ordine(order_id):
-    """Riapre ordine CHIUSO riportandolo a DA_FATTURARE"""
+    """Riapre ordine CHIUSO riportandolo a DA_FATTURARE.
+    Autorizzato: Impiegata, Capi, Amministratore."""
     try:
         data = request.get_json() or {}
         user_id = data.get('user_id', '')
+        if not _require_role(user_id, ['Impiegata', 'CAPO']):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         result = FatturazioneManager.riapri_ordine(order_id)
         if not result['success']:
             return jsonify(result), 400
@@ -1239,6 +1249,106 @@ def upload_drawing():
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'online', 'timestamp': datetime.utcnow().isoformat()}), 200
+
+
+@app.route('/api/dashboard-live', methods=['GET'])
+def api_dashboard_live():
+    """Dashboard live pubblica (info-panel per TV in ufficio Elena).
+
+    Ritorna SOLO snapshot momentanei anonimi + KPI relative — safe per pubblico
+    esterno (clienti in visita). NON contiene:
+    - Nomi clienti / operai
+    - Prezzi / margini / fatturato
+    - Totali storici DB (numeri assoluti che possano dare info competitiva)
+    - Consegne per giorno / on-time delivery %
+
+    Endpoint aperto (no auth) perché serve a schermo condiviso e non contiene
+    dati sensibili.
+    """
+    try:
+        from .models import get_session, Order, OfficinaScan
+        session = get_session()
+        try:
+            # 1. Operatori attivi ORA (sessioni aperte, non chiuse)
+            n_attivi = session.query(OfficinaScan).filter(
+                OfficinaScan.timestamp_fine == None  # noqa: E711
+            ).count()
+
+            # 2. Ordini in produzione ORA (con scan attive negli ultimi 24h, non chiusi)
+            from datetime import timedelta
+            ora = datetime.utcnow()
+            since = ora - timedelta(hours=24)
+            in_produzione_ids = session.query(OfficinaScan.order_id).filter(
+                OfficinaScan.timestamp_inizio >= since
+            ).distinct()
+            in_produzione_ids_set = {r[0] for r in in_produzione_ids}
+            n_in_produzione = session.query(Order).filter(
+                Order.id.in_(in_produzione_ids_set),
+                Order.is_deleted == False,  # noqa: E712
+                Order.status.in_(['RICEVUTO'])
+            ).count() if in_produzione_ids_set else 0
+
+            # 3. Ordini pronti (taglio completato + non chiusi)
+            n_pronti = session.query(Order).filter(
+                Order.is_deleted == False,  # noqa: E712
+                Order.taglio_completato == True,  # noqa: E712
+                Order.status == 'RICEVUTO'
+            ).count()
+
+            # 4. Ordini "ricevuti" mai iniziati (per kanban proporzionale)
+            n_ricevuti = session.query(Order).filter(
+                Order.is_deleted == False,  # noqa: E712
+                Order.status == 'RICEVUTO',
+                Order.taglio_completato == False,  # noqa: E712
+            ).count()
+            # Sottraggo quelli già in produzione per non contarli 2 volte
+            n_ricevuti_puri = max(0, n_ricevuti - n_in_produzione)
+
+            # 5. Ordini "in lavorazione" per kanban (ricevuti in produzione)
+            n_kanban_lavorazione = n_in_produzione
+
+            # 6. Ordini "pronti" per kanban (taglio ok, in attesa chiusura Elena)
+            n_kanban_pronti = n_pronti
+
+            # 7. Curva attività ORE giornata (anonimo — solo count sessioni per ora)
+            # Dalle 07:00 alle 18:00 dell'oggi corrente
+            oggi_00 = datetime(ora.year, ora.month, ora.day)
+            curva_ore = []
+            for h in range(7, 19):  # 7-18
+                slot_start = oggi_00 + timedelta(hours=h)
+                slot_end = slot_start + timedelta(hours=1)
+                if slot_start > ora:
+                    curva_ore.append({'ora': h, 'attivita': 0})
+                    continue
+                # Conta sessioni che erano attive in quell'ora
+                q = session.query(OfficinaScan).filter(
+                    OfficinaScan.timestamp_inizio < slot_end,
+                ).filter(
+                    (OfficinaScan.timestamp_fine == None) |  # noqa: E711
+                    (OfficinaScan.timestamp_fine >= slot_start)
+                )
+                curva_ore.append({'ora': h, 'attivita': q.count()})
+
+            return jsonify({
+                'success': True,
+                'snapshot': {
+                    'operatori_attivi': n_attivi,
+                    'ordini_in_produzione': n_in_produzione,
+                    'ordini_pronti': n_pronti,
+                },
+                'kanban': {
+                    'ricevuti': n_ricevuti_puri,
+                    'lavorazione': n_kanban_lavorazione,
+                    'pronti': n_kanban_pronti,
+                },
+                'curva_ore': curva_ore,
+                'timestamp': ora.isoformat(),
+            }), 200
+        finally:
+            session.close()
+    except Exception as e:
+        logger.exception('dashboard-live failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ============ BACKUP & EXPORT ============
 
@@ -1730,11 +1840,50 @@ def api_preventivi_create():
 
 @app.route('/api/preventivi/<preventivo_id>', methods=['GET'])
 def api_preventivi_get(preventivo_id):
-    """Dettaglio preventivo + articoli/assiemi/tubolari/piastre."""
+    """Dettaglio preventivo + articoli/assiemi/tubolari/piastre.
+
+    Arricchisce gli articoli con `bbox_w_mm` e `bbox_h_mm` letti dal DXF
+    pulito (se presente). Le dimensioni bbox sono più affidabili della
+    formula matematica del rettangolo equivalente derivata da area+perim
+    perché quest'ultima sballa per pezzi con smussi/curve al bordo.
+    """
     try:
         p = PreventivoManager.get(preventivo_id, include_children=True)
         if not p:
             return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+        # Enrich articoli con bbox reale del cleaned DXF (best-effort)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        for art in (p.get('articoli') or []):
+            cleaned_name = art.get('cleaned_dxf_filename')
+            if not cleaned_name:
+                continue
+            dxf_path = os.path.join(prev_dir, os.path.basename(cleaned_name))
+            if not os.path.exists(dxf_path):
+                continue
+            try:
+                import ezdxf as _ez
+                d = _ez.readfile(dxf_path)
+                xs, ys = [], []
+                for e in d.modelspace():
+                    et = e.dxftype()
+                    if et == 'LINE':
+                        s, ee = e.dxf.start, e.dxf.end
+                        xs += [s[0], ee[0]]; ys += [s[1], ee[1]]
+                    elif et in ('CIRCLE', 'ARC'):
+                        c = e.dxf.center
+                        r = float(getattr(e.dxf, 'radius', 0) or 0)
+                        xs += [c[0] - r, c[0] + r]; ys += [c[1] - r, c[1] + r]
+                    elif et == 'LWPOLYLINE':
+                        for pt in e.get_points('xy'):
+                            xs.append(pt[0]); ys.append(pt[1])
+                    elif et == 'POLYLINE':
+                        for v in e.vertices:
+                            xs.append(v.dxf.location.x); ys.append(v.dxf.location.y)
+                if xs and ys:
+                    art['bbox_w_mm'] = round(max(xs) - min(xs), 2)
+                    art['bbox_h_mm'] = round(max(ys) - min(ys), 2)
+            except Exception:
+                pass  # non fatale — fallback formula lato client
         return jsonify({'success': True, 'preventivo': p}), 200
     except Exception as e:
         logger.exception('preventivo get failed')
@@ -2085,6 +2234,168 @@ def api_preventivi_import_dxf(preventivo_id):
         return jsonify(payload), 200
     except Exception as e:
         logger.exception('preventivi import dxf failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/import-rfq-package', methods=['POST'])
+def api_preventivi_import_rfq_package():
+    """AI RFQ Importer: da ZIP (PDF ordine + cartella DXF) → preventivo BOZZA pronto.
+
+    Workflow:
+    1. Upload ZIP multipart (con PDF + DXFs)
+    2. Gemini parsa il PDF → header + tabella articoli
+    3. Fuzzy match articoli PDF ↔ file DXF (per codice)
+    4. Crea preventivo BOZZA + scrive DXF su disco + processa ognuno
+       (detector v3 + scanner dettagli + cache)
+    5. Response: preventivo_id, articoli, warnings
+
+    Body multipart/form-data:
+        zip: file .zip contenente PDF ordine + N file .dxf
+        admin_id: id utente
+
+    Response 200: {success:True, preventivo_id, cliente, n_articoli, warnings, articoli:[...]}
+    Response 400/403/500: {success:False, error}
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from .preventivi.dxf_batch_worker import process_single_dxf
+    from .preventivi import rfq_importer
+    try:
+        admin_id = request.form.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        f = request.files.get('zip')
+        if not f:
+            return jsonify({'success': False, 'error': 'File ZIP mancante (campo "zip")'}), 400
+        zip_bytes = f.read()
+        if not zip_bytes:
+            return jsonify({'success': False, 'error': 'ZIP vuoto'}), 400
+
+        # 1. Pipeline AI extraction
+        result = rfq_importer.process_rfq_package(zip_bytes)
+        if not result.success:
+            return jsonify({'success': False, 'error': result.error or 'RFQ parsing fallito'}), 400
+
+        # 2. Crea preventivo BOZZA
+        prev_data = {
+            'cliente': result.cliente,
+            'numero_ordine_cliente': result.numero_ordine_cliente or None,
+            'quantita': 1,
+            'margine_pct': 25.0,
+            'created_by': admin_id,
+            'note': result.note or f'Importato via AI RFQ da {f.filename}',
+        }
+        if result.data_consegna:
+            try:
+                prev_data['data_consegna_proposta'] = datetime.strptime(
+                    result.data_consegna[:10], '%Y-%m-%d'
+                )
+            except (ValueError, TypeError):
+                pass
+        new_prev = PreventivoManager.create(prev_data)
+        if not new_prev or 'id' not in new_prev:
+            return jsonify({'success': False, 'error': 'Creazione preventivo fallita'}), 500
+        preventivo_id = new_prev['id']
+
+        # 3. Scrivi DXF su disco (solo quelli matchati)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        os.makedirs(prev_dir, exist_ok=True)
+        dxf_map = getattr(result, 'dxf_map', {}) or {}
+        saved_tasks = []  # (dxf_path, filename)
+        matched_dxfs = {a.matched_dxf for a in result.articoli if a.matched_dxf}
+        for fname, data in dxf_map.items():
+            if fname not in matched_dxfs:
+                continue  # skip DXF non associati (ma appaiono in dxf_no_match warning)
+            target_path = os.path.join(prev_dir, os.path.basename(fname))
+            with open(target_path, 'wb') as fp:
+                fp.write(data)
+            saved_tasks.append((target_path, os.path.basename(fname)))
+
+        # 4. Processa i DXF in parallelo (detector v3 + scanner dettagli)
+        app_cfg = BarcodeManager.load_config()
+        dxf_cfg = app_cfg.get('dxf_detection') or {
+            'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
+            'dxf_lunghezza_minima': 15.0, 'dxf_tolleranza_centro': 1.0,
+            'dxf_svasatura_ratio_min': 1.8, 'dxf_svasatura_ratio_max': 3.0,
+            'dxf_semicerchio_angolo_min': 150.0, 'dxf_semicerchio_angolo_max': 320.0,
+            'dxf_filtra_zona_sviluppata': True,
+        }
+        dxf_results: dict[str, dict] = {}
+        if saved_tasks:
+            max_workers = min(8, max(1, len(saved_tasks)))
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {
+                    pool.submit(process_single_dxf, path, fname, dxf_cfg): fname
+                    for path, fname in saved_tasks
+                }
+                for fut in as_completed(futures):
+                    fname = futures[fut]
+                    try:
+                        dxf_results[fname] = fut.result()
+                    except Exception as e:
+                        logger.exception('rfq worker fail per %s', fname)
+                        dxf_results[fname] = {'success': False, 'error': str(e)}
+
+        # 5. Costruisci articoli DB combinando dati PDF + DXF
+        articoli_db = []
+        for a in result.articoli:
+            dxf_info = dxf_results.get(a.matched_dxf) if a.matched_dxf else None
+            geom = (dxf_info or {}).get('geometry') or {}
+            item = {
+                'codice': a.codice,
+                'quantita': a.quantita,
+                'materiale': a.materiale,          # dal PDF (o None)
+                'spessore_mm': a.spessore_mm,      # dal PDF (o None)
+                'area_dm2': geom.get('area_dm2', 0),
+                'perimetro_taglio_m': geom.get('perimetro_taglio_m', 0),
+                'n_forature': geom.get('n_pierce', 0),
+                'dxf_filename': a.matched_dxf,
+                'pieghe': (dxf_info or {}).get('pieghe', 0),
+                'saldatura_ml': (dxf_info or {}).get('saldatura_ml', 0),
+                'filettatura_pz': (dxf_info or {}).get('filettatura_pz', 0),
+                'svasatura_pz': (dxf_info or {}).get('svasatura_pz', 0),
+            }
+            # Se il PDF NON aveva materiale/spessore, prova a leggerli dal cartiglio DXF
+            if not item['materiale'] and dxf_info:
+                cart_mat = (dxf_info.get('cartiglio_materiale') or {}).get('materiale')
+                if cart_mat:
+                    item['materiale'] = cart_mat
+            if not item['spessore_mm'] and dxf_info:
+                cart_sp = (dxf_info.get('spessore') or {}).get('spessore_mm')
+                if cart_sp:
+                    item['spessore_mm'] = float(cart_sp)
+            articoli_db.append(item)
+
+        # Salva articoli
+        if articoli_db:
+            try:
+                PreventivoManager.replace_articoli(preventivo_id, articoli_db)
+            except Exception as ae:
+                logger.warning('replace_articoli fallito: %s', ae)
+                result.warnings.append(f'Errore salvataggio articoli: {ae}')
+
+        # Audit
+        try:
+            AuditManager.log(
+                user_id=admin_id, action='RFQ_IMPORT',
+                entity_type='preventivi', entity_id=preventivo_id,
+                detail=f'AI RFQ importato: {len(articoli_db)} articoli, {len(saved_tasks)} DXF',
+            )
+        except Exception:
+            pass
+
+        return jsonify({
+            'success': True,
+            'preventivo_id': preventivo_id,
+            'cliente': result.cliente,
+            'numero_ordine_cliente': result.numero_ordine_cliente,
+            'data_consegna': result.data_consegna,
+            'n_articoli': len(articoli_db),
+            'n_dxf_matched': len(saved_tasks),
+            'dxf_no_match': result.dxf_no_match,
+            'warnings': result.warnings,
+        }), 200
+    except Exception as e:
+        logger.exception('import-rfq-package failed')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2459,15 +2770,87 @@ def api_preventivi_dxf_save_cleaned(preventivo_id, filename):
         if not cleanup_r.get('success'):
             return jsonify({'success': False, 'error': cleanup_r.get('error') or 'Cleanup fallito'}), 400
 
-        # 2. Ricalcola geometria (area/perim/n_forature) sul DXF pulito
+        # 2. Ricalcola geometria (area/perim/n_forature) SUL FILE PULITO
+        # Il pulito contiene SOLO le entità del pezzo → detector v3 dà valori
+        # esatti se trova un poligono chiuso. Se invece il pezzo ha contorno
+        # aperto (LINE sparse non chain-walkable), il detector prende una
+        # sotto-parte piccola (es. cerchio di un foro come "pezzo") → dimensioni
+        # sballate. In quel caso uso il bbox reale delle entità come fallback.
+        geom = {}
         try:
-            from .preventivi.dxf_polygon_detector_v3 import compute_geometry_from_region
+            from .preventivi.dxf_polygon_detector_v3 import detect_pezzo_geometry_v3
             app_cfg = BarcodeManager.load_config() or {}
             detection_cfg = app_cfg.get('dxf_detection', {})
-            geom = compute_geometry_from_region(dxf_path, bbox, detection_cfg)
+            geom = detect_pezzo_geometry_v3(cleaned_path, detection_cfg) or {}
+            if geom.get('n_pierce') is None and geom.get('n_forature') is not None:
+                geom['n_pierce'] = geom.get('n_forature')
         except Exception as ge:
             logger.warning('geometria post-cleanup fallita: %s', ge)
-            geom = {}
+
+        # Fallback bbox-based: se detector v3 ha ritornato area molto piccola
+        # rispetto al bbox reale del cleaned (< 25% area bbox), o non ha area,
+        # uso il bbox come rettangolo equivalente + perimetro somma fori (BUG FIX #2).
+        clean_bbox = cleanup_r.get('bbox_mm')
+        if clean_bbox and len(clean_bbox) == 4:
+            bx1, by1, bx2, by2 = clean_bbox
+            bbox_w = max(0.0, bx2 - bx1)
+            bbox_h = max(0.0, by2 - by1)
+            bbox_area_dm2 = (bbox_w * bbox_h) / 10000.0
+            det_area = float(geom.get('area_dm2') or 0)
+            use_bbox = (not det_area) or (bbox_area_dm2 > 0 and det_area < bbox_area_dm2 * 0.25)
+            if use_bbox:
+                # Perimetro = rettangolo esterno + somma perimetri fori interni
+                bbox_perim_mm = 2.0 * (bbox_w + bbox_h)
+                fori_perim_mm = 0.0
+                n_pierce_fallback = 1
+                try:
+                    import ezdxf as _e
+                    import math as _math
+                    _d = _e.readfile(cleaned_path)
+                    for _ent in _d.modelspace():
+                        _t = _ent.dxftype()
+                        if _t == 'CIRCLE':
+                            _r = float(getattr(_ent.dxf, 'radius', 0) or 0)
+                            fori_perim_mm += 2.0 * _math.pi * _r
+                            n_pierce_fallback += 1
+                        elif _t == 'ARC':
+                            _r = float(getattr(_ent.dxf, 'radius', 0) or 0)
+                            _sa = float(getattr(_ent.dxf, 'start_angle', 0) or 0)
+                            _ea = float(getattr(_ent.dxf, 'end_angle', 0) or 0)
+                            _sweep = (_ea - _sa) % 360.0
+                            if _sweep == 0:
+                                _sweep = 360.0
+                            fori_perim_mm += 2.0 * _math.pi * _r * (_sweep / 360.0)
+                            if _sweep >= 300.0:
+                                n_pierce_fallback += 1
+                        elif _t == 'LWPOLYLINE':
+                            _pts = list(_ent.get_points('xy'))
+                            _closed = bool(_ent.closed)
+                            if len(_pts) >= 2:
+                                for _i in range(len(_pts) - 1):
+                                    _dx = _pts[_i+1][0] - _pts[_i][0]
+                                    _dy = _pts[_i+1][1] - _pts[_i][1]
+                                    fori_perim_mm += (_dx*_dx + _dy*_dy) ** 0.5
+                                if _closed:
+                                    _dx = _pts[0][0] - _pts[-1][0]
+                                    _dy = _pts[0][1] - _pts[-1][1]
+                                    fori_perim_mm += (_dx*_dx + _dy*_dy) ** 0.5
+                                    n_pierce_fallback += 1
+                except Exception as _pe:
+                    logger.warning('fallback perim/pierce calc failed: %s', _pe)
+                total_perim_mm = bbox_perim_mm + fori_perim_mm
+                bbox_perim_m = total_perim_mm / 1000.0
+                logger.info(
+                    'save-cleaned: fallback bbox %.1fx%.1fmm perim=%.1fmm '
+                    '(ext=%.1f + fori=%.1f) pierce=%d',
+                    bbox_w, bbox_h, total_perim_mm, bbox_perim_mm,
+                    fori_perim_mm, n_pierce_fallback
+                )
+                geom['area_dm2'] = round(bbox_area_dm2, 4)
+                geom['perimetro_taglio_m'] = round(bbox_perim_m, 4)
+                cur_pierce = geom.get('n_pierce') or 0
+                if not cur_pierce or cur_pierce < n_pierce_fallback:
+                    geom['n_pierce'] = n_pierce_fallback
 
         cleaned_dxf_filename = os.path.basename(cleaned_path)
 
@@ -2504,6 +2887,16 @@ def api_preventivi_dxf_save_cleaned(preventivo_id, filename):
         except Exception:
             pass
 
+        # BBox reale del file pulito → dim W×H precise anche per pezzi con smussi
+        # (evita la formula matematica del rettangolo equivalente che sballa
+        #  perché area/perim reali riflettono gli smussi angolari).
+        bbox_w_mm = None
+        bbox_h_mm = None
+        cbbox = cleanup_r.get('bbox_mm')
+        if cbbox and len(cbbox) == 4:
+            bbox_w_mm = round(cbbox[2] - cbbox[0], 2)
+            bbox_h_mm = round(cbbox[3] - cbbox[1], 2)
+
         return jsonify({
             'success': True,
             'cleaned_dxf_filename': cleaned_dxf_filename,
@@ -2514,9 +2907,237 @@ def api_preventivi_dxf_save_cleaned(preventivo_id, filename):
             'area_dm2': geom.get('area_dm2'),
             'perimetro_taglio_m': geom.get('perimetro_taglio_m'),
             'n_pierce': geom.get('n_pierce'),
+            'bbox_w_mm': bbox_w_mm,
+            'bbox_h_mm': bbox_h_mm,
         }), 200
     except Exception as e:
         logger.exception('dxf save-cleaned failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/save-cleaned-by-click', methods=['POST'])
+def api_preventivi_dxf_save_cleaned_by_click(preventivo_id, filename):
+    """Pulizia DXF a partire da un CLICK sul pezzo (invece del drag rettangolo).
+
+    L'utente clicca una linea/arco/cerchio del contorno o un foro del pezzo.
+    Il sistema identifica il cluster spazialmente connesso a quel punto e
+    lo salva come DXF pulito. Elimina l'imprecisione del drag rettangolare.
+
+    Body: {x, y, articolo_id: str (opz), admin_id: str}
+    Response: {success, cleaned_dxf_filename, bbox_w_mm, bbox_h_mm, ...}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        admin_id = data.get('admin_id') or ''
+        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        try:
+            cx = float(data.get('x'))
+            cy = float(data.get('y'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'x/y richiesti (float)'}), 400
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+
+        from .preventivi import dxf_cleanup
+        base_p, ext_p = os.path.splitext(dxf_path)
+        cleaned_path = base_p + '_cleaned' + ext_p
+        cleanup_r = dxf_cleanup.save_cleaned_dxf_by_click(dxf_path, cleaned_path, cx, cy)
+        if not cleanup_r.get('success'):
+            return jsonify({'success': False, 'error': cleanup_r.get('error') or 'Cleanup fallito'}), 400
+
+        # Ricalcola geometria sul cleaned
+        geom = {}
+        try:
+            from .preventivi.dxf_polygon_detector_v3 import detect_pezzo_geometry_v3
+            app_cfg = BarcodeManager.load_config() or {}
+            detection_cfg = app_cfg.get('dxf_detection', {})
+            geom = detect_pezzo_geometry_v3(cleaned_path, detection_cfg) or {}
+            if geom.get('n_pierce') is None and geom.get('n_forature') is not None:
+                geom['n_pierce'] = geom.get('n_forature')
+        except Exception as ge:
+            logger.warning('geometria post-cleanup fallita: %s', ge)
+
+        # Fallback bbox se detector v3 dà area anomala
+        clean_bbox = cleanup_r.get('bbox_mm')
+        bbox_w_mm = bbox_h_mm = None
+        if clean_bbox and len(clean_bbox) == 4:
+            bx1, by1, bx2, by2 = clean_bbox
+            bbox_w_mm = round(bx2 - bx1, 2)
+            bbox_h_mm = round(by2 - by1, 2)
+            bbox_area_dm2 = (bbox_w_mm * bbox_h_mm) / 10000.0
+            det_area = float(geom.get('area_dm2') or 0)
+            use_bbox = (not det_area) or (bbox_area_dm2 > 0 and det_area < bbox_area_dm2 * 0.25)
+            if use_bbox:
+                # BUG FIX #2: al fallback il perimetro NON è solo 2*(w+h) del rettangolo
+                # esterno — deve includere anche i perimetri di TUTTI i fori interni
+                # (CIRCLE, ARC chiusi, LWPOLYLINE chiuse) perché il taglio laser
+                # taglia sia il contorno che ogni foratura. Sotto-stima ~30-50% su
+                # pezzi con molti fori.
+                bbox_perim_mm = 2.0 * (bbox_w_mm + bbox_h_mm)
+                fori_perim_mm = 0.0
+                n_pierce_fallback = 1  # 1 pierce per contorno esterno
+                try:
+                    import ezdxf as _e
+                    import math as _math
+                    _d = _e.readfile(cleaned_path)
+                    for _ent in _d.modelspace():
+                        _t = _ent.dxftype()
+                        if _t == 'CIRCLE':
+                            _r = float(getattr(_ent.dxf, 'radius', 0) or 0)
+                            fori_perim_mm += 2.0 * _math.pi * _r
+                            n_pierce_fallback += 1
+                        elif _t == 'ARC':
+                            _r = float(getattr(_ent.dxf, 'radius', 0) or 0)
+                            _sa = float(getattr(_ent.dxf, 'start_angle', 0) or 0)
+                            _ea = float(getattr(_ent.dxf, 'end_angle', 0) or 0)
+                            _sweep = (_ea - _sa) % 360.0
+                            if _sweep == 0:
+                                _sweep = 360.0
+                            fori_perim_mm += 2.0 * _math.pi * _r * (_sweep / 360.0)
+                            # Solo archi ~chiusi (>300°) contano come pierce
+                            if _sweep >= 300.0:
+                                n_pierce_fallback += 1
+                        elif _t == 'LWPOLYLINE':
+                            _pts = list(_ent.get_points('xy'))
+                            _closed = bool(_ent.closed)
+                            if len(_pts) >= 2:
+                                for _i in range(len(_pts) - 1):
+                                    _dx = _pts[_i+1][0] - _pts[_i][0]
+                                    _dy = _pts[_i+1][1] - _pts[_i][1]
+                                    fori_perim_mm += (_dx*_dx + _dy*_dy) ** 0.5
+                                if _closed:
+                                    _dx = _pts[0][0] - _pts[-1][0]
+                                    _dy = _pts[0][1] - _pts[-1][1]
+                                    fori_perim_mm += (_dx*_dx + _dy*_dy) ** 0.5
+                                    n_pierce_fallback += 1
+                except Exception as _pe:
+                    logger.warning('fallback perim/pierce calc failed: %s', _pe)
+                total_perim_mm = bbox_perim_mm + fori_perim_mm
+                bbox_perim_m = total_perim_mm / 1000.0
+                logger.info(
+                    'save-cleaned-by-click: fallback bbox %.1fx%.1fmm perim=%.1fmm '
+                    '(ext=%.1f + fori=%.1f) pierce=%d',
+                    bbox_w_mm, bbox_h_mm, total_perim_mm, bbox_perim_mm,
+                    fori_perim_mm, n_pierce_fallback
+                )
+                geom['area_dm2'] = round(bbox_area_dm2, 4)
+                geom['perimetro_taglio_m'] = round(bbox_perim_m, 4)
+                # Sovrascrivi n_pierce se il detector v3 non l'ha dato o è < fallback
+                cur_pierce = geom.get('n_pierce') or 0
+                if not cur_pierce or cur_pierce < n_pierce_fallback:
+                    geom['n_pierce'] = n_pierce_fallback
+
+        cleaned_dxf_filename = os.path.basename(cleaned_path)
+
+        # Ricalcola pieghe/saldatura/filettatura/svasatura sul FILE ORIGINALE.
+        # Motivo: il cleaned rimuove tutti i TEXT/MTEXT (annotazioni di piega
+        # come "SU 90° R2", "GIU' 20° R2"), quindi rileggerli sul cleaned darebbe 0.
+        # Le lavorazioni sono attributi del pezzo indipendenti dalla pulizia
+        # geometrica → sempre calcolate sull'originale.
+        dettagli = None
+        try:
+            from .preventivi import dxf_scanner as _scn
+            dettagli = _scn.scansiona_dxf_dettagli(dxf_path, detection_cfg)
+        except Exception as sce:
+            logger.warning('scansiona_dxf_dettagli fallito: %s', sce)
+
+        # Aggiorna record DB
+        articolo_id = data.get('articolo_id')
+        if articolo_id:
+            try:
+                from .models import get_session, PreventivoArticolo
+                session = get_session()
+                try:
+                    art = session.query(PreventivoArticolo).filter_by(id=articolo_id).first()
+                    if art:
+                        art.cleaned_dxf_filename = cleaned_dxf_filename
+                        art.cleaned_status = 'manual'
+                        if geom.get('area_dm2'):
+                            art.area_dm2 = float(geom['area_dm2'])
+                        if geom.get('perimetro_taglio_m'):
+                            art.perimetro_taglio_m = float(geom['perimetro_taglio_m'])
+                        if geom.get('n_pierce') is not None:
+                            art.n_forature = int(geom['n_pierce'])
+                        # Aggiorna lavorazioni dal ricalcolo sul file originale
+                        if dettagli is not None:
+                            p, s, f, v = dettagli
+                            art.pieghe = int(p)
+                            art.saldatura_ml = float(s)
+                            art.filettatura_pz = int(f)
+                            art.svasatura_pz = int(v)
+                        session.commit()
+                finally:
+                    session.close()
+            except Exception as dbe:
+                logger.warning('articolo update fallito: %s', dbe)
+
+        # Invalida cache SVG server-side
+        try:
+            keys_to_drop = [k for k in _SVG_CACHE if isinstance(k, tuple) and cleaned_path in k[0]]
+            for k in keys_to_drop:
+                _SVG_CACHE.pop(k, None)
+        except Exception:
+            pass
+
+        # AUTO-EXPORT nella cartella <root>/<cliente>/<numero_ordine>/
+        # Best-effort: se fallisce, non blocca la response ma include l'info nel payload.
+        export_info = {'exported': False, 'path': None, 'error': None}
+        try:
+            export_root = (app_cfg.get('disegni_export_root') or '').strip()
+            if export_root:
+                prev = PreventivoManager.get(preventivo_id, include_children=False)
+                if prev:
+                    cliente = prev.get('cliente') or 'cliente_sconosciuto'
+                    ord_num = (prev.get('numero_ordine_cliente') or '').strip()
+                    if not ord_num:
+                        # Fallback: PREV-YYYY-<primi-8-char-id>
+                        anno = datetime.now().year
+                        ord_num = f"PREV-{anno}-{preventivo_id[:8]}"
+                    export_r = dxf_cleanup.export_cleaned_dxf_to_client_folder(
+                        cleaned_source_path=cleaned_path,
+                        cliente=cliente,
+                        numero_ordine=ord_num,
+                        original_filename=os.path.basename(dxf_path),  # senza _cleaned
+                        export_root=export_root,
+                    )
+                    export_info['exported'] = export_r.get('success', False)
+                    export_info['path'] = export_r.get('exported_path')
+                    export_info['error'] = export_r.get('error')
+        except Exception as ee:
+            logger.warning('auto-export DXF fallito: %s', ee)
+            export_info['error'] = str(ee)
+
+        # Prepara response con lavorazioni ricalcolate
+        pieghe_val = int(dettagli[0]) if dettagli else None
+        sald_val = float(dettagli[1]) if dettagli else None
+        filett_val = int(dettagli[2]) if dettagli else None
+        svas_val = int(dettagli[3]) if dettagli else None
+
+        return jsonify({
+            'success': True,
+            'cleaned_dxf_filename': cleaned_dxf_filename,
+            'cleaned_status': 'manual',
+            'entities_copied': cleanup_r['entities_copied'],
+            'entities_source': cleanup_r['entities_source'],
+            'clicked_entity_type': cleanup_r.get('clicked_entity_type'),
+            'clicked_entity_distance_mm': cleanup_r.get('clicked_entity_distance_mm'),
+            'area_dm2': geom.get('area_dm2'),
+            'perimetro_taglio_m': geom.get('perimetro_taglio_m'),
+            'n_pierce': geom.get('n_pierce'),
+            'bbox_w_mm': bbox_w_mm,
+            'bbox_h_mm': bbox_h_mm,
+            'pieghe': pieghe_val,
+            'saldatura_ml': sald_val,
+            'filettatura_pz': filett_val,
+            'svasatura_pz': svas_val,
+            'export': export_info,
+        }), 200
+    except Exception as e:
+        logger.exception('dxf save-cleaned-by-click failed')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2877,6 +3498,7 @@ def api_preventivi_config_get():
             'success': True,
             'laser_config': cfg.get('laser_config') or _laser_estimator.DEFAULT_LASER_CONFIG,
             'preventivi_config': cfg.get('preventivi_config') or {},
+            'disegni_export_root': cfg.get('disegni_export_root') or '',
         }), 200
     except Exception as e:
         logger.exception('preventivi/config GET failed')
@@ -2901,6 +3523,10 @@ def api_preventivi_config_put():
             updates['laser_config'] = data['laser_config']
         if isinstance(data.get('preventivi_config'), dict):
             updates['preventivi_config'] = data['preventivi_config']
+        # Path export DXF puliti per officina (Mirko). Top-level string.
+        if 'disegni_export_root' in data:
+            root = (data.get('disegni_export_root') or '').strip()
+            updates['disegni_export_root'] = root
         if not updates:
             return jsonify({'success': False, 'error': 'Nessuna sezione da aggiornare'}), 400
         saved = BarcodeManager.save_config(updates)
@@ -2916,6 +3542,7 @@ def api_preventivi_config_put():
             'success': True,
             'laser_config': saved.get('laser_config'),
             'preventivi_config': saved.get('preventivi_config'),
+            'disegni_export_root': saved.get('disegni_export_root') or '',
         }), 200
     except Exception as e:
         logger.exception('preventivi/config PUT failed')
@@ -3103,25 +3730,77 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
     app_cfg = BarcodeManager.load_config() or {}
     azienda_info = app_cfg.get('azienda') or {}
 
+    # ═══════════════════════════════════════════════════════════════════
+    # CALCOLO TOTALI ON-THE-FLY (stesso algoritmo del frontend recalcTotali)
+    # I campi `totale_pezzo`/`totale_lotto` nel DB non vengono mai aggiornati
+    # dagli save-articoli: leggerli darebbe sempre 0. Ricalcolo qui.
+    # ═══════════════════════════════════════════════════════════════════
+    qty_preventivo = int(p.get('quantita') or 1)
+    margine_pct = float(p.get('margine_pct') or 0)
+
+    # Articoli STANDALONE (senza codice_assieme): quantita = pezzi nel preventivo
+    totale_pezzo_calc = 0.0
+    for a in articoli:
+        if a.get('codice_assieme'):
+            continue  # articoli linkati ad assieme già dentro pricing assieme
+        base = float(a.get('costo_base_override') if a.get('costo_base_override') is not None
+                     else (a.get('costo_base_stimato') or a.get('costo_materiale') or 0))
+        lav = sum(float(a.get(k) or 0) for k in (
+            'costo_piega', 'costo_saldatura', 'costo_filettatura',
+            'costo_svasatura', 'costo_apporto', 'costo_pulizia'))
+        totale_pezzo_calc += (base + lav) * int(a.get('quantita') or 1)
+
+    # Costo assiemi (totale pricing rollup)
+    costo_assiemi_calc = 0.0
+    for asm in assiemi_list:
+        cod = asm.get('codice_assieme') or asm.get('id') or ''
+        info = costi_montaggio.get(cod, {})
+        # Somma componenti articoli DXF (contributo_su_1_ass già calcolato sopra)
+        cost_articoli_ass = sum(item.get('contributo_su_1_ass', 0) for item in info.get('bom_articoli', []))
+        # Tubolari/piastre nell'assieme
+        cost_tubolari_ass = sum(float(t.get('costo_materiale') or 0) + float(t.get('costo_taglio_totale') or 0)
+                                 for t in info.get('bom_tubolari', []))
+        cost_piastre_ass = sum(float(pl.get('costo') or 0) for pl in info.get('bom_piastre', []))
+        # Costo intrinseco assieme (montaggio + puntatura + saldatura)
+        cost_intrinseco = (float(info.get('costo') or 0)
+                           + float(info.get('costo_puntatura') or 0)
+                           + float(info.get('costo_saldatura_assieme') or 0))
+        prezzo_1_ass = cost_intrinseco + cost_articoli_ass + cost_tubolari_ass + cost_piastre_ass
+        qty_ass = int(info.get('qty') or 1)
+        costo_assiemi_calc += prezzo_1_ass * qty_ass
+
+    # Tubolari e piastre STANDALONE (no codice_assieme)
+    costo_tubolari_std = sum(float(t.get('costo_materiale') or 0) + float(t.get('costo_taglio_totale') or 0)
+                              for t in tubolari_list if not t.get('codice_assieme'))
+    costo_piastre_std = sum(float(pl.get('costo') or 0)
+                             for pl in piastre_list if not pl.get('codice_assieme'))
+
+    con_margine = totale_pezzo_calc * (1 + margine_pct / 100.0)
+    con_margine_assiemi = costo_assiemi_calc * (1 + margine_pct / 100.0)
+    con_margine_tubolari = costo_tubolari_std * (1 + margine_pct / 100.0)
+    con_margine_piastre = costo_piastre_std * (1 + margine_pct / 100.0)
+    totale_lotto_calc = (con_margine * qty_preventivo
+                          + con_margine_assiemi + con_margine_tubolari + con_margine_piastre)
+
     return {
         'cliente': p.get('cliente') or '',
         'numero_ordine': p.get('numero_ordine_cliente') or f"PREV-{p.get('id', '')[:8]}",
         'data': data_str,
         'articoli': articoli_pdf,
-        'quantita': p.get('quantita') or 1,
-        'margine': p.get('margine_pct') or 0,
+        'quantita': qty_preventivo,
+        'margine': margine_pct,
         'costi_montaggio': costi_montaggio,
         'tubolari_per_assieme': tubolari_per_assieme,
         'piastre_per_assieme': piastre_per_assieme,
-        'totale_pezzo': p.get('totale_pezzo') or 0,
-        'totale_lotto': p.get('totale_lotto') or 0,
+        'totale_pezzo': round(totale_pezzo_calc, 2),
+        'totale_lotto': round(totale_lotto_calc, 2),
         'costo_piegatura': tot_piega,
         'costo_saldatura': tot_sald,
         'costo_filettatura': tot_filett,
         'costo_svasatura': tot_svasat,
-        'costo_montaggio_totale': p.get('costi_montaggio_totale') or 0,
-        'costo_tubolari_totale': p.get('costi_tubolari_totale') or 0,
-        'costo_piastre_totale': p.get('costi_piastre_totale') or 0,
+        'costo_montaggio_totale': round(costo_assiemi_calc, 2),
+        'costo_tubolari_totale': round(costo_tubolari_std, 2),
+        'costo_piastre_totale': round(costo_piastre_std, 2),
         'note': p.get('note') or '',
         'azienda': azienda_info,
     }

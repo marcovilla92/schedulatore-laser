@@ -12,3 +12,6 @@ gunicorn>=21.2.0
 python-barcode>=0.15.1
 reportlab>=4.0.7
 alembic>=1.13.0
+
+# AI RFQ Importer + normalizzazione materiali cartiglio DXF
+google-generativeai>=0.8.0

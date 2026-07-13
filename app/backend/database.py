@@ -3952,6 +3952,7 @@ class BarcodeManager:
         #   dxf_detection). Vengono sostituite in blocco.
         int_keys = {'sospetto_giorni_dal_taglio', 'sospetto_giorni_da_ultima_scan'}
         dict_keys = {'laser_config', 'preventivi_config', 'dxf_detection'}
+        str_keys = {'disegni_export_root'}  # path cartella export DXF puliti per officina
         for k, v in (updates or {}).items():
             if k in int_keys:
                 try:
@@ -3960,6 +3961,12 @@ class BarcodeManager:
                     pass
             elif k in dict_keys and isinstance(v, dict):
                 current[k] = v
+            elif k in str_keys:
+                # String allowlist (paths). Trim + accetta stringa vuota per disabilitare.
+                try:
+                    current[k] = str(v).strip() if v is not None else ''
+                except Exception:
+                    pass
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(current, f, indent=2, ensure_ascii=False)

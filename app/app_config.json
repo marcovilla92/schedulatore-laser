@@ -3,35 +3,29 @@
   "sospetto_giorni_da_ultima_scan": 3,
   "_note": "Soglie per il rilevamento di 'ordini sospetti finiti' nel pannello capo/impiegata. Un ordine è considerato sospetto se taglio completato da almeno N giorni E ultima scansione officina da almeno M giorni.",
   "laser_config": {
-    "_note": "Coefficienti CALIBRATI sui dati reali del cliente (2026-07-02): 75€/h macchina + 25€/h operaio = 100€/h totale. €/kg da mercato del cliente. Velocità taglio + tempi pierce da lantek_recipes.json (116 ricette Lantek reali). Editabili da admin.",
-    "euro_h_macchina": 75.0,
-    "euro_h_operaio": 25.0,
-    "setup_eur_default": 0.1,
+    "euro_h_macchina": 75,
+    "euro_h_operaio": 25,
+    "setup_eur_default": 0,
     "materiali": {
       "S235": {
-        "densita_kg_dm3": 7.85,
         "euro_kg": 0.8,
-        "setup_eur": 0.1
+        "densita_kg_dm3": 7.85
       },
       "ZINCATO": {
-        "densita_kg_dm3": 7.85,
         "euro_kg": 1.1,
-        "setup_eur": 0.1
+        "densita_kg_dm3": 7.85
       },
       "INOX_304": {
-        "densita_kg_dm3": 8.0,
         "euro_kg": 3.2,
-        "setup_eur": 0.1
+        "densita_kg_dm3": 8
       },
       "ALU": {
-        "densita_kg_dm3": 2.7,
         "euro_kg": 6.8,
-        "setup_eur": 0.1
+        "densita_kg_dm3": 2.7
       },
       "OTTONE": {
-        "densita_kg_dm3": 8.5,
-        "euro_kg": 12.0,
-        "setup_eur": 0.1
+        "euro_kg": 12,
+        "densita_kg_dm3": 8.5
       }
     }
   },
@@ -52,18 +46,17 @@
     "dxf_filtra_zona_sviluppata": true
   },
   "preventivi_config": {
-    "_note": "Coefficienti lavorazioni post-taglio (piegatura/saldatura/filettatura/svasatura) e regole margine/sconto. Editabili da UI tab Impostazioni.",
-    "costo_singola_piega": 0.5,
-    "costo_setup_piega": 15.0,
+    "costo_singola_piega": 1,
+    "costo_setup_piega": 10,
     "soglia_setup_pieghe": 5,
-    "costo_saldatura_metro": 25.0,
-    "costo_materiale_apporto_metro": 3.0,
-    "costo_pulizia_saldatura_metro": 5.0,
     "costo_filettatura": 0.8,
     "costo_svasatura": 0.3,
+    "costo_saldatura_metro": 25,
+    "costo_materiale_apporto_metro": 3,
+    "costo_pulizia_saldatura_metro": 5,
     "costo_movimentazione_kg": 0.05,
-    "soglia_movimentazione_kg": 25.0,
-    "margine_default_pct": 25.0,
+    "soglia_movimentazione_kg": 25,
+    "margine_default_pct": 25,
     "margine_su_montaggio": true,
     "sconto_quantita": {
       "10": 3,
@@ -71,5 +64,6 @@
       "100": 10,
       "500": 15
     }
-  }
+  },
+  "disegni_export_root": "C:/Users/sv304/AppData/Local/Temp/claude/c--Users-sv304-Documents-PROGETTI-schedulatore-laser/4efa1a23-cfc6-48b1-9f1c-b21ddbe9c656/scratchpad/disegni_test"
 }
