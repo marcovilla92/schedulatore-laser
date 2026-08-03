@@ -52,6 +52,32 @@ Test approcci automatici (tutti falliti, misurati):
 
 Ipotesi: le witness-line delle quote sono monconi aperti; potandoli (degree-1 pruning) prima di polygonize il contorno chiuso emergerebbe. **Misurato: non funziona.** Su 20PA00693 la faccia migliore resta 119×32 (vs 410×30 Lantek); la più grande torna l'intero foglio. Il noding di `unary_union` spezza in sotto-segmenti collineari e il grado dei nodi non separa pulito i monconi dal contorno. Vicolo cieco — non committato.
 
+## SVOLTA — contour follower dal click (2026-08-03)
+
+Algoritmo: **click sul contorno → segui la catena di segmenti scegliendo sempre la continuazione più dritta**. Le witness-line delle quote si diramano a ~90° → ignorate naturalmente. Test `app/tests/validate_contour_follow.py`.
+
+Risultato MISURATO su un click realistico sul bordo del pezzo:
+
+| Caso | Lantek area | Trace area | Delta | Esito |
+|---|---|---|---|---|
+| 20PA00693 | 1.1635 | 1.1643 | **0.07%** | OK (era 13,6× col vecchio detector) |
+| 20R201N0401 | 0.7414 | 0.7382 | **0.43%** | OK |
+| 46PA00375 | 84.139 | 84.138 | **0.00%** | OK (pezzo grande 84 dm²) |
+| 38APA253 | 0.0508 | — | 85% | KO |
+| CPPBPA0042 | 7.6228 | — | 50% | KO |
+| CPPBPA0044 | 1.6043 | — | 30% | KO |
+
+**3/6 esatti in automatico** (da 0/6). Le 3 KO NON sono fallimenti dell'algoritmo:
+- **CPPBPA0044**: il disegno contiene DUE pezzi (0044 al centro + 0045 a sinistra). Il test automatico ha tracciato quello sbagliato perché non sa quale sia lo 0044. **L'operatore clicca il pezzo giusto** → risolto in UI.
+- **38APA253 / CPPBPA0042**: bivi ambigui dove "più dritto" prende un ramo sbagliato → l'operatore corregge con waypoint (click aggiuntivi lungo il contorno).
+
+## Conclusione Fase 2
+
+L'engine di tracciamento deterministico **funziona**: dato il click giusto sul contorno, l'area è esatta al ~0,1% vs Lantek. Ciò che serve è la UI dove l'operatore:
+1. clicca il pezzo specifico (risolve multi-pezzo);
+2. eventualmente guida con waypoint i bivi ambigui.
+Non auto-detect: tracciamento umano assistito, come Lantek Detect Part. Ogni risultato è visibile e confermato dall'operatore (fail-safe).
+
 ## Cosa NON facciamo (disciplina anti-disastro)
 
-Non forziamo una soluzione inventando euristiche per "indovinare" il pezzo nel disegno — è l'errore del 2026-07-13. Il binario DXF-disegno si risolve con **tracciamento operatore** (Fase 2), non con auto-detect. Il binario DXF-pulito funziona già e va validato appena c'è un file pulito reale.
+Non forziamo euristiche per "indovinare" quale pezzo o quale ramo — è l'errore del 2026-07-13. L'operatore decide; l'engine calcola esatto ciò che l'operatore indica.

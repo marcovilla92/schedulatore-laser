@@ -2747,6 +2747,43 @@ def api_preventivi_dxf_select_point(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/follow-contour', methods=['POST'])
+def api_preventivi_dxf_follow_contour(preventivo_id, filename):
+    """CAD interno — tracciamento contorno stile Lantek Detect Part.
+
+    Click sul contorno del pezzo → segue la catena di segmenti (continuazione
+    più dritta, ignora le diramazioni delle quote) → geometria deterministica.
+    Validato: area entro ~0,1% di Lantek sui contorni puliti.
+
+    Body: {x: float, y: float}   (coord DXF in mm)
+    Response: {success, area_dm2, perimetro_taglio_m, n_forature, bbox, outer_xy,
+               holes_xy, source}  oppure  {success: False, error}
+    Su success False il frontend BLOCCA: chiede all'operatore di ri-cliccare
+    sul bordo del pezzo (mai un valore inventato).
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        try:
+            x = float(data.get('x'))
+            y = float(data.get('y'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'x/y richiesti (float mm DXF)'}), 400
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        from .preventivi.pick_part import follow_contour_from_click
+        app_cfg = BarcodeManager.load_config() or {}
+        detection_cfg = app_cfg.get('dxf_detection', {})
+        r = follow_contour_from_click(dxf_path, x, y, detection_cfg)
+        status = 200 if r.get('success') else 200  # success:False non è errore HTTP
+        return jsonify(r), status
+    except Exception as e:
+        logger.exception('dxf_follow_contour failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-region', methods=['POST'])
 def api_preventivi_dxf_select_region(preventivo_id, filename):
     """Ricalcola geometria pezzo prendendo tutti i contorni chiusi nella

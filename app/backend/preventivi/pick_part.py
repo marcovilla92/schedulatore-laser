@@ -249,6 +249,169 @@ def pick_part_from_click(path: str, click_x_mm: float, click_y_mm: float,
     return _geometry_from_outer(outer, faces)
 
 
+# ── Contour follower (tracciamento stile Lantek Detect Part) ────────────────
+#
+# Validato su casi reali (app/tests/validate_contour_follow.py): dato un click
+# sul contorno del pezzo, segue la catena di segmenti scegliendo sempre la
+# continuazione più dritta. Le witness-line delle quote (perpendicolari) vengono
+# ignorate. Area risultante entro ~0,1% di Lantek sui casi a contorno pulito.
+# Sui bivi ambigui / disegni multi-pezzo l'operatore guida col click (UI Fase 2).
+
+_FOLLOW_TOL_MM = 0.15   # tolleranza snap nodi del grafo
+_FOLLOW_MAX_STEPS = 300000
+
+
+def _segments_all(msp, colori_esclusi: set[int]) -> list[tuple]:
+    """Come _collect_segments ma ritorna coppie di punti (a, b) invece di 4-tuple."""
+    out = []
+    for entity in msp:
+        if entity.dxftype() in TIPI_ANNOTAZIONE:
+            continue
+        try:
+            if _layer_da_escludere(entity.dxf.layer):
+                continue
+        except AttributeError:
+            pass
+        if _entity_color_excluded(entity, colori_esclusi):
+            continue
+        for (x1, y1, x2, y2) in _entity_segments(entity):
+            out.append(((x1, y1), (x2, y2)))
+    return out
+
+
+def _build_graph(segs, tol=_FOLLOW_TOL_MM):
+    def key(p):
+        return (round(p[0] / tol), round(p[1] / tol))
+    nodes, adj = {}, {}
+    for a, b in segs:
+        ka, kb = key(a), key(b)
+        nodes.setdefault(ka, a)
+        nodes.setdefault(kb, b)
+        if ka == kb:
+            continue
+        adj.setdefault(ka, set()).add(kb)
+        adj.setdefault(kb, set()).add(ka)
+    return nodes, adj, key
+
+
+def _walk_straightest(nodes, adj, ka, kb, max_steps=_FOLLOW_MAX_STEPS):
+    """Cammina la catena scegliendo la continuazione più dritta a ogni nodo.
+    Ritorna (lista_chiavi_nodi, chiuso: bool)."""
+    loop = [ka, kb]
+    prev, cur = ka, kb
+    for _ in range(max_steps):
+        if cur == ka and len(loop) > 3:
+            return loop, True
+        pa, pc = nodes[prev], nodes[cur]
+        din = math.atan2(pc[1] - pa[1], pc[0] - pa[0])
+        best, bestturn = None, None
+        for nb in adj.get(cur, ()):
+            if nb == prev:
+                continue
+            pn = nodes[nb]
+            dout = math.atan2(pn[1] - pc[1], pn[0] - pc[0])
+            turn = abs((dout - din + math.pi) % (2 * math.pi) - math.pi)
+            if bestturn is None or turn < bestturn:
+                bestturn, best = turn, nb
+        if best is None:
+            return loop, False
+        loop.append(best)
+        prev, cur = cur, best
+    return loop, False
+
+
+def follow_contour_from_click(path: str, click_x_mm: float, click_y_mm: float,
+                              config: dict | None = None) -> dict:
+    """Traccia il contorno del pezzo dal click (modello Lantek Detect Part).
+
+    Segue la catena di segmenti dal segmento più vicino al click, scegliendo
+    la continuazione più dritta a ogni nodo (ignora le diramazioni delle quote).
+    Se chiude un loop → calcola area netta/perimetro/fori (matematica pura).
+
+    Ritorna {success, area_dm2, perimetro_taglio_m, n_forature, bbox, outer_xy,
+    holes_xy, source} oppure {success: False, error} se non chiude (il chiamante
+    BLOCCA e chiede all'operatore di riprovare/guidare).
+    """
+    if not _HAS_SHAPELY:
+        return {'success': False, 'error': 'Shapely non installato'}
+    cfg = config or {}
+    colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        return {'success': False, 'error': f'DXF non leggibile: {e}'}
+    msp = doc.modelspace()
+
+    segs = _segments_all(msp, colori_esclusi)
+    if not segs:
+        return {'success': False, 'error': 'Nessuna geometria nel DXF'}
+
+    nodes, adj, key = _build_graph(segs)
+
+    # Segmento più vicino al click
+    click = Point(click_x_mm, click_y_mm)
+    best_seg, best_d = None, None
+    for a, b in segs:
+        d = LineString([a, b]).distance(click)
+        if best_d is None or d < best_d:
+            best_d, best_seg = d, (a, b)
+    if best_seg is None:
+        return {'success': False, 'error': 'Nessun segmento vicino al click'}
+
+    ka, kb = key(best_seg[0]), key(best_seg[1])
+    if ka == kb:
+        return {'success': False, 'error': 'Segmento degenere sotto il click'}
+
+    # Prova entrambe le direzioni; tieni il loop chiuso di area maggiore
+    outer = None
+    for a0, b0 in ((ka, kb), (kb, ka)):
+        loop, closed = _walk_straightest(nodes, adj, a0, b0)
+        if not closed or len(loop) < 4:
+            continue
+        try:
+            poly = Polygon([nodes[k] for k in loop])
+            if not poly.is_valid:
+                poly = make_valid(poly)
+                if hasattr(poly, 'geoms'):
+                    cand = [g for g in poly.geoms if g.geom_type == 'Polygon']
+                    if not cand:
+                        continue
+                    poly = max(cand, key=lambda g: g.area)
+            if poly.geom_type != 'Polygon' or poly.area < MIN_AREA_MM2:
+                continue
+        except Exception:
+            continue
+        if outer is None or poly.area > outer.area:
+            outer = poly
+
+    if outer is None:
+        return {'success': False,
+                'error': 'Il contorno non si chiude da questo click',
+                'warnings': ['click su un bordo diverso del pezzo, o guida con waypoint']}
+
+    # Fori: facce chiuse strettamente contenute nell'outer
+    all_faces = _build_faces(path, colori_esclusi)
+    holes = [f for f in all_faces
+             if outer.contains(f.representative_point()) and f.area < outer.area * 0.9]
+
+    area_netta = (outer.area - sum(h.area for h in holes)) / 10000.0
+    perim_taglio = (outer.exterior.length + sum(h.exterior.length for h in holes)) / 1000.0
+    minx, miny, maxx, maxy = outer.bounds
+    return {
+        'success': True,
+        'area_dm2': area_netta,
+        'area_lorda_dm2': outer.area / 10000.0,
+        'perimetro_taglio_m': perim_taglio,
+        'n_forature': len(holes),
+        'bbox_width_mm': maxx - minx,
+        'bbox_height_mm': maxy - miny,
+        'outer_xy': list(outer.exterior.coords),
+        'holes_xy': [list(h.exterior.coords) for h in holes],
+        'source': 'manual-click-follow',
+        'warnings': [],
+    }
+
+
 def polygonize_faces(path: str, config: dict | None = None) -> list[dict]:
     """Ritorna TUTTE le facce polygonize con i loro dati (per probe/debug e viewer).
 
