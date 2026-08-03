@@ -4304,6 +4304,9 @@ class PreventivoManager:
                     costo_svasatura=float(a.get('costo_svasatura') or 0),
                     costo_apporto=float(a.get('costo_apporto') or 0),
                     costo_pulizia=float(a.get('costo_pulizia') or 0),
+                    geometria_manuale_confermata=bool(a.get('geometria_manuale_confermata')),
+                    geometry_source=a.get('geometry_source') or None,
+                    area_stimata_piega=bool(a.get('area_stimata_piega')),
                 ))
             session.commit()
             return {'success': True, 'count': len(articoli or [])}
@@ -4640,6 +4643,9 @@ class PreventivoManager:
             'costo_piega': a.costo_piega, 'costo_saldatura': a.costo_saldatura,
             'costo_filettatura': a.costo_filettatura, 'costo_svasatura': a.costo_svasatura,
             'costo_apporto': a.costo_apporto, 'costo_pulizia': a.costo_pulizia,
+            'geometria_manuale_confermata': bool(getattr(a, 'geometria_manuale_confermata', False)),
+            'geometry_source': getattr(a, 'geometry_source', None),
+            'area_stimata_piega': bool(getattr(a, 'area_stimata_piega', False)),
         }
 
     @staticmethod

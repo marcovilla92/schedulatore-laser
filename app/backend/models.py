@@ -287,6 +287,15 @@ class PreventivoArticolo(Base):
     spessore_mm = Column(Float, nullable=True)  # inserito dal commerciale
     materiale = Column(String, nullable=True)  # 'S235'|'INOX_304'|'ALU_5754'|...
     dxf_filename = Column(String, nullable=True)  # file DXF associato (per preview + trova-pezzo)
+    # --- CAD interno: geometria confermata dall'operatore (fail-safe) ---
+    # True quando l'operatore ha identificato il contorno nel CAD interno e
+    # confermato. Il gate invio blocca se un articolo con DXF non è confermato.
+    geometria_manuale_confermata = Column(Boolean, nullable=False, default=False)
+    # origine della geometria: 'manual-click' | 'manual-waypoints' | 'manual-override' | None
+    geometry_source = Column(String, nullable=True)
+    # per pezzi piegati senza vista sviluppo piatto: l'operatore stima l'area
+    # a mano (come oggi). True = area_dm2 è una stima umana, non traccia esatta.
+    area_stimata_piega = Column(Boolean, nullable=False, default=False)
     # DXF "pulito" (solo pezzo, senza cartiglio/quote/viste) — usato per thumbnail
     # commerciale + passaggio a Mirko per il nesting Lantek. Popolato o
     # automaticamente durante l'import batch se il detector v3 dà confidence >= 0.5
@@ -616,6 +625,16 @@ def initialize_database():
             if 'cleaned_status' not in existing_prev_art:
                 conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN cleaned_status VARCHAR'))
                 logger.info('Aggiunta colonna cleaned_status a preventivo_articoli')
+            # CAD interno — geometria confermata (2026-08-03)
+            if 'geometria_manuale_confermata' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN geometria_manuale_confermata BOOLEAN DEFAULT 0'))
+                logger.info('Aggiunta colonna geometria_manuale_confermata a preventivo_articoli')
+            if 'geometry_source' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN geometry_source VARCHAR'))
+                logger.info('Aggiunta colonna geometry_source a preventivo_articoli')
+            if 'area_stimata_piega' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN area_stimata_piega BOOLEAN DEFAULT 0'))
+                logger.info('Aggiunta colonna area_stimata_piega a preventivo_articoli')
             conn.commit()
 
     seed_users()

@@ -1635,11 +1635,11 @@ tr.row-warn:hover { background: #FEF3C7; }
             </div>
             <!-- Toolbar preview: azioni sul disegno sempre visibili -->
             <div class="sd-preview-toolbar" id="sd-preview-toolbar">
-              <button class="btn-primary sd-clean-btn" id="sd-btn-clean-top" onclick="sdOpenCleanup()" title="Ridefinisci l'area del pezzo con drag rettangolare">
-                <i data-lucide="scissors" style="width:12px;height:12px;"></i>
-                <span id="sd-btn-clean-top-label">Ridefinisci pezzo</span>
+              <button class="btn-primary sd-clean-btn" id="sd-btn-cad" onclick="openCadEditor()" title="Apri il CAD interno: identifica il contorno del pezzo cliccandolo">
+                <i data-lucide="mouse-pointer-click" style="width:12px;height:12px;"></i>
+                <span>Apri CAD — identifica pezzo</span>
               </button>
-              <span class="sd-clean-hint" id="sd-clean-hint">Preview sbagliata? Click qui e traccia il rettangolo attorno al pezzo.</span>
+              <span class="sd-clean-hint" id="sd-clean-hint">Clicca il contorno del pezzo nel CAD per area/perimetro esatti.</span>
             </div>
             <!-- Info bar inline: metriche chiave in singola riga, stile AlmaCAM -->
             <div class="sd-hero-stats" id="sd-hero-stats">
@@ -3550,9 +3550,12 @@ function _splitRowHtml(i, indent) {
   const hasBase = ((a.costo_base_override != null && a.costo_base_override > 0) || (a.costo_base_stimato || 0) > 0);
   const badgeNoBase = hasBase ? '' :
     `<span title="Costo laser mancante — il preventivo NON si può inviare" style="display:inline-block; margin-left:6px; padding:1px 6px; background:#FEE2E2; color:#B91C1C; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:.3px;">NO €</span>`;
+  // Badge ambra "DA CONFERMARE" quando ha DXF ma geometria non confermata nel CAD
+  const badgeNoCad = (a.dxf_filename && !a.geometria_manuale_confermata) ?
+    `<span title="Geometria non confermata — apri il CAD e identifica il pezzo" style="display:inline-block; margin-left:6px; padding:1px 6px; background:#FEF3C7; color:#92400E; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:.3px;">CAD?</span>` : '';
   return `<tr onclick="selectSplitArticolo(${i})" data-split-idx="${i}">
     <td class="thumb-td">${thumbHtml}</td>
-    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:11px;">${escapeHtml(a.codice || '—')}</code>${badgeNoBase}</td>
+    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:11px;">${escapeHtml(a.codice || '—')}</code>${badgeNoCad}${badgeNoBase}</td>
     <td class="n">${a.quantita || 1}</td>
     <td class="n">${a.spessore_mm ? a.spessore_mm.toFixed(1) : '—'}</td>
     <td>${escapeHtml(a.materiale || '—')}</td>
@@ -3560,6 +3563,53 @@ function _splitRowHtml(i, indent) {
     <td class="n" style="font-weight:700; ${hasBase ? '' : 'color:#B91C1C;'}">${formatEurStr(tot)}</td>
   </tr>`;
 }
+
+// ============================================================
+//  CAD interno — identificazione pezzo (Fase 2/3)
+// ============================================================
+let _cadEditorWin = null;
+let _cadEditorIdx = null;   // indice articolo in attesa di conferma dal CAD
+
+/** Apre il CAD interno per l'articolo selezionato. Al Conferma, il CAD invia
+ *  la geometria via postMessage e noi aggiorniamo currentArticoli. */
+function openCadEditor() {
+  const idx = _splitSelectedIdx;
+  if (idx == null || !currentArticoli[idx]) { alert('Seleziona prima un articolo.'); return; }
+  const a = currentArticoli[idx];
+  const file = a.dxf_filename;
+  if (!file) { alert('Questo articolo non ha un DXF associato.'); return; }
+  if (!currentPreventivo) { alert('Salva prima il preventivo.'); return; }
+  _cadEditorIdx = idx;
+  const url = `/dxf-editor.html?prev=${encodeURIComponent(currentPreventivo.id)}`
+            + `&file=${encodeURIComponent(file)}&articolo=${idx}`;
+  _cadEditorWin = window.open(url, 'cad-editor-' + idx, 'width=1400,height=900');
+}
+
+// Riceve la conferma dal CAD interno e aggiorna l'articolo + ricalcola + salva
+window.addEventListener('message', async (ev) => {
+  const msg = ev.data;
+  if (!msg || msg.type !== 'cad-confirm' || !msg.payload) return;
+  const p = msg.payload;
+  const idx = (typeof p.articolo !== 'undefined') ? parseInt(p.articolo, 10) : _cadEditorIdx;
+  if (idx == null || isNaN(idx) || !currentArticoli[idx]) return;
+  const a = currentArticoli[idx];
+  a.area_dm2 = p.area_dm2;
+  a.perimetro_taglio_m = p.perimetro_taglio_m;
+  a.n_forature = p.n_forature;
+  if (p.bbox_width_mm) a.bbox_w_mm = p.bbox_width_mm;
+  if (p.bbox_height_mm) a.bbox_h_mm = p.bbox_height_mm;
+  a.materiale = p.materiale;
+  a.spessore_mm = p.spessore_mm;
+  a.geometria_manuale_confermata = true;
+  a.geometry_source = p.geometry_source;
+  a.area_stimata_piega = !!p.area_stimata_piega;
+  // Ricalcola il costo base laser con i dati confermati
+  try { await stimaArt(idx, { silent: true }); } catch (_) {}
+  renderSplitTree(); recalcTotali();
+  if (_splitSelectedIdx === idx) selectSplitArticolo(idx);
+  scheduleSaveArticoli(300);
+  showMsg('msg-import', `✓ Pezzo "${a.codice}" confermato dal CAD (area ${(p.area_dm2||0).toFixed(3)} dm²)`, 'var(--green)');
+});
 
 /** Label dimensioni compatte per il tree.
  * Preferisce sempre le dimensioni bbox_w_mm/h_mm del cleaned DXF (precise
@@ -6577,8 +6627,14 @@ function closeReviewBatch() {
 async function validaCostiCompletamente() {
   const articoli_no_stima = [];   // dati completi ma stima non fatta
   const articoli_no_dati  = [];   // manca materiale/spessore/area/perim → non stimabile
+  const articoli_no_cad   = [];   // ha DXF ma geometria non confermata nel CAD
 
   for (const a of currentArticoli) {
+    // GUARDIA CAD: articolo con DXF ma geometria non confermata dall'operatore
+    if (a.dxf_filename && !a.geometria_manuale_confermata) {
+      articoli_no_cad.push({ codice: a.codice || 'senza codice' });
+      continue;
+    }
     const overr = a.costo_base_override;
     const stim = a.costo_base_stimato || 0;
     // Se ha override manuale, ok
@@ -6624,13 +6680,21 @@ async function validaCostiCompletamente() {
     }
   }
 
-  const ok = articoli_no_dati.length === 0 && articoli_no_stima.length === 0;
-  return { ok, articoli_no_stima, articoli_no_dati };
+  const ok = articoli_no_dati.length === 0 && articoli_no_stima.length === 0
+             && articoli_no_cad.length === 0;
+  return { ok, articoli_no_stima, articoli_no_dati, articoli_no_cad };
 }
 
 /** Costruisce messaggio user-friendly per la validazione fallita. */
 function _validazioneErrorMessage(v) {
   const parts = [];
+  if (v.articoli_no_cad && v.articoli_no_cad.length > 0) {
+    parts.push('⚠ Articoli con disegno ma geometria NON confermata nel CAD:');
+    for (const a of v.articoli_no_cad) parts.push(`   • ${a.codice}`);
+    parts.push('');
+    parts.push('AZIONE: seleziona l\'articolo, clicca "Apri CAD", identifica il contorno del pezzo e conferma.');
+    parts.push('');
+  }
   if (v.articoli_no_dati.length > 0) {
     parts.push('⚠ Articoli senza dati sufficienti per stimare il costo laser:');
     for (const a of v.articoli_no_dati) {

@@ -3983,11 +3983,17 @@ def _valida_costi_preventivo(preventivo_id):
         return []  # non trovato → l'endpoint darà 404 da sé
     invalidi = []
     for a in (prev.get('articoli') or []):
+        codice = a.get('codice') or '(senza codice)'
+        # 1) Geometria confermata nel CAD interno (fail-safe): se l'articolo ha
+        #    un DXF ma non è stato confermato dall'operatore → blocco.
+        if a.get('dxf_filename') and not a.get('geometria_manuale_confermata'):
+            invalidi.append({'codice': codice, 'motivo': 'geometria non confermata nel CAD (apri e conferma il pezzo)'})
+            continue
+        # 2) Costo base > 0
         overr = a.get('costo_base_override')
         stim = a.get('costo_base_stimato') or 0
         if (overr is not None and overr > 0) or (stim and stim > 0):
             continue
-        codice = a.get('codice') or '(senza codice)'
         if not (a.get('materiale') and a.get('spessore_mm')
                 and a.get('area_dm2') and a.get('perimetro_taglio_m')):
             invalidi.append({'codice': codice, 'motivo': 'dati mancanti (materiale/spessore/area/perimetro)'})

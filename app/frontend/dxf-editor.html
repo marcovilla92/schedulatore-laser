@@ -35,6 +35,13 @@
   .stat .lbl { color: var(--text-2); font-size: 13px; }
   .stat .val { font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
   .stat .val.big { color: var(--accent); font-size: 17px; }
+  .field { margin: 10px 0; }
+  .field label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+  .field select, .field input { width: 100%; padding: 8px 10px; background: #0e1526; color: var(--text);
+        border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+  .field select:focus, .field input:focus { outline: none; border-color: var(--accent-2); }
+  .field .mini { display:block; font-size: 11px; color: var(--text-2); margin-top: 4px; line-height:1.4; }
+  .check { display:flex; align-items:center; gap:8px; font-size:12px; color: var(--text-2); margin:10px 0; cursor:pointer; }
   .hint { margin-top: 16px; padding: 12px; background: #1c2436; border-radius: 8px;
           font-size: 12px; color: var(--text-2); line-height: 1.5; }
   .status { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 13px; display: none; }
@@ -83,6 +90,35 @@
     <div class="stat"><span class="lbl">Perimetro taglio</span><span class="val" id="s-perim">—</span></div>
     <div class="stat"><span class="lbl">N. fori</span><span class="val" id="s-fori">—</span></div>
     <div class="stat"><span class="lbl">Ingombro</span><span class="val" id="s-bbox">—</span></div>
+
+    <h3 style="margin-top:22px;">Dati pezzo (obbligatori)</h3>
+    <div class="field">
+      <label for="f-materiale">Materiale *</label>
+      <select id="f-materiale" onchange="onDatiChange()">
+        <option value="">— scegli —</option>
+        <option value="S235">S235 (acciaio)</option>
+        <option value="ZINCATO">Acciaio zincato</option>
+        <option value="INOX_304">INOX 304</option>
+        <option value="INOX_316">INOX 316</option>
+        <option value="ALU_5754">Alluminio 5754</option>
+        <option value="ALU_5083">Alluminio 5083</option>
+        <option value="OTTONE">Ottone</option>
+        <option value="CU">Rame</option>
+        <option value="C45">C45</option>
+        <option value="ALTRO">Altro</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-spessore">Spessore (mm) *</label>
+      <input type="number" id="f-spessore" step="0.1" min="0" placeholder="es. 3" oninput="onDatiChange()">
+    </div>
+    <label class="check"><input type="checkbox" id="f-piega" onchange="onPiegaToggle()">
+      Pezzo piegato — area = sviluppo stimato</label>
+    <div class="field" id="wrap-area-override" style="display:none;">
+      <label for="f-area-override">Area sviluppo piatto (dm²) *</label>
+      <input type="number" id="f-area-override" step="0.001" min="0" placeholder="stima a esperienza" oninput="onDatiChange()">
+      <span class="mini">Il disegno mostra il pezzo piegato: inserisci l'area del piatto tagliato (come stimi oggi).</span>
+    </div>
     <div class="status" id="status"></div>
     <div class="hint">
       <b>Come si usa</b><br>
@@ -255,8 +291,8 @@ async function onPick(cx, cy) {
     lastResult = d;
     drawOverlay(d);
     updateStats(d);
-    setStatus('ok', 'Contorno tracciato. Verifica e conferma.');
-    document.getElementById('btn-confirm').disabled = false;
+    setStatus('ok', 'Contorno tracciato. Inserisci materiale e spessore, poi conferma.');
+    onDatiChange();
   } catch (e) { setStatus('err', 'Errore: ' + e.message); }
 }
 
@@ -365,16 +401,57 @@ function setStatus(kind, msg) {
   if (!msg) el.style.display = 'none';
 }
 
+// Abilita "Conferma" solo se: contorno tracciato + materiale + spessore (+ area override se piegato)
+function onDatiChange() {
+  const mat = document.getElementById('f-materiale').value;
+  const sp = parseFloat(document.getElementById('f-spessore').value);
+  const piega = document.getElementById('f-piega').checked;
+  const areaOv = parseFloat(document.getElementById('f-area-override').value);
+  const ok = lastResult && mat && sp > 0 && (!piega || areaOv > 0);
+  document.getElementById('btn-confirm').disabled = !ok;
+}
+function onPiegaToggle() {
+  const piega = document.getElementById('f-piega').checked;
+  document.getElementById('wrap-area-override').style.display = piega ? '' : 'none';
+  if (piega && lastResult) {
+    // pre-compila con l'area tracciata come punto di partenza per la stima
+    const f = document.getElementById('f-area-override');
+    if (!f.value) f.value = lastResult.area_dm2.toFixed(3);
+  }
+  onDatiChange();
+}
+
 async function confermaPezzo() {
   if (!lastResult) return;
-  // Fase 3: qui salveremo su articolo con geometria_manuale_confermata=true.
-  // Per ora ritorna il risultato al chiamante (window.opener) se presente.
+  const mat = document.getElementById('f-materiale').value;
+  const sp = parseFloat(document.getElementById('f-spessore').value);
+  const piega = document.getElementById('f-piega').checked;
+  const areaOv = parseFloat(document.getElementById('f-area-override').value);
+  if (!mat || !(sp > 0)) { setStatus('err', 'Materiale e spessore sono obbligatori.'); return; }
+  if (piega && !(areaOv > 0)) { setStatus('err', 'Inserisci l\'area dello sviluppo piatto.'); return; }
+
+  // area effettiva: se piegato usa lo sviluppo stimato, altrimenti l'area tracciata
+  const areaEff = piega ? areaOv : lastResult.area_dm2;
+  const payload = {
+    articolo: ARTICOLO,
+    file: FILE,
+    geometria_manuale_confermata: true,
+    geometry_source: piega ? 'manual-override' : (lastResult.source || 'manual-click'),
+    area_stimata_piega: piega,
+    area_dm2: areaEff,
+    perimetro_taglio_m: lastResult.perimetro_taglio_m,
+    n_forature: lastResult.n_forature,
+    bbox_width_mm: lastResult.bbox_width_mm,
+    bbox_height_mm: lastResult.bbox_height_mm,
+    materiale: mat,
+    spessore_mm: sp,
+  };
   if (window.opener && ARTICOLO) {
-    window.opener.postMessage({ type: 'cad-confirm', articolo: ARTICOLO, geometria: lastResult }, '*');
-    setStatus('ok', 'Pezzo confermato e inviato al preventivo.');
+    window.opener.postMessage({ type: 'cad-confirm', payload }, '*');
+    setStatus('ok', 'Pezzo confermato e inviato al preventivo. Puoi chiudere.');
   } else {
-    setStatus('ok', 'Pezzo confermato (area ' + lastResult.area_dm2.toFixed(3) + ' dm²). '
-      + 'Salvataggio su articolo: Fase 3.');
+    setStatus('ok', `Pezzo confermato: ${mat} sp.${sp}mm, area ${areaEff.toFixed(3)} dm²`
+      + (piega ? ' (sviluppo stimato)' : '') + '. (Apri dal preventivo per salvare)');
   }
 }
 
