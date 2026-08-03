@@ -56,6 +56,9 @@
     "costo_pulizia_saldatura_metro": 5,
     "costo_movimentazione_kg": 0.05,
     "soglia_movimentazione_kg": 25,
+    "costo_generali_pct": 8,
+    "tariffa_oraria": 45,
+    "saldatura_a_tempo": true,
     "margine_default_pct": 25,
     "margine_su_montaggio": true,
     "sconto_quantita": {

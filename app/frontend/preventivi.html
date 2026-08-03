@@ -1994,7 +1994,11 @@ tr.row-warn:hover { background: #FEF3C7; }
       <div class="card-body">
         <div class="form-row">
           <div class="form-field">
-            <label>Margine default (%)</label>
+            <label>Costi generali (%)</label>
+            <input type="number" id="cfg-generali-pct" step="0.5" min="0" max="100" title="Overhead applicato sul costo, prima del ricarico">
+          </div>
+          <div class="form-field">
+            <label>Margine / ricarico default (%)</label>
             <input type="number" id="cfg-margine-default" step="0.5" min="0" max="100">
           </div>
           <div class="form-field">
@@ -2003,6 +2007,12 @@ tr.row-warn:hover { background: #FEF3C7; }
               <option value="true">S&igrave;</option>
               <option value="false">No</option>
             </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Tariffa oraria saldatura/montaggio (&euro;/h)</label>
+            <input type="number" id="cfg-tariffa-oraria" step="1" min="0" title="Usata per saldatura e assemblaggio a tempo">
           </div>
         </div>
         <div class="form-field" style="margin-top:10px;">
@@ -2673,6 +2683,8 @@ async function loadImpostazioni() {
     document.getElementById('cfg-sald-pulizia').value = P.costo_pulizia_saldatura_metro ?? 0;
     document.getElementById('cfg-mov-costo').value = P.costo_movimentazione_kg ?? 0;
     document.getElementById('cfg-mov-soglia').value = P.soglia_movimentazione_kg ?? 25;
+    document.getElementById('cfg-generali-pct').value = P.costo_generali_pct ?? 8;
+    document.getElementById('cfg-tariffa-oraria').value = P.tariffa_oraria ?? 45;
     document.getElementById('cfg-margine-default').value = P.margine_default_pct ?? 25;
     document.getElementById('cfg-margine-montaggio').value = String(!!(P.margine_su_montaggio ?? true));
     const sc = P.sconto_quantita || {};
@@ -2739,6 +2751,9 @@ async function saveImpostazioni() {
         costo_pulizia_saldatura_metro: parseFloat(document.getElementById('cfg-sald-pulizia').value) || 0,
         costo_movimentazione_kg: parseFloat(document.getElementById('cfg-mov-costo').value) || 0,
         soglia_movimentazione_kg: parseFloat(document.getElementById('cfg-mov-soglia').value) || 25,
+        costo_generali_pct: parseFloat(document.getElementById('cfg-generali-pct').value) || 0,
+        tariffa_oraria: parseFloat(document.getElementById('cfg-tariffa-oraria').value) || 45,
+        saldatura_a_tempo: (_prevCfg && _prevCfg.saldatura_a_tempo) ?? true,
         margine_default_pct: parseFloat(document.getElementById('cfg-margine-default').value) || 0,
         margine_su_montaggio: document.getElementById('cfg-margine-montaggio').value === 'true',
         sconto_quantita: sc,
@@ -5379,11 +5394,16 @@ function recalcTotali() {
     if (p.codice_assieme) continue;
     costoPiastre += (p.costo || 0);
   }
-  const conMargine = totalePezzo * (1 + margine / 100);
-  // Margine sui costi di assieme/tubolari/piastre — default sì (configurabile in futuro)
-  const conMargineAssiemi = costoAssiemi * (1 + margine / 100);
-  const conMargineTubolari = costoTubolari * (1 + margine / 100);
-  const conMarginePiastre = costoPiastre * (1 + margine / 100);
+  // Costi generali (overhead) applicati SUL COSTO, poi ricarico (margine).
+  // Ordine deciso: costo → +generali% → +ricarico%. (Marco 2026-08-03)
+  const genPct = (_prevCfg && _prevCfg.costo_generali_pct) || 0;
+  const genF = 1 + genPct / 100;
+  const margF = 1 + margine / 100;
+  const conMargine = totalePezzo * genF * margF;
+  // Generali + margine sui costi di assieme/tubolari/piastre
+  const conMargineAssiemi = costoAssiemi * genF * margF;
+  const conMargineTubolari = costoTubolari * genF * margF;
+  const conMarginePiastre = costoPiastre * genF * margF;
   const totaleLotto = conMargine * qty + conMargineAssiemi + conMargineTubolari + conMarginePiastre;
   document.getElementById('t-pezzo').innerHTML = formatEur(totalePezzo) + '<span class="unit">€</span>';
   document.getElementById('t-margine').innerHTML = formatEur(conMargine) + '<span class="unit">€</span>';

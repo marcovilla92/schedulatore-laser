@@ -3910,10 +3910,12 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
     costo_piastre_std = sum(float(pl.get('costo') or 0)
                              for pl in piastre_list if not pl.get('codice_assieme'))
 
-    con_margine = totale_pezzo_calc * (1 + margine_pct / 100.0)
-    con_margine_assiemi = costo_assiemi_calc * (1 + margine_pct / 100.0)
-    con_margine_tubolari = costo_tubolari_std * (1 + margine_pct / 100.0)
-    con_margine_piastre = costo_piastre_std * (1 + margine_pct / 100.0)
+    # Generali (overhead) sul costo, poi ricarico — coerente col frontend
+    _gen_f = 1 + float((app_cfg.get('preventivi_config') or {}).get('costo_generali_pct', 0)) / 100.0
+    con_margine = totale_pezzo_calc * _gen_f * (1 + margine_pct / 100.0)
+    con_margine_assiemi = costo_assiemi_calc * _gen_f * (1 + margine_pct / 100.0)
+    con_margine_tubolari = costo_tubolari_std * _gen_f * (1 + margine_pct / 100.0)
+    con_margine_piastre = costo_piastre_std * _gen_f * (1 + margine_pct / 100.0)
     totale_lotto_calc = (con_margine * qty_preventivo
                           + con_margine_assiemi + con_margine_tubolari + con_margine_piastre)
 

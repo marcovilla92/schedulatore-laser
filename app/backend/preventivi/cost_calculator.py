@@ -88,10 +88,14 @@ def calcola_preventivo(
     totale_pezzo = (base + costo_piegatura + costo_saldatura + costo_filettatura
                     + costo_svasatura + costo_mat_apporto + costo_pulizia)
 
+    # Costi generali (overhead) applicati SUL COSTO, poi ricarico. (Marco 2026-08-03)
+    generali_pct = float(config.get("costo_generali_pct", 0))
+    gen_f = 1 + generali_pct / 100
+
     if margine > 0:
-        totale_pezzo_con_margine = totale_pezzo * (1 + margine / 100)
+        totale_pezzo_con_margine = totale_pezzo * gen_f * (1 + margine / 100)
     else:
-        totale_pezzo_con_margine = totale_pezzo
+        totale_pezzo_con_margine = totale_pezzo * gen_f
 
     # -- Economia di scala: sconto quantità --
     sconto_qty_config = config.get("sconto_quantita", {})
@@ -128,11 +132,11 @@ def calcola_preventivo(
             if peso_kg > soglia_mov_kg:
                 costo_movimentazione += (peso_kg * costo_mov_kg) * m.get('qty', 1)
 
-    # -- Margine su montaggio --
+    # -- Generali + margine su montaggio --
     if config.get("margine_su_montaggio", True) and margine > 0:
-        costo_montaggio_con_margine = (costo_montaggio_totale + costo_movimentazione) * (1 + margine / 100)
+        costo_montaggio_con_margine = (costo_montaggio_totale + costo_movimentazione) * gen_f * (1 + margine / 100)
     else:
-        costo_montaggio_con_margine = costo_montaggio_totale + costo_movimentazione
+        costo_montaggio_con_margine = (costo_montaggio_totale + costo_movimentazione) * gen_f
 
     # -- Costo tubolari --
     costo_tubolari_totale = 0.0
@@ -140,9 +144,9 @@ def calcola_preventivo(
         costi_tub = tub_data.get('costi', {})
         costo_tubolari_totale += costi_tub.get('totale', 0)
     if config.get("margine_su_montaggio", True) and margine > 0:
-        costo_tubolari_con_margine = costo_tubolari_totale * (1 + margine / 100)
+        costo_tubolari_con_margine = costo_tubolari_totale * gen_f * (1 + margine / 100)
     else:
-        costo_tubolari_con_margine = costo_tubolari_totale
+        costo_tubolari_con_margine = costo_tubolari_totale * gen_f
 
     # -- Costo piastre --
     costo_piastre_totale = 0.0
@@ -150,9 +154,9 @@ def calcola_preventivo(
         costi_pia = pia_data.get('costi', {})
         costo_piastre_totale += costi_pia.get('totale', 0)
     if config.get("margine_su_montaggio", True) and margine > 0:
-        costo_piastre_con_margine = costo_piastre_totale * (1 + margine / 100)
+        costo_piastre_con_margine = costo_piastre_totale * gen_f * (1 + margine / 100)
     else:
-        costo_piastre_con_margine = costo_piastre_totale
+        costo_piastre_con_margine = costo_piastre_totale * gen_f
 
     totale_lotto = (totale_pezzo_scontato * quantita
                     + costo_montaggio_con_margine
