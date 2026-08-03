@@ -78,6 +78,26 @@ L'engine di tracciamento deterministico **funziona**: dato il click giusto sul c
 2. eventualmente guida con waypoint i bivi ambigui.
 Non auto-detect: tracciamento umano assistito, come Lantek Detect Part. Ogni risultato è visibile e confermato dall'operatore (fail-safe).
 
+## UI CAD interno — validata nel browser (2026-08-03)
+
+Pagina `app/frontend/dxf-editor.html` + endpoint `geometry-json` + `follow-contour`. Test interattivo (chrome-devtools) su disegni reali:
+
+- **20PA00693 (contorno pulito)**: click sul bordo → contorno verde esatto + 4 fori blu. Pannello: **Area 1,164 dm²** (Lantek 1,1635 → 0,05%), perim 1,028 m, ingombro 410×30. ✓
+- **Click fuori dal contorno**: pannello rosso **"Il contorno non si chiude"**, NESSUN numero. Fail-safe visivo confermato. ✓
+- **CPPBPA0044 (pezzo con bivio)**: click sul bordo reale → trace chiude 0,93 dm² (326×45) invece di 1,60 Lantek. Il "più dritto" devia a un bivio. Restituisce success con area plausibile ma **sbagliata** → l'operatore VEDE il verde che non copre tutto il pezzo e rifiuta. È "fail-visibile" (meglio del vecchio 13,6× silenzioso), ma serve **guida a waypoint** per forzare il percorso corretto.
+
+## Stato reale engine (misurato)
+
+- Contorni puliti (~metà dei casi): single-click → area esatta ~0,1% Lantek.
+- Contorni con bivi ambigui: single-click → contorno sbagliato ma VISIBILE (operatore rifiuta) oppure BLOCCO. Serve waypoint.
+- **Nessun errore silenzioso**: o esatto, o visibilmente sbagliato, o bloccato. Mai un numero sbagliato senza segnale (era il difetto del vecchio detector).
+
+## Prossimi passi
+
+1. **Waypoint guidance**: l'operatore clicca più punti lungo il contorno; il follow segue tra waypoint consecutivi (shortest-path sul grafo). Risolve i bivi e i pezzi complessi → copertura verso 6/6.
+2. **Cross-check area**: confronto area tracciata vs area-da-peso/spessore del cartiglio → flag se discordano (rafforza il fail-safe oltre il visivo).
+3. **Fase 3**: Conferma pezzo → salva su articolo (geometria_manuale_confermata=true) + dropdown materiale/spessore obbligatori + gate invio.
+
 ## Cosa NON facciamo (disciplina anti-disastro)
 
-Non forziamo euristiche per "indovinare" quale pezzo o quale ramo — è l'errore del 2026-07-13. L'operatore decide; l'engine calcola esatto ciò che l'operatore indica.
+Non forziamo euristiche per "indovinare" quale pezzo o quale ramo — è l'errore del 2026-07-13. L'operatore decide; l'engine calcola esatto ciò che l'operatore indica. Dove il single-click non basta, si aggiunge la guida a waypoint, non un'euristica di indovinello.
