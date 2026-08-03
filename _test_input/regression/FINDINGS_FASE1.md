@@ -39,6 +39,19 @@ Test approcci automatici (tutti falliti, misurati):
 2. Conferma che l'operatore-in-the-loop è **obbligatorio**, non un fallback.
 3. Solleva la domanda che cambia tutta la strategia geometria: **il cliente manda anche DXF pronti al taglio (1 file = 1 contorno piatto), o solo disegni?** Perché Lantek per tagliare ha comunque bisogno di un DXF pulito: se quel file esiste, si preventiva da QUELLO (banale ed esatto), non dal disegno.
 
+## Risposta di Marco (2026-08-03) → strategia a due binari
+
+- I DXF **dipendono dal cliente**: alcuni mandano file puliti pronti al taglio, altri solo disegni.
+- Oggi il DXF pulito di taglio lo estrae **Lantek dal disegno con selezione operatore** (la funzione "Detect Part" che vogliamo replicare).
+
+**Strategia geometria a due binari:**
+1. **DXF pulito (1 file = 1 contorno piatto)**: `pick_part.py` polygonize estrae in modo esatto e banale. L'operatore conferma. Affidabile subito. (Manca un file pulito nel set di test per validarlo — da procurare.)
+2. **DXF-disegno**: serve replicare il "Detect Part" di Lantek — l'operatore **traccia/seleziona il contorno** sul disegno renderizzato. È il cuore della Fase 2. NON è auto-detect: è tracciamento umano assistito.
+
+## Tentativo pruning rami morti (2026-08-03) → FALLITO
+
+Ipotesi: le witness-line delle quote sono monconi aperti; potandoli (degree-1 pruning) prima di polygonize il contorno chiuso emergerebbe. **Misurato: non funziona.** Su 20PA00693 la faccia migliore resta 119×32 (vs 410×30 Lantek); la più grande torna l'intero foglio. Il noding di `unary_union` spezza in sotto-segmenti collineari e il grado dei nodi non separa pulito i monconi dal contorno. Vicolo cieco — non committato.
+
 ## Cosa NON facciamo (disciplina anti-disastro)
 
-Non forziamo una soluzione stanotte inventando euristiche per "indovinare" il pezzo nel disegno — è esattamente l'errore che ha portato al disastro del 2026-07-13. Prima si chiarisce la natura reale dei file in ingresso, poi si progetta la geometria di conseguenza.
+Non forziamo una soluzione inventando euristiche per "indovinare" il pezzo nel disegno — è l'errore del 2026-07-13. Il binario DXF-disegno si risolve con **tracciamento operatore** (Fase 2), non con auto-detect. Il binario DXF-pulito funziona già e va validato appena c'è un file pulito reale.
