@@ -47,6 +47,9 @@
   .status { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 13px; display: none; }
   .status.ok { background: rgba(34,197,94,.12); color: var(--accent); display: block; }
   .status.err { background: rgba(239,68,68,.12); color: var(--red); display: block; }
+  .xcheck { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.45; }
+  .xcheck.ok { background: rgba(34,197,94,.10); color: var(--accent); border: 1px solid rgba(34,197,94,.3); }
+  .xcheck.warn { background: rgba(245,158,11,.12); color: #fbbf24; border: 1px solid rgba(245,158,11,.4); }
   .zoominfo { position: absolute; bottom: 10px; left: 12px; font-size: 11px; color: var(--text-2);
               background: rgba(0,0,0,.4); padding: 4px 8px; border-radius: 5px; font-family: monospace; }
   /* SVG element styles */
@@ -119,6 +122,7 @@
       <input type="number" id="f-area-override" step="0.001" min="0" placeholder="stima a esperienza" oninput="onDatiChange()">
       <span class="mini">Il disegno mostra il pezzo piegato: inserisci l'area del piatto tagliato (come stimi oggi).</span>
     </div>
+    <div class="xcheck" id="xcheck" style="display:none;"></div>
     <div class="status" id="status"></div>
     <div class="hint">
       <b>Come si usa</b><br>
@@ -145,6 +149,15 @@ let view = null;              // viewBox corrente {x,y,w,h} in mm (y già flippa
 let lastResult = null;        // ultimo tracciamento riuscito
 let mode = 'auto';            // 'auto' (click singolo) | 'wp' (waypoint guidato)
 let waypoints = [];           // [[x,y] mm DXF] in modo guidato
+let pesoCartiglio = null;     // peso dichiarato nel cartiglio (kg) per cross-check
+
+// Densità materiali (kg/dm³) per il cross-check peso calcolato vs cartiglio
+const DENSITA = {
+  S235: 7.85, ZINCATO: 7.85, C45: 7.85, ALTRO: 7.85,
+  INOX_304: 7.9, INOX_316: 8.0,
+  ALU_5754: 2.7, ALU_5083: 2.7,
+  OTTONE: 8.4, CU: 8.9,
+};
 
 // ── Costruzione scena ──────────────────────────────────────────────
 // SVG usa y verso il basso; il DXF ha y verso l'alto. Flippo con un <g> scale(1,-1).
@@ -156,8 +169,41 @@ async function load() {
   const d = await r.json();
   if (d.error || !d.extents) { setStatus('err', 'Errore geometria: ' + (d.error || 'vuota')); return; }
   EXT = d.extents;
+  pesoCartiglio = (d.peso_cartiglio_kg && d.peso_cartiglio_conf >= 0.5) ? d.peso_cartiglio_kg : null;
   buildScene(d.polylines);
   zoomFit();
+}
+
+// Cross-check: peso calcolato (area×spessore×densità) vs peso del cartiglio.
+// Intercetta pezzi piegati (traccia folded → peso più basso) e spessore/materiale errati.
+function crossCheckPeso() {
+  const el = document.getElementById('xcheck');
+  const mat = document.getElementById('f-materiale').value;
+  const sp = parseFloat(document.getElementById('f-spessore').value);
+  const piega = document.getElementById('f-piega').checked;
+  const areaOv = parseFloat(document.getElementById('f-area-override').value);
+  const area = (piega && areaOv > 0) ? areaOv : (lastResult ? lastResult.area_dm2 : 0);
+  if (!lastResult || !mat || !(sp > 0) || !(area > 0)) { el.style.display = 'none'; return; }
+  const dens = DENSITA[mat] || 7.85;
+  const pesoCalc = area * (sp / 100) * dens;   // dm² × dm × kg/dm³ = kg
+  if (pesoCartiglio == null) {
+    el.className = 'xcheck'; el.style.display = 'block';
+    el.innerHTML = `Peso calcolato <b>${pesoCalc.toFixed(3)} kg</b> · cartiglio non disponibile (nessun cross-check).`;
+    return;
+  }
+  const diffPct = Math.abs(pesoCalc - pesoCartiglio) / pesoCartiglio * 100;
+  if (diffPct <= 8) {
+    el.className = 'xcheck ok'; el.style.display = 'block';
+    el.innerHTML = `✓ Peso calcolato <b>${pesoCalc.toFixed(3)} kg</b> ≈ cartiglio ${pesoCartiglio.toFixed(3)} kg (Δ ${diffPct.toFixed(0)}%). Coerente.`;
+  } else {
+    el.className = 'xcheck warn'; el.style.display = 'block';
+    const hint = piega
+      ? 'Con il pezzo piegato lo scarto è atteso (l\'area folded è minore dello sviluppo). Assicurati che l\'area inserita sia lo sviluppo piatto.'
+      : (pesoCalc < pesoCartiglio
+          ? 'Il peso calcolato è MINORE del cartiglio: forse il pezzo è piegato (spunta la casella) o hai tracciato solo parte del contorno.'
+          : 'Il peso calcolato è MAGGIORE del cartiglio: verifica spessore/materiale, o area sovrastimata.');
+    el.innerHTML = `⚠ Peso calcolato <b>${pesoCalc.toFixed(3)} kg</b> vs cartiglio ${pesoCartiglio.toFixed(3)} kg (Δ ${diffPct.toFixed(0)}%).<br>${hint}`;
+  }
 }
 
 function buildScene(polylines) {
@@ -409,6 +455,7 @@ function onDatiChange() {
   const areaOv = parseFloat(document.getElementById('f-area-override').value);
   const ok = lastResult && mat && sp > 0 && (!piega || areaOv > 0);
   document.getElementById('btn-confirm').disabled = !ok;
+  crossCheckPeso();
 }
 function onPiegaToggle() {
   const piega = document.getElementById('f-piega').checked;

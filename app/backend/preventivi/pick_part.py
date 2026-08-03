@@ -322,9 +322,26 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
 
     if minx == float('inf'):
         return {'error': 'Nessuna geometria', 'extents': None, 'polylines': []}
+
+    # Cross-check anchor: peso dichiarato nel cartiglio (per confronto con il
+    # peso calcolato da area×spessore×densità → intercetta pezzi piegati /
+    # spessore o materiale sbagliati).
+    peso_cartiglio = None
+    peso_conf = 0.0
+    try:
+        from .dxf_scanner import estrai_peso_da_cartiglio
+        pc = estrai_peso_da_cartiglio(path)
+        if pc and pc.get('peso_kg'):
+            peso_cartiglio = pc['peso_kg']
+            peso_conf = pc.get('confidence', 0.0)
+    except Exception:
+        pass
+
     return {
         'extents': [minx, miny, maxx, maxy],
         'polylines': polylines,
+        'peso_cartiglio_kg': peso_cartiglio,
+        'peso_cartiglio_conf': peso_conf,
     }
 
 
