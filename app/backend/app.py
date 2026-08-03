@@ -2806,6 +2806,35 @@ def api_preventivi_dxf_follow_contour(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/trace-waypoints', methods=['POST'])
+def api_preventivi_dxf_trace_waypoints(preventivo_id, filename):
+    """CAD interno — tracciamento GUIDATO con waypoint (per bivi/pezzi complessi).
+
+    L'operatore fornisce N punti lungo il contorno; il sistema segue la
+    geometria DXF reale (cammino minimo) tra waypoint consecutivi e chiude.
+
+    Body: {points: [[x,y], ...]}   (coord DXF mm, almeno 2)
+    Response: come follow-contour, oppure {success:False, error}.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        points = data.get('points')
+        if not isinstance(points, list) or len(points) < 2:
+            return jsonify({'success': False, 'error': 'points: lista di almeno 2 [x,y]'}), 400
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        from .preventivi.pick_part import trace_contour_waypoints
+        app_cfg = BarcodeManager.load_config() or {}
+        r = trace_contour_waypoints(dxf_path, points, app_cfg.get('dxf_detection', {}))
+        return jsonify(r), 200
+    except Exception as e:
+        logger.exception('dxf_trace_waypoints failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/select-region', methods=['POST'])
 def api_preventivi_dxf_select_region(preventivo_id, filename):
     """Ricalcola geometria pezzo prendendo tutti i contorni chiusi nella

@@ -50,6 +50,10 @@
                    vector-effect: non-scaling-stroke; pointer-events: none; }
   .hole-overlay { stroke: var(--hole); stroke-width: 2; fill: rgba(59,130,246,.22);
                   vector-effect: non-scaling-stroke; pointer-events: none; }
+  .wp-dot { fill: var(--amber); stroke: #000; stroke-width: .5; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .wp-line { stroke: var(--amber); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3;
+             vector-effect: non-scaling-stroke; pointer-events: none; }
+  .btn.active { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
 </style>
 </head>
 <body>
@@ -57,6 +61,12 @@
   <span class="title">CAD interno · Identificazione pezzo</span>
   <span class="file" id="hdr-file">—</span>
   <span class="spacer"></span>
+  <span style="display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+    <button class="btn" id="mode-auto" style="border:none; border-radius:0;" onclick="setMode('auto')">Auto</button>
+    <button class="btn" id="mode-wp" style="border:none; border-radius:0;" onclick="setMode('wp')">Guidato</button>
+  </span>
+  <button class="btn" id="btn-undo-wp" style="display:none;" onclick="undoWaypoint()">Annulla ultimo</button>
+  <button class="btn" id="btn-close-wp" style="display:none;" onclick="closeWaypoints()">Chiudi contorno</button>
   <button class="btn" onclick="zoomFit()">Adatta (F)</button>
   <button class="btn" onclick="resetTrace()">Pulisci</button>
   <button class="btn primary" id="btn-confirm" disabled onclick="confermaPezzo()">Conferma pezzo</button>
@@ -96,7 +106,9 @@ const svg = document.getElementById('svg');
 const SVGNS = 'http://www.w3.org/2000/svg';
 let EXT = null;               // [minx,miny,maxx,maxy] in mm DXF
 let view = null;              // viewBox corrente {x,y,w,h} in mm (y già flippata)
-let lastResult = null;        // ultimo follow-contour riuscito
+let lastResult = null;        // ultimo tracciamento riuscito
+let mode = 'auto';            // 'auto' (click singolo) | 'wp' (waypoint guidato)
+let waypoints = [];           // [[x,y] mm DXF] in modo guidato
 
 // ── Costruzione scena ──────────────────────────────────────────────
 // SVG usa y verso il basso; il DXF ha y verso l'alto. Flippo con un <g> scale(1,-1).
@@ -210,10 +222,25 @@ function clientToMm(cx, cy) {
   return { x: p.x, y: p.y };
 }
 
-// ── Click → follow-contour ─────────────────────────────────────────
+// ── Modalità ───────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('mode-auto').classList.toggle('active', m === 'auto');
+  document.getElementById('mode-wp').classList.toggle('active', m === 'wp');
+  document.getElementById('btn-undo-wp').style.display = m === 'wp' ? '' : 'none';
+  document.getElementById('btn-close-wp').style.display = m === 'wp' ? '' : 'none';
+  if (m === 'wp') {
+    setStatus('', 'Modo guidato: clicca i punti lungo il contorno del pezzo, poi "Chiudi contorno".');
+  } else {
+    setStatus('', 'Modo auto: clicca una volta sul bordo del pezzo.');
+  }
+}
+
+// ── Click → auto o waypoint ────────────────────────────────────────
 async function onPick(cx, cy) {
   const p = clientToMm(cx, cy);
   const xmm = p.x, ymm = -p.y;   // riporta y in coord DXF (de-flip)
+  if (mode === 'wp') { addWaypoint(xmm, ymm); return; }
   setStatus('', 'Traccio il contorno…');
   try {
     const r = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/follow-contour`, {
@@ -222,7 +249,7 @@ async function onPick(cx, cy) {
     });
     const d = await r.json();
     if (!d.success) {
-      setStatus('err', d.error || 'Il contorno non si chiude — clicca sul bordo del pezzo.');
+      setStatus('err', (d.error || 'Il contorno non si chiude') + ' — riprova sul bordo, o passa a "Guidato".');
       return;
     }
     lastResult = d;
@@ -233,9 +260,69 @@ async function onPick(cx, cy) {
   } catch (e) { setStatus('err', 'Errore: ' + e.message); }
 }
 
-function drawOverlay(d) {
+// ── Waypoint guidato ───────────────────────────────────────────────
+function addWaypoint(xmm, ymm) {
+  waypoints.push([xmm, ymm]);
+  drawWaypoints();
+  setStatus('', `${waypoints.length} waypoint. Continua lungo il contorno, poi "Chiudi contorno".`);
+  if (waypoints.length >= 3) previewWaypoints();
+}
+function undoWaypoint() {
+  waypoints.pop();
+  drawWaypoints();
+  if (waypoints.length >= 3) previewWaypoints();
+  else { clearOverlayPolys(); resetStats(); document.getElementById('btn-confirm').disabled = true; }
+  setStatus('', `${waypoints.length} waypoint.`);
+}
+function drawWaypoints() {
   const g = document.getElementById('overlay-group');
-  while (g.firstChild) g.removeChild(g.firstChild);
+  // rimuovi solo dots/linee wp precedenti
+  g.querySelectorAll('.wp-dot,.wp-line').forEach(e => e.remove());
+  if (!waypoints.length) return;
+  // linea che connette i waypoint (in coord scena flippata: y → -y)
+  const line = document.createElementNS(SVGNS, 'polyline');
+  line.setAttribute('class', 'wp-line');
+  line.setAttribute('points', waypoints.map(p => `${p[0]},${-p[1]}`).join(' '));
+  g.appendChild(line);
+  const r = Math.max(view.w, view.h) * 0.006;
+  for (const [x, y] of waypoints) {
+    const c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('class', 'wp-dot'); c.setAttribute('cx', x); c.setAttribute('cy', -y);
+    c.setAttribute('r', r);
+    g.appendChild(c);
+  }
+}
+async function previewWaypoints() { await runWaypoints(false); }
+async function closeWaypoints() {
+  if (waypoints.length < 3) { setStatus('err', 'Servono almeno 3 waypoint per chiudere.'); return; }
+  await runWaypoints(true);
+}
+async function runWaypoints(finalize) {
+  try {
+    const r = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/trace-waypoints`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points: waypoints }),
+    });
+    const d = await r.json();
+    if (!d.success) { setStatus('err', d.error || 'Contorno non valido'); return; }
+    lastResult = d;
+    drawOverlay(d);        // ridisegna outer/holes
+    drawWaypoints();       // ridisegna i dot sopra
+    updateStats(d);
+    if (finalize) {
+      setStatus('ok', 'Contorno guidato completato. Verifica e conferma.');
+      document.getElementById('btn-confirm').disabled = false;
+    }
+  } catch (e) { setStatus('err', 'Errore: ' + e.message); }
+}
+
+function clearOverlayPolys() {
+  const g = document.getElementById('overlay-group');
+  g.querySelectorAll('#outer-overlay,.hole-overlay').forEach(e => e.remove());
+}
+function drawOverlay(d) {
+  clearOverlayPolys();
+  const g = document.getElementById('overlay-group');
   if (d.outer_xy) {
     const el = document.createElementNS(SVGNS, 'polygon');
     el.setAttribute('id', 'outer-overlay');
@@ -258,13 +345,17 @@ function updateStats(d) {
     `${d.bbox_width_mm.toFixed(0)}×${d.bbox_height_mm.toFixed(0)} mm`;
 }
 
+function resetStats() {
+  ['s-area','s-perim','s-fori','s-bbox'].forEach(id => document.getElementById(id).textContent = '—');
+}
 function resetTrace() {
   lastResult = null;
+  waypoints = [];
   const g = document.getElementById('overlay-group');
   if (g) while (g.firstChild) g.removeChild(g.firstChild);
-  ['s-area','s-perim','s-fori','s-bbox'].forEach(id => document.getElementById(id).textContent = '—');
+  resetStats();
   document.getElementById('btn-confirm').disabled = true;
-  setStatus('', '');
+  setStatus('', mode === 'wp' ? 'Modo guidato: clicca i punti lungo il contorno.' : '');
 }
 
 function setStatus(kind, msg) {
@@ -287,6 +378,7 @@ async function confermaPezzo() {
   }
 }
 
+setMode('auto');
 load();
 </script>
 </body>

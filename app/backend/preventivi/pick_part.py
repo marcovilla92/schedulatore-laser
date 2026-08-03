@@ -468,10 +468,8 @@ def follow_contour_from_click(path: str, click_x_mm: float, click_y_mm: float,
                 'error': 'Il contorno non si chiude da questo click',
                 'warnings': ['click su un bordo diverso del pezzo, o guida con waypoint']}
 
-    # Fori: facce chiuse strettamente contenute nell'outer
-    all_faces = _build_faces(path, colori_esclusi)
-    holes = [f for f in all_faces
-             if outer.contains(f.representative_point()) and f.area < outer.area * 0.9]
+    # Fori: SOLO entità chiuse reali (cerchi/asole), non facce da linee di piega
+    holes = _holes_inside(msp, outer, colori_esclusi)
 
     area_netta = (outer.area - sum(h.area for h in holes)) / 10000.0
     perim_taglio = (outer.exterior.length + sum(h.exterior.length for h in holes)) / 1000.0
@@ -487,6 +485,202 @@ def follow_contour_from_click(path: str, click_x_mm: float, click_y_mm: float,
         'outer_xy': list(outer.exterior.coords),
         'holes_xy': [list(h.exterior.coords) for h in holes],
         'source': 'manual-click-follow',
+        'warnings': [],
+    }
+
+
+def _closed_entity_polygons(msp, colori_esclusi: set[int]) -> list:
+    """Poligoni Shapely SOLO da entità chiuse reali (CIRCLE, ELLIPSE, polilinee/
+    spline chiuse, ARC a 360°). Serve per i FORI: un foro è un contorno chiuso
+    di materiale rimosso, NON una faccia creata da una linea di piega aperta che
+    attraversa il pezzo. Usare le facce del polygonize per i fori sottrae per
+    errore le linee di piega (bug pezzi piegati)."""
+    out = []
+    for entity in msp:
+        et = entity.dxftype()
+        if et in TIPI_ANNOTAZIONE:
+            continue
+        try:
+            if _layer_da_escludere(entity.dxf.layer):
+                continue
+        except AttributeError:
+            pass
+        if _entity_color_excluded(entity, colori_esclusi):
+            continue
+        closed = False
+        if et in ('CIRCLE',):
+            closed = True
+        elif et == 'ELLIPSE':
+            closed = True
+        elif et in ('LWPOLYLINE', 'POLYLINE'):
+            try:
+                closed = bool(entity.closed) if et == 'LWPOLYLINE' else bool(getattr(entity, 'is_closed', False))
+            except Exception:
+                closed = False
+        elif et == 'SPLINE':
+            closed = bool(getattr(entity, 'closed', False))
+        elif et == 'ARC':
+            try:
+                sweep = (entity.dxf.end_angle - entity.dxf.start_angle) % 360.0
+                closed = sweep >= 359.9
+            except Exception:
+                closed = False
+        if not closed:
+            continue
+        pts = _entity_polyline(entity)
+        if not pts or len(pts) < 3:
+            continue
+        try:
+            poly = Polygon(pts)
+            if not poly.is_valid:
+                poly = make_valid(poly)
+                if hasattr(poly, 'geoms'):
+                    cand = [g for g in poly.geoms if g.geom_type == 'Polygon']
+                    if not cand:
+                        continue
+                    poly = max(cand, key=lambda g: g.area)
+            if poly.geom_type == 'Polygon' and poly.area >= MIN_AREA_MM2:
+                out.append(poly)
+        except Exception:
+            continue
+    return out
+
+
+def _holes_inside(msp, outer, colori_esclusi: set[int]) -> list:
+    """Fori = entità chiuse contenute strettamente nell'outer (esclude l'outer
+    stesso e contorni ~coincidenti)."""
+    holes = []
+    for poly in _closed_entity_polygons(msp, colori_esclusi):
+        if poly.area >= outer.area * 0.95:
+            continue  # è l'outer stesso o quasi
+        if outer.contains(poly.representative_point()):
+            holes.append(poly)
+    return holes
+
+
+def _nearest_node(nodes, key, x, y):
+    """Nodo del grafo più vicino al punto (x,y). Snap ai vertici dei segmenti."""
+    best, bd = None, None
+    for k, p in nodes.items():
+        d = (p[0] - x) ** 2 + (p[1] - y) ** 2
+        if bd is None or d < bd:
+            bd, best = d, k
+    return best
+
+
+def _dijkstra_path(nodes, adj, src, dst):
+    """Cammino minimo (somma lunghezze) da src a dst sul grafo. Ritorna lista
+    di chiavi nodo o None se non connessi."""
+    import heapq
+    if src == dst:
+        return [src]
+    dist = {src: 0.0}
+    prev = {}
+    pq = [(0.0, src)]
+    while pq:
+        d, u = heapq.heappop(pq)
+        if u == dst:
+            break
+        if d > dist.get(u, float('inf')):
+            continue
+        pu = nodes[u]
+        for v in adj.get(u, ()):
+            pv = nodes[v]
+            w = math.hypot(pv[0] - pu[0], pv[1] - pu[1])
+            nd = d + w
+            if nd < dist.get(v, float('inf')):
+                dist[v] = nd
+                prev[v] = u
+                heapq.heappush(pq, (nd, v))
+    if dst not in prev and dst != src:
+        return None
+    # ricostruisci
+    path = [dst]
+    while path[-1] != src:
+        p = prev.get(path[-1])
+        if p is None:
+            return None
+        path.append(p)
+    path.reverse()
+    return path
+
+
+def trace_contour_waypoints(path: str, points: list, config: dict | None = None) -> dict:
+    """Tracciamento GUIDATO: l'operatore fornisce N punti (waypoint) lungo il
+    contorno; il sistema segue la geometria DXF reale (cammino minimo sul grafo)
+    tra waypoint consecutivi, poi chiude tornando al primo.
+
+    Risolve i bivi ambigui dove il single-click 'più dritto' devia: l'operatore
+    guida il percorso. Ogni tratto è geometria DXF reale (archi inclusi) → area
+    e perimetro esatti.
+
+    points: [[x,y], ...] in mm DXF (almeno 2; 3+ per contorni chiusi utili).
+    Ritorna stesso formato di follow_contour_from_click, o {success:False,error}.
+    """
+    if not _HAS_SHAPELY:
+        return {'success': False, 'error': 'Shapely non installato'}
+    if not points or len(points) < 2:
+        return {'success': False, 'error': 'Servono almeno 2 waypoint'}
+    cfg = config or {}
+    colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        return {'success': False, 'error': f'DXF non leggibile: {e}'}
+    msp = doc.modelspace()
+    segs = _segments_all(msp, colori_esclusi)
+    if not segs:
+        return {'success': False, 'error': 'Nessuna geometria nel DXF'}
+    nodes, adj, key = _build_graph(segs)
+
+    # Snap ogni waypoint al nodo più vicino
+    snapped = [_nearest_node(nodes, key, float(p[0]), float(p[1])) for p in points]
+    snapped = [s for s in snapped if s is not None]
+    if len(snapped) < 2:
+        return {'success': False, 'error': 'Waypoint non agganciati alla geometria'}
+
+    # Concatena i cammini minimi waypoint→waypoint, poi chiudi (ultimo→primo)
+    seq = [snapped[0]]
+    chain = list(snapped) + [snapped[0]]  # chiude sul primo
+    for a, b in zip(chain, chain[1:]):
+        sub = _dijkstra_path(nodes, adj, a, b)
+        if sub is None:
+            return {'success': False,
+                    'error': 'Tratto non connesso tra due waypoint — aggiungi un waypoint intermedio'}
+        seq.extend(sub[1:])  # evita di duplicare il nodo di giunzione
+
+    pts = [nodes[k] for k in seq]
+    if len(pts) < 4:
+        return {'success': False, 'error': 'Contorno troppo corto'}
+    try:
+        outer = Polygon(pts)
+        if not outer.is_valid:
+            outer = make_valid(outer)
+            if hasattr(outer, 'geoms'):
+                cand = [g for g in outer.geoms if g.geom_type == 'Polygon']
+                if not cand:
+                    return {'success': False, 'error': 'Contorno auto-intersecante — rivedi i waypoint'}
+                outer = max(cand, key=lambda g: g.area)
+        if outer.geom_type != 'Polygon' or outer.area < MIN_AREA_MM2:
+            return {'success': False, 'error': 'Contorno degenere'}
+    except Exception as e:
+        return {'success': False, 'error': f'Contorno non valido: {e}'}
+
+    holes = _holes_inside(msp, outer, colori_esclusi)
+    area_netta = (outer.area - sum(h.area for h in holes)) / 10000.0
+    perim_taglio = (outer.exterior.length + sum(h.exterior.length for h in holes)) / 1000.0
+    minx, miny, maxx, maxy = outer.bounds
+    return {
+        'success': True,
+        'area_dm2': area_netta,
+        'area_lorda_dm2': outer.area / 10000.0,
+        'perimetro_taglio_m': perim_taglio,
+        'n_forature': len(holes),
+        'bbox_width_mm': maxx - minx,
+        'bbox_height_mm': maxy - miny,
+        'outer_xy': list(outer.exterior.coords),
+        'holes_xy': [list(h.exterior.coords) for h in holes],
+        'source': 'manual-waypoints',
         'warnings': [],
     }
 
