@@ -249,6 +249,85 @@ def pick_part_from_click(path: str, click_x_mm: float, click_y_mm: float,
     return _geometry_from_outer(outer, faces)
 
 
+# ── Geometria per il viewer CAD (polilinee in mm DXF) ───────────────────────
+
+def _entity_polyline(entity, distance: float = FLATTEN_DISTANCE_MM):
+    """Flatten una entità in UNA polilinea (lista di punti) invece di segmenti."""
+    try:
+        p = make_path(entity)
+        if len(p) == 0:
+            return None
+        pts = [(round(v.x, 3), round(v.y, 3)) for v in p.flattening(distance)]
+        return pts if len(pts) >= 2 else None
+    except Exception:
+        if entity.dxftype() == 'LINE':
+            try:
+                s, e = entity.dxf.start, entity.dxf.end
+                return [(round(s.x, 3), round(s.y, 3)), (round(e.x, 3), round(e.y, 3))]
+            except Exception:
+                return None
+        return None
+
+
+def geometry_json(path: str, config: dict | None = None) -> dict:
+    """Estrae tutta la geometria disegnabile come polilinee in mm DXF, per il
+    viewer CAD interno. Ritorna {extents, polylines} dove ogni polilinea ha
+    {pts, kind}: kind='geo' (contorno/geometria, cliccabile) o 'annot'
+    (cartiglio/quote/testo, mostrato in grigio ma non parte del pezzo).
+
+    Il viewer mostra TUTTO (come Lantek) così l'operatore vede il disegno
+    completo e sa dove cliccare. Il follow-contour filtra le annotazioni.
+    """
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        return {'error': f'DXF non leggibile: {e}', 'extents': None, 'polylines': []}
+    msp = doc.modelspace()
+
+    polylines = []
+    minx = miny = float('inf')
+    maxx = maxy = float('-inf')
+    for entity in msp:
+        et = entity.dxftype()
+        if et in ('MTEXT', 'TEXT', 'ATTRIB', 'ATTDEF'):
+            continue  # niente testo nel viewer MVP
+        is_annot = et in TIPI_ANNOTAZIONE
+        try:
+            if _layer_da_escludere(entity.dxf.layer):
+                is_annot = True
+        except AttributeError:
+            pass
+        # DIMENSION: prova a esploderne la geometria per far vedere le quote in grigio
+        if et == 'DIMENSION':
+            try:
+                for ve in entity.virtual_entities():
+                    pts = _entity_polyline(ve)
+                    if pts:
+                        polylines.append({'pts': pts, 'kind': 'annot'})
+                        for x, y in pts:
+                            minx, miny = min(minx, x), min(miny, y)
+                            maxx, maxy = max(maxx, x), max(maxy, y)
+            except Exception:
+                pass
+            continue
+        if et in ('INSERT',):
+            continue
+        pts = _entity_polyline(entity)
+        if not pts:
+            continue
+        polylines.append({'pts': pts, 'kind': 'annot' if is_annot else 'geo'})
+        for x, y in pts:
+            minx, miny = min(minx, x), min(miny, y)
+            maxx, maxy = max(maxx, x), max(maxy, y)
+
+    if minx == float('inf'):
+        return {'error': 'Nessuna geometria', 'extents': None, 'polylines': []}
+    return {
+        'extents': [minx, miny, maxx, maxy],
+        'polylines': polylines,
+    }
+
+
 # ── Contour follower (tracciamento stile Lantek Detect Part) ────────────────
 #
 # Validato su casi reali (app/tests/validate_contour_follow.py): dato un click

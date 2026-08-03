@@ -2747,6 +2747,28 @@ def api_preventivi_dxf_select_point(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/geometry-json', methods=['GET'])
+def api_preventivi_dxf_geometry_json(preventivo_id, filename):
+    """CAD interno — geometria del DXF come polilinee in mm, per il viewer.
+
+    Response: {extents:[minx,miny,maxx,maxy], polylines:[{pts:[[x,y]..], kind}]}
+    kind = 'geo' (contorno, cliccabile) | 'annot' (cartiglio/quote, grigio).
+    """
+    try:
+        safe_name = os.path.basename(filename)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        dxf_path = os.path.join(prev_dir, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'error': 'File DXF non trovato'}), 404
+        from .preventivi.pick_part import geometry_json
+        app_cfg = BarcodeManager.load_config() or {}
+        r = geometry_json(dxf_path, app_cfg.get('dxf_detection', {}))
+        return jsonify(r), 200
+    except Exception as e:
+        logger.exception('dxf_geometry_json failed')
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/follow-contour', methods=['POST'])
 def api_preventivi_dxf_follow_contour(preventivo_id, filename):
     """CAD interno — tracciamento contorno stile Lantek Detect Part.

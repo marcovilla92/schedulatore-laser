@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAD interno — Identificazione pezzo</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #161d2e; --border: #26304a; --text: #e6ebf5;
+    --text-2: #9aa7c0; --accent: #22c55e; --accent-2: #3b82f6; --red: #ef4444;
+    --amber: #f59e0b; --geo: #6b7896; --annot: #333c52; --outer: #22c55e; --hole: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+         display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  header .title { font-weight: 600; font-size: 15px; }
+  header .file { color: var(--text-2); font-size: 13px; font-family: monospace; }
+  header .spacer { flex: 1; }
+  .btn { background: var(--panel); color: var(--text); border: 1px solid var(--border);
+         border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #04120a; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:disabled { opacity: .4; cursor: not-allowed; }
+  main { flex: 1; display: flex; min-height: 0; }
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #0b0f18; cursor: crosshair; }
+  #svg { width: 100%; height: 100%; display: block; }
+  .side { width: 300px; background: var(--panel); border-left: 1px solid var(--border);
+          padding: 16px; overflow-y: auto; flex-shrink: 0; }
+  .side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2);
+             margin-bottom: 12px; }
+  .stat { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .stat .lbl { color: var(--text-2); font-size: 13px; }
+  .stat .val { font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .stat .val.big { color: var(--accent); font-size: 17px; }
+  .hint { margin-top: 16px; padding: 12px; background: #1c2436; border-radius: 8px;
+          font-size: 12px; color: var(--text-2); line-height: 1.5; }
+  .status { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 13px; display: none; }
+  .status.ok { background: rgba(34,197,94,.12); color: var(--accent); display: block; }
+  .status.err { background: rgba(239,68,68,.12); color: var(--red); display: block; }
+  .zoominfo { position: absolute; bottom: 10px; left: 12px; font-size: 11px; color: var(--text-2);
+              background: rgba(0,0,0,.4); padding: 4px 8px; border-radius: 5px; font-family: monospace; }
+  /* SVG element styles */
+  .pl-geo { stroke: var(--geo); stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
+  .pl-annot { stroke: var(--annot); stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
+  .pl-geo:hover { stroke: var(--amber); stroke-width: 2; }
+  #outer-overlay { stroke: var(--outer); stroke-width: 2.5; fill: rgba(34,197,94,.14);
+                   vector-effect: non-scaling-stroke; pointer-events: none; }
+  .hole-overlay { stroke: var(--hole); stroke-width: 2; fill: rgba(59,130,246,.22);
+                  vector-effect: non-scaling-stroke; pointer-events: none; }
+</style>
+</head>
+<body>
+<header>
+  <span class="title">CAD interno · Identificazione pezzo</span>
+  <span class="file" id="hdr-file">—</span>
+  <span class="spacer"></span>
+  <button class="btn" onclick="zoomFit()">Adatta (F)</button>
+  <button class="btn" onclick="resetTrace()">Pulisci</button>
+  <button class="btn primary" id="btn-confirm" disabled onclick="confermaPezzo()">Conferma pezzo</button>
+  <button class="btn" onclick="window.close()">Chiudi</button>
+</header>
+<main>
+  <div class="canvas-wrap" id="wrap">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="zoominfo" id="zoominfo">—</div>
+  </div>
+  <aside class="side">
+    <h3>Geometria pezzo</h3>
+    <div class="stat"><span class="lbl">Area netta</span><span class="val big" id="s-area">—</span></div>
+    <div class="stat"><span class="lbl">Perimetro taglio</span><span class="val" id="s-perim">—</span></div>
+    <div class="stat"><span class="lbl">N. fori</span><span class="val" id="s-fori">—</span></div>
+    <div class="stat"><span class="lbl">Ingombro</span><span class="val" id="s-bbox">—</span></div>
+    <div class="status" id="status"></div>
+    <div class="hint">
+      <b>Come si usa</b><br>
+      1. Rotella = zoom, trascina = sposta.<br>
+      2. <b>Clicca sul contorno del pezzo</b> (il bordo esterno). Il sistema segue il profilo e calcola area/perimetro.<br>
+      3. Se traccia il pezzo sbagliato (disegni con più pezzi/viste), clicca sul contorno di quello giusto.<br>
+      4. <b>Conferma pezzo</b> per salvare.
+    </div>
+  </aside>
+</main>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const PREV = params.get('prev');
+const FILE = params.get('file');
+const ARTICOLO = params.get('articolo') || '';
+document.getElementById('hdr-file').textContent = FILE || '(nessun file)';
+
+const svg = document.getElementById('svg');
+const SVGNS = 'http://www.w3.org/2000/svg';
+let EXT = null;               // [minx,miny,maxx,maxy] in mm DXF
+let view = null;              // viewBox corrente {x,y,w,h} in mm (y già flippata)
+let lastResult = null;        // ultimo follow-contour riuscito
+
+// ── Costruzione scena ──────────────────────────────────────────────
+// SVG usa y verso il basso; il DXF ha y verso l'alto. Flippo con un <g> scale(1,-1).
+let sceneG = null;
+
+async function load() {
+  if (!PREV || !FILE) { setStatus('err', 'Parametri mancanti: ?prev=<id>&file=<nome.dxf>'); return; }
+  const r = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/geometry-json`);
+  const d = await r.json();
+  if (d.error || !d.extents) { setStatus('err', 'Errore geometria: ' + (d.error || 'vuota')); return; }
+  EXT = d.extents;
+  buildScene(d.polylines);
+  zoomFit();
+}
+
+function buildScene(polylines) {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  // gruppo flip-Y: trasformo y_dxf in -y così il disegno appare dritto
+  sceneG = document.createElementNS(SVGNS, 'g');
+  sceneG.setAttribute('transform', 'scale(1,-1)');
+  svg.appendChild(sceneG);
+  // annot sotto, geo sopra (per hover/click)
+  const frag = document.createDocumentFragment();
+  for (const pl of polylines) {
+    if (pl.kind !== 'annot') continue;
+    frag.appendChild(mkPolyline(pl));
+  }
+  for (const pl of polylines) {
+    if (pl.kind !== 'geo') continue;
+    frag.appendChild(mkPolyline(pl));
+  }
+  sceneG.appendChild(frag);
+  // overlay group (sopra tutto)
+  const ov = document.createElementNS(SVGNS, 'g');
+  ov.setAttribute('id', 'overlay-group');
+  sceneG.appendChild(ov);
+}
+
+function mkPolyline(pl) {
+  const el = document.createElementNS(SVGNS, 'polyline');
+  el.setAttribute('points', pl.pts.map(p => `${p[0]},${p[1]}`).join(' '));
+  el.setAttribute('class', pl.kind === 'geo' ? 'pl-geo' : 'pl-annot');
+  return el;
+}
+
+// ── Zoom / pan via viewBox (in coord mm flippate) ──────────────────
+function applyView() {
+  // viewBox in coordinate della scena flippata: y va da -maxy a -miny
+  svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+  document.getElementById('zoominfo').textContent =
+    `${(EXT[2]-EXT[0]).toFixed(0)}×${(EXT[3]-EXT[1]).toFixed(0)}mm · zoom ${(( EXT[2]-EXT[0])/view.w).toFixed(2)}×`;
+}
+
+function zoomFit() {
+  if (!EXT) return;
+  const [minx, miny, maxx, maxy] = EXT;
+  const w = maxx - minx, h = maxy - miny;
+  const pad = Math.max(w, h) * 0.05;
+  // scena flippata: y_scene = -y_dxf → range [-maxy, -miny]
+  view = { x: minx - pad, y: -maxy - pad, w: w + 2*pad, h: h + 2*pad };
+  // adatta all'aspect ratio del contenitore
+  const rect = svg.getBoundingClientRect();
+  const ar = rect.width / rect.height;
+  if (view.w / view.h > ar) { const nh = view.w / ar; view.y -= (nh - view.h)/2; view.h = nh; }
+  else { const nw = view.h * ar; view.x -= (nw - view.w)/2; view.w = nw; }
+  applyView();
+}
+
+// wheel zoom centrato sul cursore
+svg.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const p = clientToMm(e.clientX, e.clientY);   // in coord scena (y flippata)
+  const f = e.deltaY < 0 ? 0.85 : 1/0.85;
+  view.x = p.x - (p.x - view.x) * f;
+  view.y = p.y - (p.y - view.y) * f;
+  view.w *= f; view.h *= f;
+  applyView();
+}, { passive: false });
+
+// pan con drag
+let panning = false, panStart = null;
+svg.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) { return; }
+  panning = 'maybe'; panStart = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false };
+});
+window.addEventListener('mousemove', (e) => {
+  if (!panning) return;
+  const dx = e.clientX - panStart.x, dy = e.clientY - panStart.y;
+  if (Math.abs(dx) + Math.abs(dy) > 4) panStart.moved = true;
+  const rect = svg.getBoundingClientRect();
+  const sx = view.w / rect.width, sy = view.h / rect.height;
+  view.x = panStart.vx - dx * sx;
+  view.y = panStart.vy - dy * sy;
+  applyView();
+});
+window.addEventListener('mouseup', (e) => {
+  if (panning && panStart && !panStart.moved) {
+    // click vero (non pan) → traccia contorno
+    onPick(e.clientX, e.clientY);
+  }
+  panning = false; panStart = null;
+});
+
+document.addEventListener('keydown', (e) => { if (e.key === 'f' || e.key === 'F') zoomFit(); });
+
+// converte client px → coord scena (x_dxf, -y_dxf)
+function clientToMm(cx, cy) {
+  const pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy;
+  const ctm = svg.getScreenCTM().inverse();
+  const p = pt.matrixTransform(ctm);
+  return { x: p.x, y: p.y };
+}
+
+// ── Click → follow-contour ─────────────────────────────────────────
+async function onPick(cx, cy) {
+  const p = clientToMm(cx, cy);
+  const xmm = p.x, ymm = -p.y;   // riporta y in coord DXF (de-flip)
+  setStatus('', 'Traccio il contorno…');
+  try {
+    const r = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/follow-contour`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ x: xmm, y: ymm }),
+    });
+    const d = await r.json();
+    if (!d.success) {
+      setStatus('err', d.error || 'Il contorno non si chiude — clicca sul bordo del pezzo.');
+      return;
+    }
+    lastResult = d;
+    drawOverlay(d);
+    updateStats(d);
+    setStatus('ok', 'Contorno tracciato. Verifica e conferma.');
+    document.getElementById('btn-confirm').disabled = false;
+  } catch (e) { setStatus('err', 'Errore: ' + e.message); }
+}
+
+function drawOverlay(d) {
+  const g = document.getElementById('overlay-group');
+  while (g.firstChild) g.removeChild(g.firstChild);
+  if (d.outer_xy) {
+    const el = document.createElementNS(SVGNS, 'polygon');
+    el.setAttribute('id', 'outer-overlay');
+    el.setAttribute('points', d.outer_xy.map(p => `${p[0]},${p[1]}`).join(' '));
+    g.appendChild(el);
+  }
+  for (const hole of (d.holes_xy || [])) {
+    const el = document.createElementNS(SVGNS, 'polygon');
+    el.setAttribute('class', 'hole-overlay');
+    el.setAttribute('points', hole.map(p => `${p[0]},${p[1]}`).join(' '));
+    g.appendChild(el);
+  }
+}
+
+function updateStats(d) {
+  document.getElementById('s-area').textContent = d.area_dm2.toFixed(3) + ' dm²';
+  document.getElementById('s-perim').textContent = d.perimetro_taglio_m.toFixed(3) + ' m';
+  document.getElementById('s-fori').textContent = d.n_forature;
+  document.getElementById('s-bbox').textContent =
+    `${d.bbox_width_mm.toFixed(0)}×${d.bbox_height_mm.toFixed(0)} mm`;
+}
+
+function resetTrace() {
+  lastResult = null;
+  const g = document.getElementById('overlay-group');
+  if (g) while (g.firstChild) g.removeChild(g.firstChild);
+  ['s-area','s-perim','s-fori','s-bbox'].forEach(id => document.getElementById(id).textContent = '—');
+  document.getElementById('btn-confirm').disabled = true;
+  setStatus('', '');
+}
+
+function setStatus(kind, msg) {
+  const el = document.getElementById('status');
+  el.className = 'status' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  if (!msg) el.style.display = 'none';
+}
+
+async function confermaPezzo() {
+  if (!lastResult) return;
+  // Fase 3: qui salveremo su articolo con geometria_manuale_confermata=true.
+  // Per ora ritorna il risultato al chiamante (window.opener) se presente.
+  if (window.opener && ARTICOLO) {
+    window.opener.postMessage({ type: 'cad-confirm', articolo: ARTICOLO, geometria: lastResult }, '*');
+    setStatus('ok', 'Pezzo confermato e inviato al preventivo.');
+  } else {
+    setStatus('ok', 'Pezzo confermato (area ' + lastResult.area_dm2.toFixed(3) + ' dm²). '
+      + 'Salvataggio su articolo: Fase 3.');
+  }
+}
+
+load();
+</script>
+</body>
+</html>
