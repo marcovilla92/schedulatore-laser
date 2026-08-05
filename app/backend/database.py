@@ -19,6 +19,30 @@ class OrderManager:
     """Gestore operazioni su ordini con articoli"""
 
     @staticmethod
+    def add_order_file(order_id: str, filename: str, filepath: str,
+                       file_type: str = 'DXF', sha256: str | None = None) -> dict:
+        """Registra un file (DXF/PDF) associato a un ordine, con impronta SHA256
+        opzionale (integrità: file preventivato ≡ file prodotto)."""
+        session = get_session()
+        try:
+            of = OrderFile(
+                id=str(uuid.uuid4()),
+                order_id=order_id,
+                filename=filename,
+                filepath=filepath,
+                file_type=file_type,
+                sha256=sha256,
+            )
+            session.add(of)
+            session.commit()
+            return {'success': True, 'id': of.id}
+        except Exception as e:
+            session.rollback()
+            return {'error': str(e)}
+        finally:
+            session.close()
+
+    @staticmethod
     def _format_duration(td: timedelta) -> str:
         """Formatta un timedelta in stringa leggibile (es: '2h 30min')"""
         if not td:

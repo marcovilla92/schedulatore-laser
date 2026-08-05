@@ -3365,6 +3365,7 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
     Ritorna stats: {copied_cleaned, copied_original_fallback, missing, warnings, drawings_dir}
     """
     import shutil
+    import hashlib
     stats = {
         'copied_cleaned': 0,
         'copied_original_fallback': 0,
@@ -3372,7 +3373,15 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
         'warnings': [],
         'articoli_da_pulire_manualmente': [],  # nomi articoli senza pulito
         'drawings_dir': None,
+        'file_hashes': [],  # {filename, sha256, cleaned} — impronte file produzione
     }
+
+    def _sha256(path):
+        h = hashlib.sha256()
+        with open(path, 'rb') as fp:
+            for chunk in iter(lambda: fp.read(65536), b''):
+                h.update(chunk)
+        return h.hexdigest()
     try:
         p = PreventivoManager.get(preventivo_id, include_children=True)
         if not p:
@@ -3416,6 +3425,15 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
                     stats['copied_cleaned'] += 1
                 else:
                     stats['copied_original_fallback'] += 1
+                # Impronta SHA256 del file mandato in produzione (integrità)
+                try:
+                    digest = _sha256(dst)
+                    stats['file_hashes'].append(
+                        {'filename': dst_name, 'sha256': digest, 'cleaned': is_cleaned})
+                    OrderManager.add_order_file(
+                        order_id, dst_name, dst, 'DXF', sha256=digest)
+                except Exception as he:
+                    logger.warning('hash/registrazione OrderFile per %s fallita: %s', dst_name, he)
             except Exception as e:
                 logger.warning('copy dxf %s -> %s failed: %s', src, dst, e)
                 stats['warnings'].append(f'{codice}: copy fallita ({e})')
@@ -3424,6 +3442,58 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
         logger.exception('_copy_cleaned_dxf_to_drawings failed')
         stats['warnings'].append(f'errore inatteso: {e}')
         return stats
+
+
+@app.route('/api/orders/<order_id>/verify-files', methods=['GET'])
+def api_orders_verify_files(order_id):
+    """Verifica integrità: ricalcola l'hash dei file DXF in produzione
+    (uploads/drawings/<order_id>/) e lo confronta con quello registrato
+    all'accettazione. Garantisce che il file tagliato sia quello preventivato.
+
+    Response: {success, files: [{filename, sha256_registrato, sha256_attuale,
+               ok, stato}], all_ok}
+    """
+    import hashlib
+
+    def _sha256(path):
+        h = hashlib.sha256()
+        with open(path, 'rb') as fp:
+            for chunk in iter(lambda: fp.read(65536), b''):
+                h.update(chunk)
+        return h.hexdigest()
+
+    try:
+        session = get_session()
+        try:
+            rows = session.query(OrderFile).filter(
+                OrderFile.order_id == order_id, OrderFile.file_type == 'DXF').all()
+            files = []
+            all_ok = True
+            for of in rows:
+                path = of.filepath
+                if not path or not os.path.exists(path):
+                    files.append({'filename': of.filename, 'sha256_registrato': of.sha256,
+                                  'sha256_attuale': None, 'ok': False, 'stato': 'file mancante'})
+                    all_ok = False
+                    continue
+                attuale = _sha256(path)
+                ok = (of.sha256 is not None and attuale == of.sha256)
+                if not ok:
+                    all_ok = False
+                files.append({
+                    'filename': of.filename,
+                    'sha256_registrato': of.sha256,
+                    'sha256_attuale': attuale,
+                    'ok': ok,
+                    'stato': 'integro' if ok else ('hash non registrato' if not of.sha256 else 'FILE MODIFICATO'),
+                })
+            return jsonify({'success': True, 'files': files, 'all_ok': all_ok,
+                            'n_files': len(files)}), 200
+        finally:
+            session.close()
+    except Exception as e:
+        logger.exception('verify-files failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/preventivi/<preventivo_id>/import-step', methods=['POST'])

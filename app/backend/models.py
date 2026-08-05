@@ -72,6 +72,9 @@ class OrderFile(Base):
     filename = Column(String, nullable=False)
     filepath = Column(String, nullable=False)
     file_type = Column(String)  # PDF, DXF
+    # Impronta SHA256 del file mandato in produzione — garantisce che il file
+    # tagliato sia verificabilmente quello registrato (preventivato ≡ prodotto).
+    sha256 = Column(String, nullable=True)
     upload_date = Column(DateTime, default=datetime.utcnow)
     order = relationship('Order', back_populates='files')
 
@@ -617,6 +620,15 @@ def initialize_database():
                 conn.execute(text('ALTER TABLE orders ADD COLUMN taglio_completato_da TEXT'))
                 logger.info('Aggiunta colonna taglio_completato_da a orders')
             conn.commit()
+
+    # Migrazione: hash file produzione su order_files (2026-08-05)
+    if 'order_files' in insp.get_table_names():
+        existing_of = [c['name'] for c in insp.get_columns('order_files')]
+        if 'sha256' not in existing_of:
+            with engine.connect() as conn:
+                conn.execute(text('ALTER TABLE order_files ADD COLUMN sha256 VARCHAR'))
+                conn.commit()
+                logger.info('Aggiunta colonna sha256 a order_files')
 
     # Migrazione: DXF cleanup su preventivo_articoli (2026-07-06)
     if 'preventivo_articoli' in insp.get_table_names():
