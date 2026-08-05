@@ -309,6 +309,9 @@ class PreventivoArticolo(Base):
     # --- costi lavorazione (post-taglio) ---
     pieghe = Column(Integer, nullable=False, default=0)
     saldatura_ml = Column(Float, nullable=False, default=0.0)
+    # Tempo di saldatura stimato (minuti) — usato per il costo a tempo×tariffa.
+    # saldatura_ml resta come riferimento (auto da DXF) + guida consumabili/pulizia.
+    saldatura_min = Column(Float, nullable=False, default=0.0)
     filettatura_pz = Column(Integer, nullable=False, default=0)
     svasatura_pz = Column(Integer, nullable=False, default=0)
     costo_piega = Column(Float, nullable=False, default=0.0)
@@ -635,6 +638,10 @@ def initialize_database():
             if 'area_stimata_piega' not in existing_prev_art:
                 conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN area_stimata_piega BOOLEAN DEFAULT 0'))
                 logger.info('Aggiunta colonna area_stimata_piega a preventivo_articoli')
+            # Saldatura a tempo (2026-08-05)
+            if 'saldatura_min' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN saldatura_min FLOAT DEFAULT 0'))
+                logger.info('Aggiunta colonna saldatura_min a preventivo_articoli')
             conn.commit()
 
     seed_users()

@@ -32,6 +32,7 @@ def calcola_preventivo(
     saldatura: float = 0.0,
     filettatura: int = 0,
     svasatura: int = 0,
+    saldatura_min: float = 0.0,
 ) -> dict:
     """Calcola il preventivo completo.
 
@@ -79,7 +80,11 @@ def calcola_preventivo(
         costo_piegatura = n_pieghe * config["costo_singola_piega"]
         if n_pieghe > soglia:
             costo_piegatura += config["costo_setup_piega"]
-        costo_saldatura = saldatura * config["costo_saldatura_metro"]
+        # Saldatura a tempo (min/60 × tariffa) se abilitato, altrimenti €/metro
+        if config.get("saldatura_a_tempo"):
+            costo_saldatura = (saldatura_min / 60.0) * float(config.get("tariffa_oraria", 45))
+        else:
+            costo_saldatura = saldatura * config["costo_saldatura_metro"]
         costo_filettatura = filettatura * config["costo_filettatura"]
         costo_svasatura = svasatura * config["costo_svasatura"]
         costo_mat_apporto = saldatura * float(config.get("costo_materiale_apporto_metro", 0))

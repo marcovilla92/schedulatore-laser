@@ -1694,6 +1694,7 @@ tr.row-warn:hover { background: #FEF3C7; }
                 <h4 class="sd-section-title">Lavorazioni</h4>
                 <div class="sd-row"><label>Pieghe</label><input type="number" id="sd-pieghe" step="1" min="0" onchange="sdOnFieldChange('pieghe', this.value, true)"></div>
                 <div class="sd-row"><label>Saldatura ml</label><input type="number" id="sd-sald" step="0.1" min="0" onchange="sdOnFieldChange('saldatura_ml', this.value, true)"></div>
+                <div class="sd-row"><label>Saldatura min</label><input type="number" id="sd-sald-min" step="1" min="0" title="Minuti di saldatura → costo = min/60 × tariffa €/h" onchange="sdOnFieldChange('saldatura_min', this.value, true)"></div>
                 <div class="sd-row"><label>Filettature</label><input type="number" id="sd-filett" step="1" min="0" onchange="sdOnFieldChange('filettatura_pz', this.value, true)"></div>
                 <div class="sd-row"><label>Svasature</label><input type="number" id="sd-svas" step="1" min="0" onchange="sdOnFieldChange('svasatura_pz', this.value, true)"></div>
               </div>
@@ -2197,6 +2198,7 @@ tr.row-warn:hover { background: #FEF3C7; }
           <div class="sec-title">Lavorazioni post-taglio</div>
           <div class="field"><label>Pieghe</label><input type="number" id="mad-pieghe" min="0" onchange="madUpdate('pieghe', this.value, true)"></div>
           <div class="field"><label>Saldatura (ml)</label><input type="number" id="mad-sald" step="0.01" onchange="madUpdate('saldatura_ml', this.value, true)"></div>
+          <div class="field"><label>Saldatura (min)</label><input type="number" id="mad-sald-min" step="1" min="0" title="Minuti saldatura → costo = min/60 × tariffa" onchange="madUpdate('saldatura_min', this.value, true)"></div>
           <div class="field"><label>Filettatura pz</label><input type="number" id="mad-filett" min="0" onchange="madUpdate('filettatura_pz', this.value, true)"></div>
           <div class="field"><label>Svasatura pz</label><input type="number" id="mad-svas" min="0" onchange="madUpdate('svasatura_pz', this.value, true)"></div>
         </div>
@@ -2519,9 +2521,15 @@ function recalcLavorazioniArt(a) {
   let cPiega = nP * (C.costo_singola_piega || 0);
   if (nP > (C.soglia_setup_pieghe || 5)) cPiega += (C.costo_setup_piega || 0);
   a.costo_piega = round2(cPiega);
-  // Saldatura + apporto + pulizia
+  // Saldatura: a TEMPO (min/60 × tariffa €/h) se abilitato, altrimenti €/metro.
+  // apporto (filo+gas) e pulizia restano per-metro (consumabili + finitura).
   const sm = parseFloat(a.saldatura_ml || 0);
-  a.costo_saldatura = round2(sm * (C.costo_saldatura_metro || 0));
+  if (C.saldatura_a_tempo) {
+    const smin = parseFloat(a.saldatura_min || 0);
+    a.costo_saldatura = round2(smin / 60 * (C.tariffa_oraria || 45));
+  } else {
+    a.costo_saldatura = round2(sm * (C.costo_saldatura_metro || 0));
+  }
   a.costo_mat_apporto = round2(sm * (C.costo_materiale_apporto_metro || 0));
   a.costo_pulizia = round2(sm * (C.costo_pulizia_saldatura_metro || 0));
   // Filettatura + svasatura
@@ -3700,6 +3708,7 @@ async function renderSplitDetail(idx) {
   document.getElementById('sd-forature').value = a.n_forature || 0;
   document.getElementById('sd-pieghe').value = a.pieghe || 0;
   document.getElementById('sd-sald').value = (a.saldatura_ml || 0).toFixed(2);
+  const sdMin = document.getElementById('sd-sald-min'); if (sdMin) sdMin.value = a.saldatura_min || 0;
   document.getElementById('sd-filett').value = a.filettatura_pz || 0;
   document.getElementById('sd-svas').value = a.svasatura_pz || 0;
 
@@ -4178,6 +4187,10 @@ function updateArt(idx, field, value, numeric) {
   if (['materiale', 'spessore_mm'].includes(field)) {
     scheduleRealtimeStima(idx);
   }
+  // Ricalcola i costi di lavorazione quando cambia una voce lavorazione
+  if (['pieghe', 'saldatura_ml', 'saldatura_min', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
+    recalcLavorazioniArt(a);
+  }
   recalcTotali();
   // Nessun autosave qui: si salva col bottone "Salva modifiche" o al termine
   // di un'operazione esplicita (import DXF, Stima).
@@ -4372,6 +4385,7 @@ async function openArtModal(idx) {
   document.getElementById('mad-forature').value = a.n_forature || 0;
   document.getElementById('mad-pieghe').value = a.pieghe || 0;
   document.getElementById('mad-sald').value = (a.saldatura_ml || 0).toFixed(2);
+  { const e = document.getElementById('mad-sald-min'); if (e) e.value = a.saldatura_min || 0; }
   document.getElementById('mad-filett').value = a.filettatura_pz || 0;
   document.getElementById('mad-svas').value = a.svasatura_pz || 0;
   madRefreshCosts();
@@ -5004,7 +5018,7 @@ function madUpdate(field, value, numeric) {
   const a = currentArticoli[_madCurrentIdx];
   a[field] = numeric ? (parseFloat(value) || 0) : value;
   // Ricalcolo dei costi di lavorazione (piega/sald/filett/svas) su cambio
-  if (['pieghe', 'saldatura_ml', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
+  if (['pieghe', 'saldatura_ml', 'saldatura_min', 'filettatura_pz', 'svasatura_pz'].includes(field)) {
     recalcLavorazioniArt(a);
   }
   // Spessore manuale = dato certo
@@ -5436,7 +5450,10 @@ function renderAssiemi() {
       <td class="n"><input type="number" class="cell-edit" value="${a.qty || 1}" min="1" style="text-align:right; max-width:50px;" onchange="updateAss(${i},'qty',this.value,true)"></td>
       <td class="n"><span onclick="openAssiemeDetail(${i})" style="cursor:pointer; background:${nCmp?'#DCFCE7':'#F1F5F9'}; color:${nCmp?'#166534':'#94A3B8'}; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;" title="Vedi componenti">${nCmp}</span></td>
       <td class="n" style="color:var(--text-2);">${pesoRoll.toFixed(1)}</td>
-      <td class="n"><input type="number" class="cell-edit" value="${(a.costo||0).toFixed(2)}" step="0.5" style="text-align:right; max-width:76px;" onchange="updateAss(${i},'costo',this.value,true)"></td>
+      <td class="n">
+        <input type="number" class="cell-edit" value="${(a.ore_montaggio||0)}" step="0.25" min="0" title="Ore montaggio → costo = ore × tariffa €/h" placeholder="ore" style="text-align:right; max-width:60px;" onchange="updateAssOre(${i},this.value)">
+        <input type="number" class="cell-edit" value="${(a.costo||0).toFixed(2)}" step="0.5" title="Costo montaggio € (override manuale)" style="text-align:right; max-width:76px; margin-top:2px;" onchange="updateAss(${i},'costo',this.value,true)">
+      </td>
       <td class="n"><input type="number" class="cell-edit" value="${(a.costo_saldatura_assieme||0).toFixed(2)}" step="0.5" style="text-align:right; max-width:76px;" onchange="updateAss(${i},'costo_saldatura_assieme',this.value,true)"></td>
       <td class="n" style="background:#F9FAFB; font-weight:600; font-variant-numeric: tabular-nums;">${formatEurStr(pricing.costoSingoloAssieme)}</td>
       <td class="n" style="background:#FEF3C7; font-weight:700; font-variant-numeric: tabular-nums; color:#92400E;">${formatEurStr(pricing.costoTotale)}</td>
@@ -5494,6 +5511,19 @@ function updateAss(i, field, value, numeric) {
   currentAssiemi[i][field] = numeric ? parseFloat(value) || 0 : value;
   recalcTotali();
   renderAssiemi();  // aggiorna i totali rollup nella stessa riga
+  scheduleSaveAssiemi();
+}
+
+/** Assemblaggio a tempo: ore montaggio → costo = ore × tariffa €/h. Il costo
+ *  resta poi editabile a mano (override) nella cella accanto. (Marco 2026-08-05) */
+function updateAssOre(i, value) {
+  if (!currentAssiemi[i]) return;
+  const ore = parseFloat(value) || 0;
+  const tariffa = (_prevCfg && _prevCfg.tariffa_oraria) || 45;
+  currentAssiemi[i].ore_montaggio = ore;
+  currentAssiemi[i].costo = round2(ore * tariffa);
+  recalcTotali();
+  renderAssiemi();
   scheduleSaveAssiemi();
 }
 
