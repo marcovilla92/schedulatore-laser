@@ -1499,6 +1499,12 @@ tr.row-warn:hover { background: #FEF3C7; }
               <span class="dz-slim-hint">Disegni 2D cliente</span>
             </button>
             <input type="file" id="inp-dxf" accept=".dxf,.dwg" multiple style="display:none;" onchange="uploadFiles(this.files, 'dxf')">
+            <button type="button" class="dz-slim" id="dz-dxf-folder" onclick="document.getElementById('inp-dxf-folder').click()" title="Carica una CARTELLA già estratta — le sottocartelle diventano assiemi">
+              <i data-lucide="folder-tree" style="width:16px;height:16px;"></i>
+              <span class="dz-slim-label">Cartella DXF</span>
+              <span class="dz-slim-hint">Sottocartelle = assiemi</span>
+            </button>
+            <input type="file" id="inp-dxf-folder" webkitdirectory directory multiple style="display:none;" onchange="uploadFolderDxf(this.files)">
             <button type="button" class="dz-slim" id="dz-step" onclick="document.getElementById('inp-step').click()" title="Trascina o clicca per caricare STEP 3D">
               <i data-lucide="box" style="width:16px;height:16px;"></i>
               <span class="dz-slim-label">STEP 3D</span>
@@ -6417,6 +6423,7 @@ function applyDxfResultToUI(d, rawFilename, opts = {}) {
     id: 'tmp-' + Date.now() + '-' + Math.random(),
     codice: fname,
     quantita: 1,
+    codice_assieme: d.codice_assieme || null,   // da sottocartella (cartella caricata)
     materiale: matFromCartiglio, spessore_mm: spFromCalc,
     _materiale_conf: cartiglio.confidence || 0,
     _spessore_conf: spInfo.confidence || 0,
@@ -6490,11 +6497,26 @@ async function uploadDxf(file, suppressMsg) {
  * Batch upload: N file DXF in una singola chiamata parallela server-side.
  * Progress bar animata durante la request. Cache A5 rende hit istantanei.
  */
+/** Carica una CARTELLA già estratta: filtra i DXF (mantenendo webkitRelativePath
+ *  per il riconoscimento assiemi) e li manda al batch. */
+async function uploadFolderDxf(fileList) {
+  const all = Array.from(fileList || []);
+  const dxf = all.filter(f => /\.dxf$/i.test(f.name));
+  if (!dxf.length) { showMsg('msg-import', 'Nessun DXF trovato nella cartella.', 'var(--orange)'); return; }
+  if (!currentPreventivo) { showMsg('msg-import', 'Salva prima il preventivo.', 'var(--red)'); return; }
+  await uploadDxfBatch(dxf);
+}
+
 async function uploadDxfBatch(files) {
   if (!files || !files.length || !currentPreventivo) return;
   const fd = new FormData();
   fd.append('admin_id', currentUser.id);
-  for (const f of files) fd.append('files', f);
+  // Invia anche il percorso relativo (se caricata una CARTELLA) → riconoscimento
+  // assiemi dalle sottocartelle, come per lo ZIP.
+  for (const f of files) {
+    fd.append('files', f);
+    fd.append('paths', f.webkitRelativePath || f.name);
+  }
   showMsg('msg-import', `Elaborazione ${files.length} file DXF in parallelo…`, 'var(--gray-text)');
   const t0 = Date.now();
   try {
@@ -6510,6 +6532,19 @@ async function uploadDxfBatch(files) {
       applyDxfResultToUI(result, result.filename || '');
       ok++;
       if (result._cache_hit) cached++;
+    }
+    // Assiemi riconosciuti dalle sottocartelle (cartella caricata): crea i record
+    if (Array.isArray(d.assiemi) && d.assiemi.length) {
+      const esistenti = new Set(currentAssiemi.map(a => a.codice_assieme));
+      let nuovi = 0;
+      for (const cod of d.assiemi) {
+        if (esistenti.has(cod)) continue;
+        currentAssiemi.push({ id: 'tmp-' + Date.now() + '-' + nuovi, codice_assieme: cod,
+          qty: 1, ore_montaggio: 0, ore_puntatura: 0, costo: 0, costo_puntatura: 0,
+          costo_saldatura_assieme: 0, saldatura_mt: 0, peso_kg: 0, componenti_qty: {} });
+        nuovi++;
+      }
+      if (nuovi) { renderAssiemi(); scheduleSaveAssiemi(400); }
     }
     renderArticoli(); recalcTotali();
     scheduleSaveArticoli(300);

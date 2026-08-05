@@ -302,6 +302,44 @@ def match_dxf_to_articoli(articoli: list[dict], dxf_filenames: list[str]) -> tup
 
 # ─── ZIP extraction ────────────────────────────────────────────────────────
 
+def _dirparts(n: str) -> list[str]:
+    """Componenti di cartella di un percorso (senza il nome file)."""
+    return n.replace('\\', '/').split('/')[:-1]
+
+
+def assiemi_from_paths(rel_paths: list[str]) -> dict[str, str | None]:
+    """Dato un elenco di percorsi relativi (con eventuali sottocartelle),
+    ritorna {basename_dxf: codice_assieme | None}.
+
+    Il primo livello di sottocartella — dopo aver tolto la radice comune,
+    calcolata SOLO sui DXF — identifica un ASSIEME. Il DXF il cui nome coincide
+    con la cartella (master, es. 13SA0070-00/13SA0070-00.DXF) → None (è il
+    disegno dell'assieme, non un componente). Usato sia dallo ZIP che dal
+    caricamento di una cartella già estratta (webkitRelativePath).
+    """
+    dxf_paths = [p for p in rel_paths
+                 if os.path.splitext(p)[1].lower() in ('.dxf', '.dwg')]
+    dxf_dirs = [_dirparts(p) for p in dxf_paths]
+    common: list[str] = []
+    if dxf_dirs:
+        for i in range(min(len(d) for d in dxf_dirs)):
+            col = {d[i] for d in dxf_dirs}
+            if len(col) == 1:
+                common.append(next(iter(col)))
+            else:
+                break
+    clen = len(common)
+    out: dict[str, str | None] = {}
+    for p in dxf_paths:
+        base = os.path.basename(p)
+        rel_dirs = _dirparts(p)[clen:]
+        folder = rel_dirs[0] if rel_dirs else None
+        stem = os.path.splitext(base)[0]
+        is_master = folder is not None and stem.upper() == folder.upper()
+        out[base] = None if is_master else folder
+    return out
+
+
 def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dict[str, bytes]]:
     """Estrae un pacchetto ZIP con PDF ordine + DXF.
 
@@ -333,9 +371,6 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
     dxf_map: dict[str, bytes] = {}
     assieme_of: dict[str, str | None] = {}
 
-    def _dirparts(n: str) -> list[str]:
-        return n.replace('\\', '/').split('/')[:-1]  # componenti cartella (senza il file)
-
     try:
         with zipfile.ZipFile(BytesIO(zip_bytes), 'r') as zf:
             # Pass 1: raccogli le entry valide (file, non di sistema)
@@ -357,18 +392,8 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
                            if os.path.splitext(b)[1].lower() == '.pdf']
             dxf_stems = {os.path.splitext(b)[0].upper() for _, _, b in dxf_entries}
 
-            # Radice comune calcolata SOLO dai DXF (il PDF ordine può stare alla
-            # radice e falserebbe il prefisso). Es. tutti i DXF sotto "C26-156/".
-            dxf_dirs = [_dirparts(n) for _, n, _ in dxf_entries]
-            common: list[str] = []
-            if dxf_dirs:
-                for i in range(min(len(d) for d in dxf_dirs)):
-                    col = {d[i] for d in dxf_dirs}
-                    if len(col) == 1:
-                        common.append(next(iter(col)))
-                    else:
-                        break
-            clen = len(common)
+            # Mappa assiemi dai percorsi DXF (radice comune calcolata sui DXF)
+            assieme_by_base = assiemi_from_paths([n for _, n, _ in dxf_entries])
 
             # Selezione PDF ORDINE: preferisci un PDF il cui nome NON corrisponde a
             # un DXF (i PDF-disegno dei componenti si chiamano come il loro DXF).
@@ -384,14 +409,10 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
                 pdf_bytes = zf.read(best_pdf[0])
                 pdf_filename = best_pdf[2]
 
-            # Mappa DXF + assiemi (rel_dirs dopo la radice comune)
+            # Leggi i DXF; l'assieme viene dalla mappa calcolata dai percorsi
             for info, name, base in dxf_entries:
-                rel_dirs = _dirparts(name)[clen:]
-                folder = rel_dirs[0] if rel_dirs else None   # primo livello = assieme
                 dxf_map[base] = zf.read(info)
-                stem = os.path.splitext(base)[0]
-                is_master = folder is not None and stem.upper() == folder.upper()
-                assieme_of[base] = None if is_master else folder
+                assieme_of[base] = assieme_by_base.get(base)
     except zipfile.BadZipFile as e:
         raise ValueError(f'ZIP non valido: {e}')
     except Exception as e:

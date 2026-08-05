@@ -2486,6 +2486,11 @@ def api_preventivi_import_dxf_batch(preventivo_id):
         files = request.files.getlist('files')
         if not files:
             return jsonify({'success': False, 'error': 'Nessun file inviato'}), 400
+        # Percorsi relativi (webkitRelativePath) paralleli ai file, se caricata
+        # una CARTELLA già estratta → riconoscimento assiemi dalle sottocartelle.
+        rel_paths = request.form.getlist('paths')
+        from .preventivi.rfq_importer import assiemi_from_paths
+        assieme_by_base = assiemi_from_paths(rel_paths) if rel_paths else {}
         # Salva tutti i file su disco (solo DXF; per DWG serve conversione singola)
         prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
         os.makedirs(prev_dir, exist_ok=True)
@@ -2525,7 +2530,11 @@ def api_preventivi_import_dxf_batch(preventivo_id):
             for fut in as_completed(futures):
                 fname = futures[fut]
                 try:
-                    results.append(fut.result())
+                    r = fut.result()
+                    # Assegna l'assieme dal percorso della cartella (se disponibile)
+                    if assieme_by_base:
+                        r['codice_assieme'] = assieme_by_base.get(fname)
+                    results.append(r)
                 except Exception as e:
                     logger.exception('worker fail per %s', fname)
                     results.append({'success': False, 'filename': fname, 'error': str(e)})
@@ -2543,7 +2552,9 @@ def api_preventivi_import_dxf_batch(preventivo_id):
                 daemon=True,
                 name=f'svg-prewarm-{preventivo_id[:8]}',
             ).start()
-        return jsonify({'success': True, 'results': results}), 200
+        assiemi_rilevati = sorted({v for v in assieme_by_base.values() if v})
+        return jsonify({'success': True, 'results': results,
+                        'assiemi': assiemi_rilevati}), 200
     except Exception as e:
         logger.exception('import-dxf-batch failed')
         return jsonify({'success': False, 'error': str(e)}), 500
