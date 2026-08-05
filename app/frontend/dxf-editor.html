@@ -172,6 +172,29 @@ async function load() {
   pesoCartiglio = (d.peso_cartiglio_kg && d.peso_cartiglio_conf >= 0.5) ? d.peso_cartiglio_kg : null;
   buildScene(d.polylines);
   zoomFit();
+  prefillDaCartiglio(d);
+}
+
+// Pre-compila materiale + spessore dal cartiglio come SUGGERIMENTO.
+// L'operatore conferma sempre (fail-safe): sono valori proposti, non imposti.
+function prefillDaCartiglio(d) {
+  const notes = [];
+  const matSel = document.getElementById('f-materiale');
+  const opts = Array.from(matSel.options).map(o => o.value);
+  if (d.cartiglio_materiale && (d.cartiglio_materiale_conf || 0) >= 0.6
+      && opts.includes(d.cartiglio_materiale) && !matSel.value) {
+    matSel.value = d.cartiglio_materiale;
+    notes.push(`materiale ${d.cartiglio_materiale}`);
+  }
+  const spInp = document.getElementById('f-spessore');
+  if (d.cartiglio_spessore_mm && (d.cartiglio_spessore_conf || 0) >= 0.6 && !spInp.value) {
+    spInp.value = d.cartiglio_spessore_mm;
+    notes.push(`spessore ${d.cartiglio_spessore_mm}mm`);
+  }
+  if (notes.length) {
+    onDatiChange();
+    setStatus('', `Dal cartiglio: ${notes.join(', ')} (proposto — verifica e conferma).`);
+  }
 }
 
 // Cross-check: peso calcolato (area×spessore×densità) vs peso del cartiglio.

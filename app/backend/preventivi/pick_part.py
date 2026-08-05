@@ -323,17 +323,34 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
     if minx == float('inf'):
         return {'error': 'Nessuna geometria', 'extents': None, 'polylines': []}
 
-    # Cross-check anchor: peso dichiarato nel cartiglio (per confronto con il
-    # peso calcolato da area×spessore×densità → intercetta pezzi piegati /
-    # spessore o materiale sbagliati).
+    # Dati dal cartiglio per PRE-COMPILARE il CAD (l'operatore conferma sempre):
+    #  - peso: ancora del cross-check peso calcolato vs dichiarato
+    #  - materiale + spessore: suggerimento (deterministico dove possibile)
     peso_cartiglio = None
     peso_conf = 0.0
+    mat_cartiglio = ''
+    mat_conf = 0.0
+    sp_cartiglio = None
+    sp_conf = 0.0
+    sp_source = 'none'
     try:
-        from .dxf_scanner import estrai_peso_da_cartiglio
+        from .dxf_scanner import (estrai_peso_da_cartiglio,
+                                  estrai_materiale_da_cartiglio,
+                                  estrai_spessore_da_cartiglio)
         pc = estrai_peso_da_cartiglio(path)
         if pc and pc.get('peso_kg'):
             peso_cartiglio = pc['peso_kg']
             peso_conf = pc.get('confidence', 0.0)
+        mc = estrai_materiale_da_cartiglio(path)
+        if mc and mc.get('materiale'):
+            mat_cartiglio = mc['materiale']
+            mat_conf = mc.get('confidence', 0.0)
+        # spessore: senza area confermata usa filename/descrizione (no calcolo fisico)
+        sc = estrai_spessore_da_cartiglio(path)
+        if sc and sc.get('spessore_mm'):
+            sp_cartiglio = sc['spessore_mm']
+            sp_conf = sc.get('confidence', 0.0)
+            sp_source = sc.get('source', 'none')
     except Exception:
         pass
 
@@ -342,6 +359,11 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
         'polylines': polylines,
         'peso_cartiglio_kg': peso_cartiglio,
         'peso_cartiglio_conf': peso_conf,
+        'cartiglio_materiale': mat_cartiglio,
+        'cartiglio_materiale_conf': mat_conf,
+        'cartiglio_spessore_mm': sp_cartiglio,
+        'cartiglio_spessore_conf': sp_conf,
+        'cartiglio_spessore_source': sp_source,
     }
 
 
