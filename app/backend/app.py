@@ -2773,6 +2773,37 @@ def api_preventivi_dxf_select_point(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/generate-canonical', methods=['POST'])
+def api_preventivi_dxf_generate_canonical(preventivo_id, filename):
+    """Genera il DXF CANONICO dal contorno confermato (solo pezzo + fori).
+    È il file byte-identico che andrà in produzione (preventivato≡prodotto) e
+    già pulito per il nesting Lantek.
+
+    Body: {outer_xy: [[x,y]...], holes_xy: [[[x,y]...]...], codice: str}
+    Response: {success, filename, sha256}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        outer = data.get('outer_xy') or []
+        holes = data.get('holes_xy') or []
+        if not outer or len(outer) < 3:
+            return jsonify({'success': False, 'error': 'Contorno esterno mancante'}), 400
+        codice = (data.get('codice') or 'pezzo').strip() or 'pezzo'
+        safe_codice = ''.join(c if c.isalnum() or c in '-_' else '_' for c in codice)
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        os.makedirs(prev_dir, exist_ok=True)
+        out_name = f'{safe_codice}_canonico.dxf'
+        out_path = os.path.join(prev_dir, out_name)
+        from .preventivi.pick_part import genera_dxf_canonico
+        r = genera_dxf_canonico(outer, holes, out_path)
+        if not r.get('success'):
+            return jsonify({'success': False, 'error': r.get('error', 'generazione fallita')}), 500
+        return jsonify({'success': True, 'filename': out_name, 'sha256': r['sha256']}), 200
+    except Exception as e:
+        logger.exception('generate-canonical failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/geometry-json', methods=['GET'])
 def api_preventivi_dxf_geometry_json(preventivo_id, filename):
     """CAD interno — geometria del DXF come polilinee in mm, per il viewer.
@@ -3395,15 +3426,26 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
         articoli = p.get('articoli') or []
         for a in articoli:
             codice = a.get('codice') or '?'
+            canonical = a.get('canonical_dxf_filename')
             cleaned = a.get('cleaned_dxf_filename')
             original = a.get('dxf_filename')
             src = None
             is_cleaned = False
-            if cleaned:
+            src_kind = 'originale'
+            # 1) CANONICO (byte-identico al preventivato, pronto per Lantek) — preferito
+            if canonical:
+                candidate = os.path.join(src_dir, canonical)
+                if os.path.exists(candidate):
+                    src = candidate
+                    is_cleaned = True
+                    src_kind = 'canonico'
+            # 2) pulito
+            if not src and cleaned:
                 candidate = os.path.join(src_dir, cleaned)
                 if os.path.exists(candidate):
                     src = candidate
                     is_cleaned = True
+                    src_kind = 'pulito'
             if not src and original:
                 candidate = os.path.join(src_dir, original)
                 if os.path.exists(candidate):
@@ -3428,8 +3470,15 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
                 # Impronta SHA256 del file mandato in produzione (integrità)
                 try:
                     digest = _sha256(dst)
+                    # Se canonico, verifica che l'hash combaci con quello preventivato
+                    integro = None
+                    if src_kind == 'canonico' and a.get('canonical_dxf_sha256'):
+                        integro = (digest == a.get('canonical_dxf_sha256'))
+                        if not integro:
+                            stats['warnings'].append(
+                                f'{codice}: ATTENZIONE hash canonico ≠ preventivato (file modificato?)')
                     stats['file_hashes'].append(
-                        {'filename': dst_name, 'sha256': digest, 'cleaned': is_cleaned})
+                        {'filename': dst_name, 'sha256': digest, 'tipo': src_kind, 'integro': integro})
                     OrderManager.add_order_file(
                         order_id, dst_name, dst, 'DXF', sha256=digest)
                 except Exception as he:

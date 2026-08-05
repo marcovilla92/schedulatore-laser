@@ -500,6 +500,21 @@ async function confermaPezzo() {
   if (!mat || !(sp > 0)) { setStatus('err', 'Materiale e spessore sono obbligatori.'); return; }
   if (piega && !(areaOv > 0)) { setStatus('err', 'Inserisci l\'area dello sviluppo piatto.'); return; }
 
+  // Genera il DXF CANONICO dal contorno confermato (solo pezzo+fori) → file di
+  // produzione byte-identico al preventivato. Non blocca la conferma se fallisce.
+  let canonical = null;
+  if (lastResult.outer_xy) {
+    try {
+      const rc = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/generate-canonical`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outer_xy: lastResult.outer_xy, holes_xy: lastResult.holes_xy || [],
+                               codice: (ARTICOLO ? 'art' + ARTICOLO : FILE.replace(/\.(dxf|dwg)$/i, '')) }),
+      });
+      const dc = await rc.json();
+      if (dc.success) canonical = { filename: dc.filename, sha256: dc.sha256 };
+    } catch (e) { console.warn('generate-canonical fallita:', e); }
+  }
+
   // area effettiva: se piegato usa lo sviluppo stimato, altrimenti l'area tracciata
   const areaEff = piega ? areaOv : lastResult.area_dm2;
   const payload = {
@@ -515,6 +530,8 @@ async function confermaPezzo() {
     bbox_height_mm: lastResult.bbox_height_mm,
     materiale: mat,
     spessore_mm: sp,
+    canonical_dxf_filename: canonical ? canonical.filename : null,
+    canonical_dxf_sha256: canonical ? canonical.sha256 : null,
   };
   if (window.opener && ARTICOLO) {
     window.opener.postMessage({ type: 'cad-confirm', payload }, '*');

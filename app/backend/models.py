@@ -299,6 +299,10 @@ class PreventivoArticolo(Base):
     # per pezzi piegati senza vista sviluppo piatto: l'operatore stima l'area
     # a mano (come oggi). True = area_dm2 è una stima umana, non traccia esatta.
     area_stimata_piega = Column(Boolean, nullable=False, default=False)
+    # DXF CANONICO: file pulito generato dal contorno confermato (solo pezzo+fori),
+    # byte-identico a ciò che è stato preventivato → va in produzione. + impronta.
+    canonical_dxf_filename = Column(String, nullable=True)
+    canonical_dxf_sha256 = Column(String, nullable=True)
     # DXF "pulito" (solo pezzo, senza cartiglio/quote/viste) — usato per thumbnail
     # commerciale + passaggio a Mirko per il nesting Lantek. Popolato o
     # automaticamente durante l'import batch se il detector v3 dà confidence >= 0.5
@@ -654,6 +658,13 @@ def initialize_database():
             if 'saldatura_min' not in existing_prev_art:
                 conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN saldatura_min FLOAT DEFAULT 0'))
                 logger.info('Aggiunta colonna saldatura_min a preventivo_articoli')
+            # DXF canonico (2026-08-05)
+            if 'canonical_dxf_filename' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN canonical_dxf_filename VARCHAR'))
+                logger.info('Aggiunta colonna canonical_dxf_filename a preventivo_articoli')
+            if 'canonical_dxf_sha256' not in existing_prev_art:
+                conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN canonical_dxf_sha256 VARCHAR'))
+                logger.info('Aggiunta colonna canonical_dxf_sha256 a preventivo_articoli')
             conn.commit()
 
     seed_users()

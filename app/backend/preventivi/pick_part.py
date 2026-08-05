@@ -249,6 +249,37 @@ def pick_part_from_click(path: str, click_x_mm: float, click_y_mm: float,
     return _geometry_from_outer(outer, faces)
 
 
+def genera_dxf_canonico(outer_xy: list, holes_xy: list, out_path: str) -> dict:
+    """Genera un DXF PULITO contenente SOLO il contorno confermato + i fori.
+
+    È il file canonico di produzione: byte-identico a ciò che è stato
+    preventivato (garanzia preventivato≡prodotto) e già pronto per il nesting
+    Lantek (niente cartiglio/quote/viste da ripulire).
+
+    outer_xy: [[x,y], ...] contorno esterno (mm DXF).
+    holes_xy: [[[x,y], ...], ...] contorni dei fori.
+    Ritorna {success, sha256, path} oppure {success: False, error}.
+    """
+    import hashlib
+    try:
+        doc = ezdxf.new('R2010')
+        msp = doc.modelspace()
+        if outer_xy and len(outer_xy) >= 3:
+            msp.add_lwpolyline([(p[0], p[1]) for p in outer_xy], close=True,
+                               dxfattribs={'layer': 'PEZZO'})
+        for hole in (holes_xy or []):
+            if hole and len(hole) >= 3:
+                msp.add_lwpolyline([(p[0], p[1]) for p in hole], close=True,
+                                   dxfattribs={'layer': 'FORI'})
+        doc.saveas(out_path)
+        with open(out_path, 'rb') as fp:
+            digest = hashlib.sha256(fp.read()).hexdigest()
+        return {'success': True, 'sha256': digest, 'path': out_path}
+    except Exception as e:
+        logger.exception('genera_dxf_canonico fallita')
+        return {'success': False, 'error': str(e)}
+
+
 # ── Geometria per il viewer CAD (polilinee in mm DXF) ───────────────────────
 
 def _entity_polyline(entity, distance: float = FLATTEN_DISTANCE_MM):

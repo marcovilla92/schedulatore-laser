@@ -4332,6 +4332,8 @@ class PreventivoManager:
                     geometria_manuale_confermata=bool(a.get('geometria_manuale_confermata')),
                     geometry_source=a.get('geometry_source') or None,
                     area_stimata_piega=bool(a.get('area_stimata_piega')),
+                    canonical_dxf_filename=a.get('canonical_dxf_filename') or None,
+                    canonical_dxf_sha256=a.get('canonical_dxf_sha256') or None,
                 ))
             session.commit()
             return {'success': True, 'count': len(articoli or [])}
@@ -4672,6 +4674,8 @@ class PreventivoManager:
             'geometria_manuale_confermata': bool(getattr(a, 'geometria_manuale_confermata', False)),
             'geometry_source': getattr(a, 'geometry_source', None),
             'area_stimata_piega': bool(getattr(a, 'area_stimata_piega', False)),
+            'canonical_dxf_filename': getattr(a, 'canonical_dxf_filename', None),
+            'canonical_dxf_sha256': getattr(a, 'canonical_dxf_sha256', None),
         }
 
     @staticmethod

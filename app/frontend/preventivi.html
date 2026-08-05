@@ -3634,6 +3634,10 @@ window.addEventListener('message', async (ev) => {
   a.geometria_manuale_confermata = true;
   a.geometry_source = p.geometry_source;
   a.area_stimata_piega = !!p.area_stimata_piega;
+  if (p.canonical_dxf_filename) {
+    a.canonical_dxf_filename = p.canonical_dxf_filename;
+    a.canonical_dxf_sha256 = p.canonical_dxf_sha256;
+  }
   // Ricalcola il costo base laser con i dati confermati
   try { await stimaArt(idx, { silent: true }); } catch (_) {}
   renderSplitTree(); recalcTotali();
