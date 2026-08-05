@@ -802,6 +802,155 @@ def trace_contour_waypoints(path: str, points: list, config: dict | None = None)
     }
 
 
+def _enumerate_loops(nodes, adj, start_edge, max_loops=8, max_branch=14,
+                     max_steps=400000):
+    """Enumera i contorni chiusi che passano per start_edge=(ka,kb).
+
+    Cammina automatico sui nodi di grado 2 (nessuna scelta); ai BIVI (grado ≥3)
+    esplora le continuazioni in ordine di 'dirittezza' (DFS con backtracking).
+    Raccoglie fino a max_loops loop distinti. Bounded per non esplodere.
+    Ritorna lista di liste-di-chiavi-nodo (i loop).
+    """
+    ka, kb = start_edge
+    loops = []
+    steps = [0]
+    branches = [0]
+
+    def straightness_order(prev, cur):
+        pa, pc = nodes[prev], nodes[cur]
+        din = math.atan2(pc[1] - pa[1], pc[0] - pa[0])
+        cand = []
+        for nb in adj.get(cur, ()):
+            if nb == prev:
+                continue
+            pn = nodes[nb]
+            dout = math.atan2(pn[1] - pc[1], pn[0] - pc[0])
+            turn = abs((dout - din + math.pi) % (2 * math.pi) - math.pi)
+            cand.append((turn, nb))
+        cand.sort()
+        return [nb for _, nb in cand]
+
+    # stack di stati: (path, prev, cur, local_set)
+    stack = [([ka, kb], ka, kb, {ka, kb})]
+    while stack and len(loops) < max_loops and steps[0] < max_steps:
+        path, prev, cur, local = stack.pop()
+        steps[0] += 1
+        if cur == ka and len(path) > 3:
+            loops.append(path)
+            continue
+        opts = straightness_order(prev, cur)
+        # chiusura sul primo se raggiungibile diretto
+        if ka in opts and len(path) > 3:
+            loops.append(path + [ka])
+            opts = [o for o in opts if o != ka]
+        if not opts:
+            continue
+        deg = len(opts)
+        # nodo di passaggio (1 sola scelta) → segui senza contare come branch
+        if deg == 1:
+            nb = opts[0]
+            if nb in local:
+                continue
+            stack.append((path + [nb], cur, nb, local | {nb}))
+            continue
+        # BIVIO: esplora le alternative (limita il numero di bivi esplorati)
+        if branches[0] >= max_branch:
+            # oltre il budget: prosegui solo la più dritta (greedy)
+            opts = opts[:1]
+        else:
+            branches[0] += 1
+            opts = opts[:3]  # top-3 continuazioni più dritte
+        # push in ordine inverso così la più dritta viene esplorata per prima
+        for nb in reversed(opts):
+            if nb in local:
+                continue
+            stack.append((path + [nb], cur, nb, local | {nb}))
+    return loops
+
+
+def pick_candidates(path: str, click_x_mm: float, click_y_mm: float,
+                    config: dict | None = None) -> dict:
+    """Multi-ipotesi: dal click enumera i contorni chiusi plausibili e li
+    ritorna come CANDIDATI, così l'operatore sceglie quello giusto.
+
+    Ritorna {success, candidates: [{area_dm2, perimetro_taglio_m, n_forature,
+    bbox, outer_xy, holes_xy}], click}. I candidati sono dedotti per area e
+    ordinati (il più 'pezzo-simile' per primo). Se un solo candidato → l'UI può
+    auto-selezionarlo.
+    """
+    if not _HAS_SHAPELY:
+        return {'success': False, 'error': 'Shapely non installato'}
+    cfg = config or {}
+    colori_esclusi = set(cfg.get('dxf_colori_piega', [2])) | set(cfg.get('dxf_colori_saldatura', [1]))
+    try:
+        doc = ezdxf.readfile(path)
+    except Exception as e:
+        return {'success': False, 'error': f'DXF non leggibile: {e}'}
+    msp = doc.modelspace()
+    segs = _segments_all(msp, colori_esclusi)
+    if not segs:
+        return {'success': False, 'error': 'Nessuna geometria nel DXF'}
+    nodes, adj, key = _build_graph(segs)
+
+    click = Point(click_x_mm, click_y_mm)
+    best_seg, best_d = None, None
+    for a, b in segs:
+        d = LineString([a, b]).distance(click)
+        if best_d is None or d < best_d:
+            best_d, best_seg = d, (a, b)
+    if best_seg is None:
+        return {'success': False, 'error': 'Nessun segmento vicino al click'}
+    ka, kb = key(best_seg[0]), key(best_seg[1])
+    if ka == kb:
+        return {'success': False, 'error': 'Segmento degenere'}
+
+    raw_loops = _enumerate_loops(nodes, adj, (ka, kb)) + _enumerate_loops(nodes, adj, (kb, ka))
+    seen_area = []
+    candidates = []
+    for loop in raw_loops:
+        try:
+            poly = Polygon([nodes[k] for k in loop])
+            if not poly.is_valid:
+                poly = make_valid(poly)
+                if hasattr(poly, 'geoms'):
+                    cand = [g for g in poly.geoms if g.geom_type == 'Polygon']
+                    if not cand:
+                        continue
+                    poly = max(cand, key=lambda g: g.area)
+            if poly.geom_type != 'Polygon' or poly.area < MIN_AREA_MM2:
+                continue
+        except Exception:
+            continue
+        if _sembra_cornice(poly, msp):
+            continue
+        holes = _holes_inside(msp, poly, colori_esclusi)
+        area_netta = (poly.area - sum(h.area for h in holes)) / 10000.0
+        # dedup per area (entro 1%)
+        if any(abs(area_netta - a) / max(a, 1e-6) < 0.01 for a in seen_area):
+            continue
+        seen_area.append(area_netta)
+        minx, miny, maxx, maxy = poly.bounds
+        candidates.append({
+            'area_dm2': area_netta,
+            'area_lorda_dm2': poly.area / 10000.0,
+            'perimetro_taglio_m': (poly.exterior.length + sum(h.exterior.length for h in holes)) / 1000.0,
+            'n_forature': len(holes),
+            'bbox_width_mm': maxx - minx,
+            'bbox_height_mm': maxy - miny,
+            'outer_xy': list(poly.exterior.coords),
+            'holes_xy': [list(h.exterior.coords) for h in holes],
+        })
+    if not candidates:
+        return {'success': False,
+                'error': 'Nessun contorno chiuso da questo click',
+                'warnings': ['clicca sul bordo del pezzo o usa il tracciamento guidato']}
+    # ordina: preferisci più fori (pezzo reale) e area maggiore, ma non la cornice
+    candidates.sort(key=lambda c: (c['n_forature'], c['area_dm2']), reverse=True)
+    candidates = candidates[:5]
+    return {'success': True, 'candidates': candidates,
+            'click': [click_x_mm, click_y_mm]}
+
+
 def polygonize_faces(path: str, config: dict | None = None) -> list[dict]:
     """Ritorna TUTTE le facce polygonize con i loro dati (per probe/debug e viewer).
 

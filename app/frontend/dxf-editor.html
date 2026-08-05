@@ -341,28 +341,63 @@ function setMode(m) {
   }
 }
 
-// ── Click → auto o waypoint ────────────────────────────────────────
+// ── Click → auto (multi-ipotesi) o waypoint ────────────────────────
+let _candidates = [];
 async function onPick(cx, cy) {
   const p = clientToMm(cx, cy);
   const xmm = p.x, ymm = -p.y;   // riporta y in coord DXF (de-flip)
   if (mode === 'wp') { addWaypoint(xmm, ymm); return; }
-  setStatus('', 'Traccio il contorno…');
+  setStatus('', 'Cerco il contorno…');
   try {
-    const r = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/follow-contour`, {
+    const r = await fetch(`${API}/api/preventivi/${PREV}/dxf/${encodeURIComponent(FILE)}/pick-candidates`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ x: xmm, y: ymm }),
     });
     const d = await r.json();
-    if (!d.success) {
-      setStatus('err', (d.error || 'Il contorno non si chiude') + ' — riprova sul bordo, o passa a "Guidato".');
+    if (!d.success || !d.candidates || !d.candidates.length) {
+      setStatus('err', (d.error || 'Nessun contorno chiuso') + ' — riprova sul bordo, o passa a "Guidato".');
       return;
     }
-    lastResult = d;
-    drawOverlay(d);
-    updateStats(d);
-    setStatus('ok', 'Contorno tracciato. Inserisci materiale e spessore, poi conferma.');
-    onDatiChange();
+    _candidates = d.candidates;
+    if (_candidates.length === 1) {
+      selectCandidate(0);   // caso chiaro: auto-seleziona
+    } else {
+      drawCandidates(_candidates);   // ambiguo: mostra le opzioni
+      setStatus('', `${_candidates.length} contorni possibili — clicca quello giusto (evidenziati).`);
+    }
   } catch (e) { setStatus('err', 'Errore: ' + e.message); }
+}
+
+// Disegna i candidati come contorni cliccabili numerati (ambiguità).
+function drawCandidates(cands) {
+  clearOverlayPolys();
+  const g = document.getElementById('overlay-group');
+  g.querySelectorAll('.cand,.cand-lbl').forEach(e => e.remove());
+  const cols = ['#3b82f6', '#a855f7', '#f59e0b', '#ec4899', '#14b8a6'];
+  cands.forEach((c, i) => {
+    const el = document.createElementNS(SVGNS, 'polygon');
+    el.setAttribute('class', 'cand');
+    el.setAttribute('points', c.outer_xy.map(p => `${p[0]},${-p[1]}`).join(' '));
+    el.style.stroke = cols[i % cols.length];
+    el.style.fill = cols[i % cols.length] + '22';
+    el.style.strokeWidth = '2.5'; el.style.cursor = 'pointer';
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); selectCandidate(i); });
+    g.appendChild(el);
+  });
+}
+
+// Seleziona un candidato → diventa IL contorno del pezzo.
+function selectCandidate(i) {
+  const c = _candidates[i];
+  if (!c) return;
+  const g = document.getElementById('overlay-group');
+  g.querySelectorAll('.cand,.cand-lbl').forEach(e => e.remove());
+  lastResult = { ...c, source: 'manual-candidate' };
+  drawOverlay(lastResult);
+  updateStats(lastResult);
+  setStatus('ok', 'Contorno selezionato. Inserisci materiale e spessore, poi conferma.');
+  onDatiChange();
 }
 
 // ── Waypoint guidato ───────────────────────────────────────────────
@@ -423,7 +458,7 @@ async function runWaypoints(finalize) {
 
 function clearOverlayPolys() {
   const g = document.getElementById('overlay-group');
-  g.querySelectorAll('#outer-overlay,.hole-overlay').forEach(e => e.remove());
+  g.querySelectorAll('#outer-overlay,.hole-overlay,.cand,.cand-lbl').forEach(e => e.remove());
 }
 function drawOverlay(d) {
   clearOverlayPolys();
@@ -456,6 +491,7 @@ function resetStats() {
 function resetTrace() {
   lastResult = null;
   waypoints = [];
+  _candidates = [];
   const g = document.getElementById('overlay-group');
   if (g) while (g.firstChild) g.removeChild(g.firstChild);
   resetStats();

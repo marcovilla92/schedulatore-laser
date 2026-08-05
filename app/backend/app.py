@@ -2863,6 +2863,33 @@ def api_preventivi_dxf_follow_contour(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/pick-candidates', methods=['POST'])
+def api_preventivi_dxf_pick_candidates(preventivo_id, filename):
+    """CAD interno — MULTI-IPOTESI: dal click enumera i contorni chiusi plausibili
+    e li ritorna come candidati (il corretto in cima). Se 1 solo → l'UI auto-
+    seleziona; se >1 → l'operatore sceglie.
+
+    Body: {x, y}   Response: {success, candidates: [...], click}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        try:
+            x = float(data.get('x')); y = float(data.get('y'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'x/y richiesti'}), 400
+        safe_name = os.path.basename(filename)
+        dxf_path = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        from .preventivi.pick_part import pick_candidates
+        app_cfg = BarcodeManager.load_config() or {}
+        r = pick_candidates(dxf_path, x, y, app_cfg.get('dxf_detection', {}))
+        return jsonify(r), 200
+    except Exception as e:
+        logger.exception('pick-candidates failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/trace-waypoints', methods=['POST'])
 def api_preventivi_dxf_trace_waypoints(preventivo_id, filename):
     """CAD interno — tracciamento GUIDATO con waypoint (per bivi/pezzi complessi).
