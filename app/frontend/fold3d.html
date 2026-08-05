@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anteprima piega 3D — FerroTrack</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #E2E8F0; overflow: hidden; }
+  #viewer { position: absolute; inset: 0; }
+  #viewer canvas { display: block; }
+  .bar {
+    position: absolute; left: 0; right: 0; top: 0; height: 54px; z-index: 10;
+    background: #171B2E; color: #fff; display: flex; align-items: center; gap: 12px;
+    padding: 0 18px; box-shadow: 0 2px 10px rgba(0,0,0,.2);
+  }
+  .bar .logo { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg,#7C3AED,#4F46E5); display: flex; align-items: center; justify-content: center; font-weight: 800; }
+  .bar .title { font-weight: 700; letter-spacing: -.2px; }
+  .bar .pill { background: rgba(124,58,237,.25); color: #C4B5FD; font-size: 12px; padding: 3px 10px; border-radius: 20px; }
+  .bar .sp { flex: 1; }
+  .bar button { background: rgba(255,255,255,.1); color: #fff; border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; }
+  .bar button:hover { background: rgba(255,255,255,.2); }
+  .panel {
+    position: absolute; top: 70px; right: 16px; z-index: 10; width: 250px;
+    background: rgba(23,27,46,.92); color: #fff; border-radius: 14px; padding: 16px 18px;
+    backdrop-filter: blur(6px); box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  .panel h4 { font-size: 11px; letter-spacing: .12em; color: #93A0C0; text-transform: uppercase; margin-bottom: 12px; }
+  .panel .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .panel .row label { font-size: 13px; }
+  .panel .val { font-family: 'Geist', monospace; font-weight: 700; color: #C4B5FD; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 5px; border-radius: 5px; background: linear-gradient(90deg,#7C3AED var(--pct,0%), #3A4160 var(--pct,0%)); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 17px; height: 17px; border-radius: 50%; background: #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  .btnrow { display: flex; gap: 8px; margin-top: 6px; }
+  .btnrow button { flex: 1; background: #2A3050; color: #C4B5FD; border: none; border-radius: 8px; padding: 8px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .btnrow button:hover { background: #363d63; }
+  .bends { margin-top: 14px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+  .bend { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; color: #C7CEE0; }
+  .bend .dir { width: 26px; font-weight: 700; }
+  .bend .su { color: #34D399; } .bend .giu { color: #FBBF24; }
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 20; color: #475569; }
+  #loading .sp { width: 34px; height: 34px; border: 3px solid #CBD5E1; border-top-color: #7C3AED; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:30px; text-align:center; color:#B91C1C; z-index:25; }
+  .hint { position: absolute; left: 16px; bottom: 14px; z-index: 10; font-size: 12px; color: #64748B; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="logo">F</div>
+    <div class="title">Anteprima piega 3D</div>
+    <div class="pill" id="part-name">—</div>
+    <div class="sp"></div>
+    <button onclick="closeMe()">Chiudi</button>
+  </div>
+
+  <div id="viewer"></div>
+
+  <div class="panel" id="panel" style="display:none;">
+    <h4>Piega</h4>
+    <div class="row"><label>Apertura</label><span class="val" id="fold-val">100%</span></div>
+    <input type="range" id="fold-slider" min="0" max="100" value="100">
+    <div class="btnrow">
+      <button onclick="animateFold(0)">Disteso</button>
+      <button onclick="animateFold(100)">Piegato</button>
+    </div>
+    <div class="bends" id="bends-list"></div>
+  </div>
+
+  <div id="loading"><div class="sp"></div><div>Costruzione 3D…</div></div>
+  <div class="hint">Trascina = ruota · Rotella = zoom</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const params = new URLSearchParams(location.search);
+function closeMe(){ try{ window.parent && window.parent.postMessage({type:'fold3d-close'},'*'); }catch(_){} }
+window.closeMe = closeMe;
+
+function showErr(msg){
+  document.getElementById('loading').style.display='none';
+  const e=document.createElement('div'); e.className='err'; e.textContent=msg; document.body.appendChild(e);
+}
+
+// ── Ottieni il modello: da postMessage (iniettato dal CAD) o da ?src=<json> ──
+let model = null;
+function boot(m){ if(model) return; model=m; try{ build(m); }catch(e){ console.error(e); showErr('Errore 3D: '+e.message); } }
+window.addEventListener('message', ev => { if(ev.data && ev.data.type==='fold3d-model'){ boot(ev.data.model); } });
+const src = params.get('src');
+if(src){ fetch(src).then(r=>r.json()).then(boot).catch(e=>showErr('Errore fetch modello: '+e.message)); }
+if(window.parent) try{ window.parent.postMessage({type:'fold3d-ready'},'*'); }catch(_){}
+
+// ───────────────────────── costruzione scena ─────────────────────────
+let scene, camera, renderer, controls, group, faceObjs = [], hinges = [], rootId = 0, foldFrac = 1;
+
+function build(m){
+  if(!m || !m.success || !m.faces || !m.faces.length){ showErr('Modello piega non disponibile per questo pezzo.'); return; }
+  const name = params.get('name'); if(name) document.getElementById('part-name').textContent = name;
+  const thickness = m.thickness || 2;
+  rootId = m.root;
+  hinges = m.hinges || [];
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#E2E8F0');
+
+  scene.add(new THREE.HemisphereLight(0xB0C4DE, 0x33404F, 1.15));
+  const key = new THREE.DirectionalLight(0xffffff, 1.7); key.position.set(2,3,4); scene.add(key);
+  const fill = new THREE.DirectionalLight(0x8899BB, 0.55); fill.position.set(-3,1,-2); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xAABBCC, 0.4); rim.position.set(0,-2,-3); scene.add(rim);
+
+  group = new THREE.Group();
+  scene.add(group);
+
+  // centro geometrico (per centrare la vista) dal bbox di tutte le facce
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  m.faces.forEach(f => f.polygon.forEach(([x,y])=>{ minx=Math.min(minx,x);miny=Math.min(miny,y);maxx=Math.max(maxx,x);maxy=Math.max(maxy,y); }));
+  const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
+  const span = Math.max(maxx-minx, maxy-miny) || 100;
+
+  // mesh per faccia (estrusa a spessore, centrata sul piano medio z=0)
+  const baseColors = [0x6B7280, 0x7C8598];
+  m.faces.forEach((f, idx) => {
+    const shape = new THREE.Shape();
+    f.polygon.forEach(([x,y],i)=>{ if(i===0) shape.moveTo(x,y); else shape.lineTo(x,y); });
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
+    geo.translate(0,0,-thickness/2);            // piano medio a z=0
+    const mat = new THREE.MeshPhongMaterial({ color: f.id===rootId?0x5B6472:0x7C8598, specular:0x222222, shininess:30, side:THREE.DoubleSide, flatShading:false });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh);
+    faceObjs.push({ id: f.id, mesh });
+  });
+
+  // grafo cerniere: adiacenza faccia↔faccia
+  buildHingeSigns(m);
+
+  // centra il gruppo
+  group.position.set(-cx, -cy, 0);
+  // orienta: guardiamo il pezzo con Z verso l'alto (i DXF sono XY)
+  group.rotation.x = -Math.PI/2;   // porta il piano XY del pezzo su orizzontale
+
+  // camera
+  camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, span*0.01, span*40);
+  const dist = span*1.9;
+  camera.position.set(dist*0.6, dist*0.7, dist*0.8);
+  camera.lookAt(0,0,0);
+
+  renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+  document.getElementById('viewer').appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.09;
+
+  // griglia
+  const grid = new THREE.GridHelper(span*3, 30, 0xCBD5E1, 0xD4DCE6);
+  grid.position.y = -span*0.5; grid.material.opacity=0.35; grid.material.transparent=true;
+  scene.add(grid);
+
+  // pannello pieghe
+  const bl = document.getElementById('bends-list');
+  bl.innerHTML = hinges.map(h=>`<div class="bend"><span class="dir ${h.verso}">${h.verso==='su'?'▲ SU':'▼ GIÙ'}</span><span>${h.gradi}°</span><span style="color:#64748B">R${h.raggio}</span></div>`).join('') || '<div class="bend" style="color:#64748B">Nessuna piega leggibile</div>';
+  document.getElementById('panel').style.display='block';
+  document.getElementById('loading').style.display='none';
+
+  const slider = document.getElementById('fold-slider');
+  slider.addEventListener('input', ()=>{ setFold(parseInt(slider.value,10)/100); document.getElementById('fold-val').textContent=slider.value+'%'; slider.style.setProperty('--pct', slider.value+'%'); });
+  slider.style.setProperty('--pct','100%');
+
+  // inquadra sul pezzo disteso (footprint massimo), poi anima la piega
+  setFold(0); applyTransforms(); fitView();
+  animate();
+  setFoldUI(0); animateFold(100);
+}
+
+function fitView(){
+  const box = new THREE.Box3().setFromObject(group);
+  if(box.isEmpty()) return;
+  const c = box.getCenter(new THREE.Vector3());
+  const sz = box.getSize(new THREE.Vector3());
+  const maxd = Math.max(sz.x, sz.y, sz.z) || 100;
+  controls.target.copy(c);
+  const d = maxd * 1.8;
+  camera.position.set(c.x + d*0.55, c.y + d*0.8, c.z + d*0.95);
+  camera.near = maxd*0.01; camera.far = maxd*60; camera.updateProjectionMatrix();
+  controls.update();
+}
+
+// Determina il segno di rotazione per ogni cerniera (su=+z, giu=-z della falda)
+function buildHingeSigns(m){
+  // adiacenza per BFS: mappa faceId -> lista {other, hinge}
+  window._adj = {};
+  m.faces.forEach(f=> window._adj[f.id]=[]);
+  hinges.forEach(h=>{
+    window._adj[h.faceA].push({other:h.faceB, hinge:h, childIsB:true});
+    window._adj[h.faceB].push({other:h.faceA, hinge:h, childIsB:false});
+  });
+  // segno: proviamo +angolo, guardiamo se la falda va nel verso giusto
+  hinges.forEach(h=>{ h._sign = 1; });
+}
+
+function rotAboutLine(ax,ay,az, dx,dy,dz, ang){
+  const dir = new THREE.Vector3(dx,dy,dz).normalize();
+  const M = new THREE.Matrix4();
+  const T1 = new THREE.Matrix4().makeTranslation(-ax,-ay,-az);
+  const R = new THREE.Matrix4().makeRotationAxis(dir, ang);
+  const T2 = new THREE.Matrix4().makeTranslation(ax,ay,az);
+  return M.multiplyMatrices(T2, R).multiply(T1);
+}
+
+// Calcola la matrice mondo di ogni faccia via BFS dalla radice, piegando le cerniere
+function computeMatrices(frac){
+  const mats = {}; mats[rootId] = new THREE.Matrix4().identity();
+  const visited = new Set([rootId]);
+  const queue = [rootId];
+  while(queue.length){
+    const fid = queue.shift();
+    const Mp = mats[fid];
+    for(const e of (window._adj[fid]||[])){
+      if(visited.has(e.other)) continue;
+      visited.add(e.other);
+      const h = e.hinge;
+      // asse cerniera nella posizione CORRENTE del genitore
+      const A = new THREE.Vector3(h.a[0], h.a[1], 0).applyMatrix4(Mp);
+      const B = new THREE.Vector3(h.b[0], h.b[1], 0).applyMatrix4(Mp);
+      const dir = new THREE.Vector3().subVectors(B,A);
+      // il figlio è la faccia 'other'. verso su → falda sale (+), giu → scende (−).
+      // il segno assoluto dipende dall'orientamento a→b: lo fissiamo con _sign.
+      let ang = THREE.MathUtils.degToRad(h.gradi) * frac * h._sign;
+      // la falda che si muove è 'other' (verso su/giu relativo al lato)
+      const childIsB = (e.other === h.faceB);
+      const signVerso = (h.verso === 'su' ? 1 : -1) * (childIsB ? 1 : -1);
+      ang = THREE.MathUtils.degToRad(h.gradi) * frac * signVerso * h._sign;
+      const R = rotAboutLine(A.x,A.y,A.z, dir.x,dir.y,dir.z, ang);
+      mats[e.other] = new THREE.Matrix4().multiplyMatrices(R, Mp);
+      queue.push(e.other);
+    }
+  }
+  return mats;
+}
+
+function applyTransforms(){
+  const mats = computeMatrices(foldFrac);
+  faceObjs.forEach(fo=>{ const M = mats[fo.id] || new THREE.Matrix4(); fo.mesh.matrix.copy(M); });
+}
+function setFold(frac){ foldFrac = Math.max(0,Math.min(1,frac)); applyTransforms(); }
+function setFoldUI(pct){ const s=document.getElementById('fold-slider'); s.value=pct; s.style.setProperty('--pct',pct+'%'); document.getElementById('fold-val').textContent=pct+'%'; setFold(pct/100); }
+
+let animReq=null;
+function animateFold(targetPct){
+  const s=document.getElementById('fold-slider');
+  let cur=parseInt(s.value,10); const target=targetPct;
+  if(animReq) cancelAnimationFrame(animReq);
+  function step(){
+    cur += (target-cur)*0.12;
+    if(Math.abs(target-cur)<0.5) cur=target;
+    setFoldUI(Math.round(cur));
+    if(cur!==target) animReq=requestAnimationFrame(step);
+  }
+  step();
+}
+window.animateFold = animateFold;
+
+function animate(){ requestAnimationFrame(animate); if(controls)controls.update(); if(renderer)renderer.render(scene,camera); }
+addEventListener('resize', ()=>{ if(!renderer)return; camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+</script>
+</body>
+</html>
