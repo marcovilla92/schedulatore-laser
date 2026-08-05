@@ -538,6 +538,12 @@ def follow_contour_from_click(path: str, click_x_mm: float, click_y_mm: float,
                 'error': 'Il contorno non si chiude da questo click',
                 'warnings': ['click su un bordo diverso del pezzo, o guida con waypoint']}
 
+    # Rete di sicurezza: se copre quasi tutto il foglio è la cornice, non il pezzo
+    if _sembra_cornice(outer, msp):
+        return {'success': False,
+                'error': 'Sembra la cornice del foglio, non il pezzo',
+                'warnings': ['hai cliccato il bordo del disegno — clicca sul contorno del PEZZO']}
+
     # Fori: SOLO entità chiuse reali (cerchi/asole), non facce da linee di piega
     holes = _holes_inside(msp, outer, colori_esclusi)
 
@@ -614,6 +620,24 @@ def _closed_entity_polygons(msp, colori_esclusi: set[int]) -> list:
         except Exception:
             continue
     return out
+
+
+def _sembra_cornice(outer, msp) -> bool:
+    """True se l'outer riempie quasi tutto il foglio (larghezza E altezza ≥90%
+    dell'estensione totale) → è la CORNICE del disegno, non il pezzo. Rete di
+    sicurezza contro il click sul frame (l'errore 13,6× del vecchio detector).
+    Nessun pezzo reale riempie il foglio in entrambe le dimensioni."""
+    try:
+        from ezdxf import bbox
+        ext = bbox.extents(msp)
+        ew = ext.extmax.x - ext.extmin.x
+        eh = ext.extmax.y - ext.extmin.y
+        if ew <= 0 or eh <= 0:
+            return False
+        minx, miny, maxx, maxy = outer.bounds
+        return (maxx - minx) >= 0.90 * ew and (maxy - miny) >= 0.90 * eh
+    except Exception:
+        return False
 
 
 def _holes_inside(msp, outer, colori_esclusi: set[int]) -> list:
