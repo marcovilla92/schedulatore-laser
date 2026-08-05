@@ -618,14 +618,37 @@ def _closed_entity_polygons(msp, colori_esclusi: set[int]) -> list:
 
 def _holes_inside(msp, outer, colori_esclusi: set[int]) -> list:
     """Fori = entità chiuse contenute strettamente nell'outer (esclude l'outer
-    stesso e contorni ~coincidenti)."""
-    holes = []
+    stesso e contorni ~coincidenti).
+
+    SVASATURE: due (o più) cerchi ~concentrici sono una svasatura (foro passante
+    + smusso conico). Il laser taglia SOLO il foro passante (il più piccolo); la
+    svasatura è lavorazione successiva, non un taglio. Quindi tra fori annidati
+    e ~concentrici si tiene solo l'INTERNO (evita di sotto-contare area/perim).
+    """
+    raw = []
     for poly in _closed_entity_polygons(msp, colori_esclusi):
         if poly.area >= outer.area * 0.95:
             continue  # è l'outer stesso o quasi
         if outer.contains(poly.representative_point()):
-            holes.append(poly)
-    return holes
+            raw.append(poly)
+
+    # Scarta il foro esterno di ogni coppia ~concentrica (svasatura): se un foro
+    # ne contiene un altro col centroide quasi coincidente → è lo smusso, si toglie.
+    drop = set()
+    for i, a in enumerate(raw):
+        ca = a.centroid
+        for j, b in enumerate(raw):
+            if i == j or j in drop or i in drop:
+                continue
+            if a.area <= b.area:
+                continue  # a deve essere il più grande per essere lo smusso
+            cb = b.centroid
+            dist = ca.distance(cb)
+            # concentrici: centroidi entro il 15% del "raggio" del foro interno
+            r_inner = (b.area / math.pi) ** 0.5
+            if dist <= max(0.5, 0.15 * r_inner) and a.contains(b.representative_point()):
+                drop.add(i)  # a è lo smusso esterno → scarta
+    return [p for k, p in enumerate(raw) if k not in drop]
 
 
 def _nearest_node(nodes, key, x, y):

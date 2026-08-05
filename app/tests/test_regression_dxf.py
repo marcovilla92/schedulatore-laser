@@ -29,7 +29,8 @@ _APP_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_APP_DIR))
 
 try:
-    from backend.preventivi.dxf_polygon_detector_v3 import compute_geometry_from_point
+    # Funzione REALE del prodotto (contour follower), non il vecchio detector v3.
+    from backend.preventivi.pick_part import follow_contour_from_click as compute_geometry_from_point
 except ImportError as e:
     print(f"ERRORE setup: import fallito: {e}", file=sys.stderr)
     print("Esegui dalla root del progetto: python app/tests/test_regression_dxf.py", file=sys.stderr)

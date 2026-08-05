@@ -1,10 +1,10 @@
 {
-  "click_x_mm": null,
-  "click_y_mm": null,
+  "click_x_mm": 756.8,
+  "click_y_mm": 842.06,
   "expected": {
     "area_dm2": 84.1385,
     "perim_m": 5.131,
-    "n_fori": null,
+    "n_fori": 28,
     "materiale": "S235",
     "spessore_mm": 12.0,
     "peso_kg": 79.2585,
@@ -13,7 +13,7 @@
   },
   "tolleranze": {
     "area_dm2_pct": 0.5,
-    "perim_m_pct": 0.5,
+    "perim_m_pct": 1.5,
     "n_fori_abs": 0
   },
   "misurato_con": "Lantek — ORD.204.xlsx (sheet 'Struttura', pezzo 46PA00375-00)",

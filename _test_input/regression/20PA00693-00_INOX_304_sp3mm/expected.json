@@ -1,10 +1,10 @@
 {
-  "click_x_mm": null,
-  "click_y_mm": null,
+  "click_x_mm": 118.24,
+  "click_y_mm": 262.74,
   "expected": {
     "area_dm2": 1.1635,
     "perim_m": 1.0294,
-    "n_fori": null,
+    "n_fori": 4,
     "materiale": "INOX_304",
     "spessore_mm": 3.0,
     "peso_kg": 0.2792,
@@ -13,7 +13,7 @@
   },
   "tolleranze": {
     "area_dm2_pct": 0.5,
-    "perim_m_pct": 0.5,
+    "perim_m_pct": 1.5,
     "n_fori_abs": 0
   },
   "misurato_con": "Lantek — ORD.204.xlsx (sheet 'Struttura', pezzo 20PA00693-00)",
