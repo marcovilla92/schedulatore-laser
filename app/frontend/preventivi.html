@@ -2113,6 +2113,8 @@ tr.row-warn:hover { background: #FEF3C7; }
           <div class="riep-tot-val" id="riep-t-lotto">0,00 €</div>
         </div>
       </div>
+      <!-- REVISIONE GUIDATA: campi da verificare prima dell'invio (fail-safe) -->
+      <div id="riep-revisione" style="margin-bottom:18px;"></div>
       <!-- BREAKDOWN articoli/assiemi/tubolari/piastre -->
       <div id="riep-breakdown" style="display:flex; flex-direction:column; gap:14px;"></div>
     </div>
@@ -7109,10 +7111,20 @@ function openRiepilogoModal() {
     </div>`);
   }
   bd.innerHTML = parts.join('') || '<div style="color:var(--text-3); text-align:center; padding:20px;">Nessun articolo/assieme presente</div>';
+  // REVISIONE GUIDATA: elenca i punti da verificare + blocca l'invio se rossi
+  const revBloccante = renderRevisione();
   // Visibilità bottoni workflow in base allo status del preventivo
   const st = currentPreventivo.status || 'BOZZA';
   const _show = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? '' : 'none'; };
+  // In BOZZA il bottone Invia c'è sempre ma si disabilita se ci sono blocchi rossi
   _show('riep-btn-invia',   st === 'BOZZA');
+  const btnInvia = document.getElementById('riep-btn-invia');
+  if (btnInvia && st === 'BOZZA') {
+    btnInvia.disabled = revBloccante;
+    btnInvia.style.opacity = revBloccante ? '0.45' : '';
+    btnInvia.style.cursor = revBloccante ? 'not-allowed' : '';
+    btnInvia.title = revBloccante ? 'Risolvi prima i punti in rosso' : '';
+  }
   _show('riep-btn-accetta', st === 'INVIATO');
   _show('riep-btn-rifiuta', st === 'INVIATO');
   const info = document.getElementById('riep-status-info');
@@ -7131,6 +7143,89 @@ function openRiepilogoModal() {
   }
   modal.classList.add('active');
   if (window.lucide) lucide.createIcons();
+}
+
+// ── Revisione guidata: raccoglie i punti da verificare per articolo ──────
+// Rosso = bloccante (impedisce l'invio). Giallo = attenzione (non blocca).
+function buildRevisione() {
+  const issues = [];
+  (currentArticoli || []).forEach((a, idx) => {
+    const hasDxf = !!a.dxf_filename;
+    const confermata = !!a.geometria_manuale_confermata;
+    const hasBase = (a.costo_base_override != null && a.costo_base_override > 0)
+                    || (a.costo_base_stimato || 0) > 0;
+    const cod = a.codice || '(senza codice)';
+    if (hasDxf && !confermata) {
+      issues.push({ idx, cod, sev: 'rosso', testo: 'Geometria non confermata nel CAD', azione: 'cad', btn: 'Apri CAD' });
+    } else if (!hasBase) {
+      if (!a.materiale || !a.spessore_mm) {
+        issues.push({ idx, cod, sev: 'rosso', testo: 'Manca materiale o spessore',
+                      azione: hasDxf ? 'cad' : 'sel', btn: hasDxf ? 'Apri CAD' : 'Vai all’articolo' });
+      } else {
+        issues.push({ idx, cod, sev: 'rosso', testo: 'Costo laser non stimato', azione: 'stima', btn: 'Stima ora' });
+      }
+    }
+    if (a.area_stimata_piega) {
+      issues.push({ idx, cod, sev: 'giallo', testo: 'Area = sviluppo stimato a mano (pezzo piegato)', azione: 'info' });
+    }
+  });
+  return issues;
+}
+
+// Disegna il pannello revisione. Ritorna true se ci sono blocchi ROSSI.
+function renderRevisione() {
+  const box = document.getElementById('riep-revisione');
+  if (!box) return false;
+  const issues = buildRevisione();
+  const rossi = issues.filter(i => i.sev === 'rosso');
+  const gialli = issues.filter(i => i.sev === 'giallo');
+  if (!issues.length) {
+    box.innerHTML = `<div style="display:flex; align-items:center; gap:8px; padding:12px 14px; background:rgba(34,197,94,.10); border:1px solid rgba(34,197,94,.35); border-radius:10px; color:var(--green); font-weight:600; font-size:13px;">
+      <i data-lucide="shield-check" style="width:16px;height:16px;"></i> Tutto verificato — pronto per l'invio.</div>`;
+    return false;
+  }
+  const row = (i) => {
+    const c = i.sev === 'rosso' ? { bg:'#FEE2E2', bd:'#FCA5A5', tx:'#B91C1C', ic:'alert-circle' }
+                                : { bg:'#FEF3C7', bd:'#FCD34D', tx:'#92400E', ic:'alert-triangle' };
+    const btn = i.azione !== 'info'
+      ? `<button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="revisioneAzione(${i.idx},'${i.azione}')">${i.btn}</button>`
+      : '';
+    return `<div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:${c.bg}; border:1px solid ${c.bd}; border-radius:8px; margin-bottom:6px;">
+      <i data-lucide="${c.ic}" style="width:15px;height:15px;color:${c.tx};flex-shrink:0;"></i>
+      <code style="font-family:monospace; font-size:11px; color:${c.tx}; flex-shrink:0;">${escapeHtml(i.cod)}</code>
+      <span style="flex:1; font-size:12.5px; color:${c.tx};">${i.testo}</span>
+      ${btn}
+    </div>`;
+  };
+  let html = `<div style="font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-2); font-weight:700; margin-bottom:8px;">
+    Da verificare · ${rossi.length} da risolvere${gialli.length ? ' · ' + gialli.length + ' attenzione' : ''}</div>`;
+  html += rossi.map(row).join('') + gialli.map(row).join('');
+  if (rossi.length) {
+    html += `<div style="font-size:12px; color:var(--red); margin-top:8px; font-weight:600;">
+      L'invio è bloccato finché i punti in rosso non sono risolti.</div>`;
+  }
+  box.innerHTML = html;
+  if (window.lucide) lucide.createIcons();
+  return rossi.length > 0;
+}
+
+// Azione su un punto di revisione: seleziona l'articolo ed esegue l'azione.
+function revisioneAzione(idx, azione) {
+  if (!currentArticoli[idx]) return;
+  _splitSelectedIdx = idx;
+  if (azione === 'cad') {
+    closeRiepilogoModal();
+    if (!_splitView) setArticoliView('split');
+    selectSplitArticolo(idx);
+    openCadEditor();
+  } else if (azione === 'stima') {
+    stimaArt(idx).then(() => { recalcTotali(); renderRevisione(); openRiepilogoModal(); })
+                 .catch(() => {});
+  } else if (azione === 'sel') {
+    closeRiepilogoModal();
+    if (!_splitView) setArticoliView('split');
+    selectSplitArticolo(idx);
+  }
 }
 
 function closeRiepilogoModal() {
