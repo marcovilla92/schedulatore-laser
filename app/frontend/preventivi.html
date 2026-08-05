@@ -583,15 +583,23 @@ body.focus-mode .focus-btn i { opacity: 1; }
   display: flex; align-items: center; justify-content: center;
 }
 .thumb-cell:hover .thumb-overlay { background: rgba(79,70,229,0.15); }
-/* Badge "3D": segnala che passando il mouse parte l'anteprima piega 3D */
-.fold3d-badge {
-  position: absolute; top: 3px; left: 3px; z-index: 3;
+/* Indicatore "3D": messo dall'enrichment SOLO dove la piega c'è davvero.
+   Tabella → badge "3D"; split (mini) → pallino viola. */
+.has-fold3d { position: relative; }
+.thumb-cell.has-fold3d::after {
+  content: '3D'; position: absolute; top: 3px; left: 3px; z-index: 3;
   background: linear-gradient(135deg,#7C3AED,#4F46E5); color: #fff;
   font-size: 8px; font-weight: 800; letter-spacing: .5px;
   padding: 1px 5px; border-radius: 5px; line-height: 1.3;
   box-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: none;
 }
-#fold-thumb-iframe { transition: opacity .12s; }
+.thumb-mini.has-fold3d::after {
+  content: ''; position: absolute; top: 1px; right: 1px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #7C3AED; box-shadow: 0 0 0 1.5px #fff; pointer-events: none;
+}
+/* Popover 3D che appare al hover accanto alla cella */
+#fold-thumb-iframe { transition: opacity .12s; border-radius: 10px; }
 
 /* Thumbnail 3D (iframe preview-step.html) — mantenimento aspect ratio + placeholder */
 .thumb-cell.thumb-3d { background: #FAFAFA; }
@@ -3138,7 +3146,8 @@ function _rfqReveal(d, totS) {
 // WebGL anche con 100 pezzi. Fallback silenzioso alla 2D dove il 3D non c'è.
 // ═══════════════════════════════════════════════════════════════════
 let _foldIframe = null, _foldReady = false, _foldPending = null, _foldHoverToken = 0;
-const _foldCache = {};   // filename → modello (o {success:false})
+const _foldCache = {};    // filename → modello completo (o {success:false})
+const _foldProbe = {};    // filename → {has_bends, n_bends} (probe veloce)
 
 function _ensureFoldIframe() {
   if (_foldIframe) return _foldIframe;
@@ -3157,16 +3166,7 @@ function _ensureFoldIframe() {
   return f;
 }
 
-async function _fold3dHover(cell) {
-  const file = cell.getAttribute('data-fold-file');
-  const thk = parseFloat(cell.getAttribute('data-fold-thk')) || 2;
-  if (!file || !currentPreventivo) return;
-  const token = ++_foldHoverToken;
-  const f = _ensureFoldIframe();
-  const r = cell.getBoundingClientRect();
-  if (r.width < 4 || r.height < 4) return;   // cella non visibile
-  f.style.left = r.left + 'px'; f.style.top = r.top + 'px'; f.style.width = r.width + 'px'; f.style.height = r.height + 'px';
-
+async function _foldFetchModel(file, thk) {
   let model = _foldCache[file];
   if (model === undefined) {
     try {
@@ -3176,8 +3176,41 @@ async function _fold3dHover(cell) {
     } catch (e) { model = { success: false }; }
     _foldCache[file] = model;
   }
-  if (token !== _foldHoverToken) return;            // il mouse è già andato altrove
-  if (!model || !model.success) { f.style.display = 'none'; return; }  // resta la miniatura 2D
+  return model;
+}
+
+// Posiziona il popover 3D (dimensione fissa, leggibile) accanto alla cella,
+// clampato nel viewport. Funziona sia per la tabella che per la mini-thumb split.
+function _foldPlacePopover(f, cell) {
+  const W = 260, H = 190, gap = 10;
+  const r = cell.getBoundingClientRect();
+  if (r.width < 3 || r.height < 3) return false;
+  let left = r.right + gap;
+  if (left + W > innerWidth - 8) left = r.left - gap - W;   // non c'è spazio a dx → vai a sx
+  if (left < 8) left = Math.min(Math.max(8, r.left), innerWidth - W - 8);
+  let top = r.top + r.height / 2 - H / 2;
+  top = Math.min(Math.max(8, top), innerHeight - H - 8);
+  f.style.left = left + 'px'; f.style.top = top + 'px';
+  f.style.width = W + 'px'; f.style.height = H + 'px';
+  return true;
+}
+
+async function _fold3dHover(cell) {
+  const file = cell.getAttribute('data-fold-file');
+  const thk = parseFloat(cell.getAttribute('data-fold-thk')) || 2;
+  if (!file || !currentPreventivo) return;
+  const token = ++_foldHoverToken;
+  const f = _ensureFoldIframe();
+  if (!_foldPlacePopover(f, cell)) return;
+
+  const model = await _foldFetchModel(file, thk);
+  if (token !== _foldHoverToken) return;                 // mouse già altrove
+  if (!model || !model.success) {                        // niente 3D → resta la 2D
+    f.style.display = 'none';
+    cell.classList.remove('has-fold3d');                 // auto-correzione badge
+    return;
+  }
+  _foldPlacePopover(f, cell);
   f.style.display = 'block';
   if (_foldReady) f.contentWindow.postMessage({ type: 'fold3d-model', model }, '*');
   else _foldPending = model;
@@ -3187,38 +3220,50 @@ function _fold3dLeave() {
   if (_foldIframe) _foldIframe.style.display = 'none';
 }
 
-// Enrichment: pre-calcola il fold model per ogni DXF (cache calda → hover
-// istantaneo) e mette il badge "3D" SOLO dove la piega c'è davvero.
+// Applicazione SINCRONA dei badge dallo stato in cache (chiamata ad ogni render,
+// così il badge sopravvive ai re-render senza rifare fetch).
+function _applyFoldBadges() {
+  document.querySelectorAll('[data-fold-file]').forEach(cell => {
+    const file = cell.getAttribute('data-fold-file');
+    const full = _foldCache[file];
+    if (full && !full.success) { cell.classList.remove('has-fold3d'); return; }  // sappiamo che non regge
+    const p = _foldProbe[file];
+    if (p && p.has_bends) cell.classList.add('has-fold3d');
+  });
+}
+
+// Enrichment ASYNC (una volta per preventivo): PROBE veloce in parallelo per
+// sapere chi ha pieghe, poi scalda i modelli completi a bassa priorità. Ad ogni
+// passo aggiorna i badge via _applyFoldBadges (che è idempotente).
 let _foldEnrichRunning = false;
 async function _enrichFoldBadges() {
   if (_foldEnrichRunning || !currentPreventivo) return;
   _foldEnrichRunning = true;
+  const pid = currentPreventivo.id;
   try {
-    const cells = Array.from(document.querySelectorAll('.thumb-cell[data-fold-file]'));
-    let idx = 0;
-    const worker = async () => {
-      while (idx < cells.length) {
-        const cell = cells[idx++];
-        const file = cell.getAttribute('data-fold-file');
-        const thk = parseFloat(cell.getAttribute('data-fold-thk')) || 2;
-        let model = _foldCache[file];
-        if (model === undefined) {
-          try {
-            const resp = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${file}/fold-model`,
-              { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ thickness: thk }) });
-            model = await resp.json();
-          } catch (e) { model = { success: false }; }
-          _foldCache[file] = model;
-        }
-        if (model && model.success && cell.isConnected && !cell.querySelector('.fold3d-badge')) {
-          const b = document.createElement('span');
-          b.className = 'fold3d-badge'; b.textContent = '3D';
-          b.title = 'Passa il mouse: anteprima piega 3D';
-          cell.appendChild(b);
-        }
-      }
-    };
-    await Promise.all([worker(), worker(), worker()]);  // concorrenza 3
+    const files = Array.from(new Set(Array.from(document.querySelectorAll('[data-fold-file]'))
+      .map(c => c.getAttribute('data-fold-file'))));
+    // 1) PROBE veloce in parallelo
+    await Promise.all(files.map(async file => {
+      if (_foldProbe[file] !== undefined) return;
+      try {
+        const resp = await fetch(`${API_URL}/api/preventivi/${pid}/dxf/${file}/fold-model`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ probe: true }) });
+        _foldProbe[file] = await resp.json();
+      } catch (e) { _foldProbe[file] = { has_bends: false }; }
+    }));
+    if (currentPreventivo.id !== pid) return;
+    _applyFoldBadges();
+    // 2) Warm dei modelli completi (uno per volta), togliendo i badge che non reggono
+    const thkOf = {};
+    document.querySelectorAll('[data-fold-file]').forEach(c => { thkOf[c.getAttribute('data-fold-file')] = parseFloat(c.getAttribute('data-fold-thk')) || 2; });
+    for (const file of files) {
+      if (currentPreventivo.id !== pid) break;
+      if (!(_foldProbe[file] && _foldProbe[file].has_bends)) continue;
+      if (_foldCache[file] !== undefined) continue;
+      await _foldFetchModel(file, thkOf[file] || 2);
+      _applyFoldBadges();
+    }
   } finally {
     _foldEnrichRunning = false;
   }
@@ -3643,7 +3688,7 @@ function renderArticoli() {
     try { renderSplitTree(); } catch (_) {}
   }
   // Badge 3D + cache calda per l'anteprima piega al hover (background)
-  try { _enrichFoldBadges(); } catch (_) {}
+  try { _applyFoldBadges(); _enrichFoldBadges(); } catch (_) {}
 }
 
 /** Apre il modal dettaglio dell'assieme con il codice indicato.
@@ -3891,6 +3936,8 @@ function renderSplitTree() {
   if (_splitSelectedIdx != null && currentArticoli[_splitSelectedIdx]) {
     _highlightSplitRow(_splitSelectedIdx);
   }
+  // Badge 3D + cache calda anche nella vista split (il re-render azzera le classi)
+  try { _applyFoldBadges(); _enrichFoldBadges(); } catch (_) {}
 }
 
 /** Riga singola nel tree sx (usata per standalone + componenti assieme). */
@@ -3904,8 +3951,11 @@ function _splitRowHtml(i, indent) {
   const thumbSrc = displayFilename && currentPreventivo
     ? `/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg${bust ? '?v=' + bust : ''}`
     : '';
+  const foldAttrsMini = a.dxf_filename
+    ? ` data-fold-file="${encodeURIComponent(a.dxf_filename)}" data-fold-thk="${a.spessore_mm || 2}" onmouseenter="_fold3dHover(this)" onmouseleave="_fold3dLeave(this)"`
+    : '';
   const thumbHtml = thumbSrc
-    ? `<div class="thumb-mini"><img src="${thumbSrc}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='—'; this.parentNode.classList.add('empty');"></div>`
+    ? `<div class="thumb-mini"${foldAttrsMini}><img src="${thumbSrc}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='—'; this.parentNode.classList.add('empty');"></div>`
     : `<div class="thumb-mini empty">—</div>`;
   const dim = _artDimLabel(a);
   const indentHtml = indent ? '<span class="indent"></span>' : '';

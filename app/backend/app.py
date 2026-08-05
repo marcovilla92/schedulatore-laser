@@ -2927,6 +2927,10 @@ def api_preventivi_dxf_fold_model(preventivo_id, filename):
         from .preventivi.pick_fold import build_fold_model
 
         pieghe = estrai_pieghe_3d(dxf_path, cfg)
+        # Probe veloce: solo conteggio pieghe (per il badge), niente pick_candidates
+        if data.get('probe'):
+            return jsonify({'probe': True, 'has_bends': bool(pieghe),
+                            'n_bends': len(pieghe)}), 200
         if not pieghe:
             return jsonify({'success': False, 'reason': 'no_bends',
                             'error': 'Nessuna piega leggibile in questo pezzo'}), 200
