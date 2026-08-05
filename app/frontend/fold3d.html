@@ -43,6 +43,10 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .err { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:30px; text-align:center; color:#B91C1C; z-index:25; }
   .hint { position: absolute; left: 16px; bottom: 14px; z-index: 10; font-size: 12px; color: #64748B; }
+  /* Modalità miniatura: solo il 3D che ruota, nessuna UI, sfondo tenue */
+  body.thumb .bar, body.thumb .panel, body.thumb .hint { display: none !important; }
+  body.thumb, body.thumb html { background: #EEF2F6; }
+  body.thumb #loading { background: #EEF2F6; }
 </style>
 </head>
 <body>
@@ -81,6 +85,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const params = new URLSearchParams(location.search);
+const isThumb = params.get('thumb') === '1';
+if (isThumb) document.body.classList.add('thumb');
 function closeMe(){ try{ window.parent && window.parent.postMessage({type:'fold3d-close'},'*'); }catch(_){} }
 window.closeMe = closeMe;
 
@@ -91,7 +97,7 @@ function showErr(msg){
 
 // ── Ottieni il modello: da postMessage (iniettato dal CAD) o da ?src=<json> ──
 let model = null;
-function boot(m){ if(model) return; model=m; try{ build(m); }catch(e){ console.error(e); showErr('Errore 3D: '+e.message); } }
+function boot(m){ try{ build(m); }catch(e){ console.error(e); showErr('Errore 3D: '+e.message); } }
 window.addEventListener('message', ev => { if(ev.data && ev.data.type==='fold3d-model'){ boot(ev.data.model); } });
 const src = params.get('src');
 if(src){ fetch(src).then(r=>r.json()).then(boot).catch(e=>showErr('Errore fetch modello: '+e.message)); }
@@ -99,59 +105,18 @@ if(window.parent) try{ window.parent.postMessage({type:'fold3d-ready'},'*'); }ca
 
 // ───────────────────────── costruzione scena ─────────────────────────
 let scene, camera, renderer, controls, group, faceObjs = [], hinges = [], rootId = 0, foldFrac = 1;
+let inited = false;
 
-function build(m){
-  if(!m || !m.success || !m.faces || !m.faces.length){ showErr('Modello piega non disponibile per questo pezzo.'); return; }
-  const name = params.get('name'); if(name) document.getElementById('part-name').textContent = name;
-  const thickness = m.thickness || 2;
-  rootId = m.root;
-  hinges = m.hinges || [];
-
+// Init UNA VOLTA: renderer, camera, luci, controlli, loop. Riusato tra i pezzi.
+function initViewer(){
   scene = new THREE.Scene();
-  scene.background = new THREE.Color('#E2E8F0');
-
+  scene.background = new THREE.Color(isThumb ? '#EEF2F6' : '#E2E8F0');
   scene.add(new THREE.HemisphereLight(0xB0C4DE, 0x33404F, 1.15));
   const key = new THREE.DirectionalLight(0xffffff, 1.7); key.position.set(2,3,4); scene.add(key);
   const fill = new THREE.DirectionalLight(0x8899BB, 0.55); fill.position.set(-3,1,-2); scene.add(fill);
   const rim = new THREE.DirectionalLight(0xAABBCC, 0.4); rim.position.set(0,-2,-3); scene.add(rim);
 
-  group = new THREE.Group();
-  scene.add(group);
-
-  // centro geometrico (per centrare la vista) dal bbox di tutte le facce
-  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
-  m.faces.forEach(f => f.polygon.forEach(([x,y])=>{ minx=Math.min(minx,x);miny=Math.min(miny,y);maxx=Math.max(maxx,x);maxy=Math.max(maxy,y); }));
-  const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
-  const span = Math.max(maxx-minx, maxy-miny) || 100;
-
-  // mesh per faccia (estrusa a spessore, centrata sul piano medio z=0)
-  const baseColors = [0x6B7280, 0x7C8598];
-  m.faces.forEach((f, idx) => {
-    const shape = new THREE.Shape();
-    f.polygon.forEach(([x,y],i)=>{ if(i===0) shape.moveTo(x,y); else shape.lineTo(x,y); });
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
-    geo.translate(0,0,-thickness/2);            // piano medio a z=0
-    const mat = new THREE.MeshPhongMaterial({ color: f.id===rootId?0x5B6472:0x7C8598, specular:0x222222, shininess:30, side:THREE.DoubleSide, flatShading:false });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.matrixAutoUpdate = false;
-    group.add(mesh);
-    faceObjs.push({ id: f.id, mesh });
-  });
-
-  // grafo cerniere: adiacenza faccia↔faccia
-  buildHingeSigns(m);
-
-  // centra il gruppo
-  group.position.set(-cx, -cy, 0);
-  // orienta: guardiamo il pezzo con Z verso l'alto (i DXF sono XY)
-  group.rotation.x = -Math.PI/2;   // porta il piano XY del pezzo su orizzontale
-
-  // camera
-  camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, span*0.01, span*40);
-  const dist = span*1.9;
-  camera.position.set(dist*0.6, dist*0.7, dist*0.8);
-  camera.lookAt(0,0,0);
-
+  camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.5, 5000);
   renderer = new THREE.WebGLRenderer({ antialias:true });
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -160,26 +125,71 @@ function build(m){
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = 0.09;
+  if (isThumb) {
+    controls.enableZoom = false; controls.enablePan = false; controls.enableRotate = false;
+    controls.autoRotate = true; controls.autoRotateSpeed = 2.4;
+  } else {
+    const slider = document.getElementById('fold-slider');
+    slider.addEventListener('input', ()=>{ setFold(parseInt(slider.value,10)/100); document.getElementById('fold-val').textContent=slider.value+'%'; slider.style.setProperty('--pct', slider.value+'%'); });
+  }
+  animate();
+  inited = true;
+}
 
-  // griglia
-  const grid = new THREE.GridHelper(span*3, 30, 0xCBD5E1, 0xD4DCE6);
-  grid.position.y = -span*0.5; grid.material.opacity=0.35; grid.material.transparent=true;
-  scene.add(grid);
+// Svuota il gruppo precedente (riuso dell'iframe per pezzi diversi)
+function clearPart(){
+  if(!group) return;
+  group.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); });
+  scene.remove(group); group = null; faceObjs = [];
+}
 
-  // pannello pieghe
-  const bl = document.getElementById('bends-list');
-  bl.innerHTML = hinges.map(h=>`<div class="bend"><span class="dir ${h.verso}">${h.verso==='su'?'▲ SU':'▼ GIÙ'}</span><span>${h.gradi}°</span><span style="color:#64748B">R${h.raggio}</span></div>`).join('') || '<div class="bend" style="color:#64748B">Nessuna piega leggibile</div>';
-  document.getElementById('panel').style.display='block';
+function build(m){
+  if(!m || !m.success || !m.faces || !m.faces.length){ if(!isThumb) showErr('Modello piega non disponibile per questo pezzo.'); return; }
+  if(!inited) initViewer();
+  clearPart();
+  const name = params.get('name'); if(name) document.getElementById('part-name').textContent = name;
+  const thickness = m.thickness || 2;
+  rootId = m.root;
+  hinges = m.hinges || [];
+
+  group = new THREE.Group();
+  scene.add(group);
+
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  m.faces.forEach(f => f.polygon.forEach(([x,y])=>{ minx=Math.min(minx,x);miny=Math.min(miny,y);maxx=Math.max(maxx,x);maxy=Math.max(maxy,y); }));
+  const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
+
+  m.faces.forEach((f) => {
+    const shape = new THREE.Shape();
+    f.polygon.forEach(([x,y],i)=>{ if(i===0) shape.moveTo(x,y); else shape.lineTo(x,y); });
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
+    geo.translate(0,0,-thickness/2);
+    const mat = new THREE.MeshPhongMaterial({ color: f.id===rootId?0x5B6472:0x7C8598, specular:0x222222, shininess:30, side:THREE.DoubleSide, flatShading:false });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh);
+    faceObjs.push({ id: f.id, mesh });
+  });
+
+  buildHingeSigns(m);
+  group.position.set(-cx, -cy, 0);
+  group.rotation.x = -Math.PI/2;
+
+  // pannello pieghe (solo modalità editor)
+  if(!isThumb){
+    const bl = document.getElementById('bends-list');
+    bl.innerHTML = hinges.map(h=>`<div class="bend"><span class="dir ${h.verso}">${h.verso==='su'?'▲ SU':'▼ GIÙ'}</span><span>${h.gradi}°</span><span style="color:#64748B">R${h.raggio}</span></div>`).join('') || '<div class="bend" style="color:#64748B">Nessuna piega leggibile</div>';
+    document.getElementById('panel').style.display='block';
+    const slider = document.getElementById('fold-slider'); slider.style.setProperty('--pct','100%');
+  }
   document.getElementById('loading').style.display='none';
 
-  const slider = document.getElementById('fold-slider');
-  slider.addEventListener('input', ()=>{ setFold(parseInt(slider.value,10)/100); document.getElementById('fold-val').textContent=slider.value+'%'; slider.style.setProperty('--pct', slider.value+'%'); });
-  slider.style.setProperty('--pct','100%');
-
-  // inquadra sul pezzo disteso (footprint massimo), poi anima la piega
   setFold(0); applyTransforms(); fitView();
-  animate();
-  setFoldUI(0); animateFold(100);
+  if (isThumb) {
+    setFold(0.9);
+  } else {
+    setFoldUI(0); animateFold(100);
+  }
 }
 
 function fitView(){

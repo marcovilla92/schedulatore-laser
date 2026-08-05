@@ -2903,6 +2903,73 @@ def api_preventivi_dxf_pick_candidates(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/fold-model', methods=['POST'])
+def api_preventivi_dxf_fold_model(preventivo_id, filename):
+    """Anteprima piega 3D — modello {facce, cerniere, radice} per il viewer.
+
+    Legge le pieghe (verso+gradi+raggio) dal disegno sviluppato e spacca il
+    contorno lungo le cerniere. Best-effort per la miniatura: se l'outline non
+    è fornito, lo cerca da solo seminando il pick vicino alle pieghe.
+
+    Body (opzionale): {outer_xy:[[x,y]..] contorno CONFERMATO, thickness}
+    Response: build_fold_model(...) oppure {success:False, reason}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        safe_name = os.path.basename(filename)
+        dxf_path = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'success': False, 'error': 'File DXF non trovato'}), 404
+        app_cfg = BarcodeManager.load_config() or {}
+        cfg = app_cfg.get('dxf_detection', {})
+        from .preventivi.dxf_scanner import estrai_pieghe_3d
+        from .preventivi.pick_part import pick_candidates
+        from .preventivi.pick_fold import build_fold_model
+
+        pieghe = estrai_pieghe_3d(dxf_path, cfg)
+        if not pieghe:
+            return jsonify({'success': False, 'reason': 'no_bends',
+                            'error': 'Nessuna piega leggibile in questo pezzo'}), 200
+
+        outer = data.get('outer_xy')
+        if not outer:
+            # Semina il pick vicino alle pieghe ma NON sulla linea cerniera
+            # (lì non trova segmenti): prova più offset lungo la normale e tieni
+            # il candidato di area maggiore = il blank sviluppato completo.
+            import math as _m
+            mx = sum((b['hinge'][0] + b['hinge'][2]) / 2 for b in pieghe) / len(pieghe)
+            my = sum((b['hinge'][1] + b['hinge'][3]) / 2 for b in pieghe) / len(pieghe)
+            h0 = pieghe[0]['hinge']
+            dx, dy = h0[2] - h0[0], h0[3] - h0[1]
+            L = _m.hypot(dx, dy) or 1.0
+            nx, ny = -dy / L, dx / L
+            best_area = -1.0
+            for off in (20, 30, -20, -30, 40, -40):
+                sx, sy = mx + nx * off, my + ny * off
+                try:
+                    cand = pick_candidates(dxf_path, sx, sy, cfg)
+                    for c in (cand.get('candidates') or []):
+                        a = c.get('area_dm2') or 0
+                        oxy = c.get('outer_xy') or c.get('outer')
+                        if oxy and a > best_area:
+                            best_area, outer = a, oxy
+                except Exception:
+                    continue
+        if not outer:
+            return jsonify({'success': False, 'reason': 'no_outline',
+                            'error': 'Contorno non ricavabile in automatico'}), 200
+
+        try:
+            thickness = float(data.get('thickness') or 0) or 2.0
+        except (TypeError, ValueError):
+            thickness = 2.0
+        model = build_fold_model(dxf_path, outer, thickness, cfg)
+        return jsonify(model), 200
+    except Exception as e:
+        logger.exception('fold-model failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/trace-waypoints', methods=['POST'])
 def api_preventivi_dxf_trace_waypoints(preventivo_id, filename):
     """CAD interno — tracciamento GUIDATO con waypoint (per bivi/pezzi complessi).

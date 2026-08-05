@@ -583,6 +583,15 @@ body.focus-mode .focus-btn i { opacity: 1; }
   display: flex; align-items: center; justify-content: center;
 }
 .thumb-cell:hover .thumb-overlay { background: rgba(79,70,229,0.15); }
+/* Badge "3D": segnala che passando il mouse parte l'anteprima piega 3D */
+.fold3d-badge {
+  position: absolute; top: 3px; left: 3px; z-index: 3;
+  background: linear-gradient(135deg,#7C3AED,#4F46E5); color: #fff;
+  font-size: 8px; font-weight: 800; letter-spacing: .5px;
+  padding: 1px 5px; border-radius: 5px; line-height: 1.3;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: none;
+}
+#fold-thumb-iframe { transition: opacity .12s; }
 
 /* Thumbnail 3D (iframe preview-step.html) — mantenimento aspect ratio + placeholder */
 .thumb-cell.thumb-3d { background: #FAFAFA; }
@@ -3123,6 +3132,98 @@ function _rfqReveal(d, totS) {
   if (window.lucide) lucide.createIcons();
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Anteprima piega 3D al passaggio del mouse sulla miniatura.
+// UN solo iframe condiviso (three.js caricato una volta) → niente limiti
+// WebGL anche con 100 pezzi. Fallback silenzioso alla 2D dove il 3D non c'è.
+// ═══════════════════════════════════════════════════════════════════
+let _foldIframe = null, _foldReady = false, _foldPending = null, _foldHoverToken = 0;
+const _foldCache = {};   // filename → modello (o {success:false})
+
+function _ensureFoldIframe() {
+  if (_foldIframe) return _foldIframe;
+  const f = document.createElement('iframe');
+  f.id = 'fold-thumb-iframe';
+  f.src = '/fold3d.html?thumb=1';
+  f.style.cssText = 'position:fixed; z-index:60; border:none; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.22); display:none; background:#EEF2F6; pointer-events:none;';
+  document.body.appendChild(f);
+  window.addEventListener('message', ev => {
+    if (ev.data && ev.data.type === 'fold3d-ready') {
+      _foldReady = true;
+      if (_foldPending) { f.contentWindow.postMessage({ type: 'fold3d-model', model: _foldPending }, '*'); _foldPending = null; }
+    }
+  });
+  _foldIframe = f;
+  return f;
+}
+
+async function _fold3dHover(cell) {
+  const file = cell.getAttribute('data-fold-file');
+  const thk = parseFloat(cell.getAttribute('data-fold-thk')) || 2;
+  if (!file || !currentPreventivo) return;
+  const token = ++_foldHoverToken;
+  const f = _ensureFoldIframe();
+  const r = cell.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return;   // cella non visibile
+  f.style.left = r.left + 'px'; f.style.top = r.top + 'px'; f.style.width = r.width + 'px'; f.style.height = r.height + 'px';
+
+  let model = _foldCache[file];
+  if (model === undefined) {
+    try {
+      const resp = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${file}/fold-model`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ thickness: thk }) });
+      model = await resp.json();
+    } catch (e) { model = { success: false }; }
+    _foldCache[file] = model;
+  }
+  if (token !== _foldHoverToken) return;            // il mouse è già andato altrove
+  if (!model || !model.success) { f.style.display = 'none'; return; }  // resta la miniatura 2D
+  f.style.display = 'block';
+  if (_foldReady) f.contentWindow.postMessage({ type: 'fold3d-model', model }, '*');
+  else _foldPending = model;
+}
+function _fold3dLeave() {
+  _foldHoverToken++;
+  if (_foldIframe) _foldIframe.style.display = 'none';
+}
+
+// Enrichment: pre-calcola il fold model per ogni DXF (cache calda → hover
+// istantaneo) e mette il badge "3D" SOLO dove la piega c'è davvero.
+let _foldEnrichRunning = false;
+async function _enrichFoldBadges() {
+  if (_foldEnrichRunning || !currentPreventivo) return;
+  _foldEnrichRunning = true;
+  try {
+    const cells = Array.from(document.querySelectorAll('.thumb-cell[data-fold-file]'));
+    let idx = 0;
+    const worker = async () => {
+      while (idx < cells.length) {
+        const cell = cells[idx++];
+        const file = cell.getAttribute('data-fold-file');
+        const thk = parseFloat(cell.getAttribute('data-fold-thk')) || 2;
+        let model = _foldCache[file];
+        if (model === undefined) {
+          try {
+            const resp = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${file}/fold-model`,
+              { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ thickness: thk }) });
+            model = await resp.json();
+          } catch (e) { model = { success: false }; }
+          _foldCache[file] = model;
+        }
+        if (model && model.success && cell.isConnected && !cell.querySelector('.fold3d-badge')) {
+          const b = document.createElement('span');
+          b.className = 'fold3d-badge'; b.textContent = '3D';
+          b.title = 'Passa il mouse: anteprima piega 3D';
+          cell.appendChild(b);
+        }
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);  // concorrenza 3
+  } finally {
+    _foldEnrichRunning = false;
+  }
+}
+
 async function loadList() {
   const tbody = document.getElementById('list-tbody');
   const meta = document.getElementById('list-meta');
@@ -3541,6 +3642,8 @@ function renderArticoli() {
   if (typeof _splitView !== 'undefined' && _splitView) {
     try { renderSplitTree(); } catch (_) {}
   }
+  // Badge 3D + cache calda per l'anteprima piega al hover (background)
+  try { _enrichFoldBadges(); } catch (_) {}
 }
 
 /** Apre il modal dettaglio dell'assieme con il codice indicato.
@@ -3600,8 +3703,14 @@ function _renderArticoloRow(i, a) {
     const dimOverlay = dimLabel
       ? `<span style="position:absolute; bottom:2px; left:2px; background:rgba(15,23,42,0.75); color:white; font-size:9px; font-weight:600; padding:1px 6px; border-radius:6px; line-height:1.2; font-variant-numeric:tabular-nums; z-index:2; letter-spacing:0.2px;">${dimLabel}</span>`
       : '';
+    // 3D piega al hover: abilitato per ogni pezzo con DXF (il file originale ha
+    // i testi SU/GIU). Il badge "3D" lo mette poi l'enrichment SOLO dove il fold
+    // model riesce davvero (così non promette 3D sui pezzi piatti).
+    const foldAttrs = a.dxf_filename
+      ? ` data-fold-file="${encodeURIComponent(a.dxf_filename)}" data-fold-thk="${a.spessore_mm || 2}" onmouseenter="_fold3dHover(this)" onmouseleave="_fold3dLeave(this)"`
+      : '';
     const thumbHtml = (displayFilename && currentPreventivo)
-      ? `<div class="thumb-cell" onclick="openArtModal(${i})" title="Vedi dettaglio" style="position:relative;">
+      ? `<div class="thumb-cell" onclick="openArtModal(${i})" title="Vedi dettaglio" style="position:relative;"${foldAttrs}>
            <img src="${thumbSrc}" alt="" loading="lazy"
                 data-retry="0" data-src="${thumbSrc}"
                 onerror="_thumbOnError(this)">
