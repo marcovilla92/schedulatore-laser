@@ -974,6 +974,130 @@ tr.row-warn:hover { background: #FEF3C7; }
   to { transform: rotate(360deg); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   AI RFQ "Cinema": overlay a schermo intero che mostra l'AI al lavoro
+   e rivela l'ordine estratto pezzo per pezzo. Frontend puro.
+   ═══════════════════════════════════════════════════════════════════ */
+.rfq-cinema {
+  position: fixed; inset: 0; z-index: 3000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(23,23,23,0.55); backdrop-filter: blur(4px);
+  animation: rfq-fade 0.25s ease;
+}
+.rfq-cinema.show { display: flex; }
+@keyframes rfq-fade { from { opacity: 0; } to { opacity: 1; } }
+.rfq-cine-card {
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  background: var(--white); border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(23,23,23,0.35);
+  overflow: hidden; display: flex; flex-direction: column;
+  animation: rfq-pop 0.32s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes rfq-pop { from { transform: translateY(16px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.rfq-cine-head {
+  padding: 20px 24px 16px; display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(79,70,229,0.10));
+  border-bottom: 1px solid var(--border);
+}
+.rfq-cine-orb {
+  width: 40px; height: 40px; border-radius: 12px; flex: none;
+  background: linear-gradient(135deg, #7C3AED, #4F46E5);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 18px rgba(124,58,237,0.4);
+  animation: rfq-breathe 2s ease-in-out infinite;
+}
+@keyframes rfq-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.rfq-cine-title { font-family: 'Geist'; font-weight: 700; font-size: 16px; color: var(--text); letter-spacing: -0.3px; }
+.rfq-cine-sub { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+.rfq-cine-timer {
+  margin-left: auto; font-family: 'Geist'; font-weight: 600; font-size: 13px;
+  color: #7C3AED; background: rgba(124,58,237,0.10);
+  padding: 4px 10px; border-radius: 8px; min-width: 52px; text-align: center;
+}
+.rfq-cine-body { padding: 18px 24px 22px; overflow-y: auto; }
+
+/* Barra shimmer di avanzamento (fase AI, durata ignota) */
+.rfq-shimmer {
+  height: 4px; border-radius: 4px; background: var(--surface-2);
+  overflow: hidden; margin-bottom: 18px; position: relative;
+}
+.rfq-shimmer::after {
+  content: ''; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, #7C3AED, transparent);
+  animation: rfq-slide 1.3s ease-in-out infinite;
+}
+@keyframes rfq-slide { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+
+/* Lista fasi */
+.rfq-stage { display: flex; align-items: center; gap: 11px; padding: 7px 0; font-size: 13.5px; color: var(--text-3); transition: color .3s; }
+.rfq-stage .rfq-stage-ic {
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--border); background: var(--white); transition: all .3s;
+}
+.rfq-stage.active { color: var(--text); font-weight: 600; }
+.rfq-stage.active .rfq-stage-ic { border-color: #7C3AED; }
+.rfq-stage.active .rfq-stage-ic::after {
+  content: ''; width: 9px; height: 9px; border-radius: 50%;
+  border: 2px solid #7C3AED; border-top-color: transparent; animation: rfq-spin .6s linear infinite;
+}
+.rfq-stage.done { color: var(--text-2); }
+.rfq-stage.done .rfq-stage-ic { border-color: var(--green-badge); background: var(--green-badge); }
+.rfq-stage.done .rfq-stage-ic::after { content: '✓'; color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
+
+/* ── Rivelazione ordine ── */
+.rfq-reveal { display: none; }
+.rfq-reveal.show { display: block; animation: rfq-fade .3s ease; }
+.rfq-order-hd {
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline;
+  padding: 4px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.rfq-order-cli { font-family: 'Geist'; font-weight: 700; font-size: 19px; color: var(--text); letter-spacing: -0.4px; }
+.rfq-order-meta { font-size: 12.5px; color: var(--text-2); }
+.rfq-order-meta b { color: var(--text); font-weight: 600; }
+.rfq-badge-asm {
+  font-size: 11px; font-weight: 600; color: #7C3AED;
+  background: rgba(124,58,237,0.10); padding: 3px 9px; border-radius: 20px;
+}
+.rfq-parts { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; margin: 4px -6px 0; padding: 0 6px; }
+.rfq-part {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: 9px; background: var(--surface-2);
+  opacity: 0; transform: translateX(-8px); animation: rfq-partin .32s ease forwards;
+}
+@keyframes rfq-partin { to { opacity: 1; transform: none; } }
+.rfq-part.is-asm { background: rgba(124,58,237,0.06); border: 1px solid rgba(124,58,237,0.18); }
+.rfq-part-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.rfq-dot-amber { background: #D97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.15); }
+.rfq-dot-green { background: #16A34A; box-shadow: 0 0 0 3px rgba(22,163,74,0.15); }
+.rfq-part-cod { font-family: 'Geist'; font-weight: 600; font-size: 13px; color: var(--text); }
+.rfq-part-qty { font-size: 11px; color: var(--text-3); }
+.rfq-part-chips { margin-left: auto; display: flex; gap: 5px; align-items: center; }
+.rfq-chip {
+  font-size: 10.5px; font-weight: 500; padding: 2px 7px; border-radius: 6px;
+  background: var(--white); border: 1px solid var(--border); color: var(--text-2);
+}
+.rfq-chip.miss { color: #B45309; background: #FEF3C7; border-color: #FDE68A; }
+.rfq-reveal-foot {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.rfq-foot-note { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.rfq-foot-note b { color: var(--text); }
+.rfq-cta {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'Geist'; font-weight: 600; font-size: 14px; color: #fff;
+  background: linear-gradient(135deg, #7C3AED, #4F46E5);
+  border: none; border-radius: 10px; padding: 10px 18px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(124,58,237,0.35); transition: transform .12s, box-shadow .12s;
+}
+.rfq-cta:hover { transform: translateY(-1px); box-shadow: 0 9px 24px rgba(124,58,237,0.45); }
+.rfq-cine-err {
+  padding: 14px 16px; border-radius: 10px; background: var(--red-bg);
+  color: var(--red); font-size: 13px; line-height: 1.5;
+}
+
 /* Bottone "← Storico" nell'header card articoli (unica via d'uscita dal focus) */
 .btn-back-storico {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2838,12 +2962,57 @@ function _rfqFileSelected(e) {
   e.target.value = '';  // reset per permettere ri-selezione stesso file
 }
 
-async function _rfqUpload(file) {
-  const dz = document.getElementById('rfq-dropzone');
-  const inner = document.getElementById('rfq-dropzone-inner');
-  const loading = document.getElementById('rfq-dropzone-loading');
-  const loadingSub = document.getElementById('rfq-loading-sub');
+// ── Overlay "cinema": costruito on-demand, riusato tra un import e l'altro ──
+let _rfqTimerInt = null, _rfqHintInt = null;
 
+function _rfqCinemaEl() {
+  let el = document.getElementById('rfq-cinema');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'rfq-cinema';
+  el.className = 'rfq-cinema';
+  el.innerHTML = `
+    <div class="rfq-cine-card">
+      <div class="rfq-cine-head">
+        <div class="rfq-cine-orb"><i data-lucide="sparkles" style="width:20px;height:20px;color:#fff;"></i></div>
+        <div>
+          <div class="rfq-cine-title">Importazione AI dell'ordine</div>
+          <div class="rfq-cine-sub" id="rfq-cine-sub">Analisi del pacchetto cliente&hellip;</div>
+        </div>
+        <div class="rfq-cine-timer" id="rfq-cine-timer">0.0s</div>
+      </div>
+      <div class="rfq-cine-body">
+        <div id="rfq-cine-work">
+          <div class="rfq-shimmer"></div>
+          <div class="rfq-stage" data-st="1"><span class="rfq-stage-ic"></span><span>Apro il pacchetto del cliente</span></div>
+          <div class="rfq-stage" data-st="2"><span class="rfq-stage-ic"></span><span>Leggo l'ordine con l'AI</span></div>
+          <div class="rfq-stage" data-st="3"><span class="rfq-stage-ic"></span><span>Riconosco i pezzi e abbino i disegni</span></div>
+        </div>
+        <div class="rfq-reveal" id="rfq-cine-reveal"></div>
+        <div id="rfq-cine-error"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  return el;
+}
+function _rfqStage(n, state) {
+  const el = document.querySelector(`#rfq-cinema .rfq-stage[data-st="${n}"]`);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state) el.classList.add(state);
+}
+function _rfqClose() {
+  const el = document.getElementById('rfq-cinema');
+  if (el) el.classList.remove('show');
+  if (_rfqTimerInt) clearInterval(_rfqTimerInt);
+  if (_rfqHintInt) clearInterval(_rfqHintInt);
+}
+async function _rfqOpenCreated(pid) {
+  _rfqClose();
+  if (pid) await openPreventivo(pid);
+}
+
+async function _rfqUpload(file) {
   // Sanity: solo ZIP
   const isZip = /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
   if (!isZip) {
@@ -2855,49 +3024,103 @@ async function _rfqUpload(file) {
     if (!confirm(`Il file è ${sizeMb.toFixed(1)}MB, l'upload potrebbe richiedere minuti. Procedere?`)) return;
   }
 
-  // UI loading state
-  dz.classList.add('loading');
-  inner.style.display = 'none';
-  loading.style.display = 'flex';
-  loadingSub.textContent = `Upload ${file.name} (${sizeMb.toFixed(1)}MB) e analisi AI in corso…`;
+  // Apri il "cinema" e resettalo
+  const cine = _rfqCinemaEl();
+  document.getElementById('rfq-cine-work').style.display = '';
+  const rev = document.getElementById('rfq-cine-reveal');
+  rev.className = 'rfq-reveal'; rev.innerHTML = '';
+  document.getElementById('rfq-cine-error').innerHTML = '';
+  document.getElementById('rfq-cine-sub').textContent = 'Analisi del pacchetto cliente…';
+  _rfqStage(1, 'active'); _rfqStage(2, ''); _rfqStage(3, '');
+  cine.classList.add('show');
+  if (window.lucide) lucide.createIcons();
+
+  // Timer + avanzamento fasi (la chiamata è atomica: fasi a tempo, sottostep onesti)
+  const t0 = performance.now();
+  _rfqTimerInt = setInterval(() => {
+    const el = document.getElementById('rfq-cine-timer');
+    if (el) el.textContent = ((performance.now() - t0) / 1000).toFixed(1) + 's';
+  }, 100);
+  setTimeout(() => { _rfqStage(1, 'done'); _rfqStage(2, 'active'); }, 700);
+  const hints = [
+    'Interpreto la tabella dell\'ordine…',
+    'Estraggo cliente, codici e quantità…',
+    'Leggo materiali e spessori dal cartiglio…',
+    'Abbino ogni codice al suo disegno DXF…',
+    'Riconosco gli assiemi dalle cartelle…',
+  ];
+  let hi = 0;
+  _rfqHintInt = setInterval(() => {
+    const s = document.getElementById('rfq-cine-sub');
+    if (s) { s.textContent = hints[hi % hints.length]; hi++; }
+  }, 2600);
 
   try {
     const fd = new FormData();
     fd.append('zip', file);
     fd.append('admin_id', currentUser.id);
-    const r = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, {
-      method: 'POST',
-      body: fd,
-    });
+    const r = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, { method: 'POST', body: fd });
     const d = await r.json();
+    clearInterval(_rfqHintInt);
     if (!d.success) throw new Error(d.error || 'Import fallito');
-
-    // Mostra brief riepilogo, poi apri il preventivo creato
-    const warnings = (d.warnings || []).join('\n· ');
-    const warnMsg = warnings ? `\n\n⚠ Warnings:\n· ${warnings}` : '';
-    const noMatchMsg = (d.dxf_no_match && d.dxf_no_match.length)
-      ? `\n\nDXF nel ZIP senza corrispondenza nel PDF (ignorati):\n· ${d.dxf_no_match.join('\n· ')}`
-      : '';
-    alert(
-      `✓ Preventivo BOZZA creato\n\n` +
-      `Cliente: ${d.cliente}\n` +
-      `Ordine: ${d.numero_ordine_cliente || '(non specificato)'}\n` +
-      `Consegna: ${d.data_consegna || '(non specificata)'}\n` +
-      `Articoli: ${d.n_articoli} (${d.n_dxf_matched} con DXF associato)` +
-      warnMsg + noMatchMsg
-    );
-    // Apri il preventivo
-    if (d.preventivo_id) {
-      await openPreventivo(d.preventivo_id);
-    }
+    _rfqStage(2, 'done'); _rfqStage(3, 'done');
+    clearInterval(_rfqTimerInt);
+    const totS = ((performance.now() - t0) / 1000).toFixed(1);
+    document.getElementById('rfq-cine-timer').textContent = totS + 's';
+    _rfqReveal(d, totS);
   } catch (err) {
-    alert('Errore import RFQ: ' + err.message);
-  } finally {
-    // Reset UI
-    dz.classList.remove('loading');
-    inner.style.display = 'flex';
-    loading.style.display = 'none';
+    clearInterval(_rfqHintInt); clearInterval(_rfqTimerInt);
+    document.getElementById('rfq-cine-work').style.display = 'none';
+    document.getElementById('rfq-cine-error').innerHTML =
+      `<div class="rfq-cine-err"><b>Import non riuscito.</b><br>${escapeHtml(err.message)}</div>
+       <div class="rfq-reveal-foot"><button class="rfq-cta" style="margin-left:0;background:var(--text-2);box-shadow:none;" onclick="_rfqClose()">Chiudi</button></div>`;
   }
+}
+
+// Rivelazione animata dell'ordine estratto (header + pezzi a cascata)
+function _rfqReveal(d, totS) {
+  document.getElementById('rfq-cine-work').style.display = 'none';
+  const sub = document.getElementById('rfq-cine-sub');
+  if (sub) sub.textContent = 'Ordine importato';
+  const arts = d.articoli || [];
+  const daConfermare = arts.filter(a => !a.ha_geometria).length;
+  const asmSet = new Set(d.assiemi || []);
+  const consegna = d.data_consegna ? formatDate(d.data_consegna) : '—';
+
+  let partsHtml = '';
+  arts.forEach((a, i) => {
+    const isAsm = asmSet.has(a.codice);
+    const dot = a.ha_geometria ? 'rfq-dot-green' : 'rfq-dot-amber';
+    const matChip = a.materiale
+      ? `<span class="rfq-chip">${escapeHtml(String(a.materiale).replace(/_/g, ' '))}</span>`
+      : `<span class="rfq-chip miss">materiale?</span>`;
+    const spChip = a.spessore_mm
+      ? `<span class="rfq-chip">${a.spessore_mm} mm</span>`
+      : `<span class="rfq-chip miss">sp?</span>`;
+    partsHtml += `<div class="rfq-part ${isAsm ? 'is-asm' : ''}" style="animation-delay:${Math.min(i * 45, 1400)}ms">
+      <span class="rfq-part-dot ${dot}"></span>
+      <span class="rfq-part-cod">${escapeHtml(a.codice || '—')}</span>
+      ${a.quantita ? `<span class="rfq-part-qty">×${a.quantita}</span>` : ''}
+      ${isAsm ? '<span class="rfq-badge-asm">assieme</span>' : ''}
+      <span class="rfq-part-chips">${matChip}${spChip}</span>
+    </div>`;
+  });
+
+  const rev = document.getElementById('rfq-cine-reveal');
+  rev.innerHTML = `
+    <div class="rfq-order-hd">
+      <span class="rfq-order-cli">${escapeHtml(d.cliente || 'Cliente')}</span>
+      <span class="rfq-order-meta">Ordine <b>${escapeHtml(d.numero_ordine_cliente || '—')}</b></span>
+      <span class="rfq-order-meta">Consegna <b>${consegna}</b></span>
+      ${d.n_assiemi ? `<span class="rfq-badge-asm">${d.n_assiemi} assieme${d.n_assiemi > 1 ? 'i' : ''}</span>` : ''}
+    </div>
+    <div class="rfq-parts">${partsHtml}</div>
+    <div class="rfq-reveal-foot">
+      <div class="rfq-foot-note"><b>${arts.length} pezzi</b> letti in ${totS}s${daConfermare ? ` · <b>${daConfermare}</b> geometrie da confermare col click (mai un prezzo a caso)` : ''}</div>
+      <button class="rfq-cta" onclick="_rfqOpenCreated('${d.preventivo_id}')">Apri il preventivo <i data-lucide="arrow-right" style="width:16px;height:16px;"></i></button>
+    </div>`;
+  rev.classList.add('show');
+  if (window.lucide) lucide.createIcons();
 }
 
 async function loadList() {

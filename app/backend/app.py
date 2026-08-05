@@ -2455,6 +2455,19 @@ def api_preventivi_import_rfq_package():
             'n_dxf_matched': len(saved_tasks),
             'dxf_no_match': result.dxf_no_match,
             'warnings': result.warnings,
+            # Elenco compatto per la rivelazione animata lato UI (non è la fonte
+            # di verità: la geometria si conferma poi col click nel CAD interno).
+            'articoli': [
+                {
+                    'codice': it.get('codice'),
+                    'quantita': it.get('quantita'),
+                    'materiale': it.get('materiale'),
+                    'spessore_mm': it.get('spessore_mm'),
+                    'assieme': it.get('codice_assieme'),
+                    'ha_geometria': bool(it.get('area_dm2')),
+                }
+                for it in articoli_db
+            ],
         }), 200
     except Exception as e:
         logger.exception('import-rfq-package failed')
