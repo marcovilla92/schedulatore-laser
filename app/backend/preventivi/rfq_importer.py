@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import re
+import time
 import zipfile
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -43,6 +44,7 @@ class ArticoloRFQ:
     descrizione: str = ''
     matched_dxf: str | None = None  # filename DXF matchato (basename)
     _matched_score: float = 0.0     # score fuzzy match (0-1)
+    codice_assieme: str | None = None  # se il DXF è dentro una sottocartella-assieme
 
 
 @dataclass
@@ -55,6 +57,8 @@ class RFQParseResult:
     note: str = ''
     articoli: list[ArticoloRFQ] = field(default_factory=list)
     dxf_no_match: list[str] = field(default_factory=list)  # DXF nella cartella senza articolo PDF
+    assiemi: list[str] = field(default_factory=list)       # codici assieme rilevati dalle cartelle
+    dxf_map: dict = field(default_factory=dict)            # {basename: bytes} per scrittura su disco
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
 
@@ -188,7 +192,12 @@ def parse_order_pdf(pdf_bytes: bytes, filename: str = 'order.pdf') -> dict | Non
         pdf_part = {'mime_type': 'application/pdf', 'data': pdf_bytes}
         prompt = _build_extraction_prompt()
 
+        t0 = time.perf_counter()
+        logger.info('RFQ Gemini call START: filename=%s pdf_size=%.1fKB',
+                    filename, len(pdf_bytes) / 1024)
         response = model.generate_content([prompt, pdf_part])
+        elapsed = time.perf_counter() - t0
+        logger.info('RFQ Gemini call END: filename=%s elapsed=%.2fs', filename, elapsed)
     except Exception as e:
         # Errore lato API (rete, quota, 401, timeout, modello non disponibile)
         msg = str(e) or type(e).__name__
@@ -305,15 +314,32 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
         - pdf_filename: nome file PDF
         - dxf_files_map: {basename: bytes} per ogni .dxf/.dwg nel ZIP
 
-    Ignora file di sistema (thumbs.db, .DS_Store, __MACOSX/) e sotto-cartelle
-    (usa solo basename → duplicati di nome vengono sovrascritti, ultimo vince).
+    RICONOSCIMENTO ASSIEMI: la struttura a cartelle è significativa. Dopo aver
+    tolto la cartella-radice comune (es. "C26-156/"), il PRIMO livello di
+    sottocartella identifica un ASSIEME. I DXF dentro quella sottocartella sono
+    i componenti dell'assieme. Il DXF con lo stesso nome della cartella
+    (es. 13SA0070-00/13SA0070-00.DXF) è il disegno dell'assieme intero (master),
+    non un componente.
+
+    Returns:
+        (pdf_bytes, pdf_filename, dxf_map, assieme_of)
+        - dxf_map: {basename: bytes}
+        - assieme_of: {basename: codice_assieme | None}
+          codice_assieme = nome sottocartella per i COMPONENTI; None per i DXF
+          alla radice o per il master dell'assieme.
     """
     pdf_bytes = None
     pdf_filename = None
     dxf_map: dict[str, bytes] = {}
+    assieme_of: dict[str, str | None] = {}
+
+    def _dirparts(n: str) -> list[str]:
+        return n.replace('\\', '/').split('/')[:-1]  # componenti cartella (senza il file)
 
     try:
         with zipfile.ZipFile(BytesIO(zip_bytes), 'r') as zf:
+            # Pass 1: raccogli le entry valide (file, non di sistema)
+            valid = []
             for info in zf.infolist():
                 if info.is_dir():
                     continue
@@ -323,19 +349,55 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
                     continue
                 if '__MACOSX' in name:
                     continue
-                ext = os.path.splitext(base)[1].lower()
-                if ext == '.pdf' and pdf_bytes is None:
-                    # Prende il primo PDF trovato (spesso c'è solo l'ordine)
-                    pdf_bytes = zf.read(info)
-                    pdf_filename = base
-                elif ext in ('.dxf', '.dwg'):
-                    dxf_map[base] = zf.read(info)
+                valid.append((info, name, base))
+
+            dxf_entries = [(i, n, b) for (i, n, b) in valid
+                           if os.path.splitext(b)[1].lower() in ('.dxf', '.dwg')]
+            pdf_entries = [(i, n, b) for (i, n, b) in valid
+                           if os.path.splitext(b)[1].lower() == '.pdf']
+            dxf_stems = {os.path.splitext(b)[0].upper() for _, _, b in dxf_entries}
+
+            # Radice comune calcolata SOLO dai DXF (il PDF ordine può stare alla
+            # radice e falserebbe il prefisso). Es. tutti i DXF sotto "C26-156/".
+            dxf_dirs = [_dirparts(n) for _, n, _ in dxf_entries]
+            common: list[str] = []
+            if dxf_dirs:
+                for i in range(min(len(d) for d in dxf_dirs)):
+                    col = {d[i] for d in dxf_dirs}
+                    if len(col) == 1:
+                        common.append(next(iter(col)))
+                    else:
+                        break
+            clen = len(common)
+
+            # Selezione PDF ORDINE: preferisci un PDF il cui nome NON corrisponde a
+            # un DXF (i PDF-disegno dei componenti si chiamano come il loro DXF).
+            # A parità, il più superficiale (meno cartelle). Fallback: il primo.
+            def _pdf_score(entry):
+                _, n, b = entry
+                stem = os.path.splitext(b)[0].upper()
+                is_order = stem not in dxf_stems      # non è un disegno di componente
+                depth = len(_dirparts(n))
+                return (0 if is_order else 1, depth)   # ordina: ordine-first, poi superficiale
+            if pdf_entries:
+                best_pdf = min(pdf_entries, key=_pdf_score)
+                pdf_bytes = zf.read(best_pdf[0])
+                pdf_filename = best_pdf[2]
+
+            # Mappa DXF + assiemi (rel_dirs dopo la radice comune)
+            for info, name, base in dxf_entries:
+                rel_dirs = _dirparts(name)[clen:]
+                folder = rel_dirs[0] if rel_dirs else None   # primo livello = assieme
+                dxf_map[base] = zf.read(info)
+                stem = os.path.splitext(base)[0]
+                is_master = folder is not None and stem.upper() == folder.upper()
+                assieme_of[base] = None if is_master else folder
     except zipfile.BadZipFile as e:
         raise ValueError(f'ZIP non valido: {e}')
     except Exception as e:
         raise ValueError(f'Errore estrazione ZIP: {e}')
 
-    return pdf_bytes, pdf_filename, dxf_map
+    return pdf_bytes, pdf_filename, dxf_map, assieme_of
 
 
 # ─── Pipeline completo ────────────────────────────────────────────────────
@@ -349,12 +411,13 @@ def process_rfq_package(zip_bytes: bytes) -> RFQParseResult:
     """
     result = RFQParseResult(success=False)
 
-    # 1. Estrai ZIP
+    # 1. Estrai ZIP (con riconoscimento assiemi dalle sottocartelle)
     try:
-        pdf_bytes, pdf_filename, dxf_map = extract_zip_package(zip_bytes)
+        pdf_bytes, pdf_filename, dxf_map, assieme_of = extract_zip_package(zip_bytes)
     except ValueError as e:
         result.error = str(e)
         return result
+    result.dxf_map = dxf_map
 
     if not pdf_bytes:
         result.error = 'Nessun PDF ordine trovato nel ZIP. Il pacchetto deve contenere almeno un file .pdf'
@@ -385,8 +448,48 @@ def process_rfq_package(zip_bytes: bytes) -> RFQParseResult:
 
     # 4. Fuzzy match articoli PDF ↔ DXF cartella
     articoli, dxf_no_match = match_dxf_to_articoli(articoli_raw, list(dxf_map.keys()))
+
+    # 4b. RICONOSCIMENTO ASSIEMI dalle sottocartelle.
+    #  - Assegna codice_assieme agli articoli PDF il cui DXF sta in una sottocartella.
+    #  - I DXF di sottocartella NON matchati dal PDF (componenti dell'assieme, non
+    #    venduti come voce singola) diventano articoli-componente sotto l'assieme.
+    for a in articoli:
+        if a.matched_dxf:
+            a.codice_assieme = assieme_of.get(a.matched_dxf)
+
+    dxf_no_match_set = set(dxf_no_match)
+    componenti_aggiunti = []
+    for base, folder in assieme_of.items():
+        if folder and base in dxf_no_match_set:
+            # componente di assieme senza riga PDF → crea articolo figlio
+            stem = os.path.splitext(base)[0]
+            componenti_aggiunti.append(ArticoloRFQ(
+                codice=stem, quantita=1, matched_dxf=base, codice_assieme=folder,
+                descrizione='componente assieme (da cartella)',
+            ))
+    articoli.extend(componenti_aggiunti)
+    # i componenti aggiunti non sono più "orfani"
+    dxf_no_match = [d for d in dxf_no_match if d not in {c.matched_dxf for c in componenti_aggiunti}]
+
+    # assiemi distinti rilevati
+    result.assiemi = sorted({v for v in assieme_of.values() if v})
+
+    # Master dell'assieme: un articolo PDF il cui codice coincide col nome
+    # dell'assieme (es. "13SA0070-00") È l'assieme stesso, non un pezzo standalone.
+    # Raggruppalo sotto il suo assieme per non contarlo due volte nel totale.
+    _assiemi_set = set(result.assiemi)
+    for a in articoli:
+        if not a.codice_assieme and a.codice in _assiemi_set:
+            a.codice_assieme = a.codice
+
     result.articoli = articoli
     result.dxf_no_match = dxf_no_match
+    if result.assiemi:
+        result.warnings.append(
+            f'{len(result.assiemi)} assiemi riconosciuti dalle cartelle: {", ".join(result.assiemi[:3])}'
+            + ('…' if len(result.assiemi) > 3 else '')
+            + (f' (+{len(componenti_aggiunti)} componenti aggiunti)' if componenti_aggiunti else '')
+        )
 
     # 5. Warnings su completezza
     n_no_dxf = sum(1 for a in articoli if not a.matched_dxf)

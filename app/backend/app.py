@@ -2390,6 +2390,7 @@ def api_preventivi_import_rfq_package():
             item = {
                 'codice': a.codice,
                 'quantita': a.quantita,
+                'codice_assieme': getattr(a, 'codice_assieme', None),  # da sottocartella ZIP
                 'materiale': a.materiale,          # dal PDF (o None)
                 'spessore_mm': a.spessore_mm,      # dal PDF (o None)
                 'area_dm2': geom.get('area_dm2', 0),
@@ -2420,6 +2421,18 @@ def api_preventivi_import_rfq_package():
                 logger.warning('replace_articoli fallito: %s', ae)
                 result.warnings.append(f'Errore salvataggio articoli: {ae}')
 
+        # Crea i record ASSIEME riconosciuti dalle sottocartelle
+        if getattr(result, 'assiemi', None):
+            assiemi_db = []
+            for cod in result.assiemi:
+                n_comp = sum(1 for it in articoli_db if it.get('codice_assieme') == cod)
+                assiemi_db.append({'codice_assieme': cod, 'qty': 1,
+                                   'componenti_qty': {}, 'ore_montaggio': 0, 'costo': 0})
+            try:
+                PreventivoManager.replace_assiemi(preventivo_id, assiemi_db)
+            except Exception as ae:
+                logger.warning('replace_assiemi fallito: %s', ae)
+
         # Audit
         try:
             AuditManager.log(
@@ -2437,6 +2450,8 @@ def api_preventivi_import_rfq_package():
             'numero_ordine_cliente': result.numero_ordine_cliente,
             'data_consegna': result.data_consegna,
             'n_articoli': len(articoli_db),
+            'n_assiemi': len(getattr(result, 'assiemi', []) or []),
+            'assiemi': getattr(result, 'assiemi', []),
             'n_dxf_matched': len(saved_tasks),
             'dxf_no_match': result.dxf_no_match,
             'warnings': result.warnings,
