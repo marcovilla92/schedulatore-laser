@@ -6,12 +6,88 @@ Extracted from preventivatore 2.0.py — pure functions, no UI references.
 import logging
 import math
 import os
+import re
 
 import ezdxf
 
 from .dxf_polygon_detector import detect_pezzo_geometry as _detect_v2
 
 logger = logging.getLogger(__name__)
+
+# Testo piega nel disegno sviluppato: "SU 90° R 2", "GIU' 82° R 2",
+# "SU 34.5° R 161.61", "GIU' 6.57° ZERO". Cattura verso + gradi + raggio.
+RE_PIEGA_3D = re.compile(r"^(SU|GIU'?|GIÙ)\s+([\d.]+)\s*°\s*(?:R\s*([\d.]+)|(ZERO))", re.I)
+
+
+def _dist_punto_segmento_3d(px, py, x1, y1, x2, y2):
+    """Distanza punto→segmento (per accoppiare testo piega alla linea cerniera)."""
+    dx, dy = x2 - x1, y2 - y1
+    L = dx * dx + dy * dy
+    if L == 0:
+        return math.hypot(px - x1, py - y1)
+    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / L))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+
+
+def estrai_pieghe_3d(path: str, config: dict | None = None) -> list[dict]:
+    """Estrae le pieghe dal disegno sviluppato per la visualizzazione 3D.
+
+    A differenza di `scansiona_dxf_dettagli` (che le CONTA soltanto), qui
+    conserviamo per ogni piega tutto ciò che serve a piegarla in 3D:
+      - verso: 'su' | 'giu'          (dal testo SU/GIU')
+      - gradi: float                 (angolo di piega, es. 90.0)
+      - raggio: float                (R del testo, 0.0 se 'ZERO')
+      - hinge: (x1,y1,x2,y2)         (linea cerniera: la LINE più vicina al testo)
+      - testo: str                   (annotazione originale, per debug)
+
+    Deterministico al 100%: legge esattamente ciò che il disegnatore ha scritto.
+    Ritorna solo le pieghe accoppiate a una linea cerniera (le altre non sono
+    piegabili senza ambiguità).
+    """
+    cfg = config or {}
+    lung_min = float(cfg.get("dxf_lunghezza_minima", 15.0))
+    dist_max = float(cfg.get("dxf_piega_dist_max", 150.0))
+    doc = ezdxf.readfile(path)
+    msp = doc.modelspace()
+
+    linee = []
+    for e in msp.query('LINE'):
+        try:
+            s, en = e.dxf.start, e.dxf.end
+            x1, y1, x2, y2 = float(s.x), float(s.y), float(en.x), float(en.y)
+            linee.append((x1, y1, x2, y2, math.hypot(x2 - x1, y2 - y1)))
+        except AttributeError:
+            continue
+
+    pieghe = []
+    for e in msp:
+        if e.dxftype() not in ('TEXT', 'MTEXT'):
+            continue
+        raw = (e.dxf.text or '').strip()
+        m = RE_PIEGA_3D.match(raw.upper())
+        if not m:
+            continue
+        verso = 'su' if m.group(1).upper().startswith('SU') else 'giu'
+        gradi = float(m.group(2))
+        raggio = 0.0 if m.group(4) else float(m.group(3) or 0.0)
+        try:
+            tx, ty = float(e.dxf.insert.x), float(e.dxf.insert.y)
+        except AttributeError:
+            continue
+        best, best_d = None, dist_max
+        for (x1, y1, x2, y2, L) in linee:
+            if L < lung_min:
+                continue
+            d = _dist_punto_segmento_3d(tx, ty, x1, y1, x2, y2)
+            if d < best_d:
+                best_d, best = d, (x1, y1, x2, y2)
+        if best is None:
+            continue
+        pieghe.append({
+            'verso': verso, 'gradi': gradi, 'raggio': raggio,
+            'hinge': best, 'testo': raw,
+        })
+    return pieghe
 
 
 def scansiona_dxf_dettagli(path: str, config: dict) -> tuple[int, float, int, int]:
