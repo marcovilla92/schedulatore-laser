@@ -52,6 +52,9 @@
   .xcheck { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.45; }
   .xcheck.ok { background: rgba(34,197,94,.10); color: var(--accent); border: 1px solid rgba(34,197,94,.3); }
   .xcheck.warn { background: rgba(245,158,11,.12); color: #fbbf24; border: 1px solid rgba(245,158,11,.4); }
+  .xcheck-fix { margin-top: 8px; padding: 6px 12px; border-radius: 7px; border: none; cursor: pointer;
+                font-size: 12px; font-weight: 700; background: #f59e0b; color: #1a1a1a; }
+  .xcheck-fix:hover { filter: brightness(1.08); }
   .zoominfo { position: absolute; bottom: 10px; left: 12px; font-size: 11px; color: var(--text-2);
               background: rgba(0,0,0,.4); padding: 4px 8px; border-radius: 5px; font-family: monospace; }
   /* SVG element styles */
@@ -253,13 +256,38 @@ function crossCheckPeso() {
     el.innerHTML = `✓ Peso calcolato <b>${pesoCalc.toFixed(3)} kg</b> ≈ cartiglio ${pesoCartiglio.toFixed(3)} kg (Δ ${diffPct.toFixed(0)}%). Coerente.`;
   } else {
     el.className = 'xcheck warn'; el.style.display = 'block';
+    // Spessore derivato dal peso cartiglio + area CONFERMATA: quando l'operatore
+    // ha già cliccato il contorno, l'area è affidabile → la vera incognita è lo
+    // spessore. Se il valore derivato (snap a stock) differisce da quello attuale,
+    // offri il fix a un clic. (Non su pezzi piegati: lì lo scarto è atteso.)
+    let fix = '';
+    if (!piega) {
+      const spDaPeso = pesoCartiglio / (area * dens) * 100;  // kg/(dm²·kg/dm³)=dm → ×100 mm
+      if (spDaPeso > 0.2 && spDaPeso < 60) {
+        const snapped = snapStock(spDaPeso);
+        if (Math.abs(snapped - sp) > 0.01) {
+          fix = `<br><button type="button" class="xcheck-fix" onclick="usaSpessoreDaPeso(${snapped})">`
+              + `Usa spessore da peso: ${snapped} mm</button>`;
+        }
+      }
+    }
     const hint = piega
       ? 'Con il pezzo piegato lo scarto è atteso (l\'area folded è minore dello sviluppo). Assicurati che l\'area inserita sia lo sviluppo piatto.'
       : (pesoCalc < pesoCartiglio
-          ? 'Il peso calcolato è MINORE del cartiglio: forse il pezzo è piegato (spunta la casella) o hai tracciato solo parte del contorno.'
-          : 'Il peso calcolato è MAGGIORE del cartiglio: verifica spessore/materiale, o area sovrastimata.');
-    el.innerHTML = `⚠ Peso calcolato <b>${pesoCalc.toFixed(3)} kg</b> vs cartiglio ${pesoCartiglio.toFixed(3)} kg (Δ ${diffPct.toFixed(0)}%).<br>${hint}`;
+          ? 'Il peso calcolato è MINORE del cartiglio: lo spessore è probabilmente più ALTO di quello inserito (usa il pulsante), oppure il pezzo è piegato o hai tracciato solo parte del contorno.'
+          : 'Il peso calcolato è MAGGIORE del cartiglio: lo spessore è probabilmente più BASSO (usa il pulsante), oppure l\'area è sovrastimata.');
+    el.innerHTML = `⚠ Peso calcolato <b>${pesoCalc.toFixed(3)} kg</b> vs cartiglio ${pesoCartiglio.toFixed(3)} kg (Δ ${diffPct.toFixed(0)}%).<br>${hint}${fix}`;
   }
+}
+
+/** Imposta lo spessore al valore calcolato dal peso del cartiglio e ricalcola.
+    Usato dal pulsante nel warning peso (l'operatore ha confermato l'area). */
+function usaSpessoreDaPeso(sp) {
+  const spInp = document.getElementById('f-spessore');
+  if (!spInp) return;
+  spInp.value = sp;
+  onDatiChange();  // ricalcola il cross-check → dovrebbe passare a ✓
+  setStatus('ok', `Spessore impostato a ${sp} mm dal peso del cartiglio (area confermata).`);
 }
 
 function buildScene(polylines) {
