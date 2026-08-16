@@ -4324,6 +4324,12 @@ def _valida_costi_preventivo(preventivo_id):
             invalidi.append({'codice': codice, 'motivo': 'dati mancanti (materiale/spessore/area/perimetro)'})
         else:
             invalidi.append({'codice': codice, 'motivo': 'stima laser non eseguita'})
+    # 3) ASSIEMI: tempo di montaggio OBBLIGATORIO (l'assieme costa componenti +
+    #    montaggio + saldatura). Senza → sottoprezzato → blocco.
+    for A in (prev.get('assiemi') or []):
+        cod = A.get('codice_assieme') or '(assieme)'
+        if (A.get('ore_montaggio') or 0) <= 0 and (A.get('costo') or 0) <= 0:
+            invalidi.append({'codice': cod, 'motivo': 'manca il tempo di montaggio dell\'assieme'})
     return invalidi
 
 
@@ -4340,7 +4346,7 @@ def api_preventivi_invia(preventivo_id):
             details = '; '.join(f"{x['codice']}: {x['motivo']}" for x in invalidi[:5])
             return jsonify({
                 'success': False,
-                'error': f'Impossibile inviare: {len(invalidi)} articoli senza costo laser ({details})',
+                'error': f'Impossibile inviare: {len(invalidi)} punti da risolvere ({details})',
                 'articoli_invalidi': invalidi,
             }), 400
         result = PreventivoManager.transition_status(preventivo_id, 'INVIATO', user_id=user_id)

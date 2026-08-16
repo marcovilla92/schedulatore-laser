@@ -6038,8 +6038,22 @@ async function openAssiemeDetail(idx) {
 
   // Sezione 3D: se esiste un file .step/.stp con nome matchante, mostra iframe
   await _hydrateAssiemeDetail3D(code);
+  _renderAssiemeDetailSummary(idx);
+}
 
-  // Sezione riepilogo costi — tutto per 1 assieme SINGOLO. Il lotto è nota secondaria.
+/** Modifica il tempo di montaggio dal dettaglio assieme (obbligatorio). Aggiorna
+    prezzo + lista SENZA ricaricare il visore 3D. */
+function assDetailSetOre(v) {
+  if (_assDetailIdx == null) return;
+  updateAssOre(_assDetailIdx, v);          // setta ore + costo + salva
+  _renderAssiemeDetailSummary(_assDetailIdx);  // aggiorna prezzo + bordo campo
+  try { renderSplitTree(); } catch (_) {}  // toglie il blocco rosso dal riepilogo
+}
+
+/** Ridisegna il riepilogo costi + BOM del modal assieme (senza toccare il 3D). */
+function _renderAssiemeDetailSummary(idx) {
+  const a = currentAssiemi[idx];
+  if (!a) return;
   const pricing = computeAssiemePricing(a);
   const roll = pricing.roll;
   const rows = [
@@ -6049,12 +6063,21 @@ async function openAssiemeDetail(idx) {
     ['Materiale + base articoli', formatEurStr(roll.costoBaseArticoli)],
     ['Lavorazioni articoli (piega/sald/…)', formatEurStr(roll.costoLavArticoli)],
     ['Tubolari + piastre', formatEurStr(roll.costoTubPia)],
-    ['Montaggio + saldatura assieme', formatEurStr(pricing.costoIntrinseco)],
+    ['__MONTAGGIO__', a],
     ['───', ''],
     ['<b style="color:#0F172A; font-size:17px;">PREZZO 1 ASSIEME</b>', `<b style="color:#0F172A; font-size:17px;">${formatEurStr(pricing.costoSingoloAssieme)}</b>`],
   ];
+  const oreSet = (a.ore_montaggio > 0 || a.costo > 0);
   document.getElementById('ass-detail-summary').innerHTML = rows.map(([k,v]) => {
     if (k === '───') return `<div style="grid-column:1/-1; border-top:1px dashed var(--border); margin:4px 0;"></div>`;
+    if (k === '__MONTAGGIO__') return `
+      <div style="color:var(--text-2);">Tempo di montaggio ${oreSet ? '' : '<b style="color:#B45309;">(obbligatorio)</b>'}</div>
+      <div style="text-align:right; white-space:nowrap;">
+        <input type="number" id="ass-det-ore" value="${v.ore_montaggio || ''}" step="0.25" min="0" placeholder="ore"
+               style="width:78px; text-align:right; padding:6px 8px; font-size:15px; border-radius:6px; border:2px solid ${oreSet ? 'var(--border)' : '#F59E0B'}; ${oreSet ? '' : 'background:#FFFBEB;'}"
+               onchange="assDetailSetOre(this.value)">
+        <span style="font-size:11px; color:var(--text-3);"> ore</span>
+      </div>`;
     return `<div style="color:var(--text-2);">${k}</div><div style="text-align:right; font-variant-numeric: tabular-nums;">${v}</div>`;
   }).join('') + `
     <div style="grid-column:1/-1; margin-top:12px; padding:8px 10px; background:#F8FAFC; border-radius:6px; font-size:11px; color:var(--text-3); display:flex; justify-content:space-between; align-items:center;">
@@ -7627,6 +7650,16 @@ function buildRevisione() {
       issues.push({ idx, cod, sev: 'giallo', testo: 'Area = sviluppo stimato a mano (pezzo piegato)', azione: 'info' });
     }
   });
+  // ASSIEMI: il tempo di montaggio è OBBLIGATORIO (l'assieme costa componenti +
+  // montaggio + saldatura). Senza, l'assieme è sottoprezzato → blocco rosso.
+  (currentAssiemi || []).forEach((A, ai) => {
+    const ore = A.ore_montaggio || 0;
+    const costoOv = A.costo || 0;
+    if (ore <= 0 && costoOv <= 0) {
+      issues.push({ idx: ai, cod: A.codice_assieme || '(assieme)', sev: 'rosso',
+                    testo: 'Manca il tempo di montaggio dell\'assieme', azione: 'assieme', btn: 'Imposta montaggio' });
+    }
+  });
   return issues;
 }
 
@@ -7669,6 +7702,11 @@ function renderRevisione() {
 
 // Azione su un punto di revisione: seleziona l'articolo ed esegue l'azione.
 function revisioneAzione(idx, azione) {
+  if (azione === 'assieme') {   // idx = indice assieme → apri il dettaglio per il montaggio
+    closeRiepilogoModal();
+    openAssiemeDetail(idx);
+    return;
+  }
   if (!currentArticoli[idx]) return;
   _splitSelectedIdx = idx;
   if (azione === 'cad') {
