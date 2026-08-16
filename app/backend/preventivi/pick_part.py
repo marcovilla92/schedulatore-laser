@@ -442,6 +442,34 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
                 sp_cartiglio = float(dim['spessore_mm'])
                 sp_conf = dim.get('confidence', 0.7) or 0.7
                 sp_source = 'descrizione'
+        # CONFERMA DAL DISEGNO: cerca tra le quote (DIMENSION) un valore uguale a
+        # uno spessore-lamiera standard. Prendere una quota "a caso" e' inaffidabile
+        # (troppi numeri), ma se il DISEGNO contiene una quota = spessore cartiglio
+        # → due fonti indipendenti concordano (fail-safe: confidenza alta). Se il
+        # cartiglio non ha lo spessore e c'e' UNA sola quota-standard piccola, la
+        # proponiamo (bassa confidenza, l'operatore verifica).
+        try:
+            STD_TH = [0.5, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12, 15, 20]
+            qstd = set()
+            for e in msp.query('DIMENSION'):
+                try:
+                    m = float(e.get_measurement())
+                except Exception:
+                    continue
+                if 0.3 <= m <= 25:
+                    for s in STD_TH:
+                        if abs(m - s) < 0.06:
+                            qstd.add(s)
+                            break
+            if sp_cartiglio and any(abs(sp_cartiglio - q) < 0.06 for q in qstd):
+                sp_conf = max(sp_conf, 0.95)
+                sp_source = (sp_source + '+disegno') if sp_source not in ('none', '') else 'disegno'
+            elif not sp_cartiglio and len(qstd) == 1:
+                sp_cartiglio = next(iter(qstd))
+                sp_conf = 0.55
+                sp_source = 'quota-disegno'
+        except Exception:
+            pass
     except Exception:
         pass
 
