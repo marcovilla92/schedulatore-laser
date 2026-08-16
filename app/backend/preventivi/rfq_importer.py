@@ -59,6 +59,7 @@ class RFQParseResult:
     dxf_no_match: list[str] = field(default_factory=list)  # DXF nella cartella senza articolo PDF
     assiemi: list[str] = field(default_factory=list)       # codici assieme rilevati dalle cartelle
     dxf_map: dict = field(default_factory=dict)            # {basename: bytes} per scrittura su disco
+    step_map: dict = field(default_factory=dict)           # {basename: bytes} STEP assiemi 3D
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
 
@@ -370,6 +371,7 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
     pdf_filename = None
     dxf_map: dict[str, bytes] = {}
     assieme_of: dict[str, str | None] = {}
+    step_map: dict[str, bytes] = {}
 
     try:
         with zipfile.ZipFile(BytesIO(zip_bytes), 'r') as zf:
@@ -390,6 +392,8 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
                            if os.path.splitext(b)[1].lower() in ('.dxf', '.dwg')]
             pdf_entries = [(i, n, b) for (i, n, b) in valid
                            if os.path.splitext(b)[1].lower() == '.pdf']
+            step_entries = [(i, n, b) for (i, n, b) in valid
+                            if os.path.splitext(b)[1].lower() in ('.step', '.stp')]
             dxf_stems = {os.path.splitext(b)[0].upper() for _, _, b in dxf_entries}
 
             # Mappa assiemi dai percorsi DXF (radice comune calcolata sui DXF)
@@ -413,12 +417,17 @@ def extract_zip_package(zip_bytes: bytes) -> tuple[bytes | None, str | None, dic
             for info, name, base in dxf_entries:
                 dxf_map[base] = zf.read(info)
                 assieme_of[base] = assieme_by_base.get(base)
+
+            # Leggi gli STEP (assiemi 3D): li salviamo così il visore 3D li
+            # aggancia per nome all'assieme (montaggio esatto, wow reale).
+            for info, name, base in step_entries:
+                step_map[base] = zf.read(info)
     except zipfile.BadZipFile as e:
         raise ValueError(f'ZIP non valido: {e}')
     except Exception as e:
         raise ValueError(f'Errore estrazione ZIP: {e}')
 
-    return pdf_bytes, pdf_filename, dxf_map, assieme_of
+    return pdf_bytes, pdf_filename, dxf_map, assieme_of, step_map
 
 
 # ─── Pipeline completo ────────────────────────────────────────────────────
@@ -434,11 +443,12 @@ def process_rfq_package(zip_bytes: bytes) -> RFQParseResult:
 
     # 1. Estrai ZIP (con riconoscimento assiemi dalle sottocartelle)
     try:
-        pdf_bytes, pdf_filename, dxf_map, assieme_of = extract_zip_package(zip_bytes)
+        pdf_bytes, pdf_filename, dxf_map, assieme_of, step_map = extract_zip_package(zip_bytes)
     except ValueError as e:
         result.error = str(e)
         return result
     result.dxf_map = dxf_map
+    result.step_map = step_map
 
     if not pdf_bytes:
         result.error = 'Nessun PDF ordine trovato nel ZIP. Il pacchetto deve contenere almeno un file .pdf'

@@ -2357,6 +2357,19 @@ def api_preventivi_import_rfq_package():
                 fp.write(data)
             saved_tasks.append((target_path, os.path.basename(fname)))
 
+        # 3b. Scrivi gli STEP su disco: il visore 3D li aggancia per nome
+        # all'assieme (montaggio esatto = il vero wow 3D). Non serve matching:
+        # li salviamo tutti, il frontend li abbina per codice.
+        step_map = getattr(result, 'step_map', {}) or {}
+        n_step = 0
+        for sname, sdata in step_map.items():
+            try:
+                with open(os.path.join(prev_dir, os.path.basename(sname)), 'wb') as fp:
+                    fp.write(sdata)
+                n_step += 1
+            except Exception:
+                logger.warning('salvataggio STEP fallito: %s', sname)
+
         # 4. Processa i DXF in parallelo (detector v3 + scanner dettagli)
         app_cfg = BarcodeManager.load_config()
         dxf_cfg = app_cfg.get('dxf_detection') or {
@@ -2453,6 +2466,7 @@ def api_preventivi_import_rfq_package():
             'n_assiemi': len(getattr(result, 'assiemi', []) or []),
             'assiemi': getattr(result, 'assiemi', []),
             'n_dxf_matched': len(saved_tasks),
+            'n_step': n_step,
             'dxf_no_match': result.dxf_no_match,
             'warnings': result.warnings,
             # Elenco compatto per la rivelazione animata lato UI (non è la fonte

@@ -3145,6 +3145,10 @@ function _rfqReveal(d, totS) {
 // UN solo iframe condiviso (three.js caricato una volta) → niente limiti
 // WebGL anche con 100 pezzi. Fallback silenzioso alla 2D dove il 3D non c'è.
 // ═══════════════════════════════════════════════════════════════════
+// Fold 3D dal DXF DISATTIVATO: ricostruzione fragile da 2D, non abbastanza
+// affidabile per stare davanti al cliente. Il wow 3D è lo STEP (geometria vera).
+// Flag lasciato per riattivarlo in futuro se il fold verrà irrobustito.
+const FOLD3D_ENABLED = false;
 let _foldIframe = null, _foldReady = false, _foldPending = null, _foldHoverToken = 0;
 const _foldCache = {};    // filename → modello completo (o {success:false})
 const _foldProbe = {};    // filename → {has_bends, n_bends} (probe veloce)
@@ -3196,6 +3200,7 @@ function _foldPlacePopover(f, cell) {
 }
 
 async function _fold3dHover(cell) {
+  if (!FOLD3D_ENABLED) return;
   const file = cell.getAttribute('data-fold-file');
   const thk = parseFloat(cell.getAttribute('data-fold-thk')) || 2;
   if (!file || !currentPreventivo) return;
@@ -3223,6 +3228,7 @@ function _fold3dLeave() {
 // Applicazione SINCRONA dei badge dallo stato in cache (chiamata ad ogni render,
 // così il badge sopravvive ai re-render senza rifare fetch).
 function _applyFoldBadges() {
+  if (!FOLD3D_ENABLED) { document.querySelectorAll('.has-fold3d').forEach(c => c.classList.remove('has-fold3d')); return; }
   document.querySelectorAll('[data-fold-file]').forEach(cell => {
     const file = cell.getAttribute('data-fold-file');
     const full = _foldCache[file];
@@ -3241,6 +3247,7 @@ function _applyFoldBadges() {
 // passo aggiorna i badge via _applyFoldBadges (che è idempotente).
 let _foldEnrichRunning = false;
 async function _enrichFoldBadges() {
+  if (!FOLD3D_ENABLED) return;
   if (_foldEnrichRunning || !currentPreventivo) return;
   _foldEnrichRunning = true;
   const pid = currentPreventivo.id;
