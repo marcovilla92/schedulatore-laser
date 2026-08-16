@@ -1327,6 +1327,21 @@ tr.row-warn:hover { background: #FEF3C7; }
   padding: 9px 14px; font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600;
 }
 .sd-edit-toggle:hover { background: var(--surface-2); }
+/* MODIFICA: disegno piccolo (riferimento) + form GRANDE che riempie il pannello */
+#split-detail-content.editing .split-detail-preview {
+  flex: 0 0 auto; height: 190px;
+  display: flex; align-items: center; justify-content: center;
+}
+#split-detail-content.editing .split-detail-preview svg { height: 100%; width: auto; max-width: 100%; }
+#split-detail-content.editing .sd-detected { display: none; }
+#split-detail-content.editing .sd-edit-toggle { background: var(--accent-bg); color: var(--accent); }
+/* Form più arioso in modifica (campi comodi da vedere) */
+#split-detail-content.editing .split-detail-body { padding: 6px 14px 20px; }
+#split-detail-content.editing .sd-section { margin-bottom: 16px; }
+#split-detail-content.editing .sd-row { padding: 3px 0; }
+#split-detail-content.editing .sd-row label { font-size: 13px; }
+#split-detail-content.editing .sd-row input,
+#split-detail-content.editing .sd-row select { font-size: 14px; padding: 8px 10px; }
 
 .sd-clean-btn {
   padding: 3px 8px; font-size: 11px; font-weight: 500;
@@ -4090,7 +4105,9 @@ async function renderSplitDetail(idx) {
   // Form editabile collassato di default (il "rilevato" grande è sopra)
   const _body = document.getElementById('split-detail-body');
   const _tgl = document.getElementById('sd-edit-toggle');
+  const _cnt = document.getElementById('split-detail-content');
   if (_body) _body.style.display = 'none';
+  if (_cnt) _cnt.classList.remove('editing');
   if (_tgl) _tgl.textContent = 'Modifica valori a mano ▾';
 
   // Preview SVG. Cache-bust con timestamp per bypass della cache HTTP browser
@@ -4209,18 +4226,18 @@ function _updateHeroStats(a, totale) {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = val;
-    const stat = el.parentElement;
-    stat.classList.remove('missing', 'zero');
-    if (cls) stat.classList.add(cls);
+    el.classList.remove('missing', 'zero');   // classe sul valore (det-val)
+    if (cls) el.classList.add(cls);
   };
 
-  // Dimensioni
+  // Dimensioni: bbox reale se c'è, altrimenti stima da area+perim (come il form)
   let dimTxt = '— × —', dimCls = 'missing';
   if (a.bbox_w_mm > 0 && a.bbox_h_mm > 0) {
-    const big = Math.max(a.bbox_w_mm, a.bbox_h_mm);
-    const small = Math.min(a.bbox_w_mm, a.bbox_h_mm);
-    dimTxt = `${big.toFixed(0)}×${small.toFixed(0)}`;
+    dimTxt = `${Math.max(a.bbox_w_mm, a.bbox_h_mm).toFixed(0)}×${Math.min(a.bbox_w_mm, a.bbox_h_mm).toFixed(0)}`;
     dimCls = null;
+  } else {
+    const dl = _artDimLabel(a);
+    if (dl && dl !== '—') { dimTxt = dl.replace('mm', '').trim(); dimCls = null; }
   }
   set('hero-dim', dimTxt, dimCls);
 
@@ -4249,14 +4266,18 @@ function _updateHeroStats(a, totale) {
   set('hero-costo', formatEurStr(totale || 0), null);
 }
 
-/** Mostra/nasconde il form editabile sotto il "rilevato" (default: nascosto). */
+/** Mostra/nasconde il form editabile. In modifica: rimpicciolisce il disegno e
+    nasconde il rilevato → il form prende tutto lo spazio, grande e leggibile. */
 function sdToggleForm() {
   const body = document.getElementById('split-detail-body');
   const btn = document.getElementById('sd-edit-toggle');
+  const content = document.getElementById('split-detail-content');
   if (!body) return;
   const show = body.style.display === 'none';
   body.style.display = show ? '' : 'none';
-  if (btn) btn.textContent = show ? 'Nascondi modifica valori ▴' : 'Modifica valori a mano ▾';
+  if (content) content.classList.toggle('editing', show);
+  if (btn) btn.textContent = show ? '▴ Chiudi modifica (torna al disegno grande)' : 'Modifica valori a mano ▾';
+  if (show) { const p = document.getElementById('split-detail-panel'); if (p) p.scrollTop = 0; }
 }
 
 /** Callback generico per i field del detail panel — riusa updateArt esistente
