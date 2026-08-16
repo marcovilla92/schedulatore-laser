@@ -1983,8 +1983,11 @@ tr.row-warn:hover { background: #FEF3C7; }
       </div>
     </div>
     <div class="actions">
-      <button class="btn-secondary" onclick="exportPdf()">
-        <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF
+      <button class="btn-secondary" onclick="exportPdf(false)" title="PDF per il cliente: prezzi finali, nessun costo né margine">
+        <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF cliente
+      </button>
+      <button class="btn-secondary" onclick="exportPdf(true)" title="Distinta interna: costi scomposti, margine e BOM (NON inviare al cliente)" style="opacity:.85;">
+        <i data-lucide="lock" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF interno
       </button>
       <button class="btn-primary" onclick="inviaPreventivo()" id="btn-invia">
         Invia al cliente
@@ -2259,8 +2262,11 @@ tr.row-warn:hover { background: #FEF3C7; }
         <i data-lucide="arrow-left" style="width:14px;height:14px;vertical-align:-2px;"></i> Torna agli articoli
       </button>
       <div style="flex:1;"></div>
-      <button class="btn-secondary" onclick="scaricaPdfRiepilogo()">
-        <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF
+      <button class="btn-secondary" onclick="exportPdf(false)" title="PDF per il cliente: prezzi finali, nessun costo né margine">
+        <i data-lucide="file-down" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF cliente
+      </button>
+      <button class="btn-secondary" onclick="exportPdf(true)" title="Distinta interna: costi + margine + BOM (NON inviare al cliente)" style="opacity:.85;">
+        <i data-lucide="lock" style="width:14px;height:14px;vertical-align:-2px;"></i> PDF interno
       </button>
       <!-- BOZZA: Invia al cliente -->
       <button class="btn-primary" onclick="inviaClientRiepilogo()" id="riep-btn-invia" style="display:none;">
@@ -7421,7 +7427,7 @@ async function rifiutaPreventivo() {
   } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
 }
 
-async function exportPdf() {
+async function exportPdf(interno = false) {
   if (!currentPreventivo) return;
   // Warning non bloccante: se ci sono articoli senza costo laser, avverti
   // (per PDF preview è tollerato; il blocco vero è su Invia/Accetta)
@@ -7433,9 +7439,10 @@ async function exportPdf() {
       'Consigliato: annulla, correggi i costi, poi rigenera.');
     if (!proceed) return;
   }
-  showMsg('msg-workflow', 'Generazione PDF in corso…', 'var(--gray-text)');
+  const etichetta = interno ? 'PDF interno (costi)' : 'PDF cliente';
+  showMsg('msg-workflow', `Generazione ${etichetta} in corso…`, 'var(--gray-text)');
   try {
-    const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/pdf`;
+    const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/pdf${interno ? '?interno=1' : ''}`;
     const r = await fetch(url);
     if (!r.ok) {
       let msg = `Errore HTTP ${r.status}`;

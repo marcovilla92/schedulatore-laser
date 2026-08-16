@@ -157,11 +157,15 @@ class PDFPreventivo:
     # Public API
     # ------------------------------------------------------------------
 
-    def genera_pdf(self, path: str, dati: dict) -> str:
+    def genera_pdf(self, path: str, dati: dict, interno: bool = False) -> str:
         """Generate a complete PDF quote.
 
         Args:
             path: Output PDF file path.
+            interno: Se True genera la distinta INTERNA completa (costi
+                scomposti, margine, BOM, distinta taglio) per uso ufficio.
+                Se False (default) genera il PDF CLIENTE: elenco pezzi con
+                prezzo finale per riga e totale, senza rivelare costi/margine.
             dati: Dictionary with quote data. Keys:
                 - cliente: str
                 - numero_ordine: str
@@ -229,35 +233,42 @@ class PDFPreventivo:
             elements = []
             elements.append(Spacer(1, 6 * mm))
 
-            # Cover page: client box + totals summary + composition donut
-            self._build_cover_section(elements, dati)
-            elements.append(PageBreak())
+            # Cover page: client box + total (+ margine/KPI/donut solo interno)
+            self._build_cover_section(elements, dati, interno=interno)
 
-            # Article table
-            articoli = dati.get("articoli", [])
-            if articoli:
-                self._build_article_table(elements, dati)
+            if interno:
+                # ---- DISTINTA INTERNA (ufficio): costi scomposti + margine ----
+                elements.append(PageBreak())
 
-            # Cost breakdown (include riga margine highlight se applicato)
-            self._build_cost_breakdown(elements, dati)
+                articoli = dati.get("articoli", [])
+                if articoli:
+                    self._build_article_table(elements, dati)
 
-            # Assembly section (con preview 3D se disponibili)
-            costi_montaggio = dati.get("costi_montaggio", {})
-            if costi_montaggio:
-                self._build_assembly_section(elements, dati)
+                # Cost breakdown (include riga margine highlight se applicato)
+                self._build_cost_breakdown(elements, dati)
 
-            # Tubular section
-            tubolari = dati.get("tubolari_per_assieme", {})
-            if tubolari:
-                self._build_tubular_section(elements, dati)
+                # Assembly section (con preview 3D se disponibili)
+                costi_montaggio = dati.get("costi_montaggio", {})
+                if costi_montaggio:
+                    self._build_assembly_section(elements, dati)
 
-            # Plate section
-            piastre = dati.get("piastre_per_assieme", {})
-            if piastre:
-                self._build_plate_section(elements, dati)
+                # Tubular section
+                tubolari = dati.get("tubolari_per_assieme", {})
+                if tubolari:
+                    self._build_tubular_section(elements, dati)
 
-            # Totals box
-            self._build_totals_box(elements, dati)
+                # Plate section
+                piastre = dati.get("piastre_per_assieme", {})
+                if piastre:
+                    self._build_plate_section(elements, dati)
+
+                # Totals box
+                self._build_totals_box(elements, dati)
+            else:
+                # ---- PDF CLIENTE: elenco pezzi + prezzo finale per riga ----
+                # Nessun costo scomposto, nessun margine: solo prezzi finali.
+                elements.append(Spacer(1, 4 * mm))
+                self._build_customer_lines(elements, dati)
 
             # Notes
             if dati.get("note"):
@@ -1432,11 +1443,112 @@ class PDFPreventivo:
         elements.append(Spacer(1, 6 * mm))
 
     # ------------------------------------------------------------------
+    # Customer line items (PDF cliente — prezzi finali, nessun costo)
+    # ------------------------------------------------------------------
+
+    def _build_customer_lines(self, elements, dati):
+        """Elenco pezzi per il CLIENTE: prezzo finale per riga + totale.
+
+        Le righe sono precalcolate in `righe_cliente` (dal backend, con margine
+        e generali gia' incorporati) e sommano al `totale_lotto`. Qui non si
+        vede alcun costo scomposto ne' la percentuale di ricarico.
+        """
+        righe = dati.get("righe_cliente") or []
+        totale_lotto = dati.get("totale_lotto", 0)
+
+        elements.append(Paragraph("Dettaglio fornitura", self.style_heading))
+
+        header = ["Codice", "Descrizione", "Q.ta", "Prezzo unit.", "Importo"]
+        table_data = [header]
+
+        if not righe:
+            # Fallback: nessuna riga precalcolata → mostra solo il totale
+            table_data.append(["Fornitura come da specifica", "", "", "", ""])
+
+        for r in righe:
+            qty = r.get("quantita", 1)
+            try:
+                qty_str = str(int(qty)) if float(qty) == int(qty) else f"{qty}"
+            except (TypeError, ValueError):
+                qty_str = str(qty)
+            table_data.append([
+                r.get("codice") or "-",
+                r.get("descrizione") or "",
+                qty_str,
+                _eur_plain(r.get("prezzo_unitario") or 0),
+                _eur_plain(r.get("importo") or 0),
+            ])
+
+        # Riga totale
+        table_data.append(["", "", "", "TOTALE ORDINE", _eur(totale_lotto)])
+
+        avail = _W - 2 * _MARGIN
+        col_widths = [
+            avail * 0.22,   # codice
+            avail * 0.36,   # descrizione
+            avail * 0.10,   # q.ta
+            avail * 0.16,   # prezzo unit
+            avail * 0.16,   # importo
+        ]
+        t = Table(table_data, colWidths=col_widths, repeatRows=1)
+        style_cmds = [
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), self.COLOR_PRIMARY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
+            # Body
+            ("FONTNAME", (0, 1), (-1, -2), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 9),
+            ("TEXTCOLOR", (0, 1), (-1, -2), self.COLOR_DARK),
+            # Total row
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, -1), (-1, -1), self.COLOR_PRIMARY_LIGHT),
+            ("TEXTCOLOR", (0, -1), (-1, -1), self.COLOR_DARK),
+            ("FONTSIZE", (3, -1), (-1, -1), 11),
+            ("LINEABOVE", (0, -1), (-1, -1), 1, self.COLOR_PRIMARY),
+            ("SPAN", (0, -1), (2, -1)),
+            # Alignment
+            ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
+            ("ALIGN", (0, 0), (1, -1), "LEFT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            # Padding
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            # Grid
+            ("LINEBELOW", (0, 0), (-1, 0), 1, self.COLOR_PRIMARY),
+            ("LINEBELOW", (0, 1), (-1, -2), 0.4, self.COLOR_BORDER),
+        ]
+        # Righe alternate
+        for i in range(1, len(table_data) - 1):
+            if i % 2 == 0:
+                style_cmds.append(
+                    ("BACKGROUND", (0, i), (-1, i), self.COLOR_ROW_ALT)
+                )
+        t.setStyle(TableStyle(style_cmds))
+        elements.append(t)
+        elements.append(Spacer(1, 3 * mm))
+        elements.append(
+            Paragraph(
+                "Prezzi in EUR, IVA esclusa. Preventivo salvo conferma "
+                "disponibilita' materiali.",
+                self.style_small,
+            )
+        )
+        elements.append(Spacer(1, 4 * mm))
+
+    # ------------------------------------------------------------------
     # Cover section (first page summary)
     # ------------------------------------------------------------------
 
-    def _build_cover_section(self, elements, dati):
-        """Build the cover page summary: client, grand total, composition donut."""
+    def _build_cover_section(self, elements, dati, interno=True):
+        """Build the cover page summary: client, grand total, composition donut.
+
+        In modalità cliente (interno=False) NON mostra la riga margine, la riga
+        KPI e la composizione costi: rivelerebbero costi/ricarico.
+        """
         cliente = dati.get("cliente", "")
         numero = dati.get("numero_ordine", "")
         data_str = dati.get("data") or datetime.now().strftime("%d/%m/%Y")
@@ -1467,7 +1579,7 @@ class PDFPreventivo:
             Paragraph("<b>Quantita'</b>", self.style_small),
             Paragraph(f"<font size=10>{quantita} pz</font>", self.style_body),
         ])
-        if margine > 0:
+        if margine > 0 and interno:
             info_rows.append([
                 Paragraph("<b>Margine applicato</b>", self.style_small),
                 Paragraph(
@@ -1544,6 +1656,10 @@ class PDFPreventivo:
         )
         elements.append(combo)
         elements.append(Spacer(1, 8 * mm))
+
+        # Cliente: cover finisce qui (niente KPI decomposti né composizione costi)
+        if not interno:
+            return
 
         # --- KPI row ---
         n_articoli = len(dati.get("articoli", []))

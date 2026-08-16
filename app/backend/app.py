@@ -4196,6 +4196,26 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
     qty_preventivo = int(p.get('quantita') or 1)
     margine_pct = float(p.get('margine_pct') or 0)
 
+    # Fattore prezzo finale = generali (overhead) × ricarico. Incorpora TUTTO
+    # ciò che il cliente non deve vedere scomposto (costi + margine).
+    _gen_f = 1 + float((app_cfg.get('preventivi_config') or {}).get('costo_generali_pct', 0)) / 100.0
+    _f_finale = _gen_f * (1 + margine_pct / 100.0)
+
+    # Righe per il PDF CLIENTE: codice + descrizione + qty + prezzo finale.
+    # Costruite QUI, negli stessi loop che formano il totale, così sommano
+    # esattamente a totale_lotto senza rivelare alcun costo.
+    righe_cliente = []
+
+    def _desc_articolo(a):
+        mat = (a.get('materiale') or '').replace('_', ' ').strip()
+        sp = a.get('spessore_mm')
+        parts = []
+        if mat:
+            parts.append(mat)
+        if sp:
+            parts.append(f"sp.{float(sp):g}")
+        return ' · '.join(parts)
+
     # Articoli STANDALONE (senza codice_assieme): quantita = pezzi nel preventivo
     totale_pezzo_calc = 0.0
     for a in articoli:
@@ -4206,7 +4226,17 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
         lav = sum(float(a.get(k) or 0) for k in (
             'costo_piega', 'costo_saldatura', 'costo_filettatura',
             'costo_svasatura', 'costo_apporto', 'costo_pulizia'))
-        totale_pezzo_calc += (base + lav) * int(a.get('quantita') or 1)
+        qty_art = int(a.get('quantita') or 1)
+        totale_pezzo_calc += (base + lav) * qty_art
+        prezzo_unit_finale = (base + lav) * _f_finale
+        qty_tot = qty_art * qty_preventivo
+        righe_cliente.append({
+            'codice': a.get('codice') or '—',
+            'descrizione': _desc_articolo(a),
+            'quantita': qty_tot,
+            'prezzo_unitario': round(prezzo_unit_finale, 2),
+            'importo': round(prezzo_unit_finale * qty_tot, 2),
+        })
 
     # Costo assiemi (totale pricing rollup)
     costo_assiemi_calc = 0.0
@@ -4226,15 +4256,35 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
         prezzo_1_ass = cost_intrinseco + cost_articoli_ass + cost_tubolari_ass + cost_piastre_ass
         qty_ass = int(info.get('qty') or 1)
         costo_assiemi_calc += prezzo_1_ass * qty_ass
+        prezzo_ass_finale = prezzo_1_ass * _f_finale
+        n_comp = len(info.get('bom_articoli', [])) + len(info.get('bom_tubolari', [])) + len(info.get('bom_piastre', []))
+        righe_cliente.append({
+            'codice': cod or 'Assieme',
+            'descrizione': f"Assieme montato ({n_comp} componenti)" if n_comp else "Assieme montato",
+            'quantita': qty_ass,
+            'prezzo_unitario': round(prezzo_ass_finale, 2),
+            'importo': round(prezzo_ass_finale * qty_ass, 2),
+        })
 
     # Tubolari e piastre STANDALONE (no codice_assieme)
     costo_tubolari_std = sum(float(t.get('costo_materiale') or 0) + float(t.get('costo_taglio_totale') or 0)
                               for t in tubolari_list if not t.get('codice_assieme'))
     costo_piastre_std = sum(float(pl.get('costo') or 0)
                              for pl in piastre_list if not pl.get('codice_assieme'))
+    if costo_tubolari_std > 0:
+        imp_tub = round(costo_tubolari_std * _f_finale, 2)
+        righe_cliente.append({
+            'codice': 'Tubolari', 'descrizione': 'Profilati a misura',
+            'quantita': 1, 'prezzo_unitario': imp_tub, 'importo': imp_tub,
+        })
+    if costo_piastre_std > 0:
+        imp_pia = round(costo_piastre_std * _f_finale, 2)
+        righe_cliente.append({
+            'codice': 'Piastre', 'descrizione': 'Piastre a disegno',
+            'quantita': 1, 'prezzo_unitario': imp_pia, 'importo': imp_pia,
+        })
 
     # Generali (overhead) sul costo, poi ricarico — coerente col frontend
-    _gen_f = 1 + float((app_cfg.get('preventivi_config') or {}).get('costo_generali_pct', 0)) / 100.0
     con_margine = totale_pezzo_calc * _gen_f * (1 + margine_pct / 100.0)
     con_margine_assiemi = costo_assiemi_calc * _gen_f * (1 + margine_pct / 100.0)
     con_margine_tubolari = costo_tubolari_std * _gen_f * (1 + margine_pct / 100.0)
@@ -4254,6 +4304,7 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
         'piastre_per_assieme': piastre_per_assieme,
         'totale_pezzo': round(totale_pezzo_calc, 2),
         'totale_lotto': round(totale_lotto_calc, 2),
+        'righe_cliente': righe_cliente,
         'costo_piegatura': tot_piega,
         'costo_saldatura': tot_sald,
         'costo_filettatura': tot_filett,
@@ -4286,25 +4337,32 @@ def _resolve_logo_path(logo_path):
 
 @app.route('/api/preventivi/<preventivo_id>/pdf', methods=['GET'])
 def api_preventivi_pdf(preventivo_id):
-    """Genera e serve il PDF del preventivo (officina-ready) — distinta taglio inclusa."""
+    """Genera e serve il PDF del preventivo.
+
+    Query param `interno=1` → distinta INTERNA (costi scomposti + margine + BOM,
+    uso ufficio). Default → PDF CLIENTE pulito (prezzi finali, niente costi).
+    """
     try:
         p = PreventivoManager.get(preventivo_id, include_children=True)
         if not p:
             return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+
+        interno = str(request.args.get('interno', '')).lower() in ('1', 'true', 'yes')
 
         dati_pdf = _preventivo_to_pdf_dati(p)
 
         # Genera in cartella preventivi
         pdf_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_pdf')
         os.makedirs(pdf_dir, exist_ok=True)
-        filename = f"preventivo_{p.get('numero_ordine_cliente') or preventivo_id[:8]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        suffisso = 'interno' if interno else 'cliente'
+        filename = f"preventivo_{suffisso}_{p.get('numero_ordine_cliente') or preventivo_id[:8]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         # Sanitize filename
         filename = ''.join(c if c.isalnum() or c in '._-' else '_' for c in filename)
         pdf_path = os.path.join(pdf_dir, filename)
 
         app_cfg = BarcodeManager.load_config() or {}
         exporter = _pdf_exporter.PDFPreventivo(app_cfg)
-        exporter.genera_pdf(pdf_path, dati_pdf)
+        exporter.genera_pdf(pdf_path, dati_pdf, interno=interno)
 
         return send_file(pdf_path, mimetype='application/pdf',
                          as_attachment=True, download_name=filename)
