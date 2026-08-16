@@ -174,6 +174,20 @@ const DENSITA = {
 // SVG usa y verso il basso; il DXF ha y verso l'alto. Flippo con un <g> scale(1,-1).
 let sceneG = null;
 let TEXTS = [];               // testi del disegno (cartiglio + quote)
+let GEO_EXT = null;           // bbox della sola geometria pezzo (esclude cartiglio)
+
+// Bounding box delle polilinee "geo" (il pezzo + le viste, non il cartiglio)
+function _geoBBox(polylines) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, n = 0;
+  for (const pl of (polylines || [])) {
+    if (pl.kind !== 'geo') continue;
+    for (const p of pl.pts) {
+      x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]);
+      x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); n++;
+    }
+  }
+  return n > 2 ? [x0, y0, x1, y1] : null;
+}
 
 async function load() {
   if (!PREV || !FILE) { setStatus('err', 'Parametri mancanti: ?prev=<id>&file=<nome.dxf>'); return; }
@@ -183,8 +197,11 @@ async function load() {
   EXT = d.extents;
   pesoCartiglio = (d.peso_cartiglio_kg && d.peso_cartiglio_conf >= 0.5) ? d.peso_cartiglio_kg : null;
   TEXTS = d.texts || [];
+  // Bounding box della sola geometria "geo" (pezzo + viste, esclude cartiglio):
+  // per aprire già zoomati sul pezzo, non su tutto il foglio.
+  GEO_EXT = _geoBBox(d.polylines);
   buildScene(d.polylines);
-  zoomFit();
+  zoomToPart();
   prefillDaCartiglio(d);
 }
 
@@ -292,20 +309,22 @@ function applyView() {
     `${(EXT[2]-EXT[0]).toFixed(0)}×${(EXT[3]-EXT[1]).toFixed(0)}mm · zoom ${(( EXT[2]-EXT[0])/view.w).toFixed(2)}×`;
 }
 
-function zoomFit() {
-  if (!EXT) return;
-  const [minx, miny, maxx, maxy] = EXT;
+function zoomToBox(box, padFrac) {
+  if (!box) return;
+  const [minx, miny, maxx, maxy] = box;
   const w = maxx - minx, h = maxy - miny;
-  const pad = Math.max(w, h) * 0.05;
+  if (w <= 0 || h <= 0) return;
+  const pad = Math.max(w, h) * (padFrac || 0.05);
   // scena flippata: y_scene = -y_dxf → range [-maxy, -miny]
   view = { x: minx - pad, y: -maxy - pad, w: w + 2*pad, h: h + 2*pad };
-  // adatta all'aspect ratio del contenitore
   const rect = svg.getBoundingClientRect();
   const ar = rect.width / rect.height;
   if (view.w / view.h > ar) { const nh = view.w / ar; view.y -= (nh - view.h)/2; view.h = nh; }
   else { const nw = view.h * ar; view.x -= (nw - view.w)/2; view.w = nw; }
   applyView();
 }
+function zoomFit() { zoomToBox(EXT, 0.05); }               // "Adatta": tutto il foglio
+function zoomToPart() { zoomToBox(GEO_EXT || EXT, 0.10); } // apertura: sul pezzo
 
 // wheel zoom centrato sul cursore
 svg.addEventListener('wheel', (e) => {

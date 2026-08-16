@@ -4036,10 +4036,29 @@ window.addEventListener('message', async (ev) => {
   // Ricalcola il costo base laser con i dati confermati
   try { await stimaArt(idx, { silent: true }); } catch (_) {}
   renderSplitTree(); recalcTotali();
-  if (_splitSelectedIdx === idx) selectSplitArticolo(idx);
   scheduleSaveArticoli(300);
-  showMsg('msg-import', `✓ Pezzo "${a.codice}" confermato dal CAD (area ${(p.area_dm2||0).toFixed(3)} dm²)`, 'var(--green)');
+  // AUTO-AVANZAMENTO: salta al prossimo pezzo "da definire" (ne fai 20 in fila
+  // senza tornare a cercare). Se non ce ne sono più, resta sul confermato.
+  const next = _nextDaDefinire(idx);
+  if (next != null && next !== idx) {
+    selectSplitArticolo(next);   // apre subito il CAD del prossimo pezzo
+    showMsg('msg-import', `✓ "${a.codice}" confermato → passo al prossimo`, 'var(--green)');
+  } else {
+    if (_splitSelectedIdx === idx) selectSplitArticolo(idx);
+    showMsg('msg-import', `✓ "${a.codice}" confermato — tutti i pezzi sono definiti`, 'var(--green)');
+  }
 });
+
+// Prossimo articolo con DXF e geometria NON confermata (ciclico dopo fromIdx)
+function _nextDaDefinire(fromIdx) {
+  const n = currentArticoli.length;
+  for (let k = 1; k <= n; k++) {
+    const j = (fromIdx + k) % n;
+    const a = currentArticoli[j];
+    if (a && a.dxf_filename && !a.geometria_manuale_confermata) return j;
+  }
+  return null;
+}
 
 /** Label dimensioni compatte per il tree.
  * Preferisce sempre le dimensioni bbox_w_mm/h_mm del cleaned DXF (precise
