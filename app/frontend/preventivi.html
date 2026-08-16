@@ -3903,11 +3903,17 @@ function renderSplitTree() {
         const p = computeAssiemePricing(A);
         pricingSuffix = ` · <b>${formatEurStr(p.costoSingoloAssieme)}</b> × ${p.qty}`;
       }
-      html += `<tr class="ass-header" onclick="toggleAssiemeSplit('${key.replace(/'/g,"\\'")}')">
+      const keyEsc = key.replace(/'/g, "\\'");
+      html += `<tr class="ass-header" onclick="toggleAssiemeSplit('${keyEsc}')">
         <td colspan="7" style="padding:8px 12px;">
           <span class="toggle-ass">${arrow}</span>
           Assieme <code style="font-family:monospace;">${escapeHtml(key)}</code>
           <span style="opacity:.7; font-weight:400; font-size:11px;">· ${nCmp} componenti${pricingSuffix}</span>
+          <button onclick="event.stopPropagation(); _openAssiemeByCode('${keyEsc}')"
+                  title="Apri il dettaglio: assieme 3D (ruota ed esplode) + distinta + prezzo"
+                  style="float:right; display:inline-flex; align-items:center; gap:5px; padding:3px 11px; margin:-1px 0; border:none; border-radius:7px; cursor:pointer; font-size:11.5px; font-weight:700; color:#fff; background:linear-gradient(135deg,#7C3AED,#4F46E5); box-shadow:0 2px 8px rgba(124,58,237,.35);">
+            <i data-lucide="box" style="width:13px;height:13px;"></i> Vedi assieme 3D
+          </button>
         </td>
       </tr>`;
       if (!collapsed) {
