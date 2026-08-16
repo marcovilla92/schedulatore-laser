@@ -3893,22 +3893,28 @@ function renderSplitTree() {
       const collapsed = _splitCollapsed.has(key);
       const arrow = collapsed ? '▸' : '▾';
       const nCmp = idxs.length;
-      let pricingSuffix = '';
+      let priceTxt = '';
       if (A) {
         const p = computeAssiemePricing(A);
-        pricingSuffix = ` · <b>${formatEurStr(p.costoSingoloAssieme)}</b> × ${p.qty}`;
+        priceTxt = `${formatEurStr(p.costoSingoloAssieme)}${p.qty > 1 ? ' × ' + p.qty : ''}`;
       }
       const keyEsc = key.replace(/'/g, "\\'");
       html += `<tr class="ass-header" onclick="toggleAssiemeSplit('${keyEsc}')">
         <td colspan="1" style="padding:8px 12px;">
-          <span class="toggle-ass">${arrow}</span>
-          Assieme <code style="font-family:monospace;">${escapeHtml(key)}</code>
-          <span style="opacity:.7; font-weight:400; font-size:11px;">· ${nCmp} componenti${pricingSuffix}</span>
-          <button onclick="event.stopPropagation(); _openAssiemeByCode('${keyEsc}')"
-                  title="Apri il dettaglio: assieme 3D (ruota ed esplode) + distinta + prezzo"
-                  style="float:right; display:inline-flex; align-items:center; gap:5px; padding:3px 11px; margin:-1px 0; border:none; border-radius:7px; cursor:pointer; font-size:11.5px; font-weight:700; color:#fff; background:linear-gradient(135deg,#7C3AED,#4F46E5); box-shadow:0 2px 8px rgba(124,58,237,.35);">
-            <i data-lucide="box" style="width:13px;height:13px;"></i> Vedi assieme 3D
-          </button>
+          <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+            <span class="toggle-ass">${arrow}</span>
+            <span style="font-weight:700; white-space:nowrap;">Assieme</span>
+            <code style="font-family:monospace; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(key)}</code>
+            <span style="opacity:.7; font-weight:400; font-size:11px; white-space:nowrap;">· ${nCmp} pezzi</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+            ${priceTxt ? `<span style="font-size:12px; font-weight:700; color:#166534; white-space:nowrap;">${priceTxt}</span>` : ''}
+            <button onclick="event.stopPropagation(); _openAssiemeByCode('${keyEsc}')"
+                    title="Apri il dettaglio: assieme 3D (ruota ed esplode) + distinta + prezzo"
+                    style="margin-left:auto; display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border:none; border-radius:7px; cursor:pointer; font-size:12px; font-weight:700; color:#fff; background:linear-gradient(135deg,#7C3AED,#4F46E5); box-shadow:0 2px 8px rgba(124,58,237,.3); white-space:nowrap;">
+              <i data-lucide="box" style="width:14px;height:14px;"></i> Vedi 3D
+            </button>
+          </div>
         </td>
       </tr>`;
       if (!collapsed) {
