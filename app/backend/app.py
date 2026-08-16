@@ -2937,28 +2937,33 @@ def api_preventivi_dxf_fold_model(preventivo_id, filename):
 
         outer = data.get('outer_xy')
         if not outer:
-            # Semina il pick vicino alle pieghe ma NON sulla linea cerniera
-            # (lì non trova segmenti): prova più offset lungo la normale e tieni
-            # il candidato di area maggiore = il blank sviluppato completo.
+            # Semina il pick vicino a OGNI cerniera (non al centroide: su disegni
+            # multi-vista il centroide cade nel vuoto). Offset lungo la normale
+            # per non stare sulla linea di piega. Tieni il candidato di area
+            # maggiore = il blank sviluppato completo.
             import math as _m
-            mx = sum((b['hinge'][0] + b['hinge'][2]) / 2 for b in pieghe) / len(pieghe)
-            my = sum((b['hinge'][1] + b['hinge'][3]) / 2 for b in pieghe) / len(pieghe)
-            h0 = pieghe[0]['hinge']
-            dx, dy = h0[2] - h0[0], h0[3] - h0[1]
-            L = _m.hypot(dx, dy) or 1.0
-            nx, ny = -dy / L, dx / L
             best_area = -1.0
-            for off in (20, 30, -20, -30, 40, -40):
-                sx, sy = mx + nx * off, my + ny * off
-                try:
-                    cand = pick_candidates(dxf_path, sx, sy, cfg)
-                    for c in (cand.get('candidates') or []):
-                        a = c.get('area_dm2') or 0
-                        oxy = c.get('outer_xy') or c.get('outer')
-                        if oxy and a > best_area:
-                            best_area, outer = a, oxy
-                except Exception:
-                    continue
+            for b in pieghe:
+                h = b['hinge']
+                mx, my = (h[0] + h[2]) / 2, (h[1] + h[3]) / 2
+                dx, dy = h[2] - h[0], h[3] - h[1]
+                L = _m.hypot(dx, dy) or 1.0
+                nx, ny = -dy / L, dx / L
+                for off in (12, 20, -12, -20):
+                    sx, sy = mx + nx * off, my + ny * off
+                    try:
+                        cand = pick_candidates(dxf_path, sx, sy, cfg)
+                        for c in (cand.get('candidates') or []):
+                            a = c.get('area_dm2') or 0
+                            oxy = c.get('outer_xy') or c.get('outer')
+                            if oxy and a > best_area:
+                                best_area, outer = a, oxy
+                    except Exception:
+                        continue
+                # trovato un contorno reale (non una scheggia) → basta, non
+                # scandiamo tutte le 15 cerniere (sarebbe lentissimo)
+                if best_area > 0.03:
+                    break
         if not outer:
             return jsonify({'success': False, 'reason': 'no_outline',
                             'error': 'Contorno non ricavabile in automatico'}), 200
