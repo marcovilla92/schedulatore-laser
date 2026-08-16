@@ -2396,8 +2396,17 @@ def api_preventivi_import_rfq_package():
                         dxf_results[fname] = {'success': False, 'error': str(e)}
 
         # 5. Costruisci articoli DB combinando dati PDF + DXF
+        # L'assieme NON è un pezzo tagliabile: il suo disegno 2D (master) non va
+        # parsato né prezzato. È rappresentato dal record ASSIEME (rollup dei
+        # componenti + montaggio) e dallo STEP per il 3D. Quindi salto il pezzo
+        # il cui codice è un codice-assieme.
+        assiemi_set = {c for c in (getattr(result, 'assiemi', None) or [])}
+        n_master_saltati = 0
         articoli_db = []
         for a in result.articoli:
+            if a.codice in assiemi_set:
+                n_master_saltati += 1
+                continue  # master assieme: rappresentato dal record assieme, non tagliabile
             dxf_info = dxf_results.get(a.matched_dxf) if a.matched_dxf else None
             geom = (dxf_info or {}).get('geometry') or {}
             item = {
@@ -2425,6 +2434,11 @@ def api_preventivi_import_rfq_package():
                 if cart_sp:
                     item['spessore_mm'] = float(cart_sp)
             articoli_db.append(item)
+
+        if n_master_saltati:
+            result.warnings.append(
+                f'{n_master_saltati} disegno/i assieme (master) non prezzati come pezzo — '
+                f'l\'assieme costa come somma componenti + montaggio')
 
         # Salva articoli
         if articoli_db:
