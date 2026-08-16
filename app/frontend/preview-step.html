@@ -137,6 +137,7 @@
     <input type="range" id="explode-slider" min="0" max="100" value="0" step="1">
     <span id="explode-val">0%</span>
   </div>
+  <button id="assemble-btn" style="margin-top:10px;width:100%;padding:8px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,#7C3AED,#4F46E5);box-shadow:0 4px 12px rgba(124,58,237,.35);">Smonta ▸</button>
 </div>
 
 <div id="info-bar">
@@ -435,13 +436,54 @@ function applyExplode(t) {
 function updateSliderFill(val) {
   slider.style.setProperty('--pct', val + '%');
 }
+function setExplodeUI(pct) {
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  slider.value = pct;
+  explodeVal.textContent = pct + '%';
+  updateSliderFill(pct);
+  applyExplode(pct / 100);
+}
 slider.addEventListener('input', () => {
-  const raw = parseInt(slider.value, 10);
-  explodeVal.textContent = raw + '%';
-  updateSliderFill(raw);
-  applyExplode(raw / 100);
+  setExplodeUI(parseInt(slider.value, 10));
+  _cancelExplodeAnim();  // se l'utente muove lo slider, ferma l'animazione
 });
 updateSliderFill(0);
+
+// Animazione morbida dell'esploso (monta ⇄ smonta) — l'effetto "come si monta"
+let _explodeAnim = null;
+function _cancelExplodeAnim() { if (_explodeAnim) { cancelAnimationFrame(_explodeAnim); _explodeAnim = null; } }
+function animateExplode(target, onDone) {
+  _cancelExplodeAnim();
+  const step = () => {
+    let cur = parseInt(slider.value, 10);
+    cur += (target - cur) * 0.14;
+    if (Math.abs(target - cur) < 0.6) { cur = target; }
+    setExplodeUI(cur);
+    if (cur !== target) { _explodeAnim = requestAnimationFrame(step); }
+    else { _explodeAnim = null; if (onDone) onDone(); }
+  };
+  step();
+}
+
+// Pulsante Monta/Smonta (solo modalità piena, non thumbnail)
+const EXPLODE_TARGET = 55;
+const assembleBtn = document.getElementById('assemble-btn');
+if (assembleBtn && !isThumbnail) {
+  assembleBtn.addEventListener('click', () => {
+    const exploded = parseInt(slider.value, 10) > EXPLODE_TARGET / 2;
+    animateExplode(exploded ? 0 : EXPLODE_TARGET);
+    assembleBtn.textContent = exploded ? 'Smonta ▸' : '◂ Monta';
+  });
+} else if (assembleBtn) {
+  assembleBtn.style.display = 'none';
+}
+
+// Rotazione dolce automatica finché l'utente non interagisce (solo vista piena)
+if (!isThumbnail) {
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.9;
+  controls.addEventListener('start', () => { controls.autoRotate = false; });
+}
 
 function animate() {
   requestAnimationFrame(animate);
@@ -449,6 +491,13 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+// Entrata "montaggio": parte leggermente esploso e si compone (solo vista piena
+// e solo se ci sono più corpi). Dà il colpo d'occhio "l'assieme si monta".
+if (!isThumbnail && meshList.length > 1) {
+  setExplodeUI(EXPLODE_TARGET);
+  setTimeout(() => animateExplode(0), 400);
+}
 
 window.addEventListener('resize', () => {
   camera.aspect = viewportW() / viewportH();
