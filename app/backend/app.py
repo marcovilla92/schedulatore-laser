@@ -2903,6 +2903,36 @@ def api_preventivi_dxf_pick_candidates(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/lavorazioni', methods=['GET'])
+def api_preventivi_dxf_lavorazioni(preventivo_id, filename):
+    """Riconta le lavorazioni dal DXF: pieghe (testi SU/GIU'), saldatura,
+    filettatura, svasatura. Usato alla conferma del contorno nel CAD per
+    aggiornare il conteggio pieghe (che dipende dal disegno, non dal contorno).
+
+    Response: {pieghe, saldatura_ml, filettatura_pz, svasatura_pz}
+    """
+    try:
+        safe_name = os.path.basename(filename)
+        dxf_path = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id, safe_name)
+        if not os.path.exists(dxf_path):
+            return jsonify({'error': 'File DXF non trovato'}), 404
+        from .preventivi.dxf_scanner import scansiona_dxf_dettagli
+        app_cfg = BarcodeManager.load_config() or {}
+        cfg = app_cfg.get('dxf_detection', {}) or {
+            'dxf_colori_piega': [2], 'dxf_colori_saldatura': [1],
+            'dxf_lunghezza_minima': 15.0, 'dxf_tolleranza_centro': 1.0,
+            'dxf_svasatura_ratio_min': 1.8, 'dxf_svasatura_ratio_max': 3.0,
+            'dxf_semicerchio_angolo_min': 150.0, 'dxf_semicerchio_angolo_max': 320.0,
+            'dxf_filtra_zona_sviluppata': True,
+        }
+        pieghe, sald_ml, fil, svas = scansiona_dxf_dettagli(dxf_path, cfg)
+        return jsonify({'pieghe': pieghe, 'saldatura_ml': sald_ml,
+                        'filettatura_pz': fil, 'svasatura_pz': svas}), 200
+    except Exception as e:
+        logger.exception('lavorazioni recount failed')
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/fold-model', methods=['POST'])
 def api_preventivi_dxf_fold_model(preventivo_id, filename):
     """Anteprima piega 3D — modello {facce, cerniere, radice} per il viewer.

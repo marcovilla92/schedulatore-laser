@@ -151,13 +151,21 @@ def build_fold_model(path: str, outline_xy: list, thickness_mm: float,
     for f in faces:
         f.pop('_geom', None)
 
+    # "clean": la ricostruzione è affidabile abbastanza da mostrarla. Su disegni
+    # multi-vista i pezzi molto complessi generano facce spurie / pieghe che non
+    # separano bene → NON li mostriamo (meglio 2D che un 3D storto).
+    n_used = len(hinges_out)
+    non_separa = sum(1 for w in warnings if 'non separa' in w)
+    clean = (n_used >= 1 and non_separa == 0 and len(faces) <= n_used + 2)
+
     return {
         'success': True,
+        'clean': clean,
         'thickness': thickness_mm,
         'faces': faces,
         'hinges': hinges_out,
         'root': root,
         'n_pieghe_totali': n_tot,
-        'n_pieghe_usate': len(hinges_out),
+        'n_pieghe_usate': n_used,
         'warnings': warnings,
     }

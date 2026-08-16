@@ -3205,7 +3205,7 @@ async function _fold3dHover(cell) {
 
   const model = await _foldFetchModel(file, thk);
   if (token !== _foldHoverToken) return;                 // mouse già altrove
-  if (!model || !model.success) {                        // niente 3D → resta la 2D
+  if (!model || !model.success || !model.clean) {        // niente 3D pulito → resta la 2D
     f.style.display = 'none';
     cell.classList.remove('has-fold3d');                 // auto-correzione badge
     return;
@@ -3226,9 +3226,13 @@ function _applyFoldBadges() {
   document.querySelectorAll('[data-fold-file]').forEach(cell => {
     const file = cell.getAttribute('data-fold-file');
     const full = _foldCache[file];
-    if (full && !full.success) { cell.classList.remove('has-fold3d'); return; }  // sappiamo che non regge
-    const p = _foldProbe[file];
-    if (p && p.has_bends) cell.classList.add('has-fold3d');
+    // Badge SOLO quando il modello completo esiste ed è "clean" (piega
+    // ricostruita bene). I complessi/incasinati restano 2D. Finché il modello
+    // completo non è pronto, nessun badge (lo mette il warm quando risolve).
+    if (full) {
+      if (full.success && full.clean) cell.classList.add('has-fold3d');
+      else cell.classList.remove('has-fold3d');
+    }
   });
 }
 
@@ -4019,6 +4023,20 @@ window.addEventListener('message', async (ev) => {
   if (p.canonical_dxf_filename) {
     a.canonical_dxf_filename = p.canonical_dxf_filename;
     a.canonical_dxf_sha256 = p.canonical_dxf_sha256;
+  }
+  // Riconta le LAVORAZIONI dal DXF (pieghe/saldatura/… vengono dal disegno,
+  // non dal contorno): senza questo, confermare il contorno lasciava pieghe=0.
+  if (a.dxf_filename) {
+    try {
+      const rl = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(a.dxf_filename)}/lavorazioni`);
+      const lav = await rl.json();
+      if (lav && !lav.error) {
+        a.pieghe = lav.pieghe || 0;
+        a.saldatura_ml = lav.saldatura_ml || 0;
+        a.filettatura_pz = lav.filettatura_pz || 0;
+        a.svasatura_pz = lav.svasatura_pz || 0;
+      }
+    } catch (_) {}
   }
   // Ricalcola il costo base laser con i dati confermati
   try { await stimaArt(idx, { silent: true }); } catch (_) {}
