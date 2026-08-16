@@ -300,6 +300,43 @@ def _entity_polyline(entity, distance: float = FLATTEN_DISTANCE_MM):
         return None
 
 
+def _text_item(e):
+    """Estrae un testo (TEXT/MTEXT/ATTRIB) come {x,y,s,h,rot} per il viewer.
+    Pulisce i codici DXF (%%d, \\U+XXXX, formattazione MTEXT)."""
+    import re as _re
+    et = e.dxftype()
+    try:
+        s = e.plain_text() if et == 'MTEXT' else (e.dxf.text or '')
+    except Exception:
+        s = getattr(e.dxf, 'text', '') or ''
+    s = _re.sub(r'\\U\+([0-9A-Fa-f]{4})', lambda m: chr(int(m.group(1), 16)), s)
+    s = s.replace('%%d', '°').replace('%%c', 'Ø').replace('%%p', '±')
+    s = _re.sub(r'\\[A-Za-z][^;]*;', '', s)
+    s = _re.sub(r'[{}]', '', s).strip()
+    if not s:
+        return None
+    try:
+        ins = e.dxf.insert
+        tx, ty = float(ins.x), float(ins.y)
+    except Exception:
+        return None
+    h = 0.0
+    for attr in ('height', 'char_height'):
+        try:
+            h = float(getattr(e.dxf, attr, 0) or 0)
+        except Exception:
+            h = 0.0
+        if h:
+            break
+    if not h:
+        h = 2.5
+    try:
+        rot = float(getattr(e.dxf, 'rotation', 0) or 0)
+    except Exception:
+        rot = 0.0
+    return {'x': round(tx, 2), 'y': round(ty, 2), 's': s[:80], 'h': round(h, 2), 'rot': round(rot, 1)}
+
+
 def geometry_json(path: str, config: dict | None = None) -> dict:
     """Estrae tutta la geometria disegnabile come polilinee in mm DXF, per il
     viewer CAD interno. Ritorna {extents, polylines} dove ogni polilinea ha
@@ -316,22 +353,31 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
     msp = doc.modelspace()
 
     polylines = []
+    texts = []
     minx = miny = float('inf')
     maxx = maxy = float('-inf')
     for entity in msp:
         et = entity.dxftype()
         if et in ('MTEXT', 'TEXT', 'ATTRIB', 'ATTDEF'):
-            continue  # niente testo nel viewer MVP
+            t = _text_item(entity)   # ora il testo (cartiglio/quote) lo mostriamo
+            if t:
+                texts.append(t)
+            continue
         is_annot = et in TIPI_ANNOTAZIONE
         try:
             if _layer_da_escludere(entity.dxf.layer):
                 is_annot = True
         except AttributeError:
             pass
-        # DIMENSION: prova a esploderne la geometria per far vedere le quote in grigio
+        # DIMENSION: esplodi la geometria (linee/frecce) + i numeri di quota
         if et == 'DIMENSION':
             try:
                 for ve in entity.virtual_entities():
+                    if ve.dxftype() in ('MTEXT', 'TEXT'):
+                        t = _text_item(ve)
+                        if t:
+                            texts.append(t)
+                        continue
                     pts = _entity_polyline(ve)
                     if pts:
                         polylines.append({'pts': pts, 'kind': 'annot'})
@@ -350,6 +396,11 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
         for x, y in pts:
             minx, miny = min(minx, x), min(miny, y)
             maxx, maxy = max(maxx, x), max(maxy, y)
+
+    # estendi il bounding box anche ai testi (così il fit li include)
+    for t in texts:
+        minx, miny = min(minx, t['x']), min(miny, t['y'])
+        maxx, maxy = max(maxx, t['x']), max(maxy, t['y'])
 
     if minx == float('inf'):
         return {'error': 'Nessuna geometria', 'extents': None, 'polylines': []}
@@ -388,6 +439,7 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
     return {
         'extents': [minx, miny, maxx, maxy],
         'polylines': polylines,
+        'texts': texts,
         'peso_cartiglio_kg': peso_cartiglio,
         'peso_cartiglio_conf': peso_conf,
         'cartiglio_materiale': mat_cartiglio,
