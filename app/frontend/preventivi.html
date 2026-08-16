@@ -4354,11 +4354,19 @@ function _updateArticoliSummary() {
     else if (s.level === 'warn') warn++;
     else if (s.level === 'error') err++;
   }
-  const parts = [`${total} articoli`];
-  if (ok) parts.push(`<span style="color:#10B981;">${ok} ok</span>`);
-  if (warn) parts.push(`<span style="color:#F59E0B;">${warn} da rivedere</span>`);
-  if (err) parts.push(`<span style="color:#EF4444;">${err} incompleti</span>`);
-  el.innerHTML = parts.join(' · ');
+  // Riga-flusso chiara: Importato ✓ → N da definire → Invia (invece di mischiare
+  // "22 articoli · 2 ok · 20 incompleti"). Fa capire a colpo d'occhio cosa resta.
+  const daFare = warn + err;
+  if (daFare === 0) {
+    el.innerHTML = `<span style="color:#10B981; font-weight:600;">✓ Tutto pronto — puoi inviare</span>`;
+  } else {
+    el.innerHTML =
+      `<span style="color:#10B981;">✓ Importato</span>`
+      + `<span style="color:var(--text-3); margin:0 6px;">→</span>`
+      + `<span style="color:#B45309; font-weight:600;">${daFare} da definire</span>`
+      + `<span style="color:var(--text-3); margin:0 6px;">→</span>`
+      + `<span style="color:var(--text-3);">Invia</span>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
