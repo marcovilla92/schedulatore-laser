@@ -2433,6 +2433,10 @@ def api_preventivi_import_rfq_package():
                 cart_sp = (dxf_info.get('spessore') or {}).get('spessore_mm')
                 if cart_sp:
                     item['spessore_mm'] = float(cart_sp)
+            # Arrotonda lo spessore agli spessori realmente tagliati (1-1.5-2-3-4-…)
+            if item.get('spessore_mm'):
+                from .preventivi.pick_part import _snap_stock
+                item['spessore_mm'] = _snap_stock(float(item['spessore_mm']))
             articoli_db.append(item)
 
         if n_master_saltati:

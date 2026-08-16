@@ -300,6 +300,17 @@ def _entity_polyline(entity, distance: float = FLATTEN_DISTANCE_MM):
         return None
 
 
+# Spessori lamiera REALMENTE tagliati (Marco). Unica verità per snap + cross-check.
+SPESSORI_STOCK = [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15]
+
+
+def _snap_stock(v):
+    """Arrotonda uno spessore al valore di stock più vicino."""
+    if not v or v <= 0:
+        return v
+    return min(SPESSORI_STOCK, key=lambda s: abs(s - v))
+
+
 def _text_item(e):
     """Estrae un testo (TEXT/MTEXT/ATTRIB) come {x,y,s,h,rot} per il viewer.
     Pulisce i codici DXF (%%d, \\U+XXXX, formattazione MTEXT)."""
@@ -448,8 +459,10 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
         # → due fonti indipendenti concordano (fail-safe: confidenza alta). Se il
         # cartiglio non ha lo spessore e c'e' UNA sola quota-standard piccola, la
         # proponiamo (bassa confidenza, l'operatore verifica).
+        # Arrotonda lo spessore del cartiglio allo stock reale (1-1.5-2-3-4-5-6-8-10-12-15)
+        if sp_cartiglio:
+            sp_cartiglio = _snap_stock(float(sp_cartiglio))
         try:
-            STD_TH = [0.5, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12, 15, 20]
             qstd = set()
             for e in msp.query('DIMENSION'):
                 try:
@@ -457,7 +470,7 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
                 except Exception:
                     continue
                 if 0.3 <= m <= 25:
-                    for s in STD_TH:
+                    for s in SPESSORI_STOCK:
                         if abs(m - s) < 0.06:
                             qstd.add(s)
                             break
@@ -484,6 +497,7 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
         'cartiglio_spessore_mm': sp_cartiglio,
         'cartiglio_spessore_conf': sp_conf,
         'cartiglio_spessore_source': sp_source,
+        'spessori_stock': SPESSORI_STOCK,
     }
 
 

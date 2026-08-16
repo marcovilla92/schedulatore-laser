@@ -175,6 +175,8 @@ const DENSITA = {
 let sceneG = null;
 let TEXTS = [];               // testi del disegno (cartiglio + quote)
 let GEO_EXT = null;           // bbox della sola geometria pezzo (esclude cartiglio)
+let STOCK = [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15];  // spessori tagliati (dal backend)
+function snapStock(v) { return (v > 0 && STOCK.length) ? STOCK.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a) : v; }
 
 // Bounding box delle polilinee "geo" (il pezzo + le viste, non il cartiglio)
 function _geoBBox(polylines) {
@@ -197,6 +199,7 @@ async function load() {
   EXT = d.extents;
   pesoCartiglio = (d.peso_cartiglio_kg && d.peso_cartiglio_conf >= 0.5) ? d.peso_cartiglio_kg : null;
   TEXTS = d.texts || [];
+  if (Array.isArray(d.spessori_stock) && d.spessori_stock.length) STOCK = d.spessori_stock;
   // Bounding box della sola geometria "geo" (pezzo + viste, esclude cartiglio):
   // per aprire già zoomati sul pezzo, non su tutto il foglio.
   GEO_EXT = _geoBBox(d.polylines);
@@ -543,10 +546,7 @@ function proponiSpessoreDaPeso(d) {
   const dens = DENSITA[mat] || 7.85;
   const sp = pesoCartiglio / (area * dens) * 100;   // kg / (dm²·kg/dm³) = dm → ×100 = mm
   if (!(sp > 0.2 && sp < 60)) return;      // fuori range plausibile
-  const STD = [0.5,0.8,1,1.2,1.5,2,2.5,3,4,5,6,8,10,12,15,20];
-  let best = null, bd = 1e9;
-  for (const s of STD) { const dd = Math.abs(s - sp) / s; if (dd < bd) { bd = dd; best = s; } }
-  const snapped = (bd <= 0.12) ? best : Math.round(sp * 10) / 10;
+  const snapped = snapStock(sp);           // arrotonda allo spessore di taglio più vicino
   spInp.value = snapped;
   onDatiChange();
   setStatus('', `Spessore ${snapped} mm calcolato da peso ${pesoCartiglio} kg ÷ (area × densità) — proposto, verifica.`);
