@@ -4093,32 +4093,22 @@ async function renderSplitDetail(idx) {
   const preview = document.getElementById('sd-preview');
   const displayFilename = a.cleaned_dxf_filename || a.dxf_filename;
   if (displayFilename && currentPreventivo) {
-    try {
-      const bust = a._preview_bust || 0;  // aggiornato da sdOpenCleanup() dopo save-cleaned
-      const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg?v=${bust}`;
-      const resp = await fetch(url);
-      const svgText = await resp.text();
-      preview.innerHTML = svgText;
-      // Se la geometria NON è confermata: clicca il disegno per identificare il
-      // pezzo INLINE (niente finestra separata). Cursore + hint.
-      if (!a.geometria_manuale_confermata) {
-        preview.style.cursor = 'pointer';
-        preview.title = 'Clicca il disegno per identificare il pezzo (contorno)';
-        preview.onclick = () => openCadEditor();
-        if (!preview.querySelector('.sd-click-hint')) {
-          const hint = document.createElement('div');
-          hint.className = 'sd-click-hint';
-          hint.textContent = '↳ Clicca il disegno per identificare il pezzo';
-          hint.style.cssText = 'position:absolute; top:8px; left:8px; background:rgba(124,58,237,.92); color:#fff; font-size:11px; font-weight:600; padding:3px 9px; border-radius:6px; pointer-events:none; z-index:2;';
-          preview.style.position = 'relative';
-          preview.appendChild(hint);
-        }
-      } else {
+    if (!a.geometria_manuale_confermata) {
+      // Pezzo NON identificato → apre subito il CAD inline (niente click in più).
+      preview.onclick = null; preview.style.cursor = 'default';
+      openCadEditor();
+    } else {
+      // Confermato → mostra il disegno statico grande (per rivedere le lavorazioni)
+      try {
+        const bust = a._preview_bust || 0;
+        const url = `${API_URL}/api/preventivi/${currentPreventivo.id}/dxf/${encodeURIComponent(displayFilename)}/svg?v=${bust}`;
+        const resp = await fetch(url);
+        preview.innerHTML = await resp.text();
         preview.style.cursor = 'default';
         preview.onclick = null;
+      } catch (e) {
+        preview.innerHTML = '<div class="empty">Errore preview</div>';
       }
-    } catch (e) {
-      preview.innerHTML = '<div class="empty">Errore preview</div>';
     }
   } else {
     preview.innerHTML = '<div class="empty">Nessun DXF</div>';
