@@ -418,7 +418,8 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
     try:
         from .dxf_scanner import (estrai_peso_da_cartiglio,
                                   estrai_materiale_da_cartiglio,
-                                  estrai_spessore_da_cartiglio)
+                                  estrai_spessore_da_cartiglio,
+                                  estrai_dimensioni_da_descrizione_cartiglio)
         pc = estrai_peso_da_cartiglio(path)
         if pc and pc.get('peso_kg'):
             peso_cartiglio = pc['peso_kg']
@@ -433,6 +434,14 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
             sp_cartiglio = sc['spessore_mm']
             sp_conf = sc.get('confidence', 0.0)
             sp_source = sc.get('source', 'none')
+        # Fallback: leggi lo spessore dalla DESCRIZIONE del cartiglio ("...sp.3"),
+        # che spesso c'è anche quando il campo "Sp." dedicato manca.
+        if not sp_cartiglio:
+            dim = estrai_dimensioni_da_descrizione_cartiglio(path) or {}
+            if dim.get('spessore_mm'):
+                sp_cartiglio = float(dim['spessore_mm'])
+                sp_conf = dim.get('confidence', 0.7) or 0.7
+                sp_source = 'descrizione'
     except Exception:
         pass
 
