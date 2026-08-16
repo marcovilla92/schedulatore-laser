@@ -1296,40 +1296,37 @@ tr.row-warn:hover { background: #FEF3C7; }
 }
 
 /* Hero stats — riga inline compatta (stile AlmaCAM info bar) */
-.sd-hero-stats {
+/* RILEVATO: riquadro grande sotto il disegno — cosa ha trovato il sistema */
+.sd-detected {
   flex-shrink: 0;
-  padding: 8px 14px;
+  padding: 12px 14px;
   background: #fafbfc;
   border-bottom: 1px solid var(--border-2);
-  display: flex; flex-wrap: wrap; align-items: baseline;
-  gap: 6px 14px;
-  font-size: 12px;
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
 }
-.hero-stat {
-  display: inline-flex; align-items: baseline; gap: 4px;
-  white-space: nowrap;
+.det-tile {
+  background: var(--white); border: 1px solid var(--border-2); border-radius: 8px;
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;
 }
-.hero-stat .hero-lbl {
-  font-size: 11px; font-weight: 400;
-  color: var(--text-3);
-}
-.hero-stat .hero-val {
-  font-weight: 600; color: var(--text);
-}
-.hero-stat.hero-dim .hero-val { font-family: 'Geist'; font-size: 13px; }
-.hero-stat.hero-price {
-  margin-left: auto;  /* spinge il totale a destra */
-  padding: 2px 8px; border-radius: 4px;
-  background: var(--text); color: white;
-}
-.hero-stat.hero-price .hero-lbl { color: rgba(255,255,255,0.7); }
-.hero-stat.hero-price .hero-val { color: white; font-family: 'Geist'; font-weight: 700; font-size: 13px; }
+.det-lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.det-val { font-family: 'Geist'; font-weight: 700; font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.det-u { font-size: 10px; color: var(--text-3); }
+.det-tile.det-price { background: var(--text); border-color: var(--text); }
+.det-tile.det-price .det-lbl { color: rgba(255,255,255,.7); }
+.det-tile.det-price .det-val { color: #fff; }
 /* Traffic light per campi mancanti/incerti */
-.hero-stat.missing .hero-val { color: #DC2626; }
-.hero-stat.missing .hero-val::before { content: '⚠ '; }
-.hero-stat.zero .hero-val { color: var(--text-3); font-weight: 400; }
+.det-val.missing { color: #DC2626; }
+.det-val.missing::before { content: '⚠ '; font-size: 13px; }
+.det-val.zero { color: var(--text-3); font-weight: 500; }
+/* Toggle form editabile a scomparsa */
+.sd-edit-toggle {
+  flex-shrink: 0; width: 100%; text-align: left;
+  background: none; border: none; border-bottom: 1px solid var(--border-2);
+  padding: 9px 14px; font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600;
+}
+.sd-edit-toggle:hover { background: var(--surface-2); }
 
 .sd-clean-btn {
   padding: 3px 8px; font-size: 11px; font-weight: 500;
@@ -1785,35 +1782,19 @@ tr.row-warn:hover { background: #FEF3C7; }
               </button>
               <span class="sd-clean-hint" id="sd-clean-hint">Clicca il contorno del pezzo nel CAD per area/perimetro esatti.</span>
             </div>
-            <!-- Info bar inline: metriche chiave in singola riga, stile AlmaCAM -->
-            <div class="sd-hero-stats" id="sd-hero-stats">
-              <span class="hero-stat hero-dim">
-                <span class="hero-val" id="hero-dim">—</span>
-                <span class="hero-lbl">mm</span>
-              </span>
-              <span class="hero-stat">
-                <span class="hero-lbl">perim.</span>
-                <span class="hero-val" id="hero-perim">—</span>
-                <span class="hero-lbl">mm</span>
-              </span>
-              <span class="hero-stat">
-                <span class="hero-lbl">pieghe</span>
-                <span class="hero-val" id="hero-pieghe">—</span>
-              </span>
-              <span class="hero-stat">
-                <span class="hero-lbl">fori</span>
-                <span class="hero-val" id="hero-fori">—</span>
-              </span>
-              <span class="hero-stat">
-                <span class="hero-lbl">mat.</span>
-                <span class="hero-val" id="hero-mat">—</span>
-              </span>
-              <span class="hero-stat hero-price">
-                <span class="hero-lbl">totale</span>
-                <span class="hero-val" id="hero-costo">—</span>
-              </span>
+            <!-- RILEVATO: cosa ha trovato il sistema, grande e chiaro sotto il disegno -->
+            <div class="sd-detected" id="sd-hero-stats">
+              <div class="det-tile"><div class="det-lbl">Dimensioni</div><div class="det-val" id="hero-dim">—</div><div class="det-u">mm</div></div>
+              <div class="det-tile"><div class="det-lbl">Perimetro</div><div class="det-val" id="hero-perim">—</div><div class="det-u">mm</div></div>
+              <div class="det-tile"><div class="det-lbl">Pieghe</div><div class="det-val" id="hero-pieghe">—</div></div>
+              <div class="det-tile"><div class="det-lbl">Fori</div><div class="det-val" id="hero-fori">—</div></div>
+              <div class="det-tile"><div class="det-lbl">Saldatura</div><div class="det-val" id="hero-sald">—</div><div class="det-u">ml</div></div>
+              <div class="det-tile"><div class="det-lbl">Materiale</div><div class="det-val" id="hero-mat">—</div></div>
+              <div class="det-tile"><div class="det-lbl">Spessore</div><div class="det-val" id="hero-sp">—</div><div class="det-u">mm</div></div>
+              <div class="det-tile det-price"><div class="det-lbl">Costo</div><div class="det-val" id="hero-costo">—</div></div>
             </div>
-            <div class="split-detail-body">
+            <button class="sd-edit-toggle" id="sd-edit-toggle" onclick="sdToggleForm()">Modifica valori a mano ▾</button>
+            <div class="split-detail-body" id="split-detail-body" style="display:none;">
               <!-- GENERALE — stile AlmaCAM: label sinistra + campo destra -->
               <div class="sd-section">
                 <h4 class="sd-section-title">Generale</h4>
@@ -4104,6 +4085,11 @@ async function renderSplitDetail(idx) {
   if (!a) return;
   document.getElementById('split-detail-empty').style.display = 'none';
   document.getElementById('split-detail-content').style.display = '';
+  // Form editabile collassato di default (il "rilevato" grande è sopra)
+  const _body = document.getElementById('split-detail-body');
+  const _tgl = document.getElementById('sd-edit-toggle');
+  if (_body) _body.style.display = 'none';
+  if (_tgl) _tgl.textContent = 'Modifica valori a mano ▾';
 
   // Preview SVG. Cache-bust con timestamp per bypass della cache HTTP browser
   // (i cleaned DXF cambiano quando l'utente ridefinisce il pezzo — la Cache-Control
@@ -4246,12 +4232,25 @@ function _updateHeroStats(a, totale) {
   // Fori
   set('hero-fori', a.n_forature || 0, (a.n_forature > 0) ? null : 'zero');
 
-  // Mat + Spessore
-  const matTxt = (a.materiale && a.spessore_mm) ? `${a.materiale}·${a.spessore_mm}` : '—';
-  set('hero-mat', matTxt, (a.materiale && a.spessore_mm) ? null : 'missing');
+  // Saldatura (ml)
+  set('hero-sald', (a.saldatura_ml || 0).toFixed(1), (a.saldatura_ml > 0) ? null : 'zero');
+
+  // Materiale + Spessore (separati, grandi)
+  set('hero-mat', a.materiale ? String(a.materiale).replace(/_/g, ' ') : '—', a.materiale ? null : 'missing');
+  set('hero-sp', a.spessore_mm ? a.spessore_mm : '—', a.spessore_mm ? null : 'missing');
 
   // Totale pezzo (sempre nero, ma se 0 sembra "no stima")
   set('hero-costo', formatEurStr(totale || 0), null);
+}
+
+/** Mostra/nasconde il form editabile sotto il "rilevato" (default: nascosto). */
+function sdToggleForm() {
+  const body = document.getElementById('split-detail-body');
+  const btn = document.getElementById('sd-edit-toggle');
+  if (!body) return;
+  const show = body.style.display === 'none';
+  body.style.display = show ? '' : 'none';
+  if (btn) btn.textContent = show ? 'Nascondi modifica valori ▴' : 'Modifica valori a mano ▾';
 }
 
 /** Callback generico per i field del detail panel — riusa updateArt esistente
