@@ -70,10 +70,11 @@ class PDFPreventivo:
         self.config = config
 
         # Colours matching the app design system
-        self.COLOR_PRIMARY = colors.Color(79 / 255, 70 / 255, 229 / 255)  # #4F46E5
+        # Verde brand Carpenteria L.S. — più chiaro del logo così risalta
+        self.COLOR_PRIMARY = colors.Color(38 / 255, 162 / 255, 105 / 255)  # #26A269 verde
         self.COLOR_PRIMARY_LIGHT = colors.Color(
-            224 / 255, 222 / 255, 252 / 255
-        )  # light indigo
+            220 / 255, 243 / 255, 228 / 255
+        )  # verde chiaro (#DCF3E4)
         self.COLOR_SUCCESS = colors.Color(5 / 255, 150 / 255, 105 / 255)  # #059669
         self.COLOR_DARK = colors.Color(15 / 255, 23 / 255, 42 / 255)  # #0F172A
         self.COLOR_MUTED = colors.Color(148 / 255, 163 / 255, 184 / 255)  # #94A3B8
@@ -311,6 +312,18 @@ class PDFPreventivo:
                 if logo_w > 40 * mm:
                     logo_w = 40 * mm
                     logo_h = logo_w / aspect
+                # Riquadro bianco dietro al logo: lo stacca dalla banda verde
+                pad = 2.5 * mm
+                canvas.setFillColor(colors.white)
+                canvas.roundRect(
+                    _MARGIN - pad,
+                    _H - 27 * mm - pad,
+                    logo_w + 2 * pad,
+                    logo_h + 2 * pad,
+                    2 * mm,
+                    stroke=0,
+                    fill=1,
+                )
                 canvas.drawImage(
                     logo_path,
                     _MARGIN,

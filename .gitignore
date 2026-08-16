@@ -32,6 +32,11 @@ app/uploads/
 _test_input/*
 !_test_input/regression/
 _test_pdf_preventivo.pdf
+# Guida locale con dati cliente (screenshot) — non committare
+GUIDA_PREVENTIVATORE.html
+# Ordini cliente reali droppati in root (privacy)
+C26-156.zip
+ORD.204.xlsx
 
 # IDE & OS
 .DS_Store
