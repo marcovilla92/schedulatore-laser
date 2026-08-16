@@ -389,12 +389,12 @@ class PDFPreventivo:
             f"Pagina {doc.page}",
         )
 
-        # Branding
-        canvas.drawString(
-            _MARGIN,
-            y_footer - 4 * mm,
-            "Generato con Preventivatore v2.0",
-        )
+        # Branding: nome azienda (professionale), fallback neutro
+        azienda = dati.get("azienda", {}) or {}
+        footer_left = azienda.get("nome") or "Preventivo"
+        if azienda.get("piva"):
+            footer_left += f" · P.IVA {azienda['piva']}"
+        canvas.drawString(_MARGIN, y_footer - 4 * mm, footer_left)
 
         # Company website if available
         sito = dati.get("azienda", {}).get("sito", "")
@@ -1477,15 +1477,19 @@ class PDFPreventivo:
         )
 
         # --- Grand total block (right side) ---
+        # Stile dedicato per il numero grande: interlinea adeguata al font 22pt,
+        # altrimenti sfora e si accavalla sulla riga "Prezzo unitario".
+        style_total_big = ParagraphStyle(
+            "TotalBig", parent=self.style_body_bold,
+            fontName="Helvetica-Bold", fontSize=22, leading=27,
+            textColor=colors.white,
+        )
         total_block_rows = [
             [Paragraph(
                 '<font size=8 color="#FFFFFF"><b>TOTALE ORDINE</b></font>',
                 self.style_small,
             )],
-            [Paragraph(
-                f'<font size=22 color="#FFFFFF" name="Helvetica-Bold">{_eur(totale_lotto)}</font>',
-                self.style_body_bold,
-            )],
+            [Paragraph(_eur(totale_lotto), style_total_big)],
             [Paragraph(
                 f'<font size=8 color="#FFFFFF">Prezzo unitario: {_eur(totale_pezzo)}</font>',
                 self.style_small,
