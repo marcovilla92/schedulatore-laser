@@ -4397,6 +4397,24 @@ def api_preventivi_storico_prezzo():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/storico-prezzo-batch', methods=['POST'])
+def api_preventivi_storico_prezzo_batch():
+    """Batch: per una lista di pezzi ritorna chi è già stato prezzato altrove.
+
+    Body JSON: {items:[{codice, sha}], exclude: preventivo_id}. Usato per i badge
+    'già prezzato' sulla lista pezzi senza N chiamate singole.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        items = data.get('items') or []
+        exclude = data.get('exclude') or None
+        risultati = PreventivoManager.storico_prezzo_batch(items, exclude_preventivo_id=exclude)
+        return jsonify({'success': True, 'risultati': risultati})
+    except Exception as e:
+        logger.exception('storico-prezzo-batch failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def _valida_costi_preventivo(preventivo_id):
     """GUARDIA CRITICA server-side: verifica che nessun articolo abbia costo base 0.
 

@@ -1353,6 +1353,14 @@ tr.row-warn:hover { background: #FEF3C7; }
 .sd-storico-table .st-match-geo { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; margin-left: 5px; }
 .sd-storico details { margin-top: 6px; }
 .sd-storico summary { font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600; }
+/* Badge 'già prezzato' sulla riga della lista pezzi */
+.st-badge-row {
+  display: inline-flex; align-items: center; gap: 3px; margin-left: 8px;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap; vertical-align: middle;
+  color: var(--accent); background: #eef2ff; border: 1px solid var(--accent);
+  border-radius: 5px; padding: 1px 6px;
+}
+.st-badge-row.diverge { color: #B91C1C; background: #fef2f2; border-color: #DC2626; }
 /* Toggle form editabile a scomparsa */
 .sd-edit-toggle {
   flex-shrink: 0; width: 100%; text-align: left;
@@ -3511,6 +3519,8 @@ function populateEditor(p) {
     setArticoliView('split');
     if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
   }
+  // Badge 'già prezzato' sulla lista (async, fire-and-forget)
+  refreshStoricoBadges();
 }
 
 async function saveBase() {
@@ -3871,6 +3881,46 @@ function _renderArticoloRow(i, a) {
 let _splitView = false;
 let _splitSelectedIdx = null;
 const _splitCollapsed = new Set();  // codici assieme collassati
+let _storicoBadges = {};  // art.id -> {n, ultimo_costo, ultima_data, ultimo_cliente, min, max}
+
+/** Interroga lo storico prezzi per TUTTI i pezzi in un colpo solo e popola i
+    badge 'già prezzato' sulla lista (senza aprire il dettaglio). */
+async function refreshStoricoBadges() {
+  _storicoBadges = {};
+  if (!currentPreventivo || !currentArticoli.length) return;
+  const items = currentArticoli.map(a => ({ codice: a.codice || '', sha: a.canonical_dxf_sha256 || '' }));
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/storico-prezzo-batch`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ items, exclude: currentPreventivo.id }),
+    });
+    const d = await r.json();
+    if (!d.success || !Array.isArray(d.risultati)) return;
+    currentArticoli.forEach((a, i) => { if (d.risultati[i]) _storicoBadges[a.id] = d.risultati[i]; });
+  } catch (_) { return; }
+  if (_splitView) renderSplitTree();
+}
+
+/** Badge inline per una riga della lista: 'già prezzato' (blu) o divergenza (rosso). */
+function _storicoBadgeHtml(a) {
+  const s = a && _storicoBadges[a.id];
+  if (!s) return '';
+  const baseEff = (a.costo_base_override != null) ? a.costo_base_override : (a.costo_base_stimato || a.costo_materiale || 0);
+  const cur = baseEff + _lavArt(a);
+  let diverge = false;
+  if (s.ultimo_costo > 0 && cur > 0) {
+    const dp = Math.abs(cur - s.ultimo_costo) / s.ultimo_costo * 100;
+    diverge = dp >= 5 && Math.abs(cur - s.ultimo_costo) >= 0.02;
+  }
+  const title = `Già prezzato ${s.n}× — ultimo ${formatEurStr(s.ultimo_costo)}`
+    + (s.ultimo_cliente ? ` (${s.ultimo_cliente}${s.ultima_data ? ' · ' + s.ultima_data : ''})` : '')
+    + (diverge ? ` — ATTENZIONE: ora ${formatEurStr(cur)}` : '');
+  const cls = diverge ? 'st-badge-row diverge' : 'st-badge-row';
+  const txt = diverge
+    ? `⚠ già prezzato ${formatEurStr(s.ultimo_costo)}`
+    : `🕘 già prezzato ${formatEurStr(s.ultimo_costo)}`;
+  return `<span class="${cls}" title="${escapeHtml(title)}">${txt}</span>`;
+}
 
 /** Switch tra le due viste (persiste in localStorage per convenienza) */
 function setArticoliView(mode) {
@@ -3998,7 +4048,7 @@ function _splitRowHtml(i, indent) {
   const a = currentArticoli[i];
   const indentHtml = indent ? '<span class="indent"></span>' : '';
   return `<tr onclick="selectSplitArticolo(${i})" data-split-idx="${i}">
-    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:13px;">${escapeHtml(a.codice || '—')}</code></td>
+    <td>${indentHtml}${statusDotHtml(a)}<code style="font-family:monospace; font-size:13px;">${escapeHtml(a.codice || '—')}</code>${_storicoBadgeHtml(a)}</td>
   </tr>`;
 }
 
@@ -4074,6 +4124,8 @@ window.addEventListener('message', async (ev) => {
   try { await stimaArt(idx, { silent: true }); } catch (_) {}
   renderSplitTree(); recalcTotali();
   scheduleSaveArticoli(300);
+  // La geometria appena confermata (nuovo hash) può far scattare il match storico
+  refreshStoricoBadges();
   // AUTO-AVANZAMENTO: salta al prossimo pezzo "da definire" (ne fai 20 in fila
   // senza tornare a cercare). Se non ce ne sono più, resta sul confermato.
   const next = _nextDaDefinire(idx);

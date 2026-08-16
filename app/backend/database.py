@@ -4315,6 +4315,90 @@ class PreventivoManager:
             session.close()
 
     @staticmethod
+    def storico_prezzo_batch(items, exclude_preventivo_id=None):
+        """Versione batch di storico_prezzo per marcare la LISTA pezzi in una sola
+        query (badge 'già prezzato' senza aprire il dettaglio).
+
+        Args:
+            items: lista di dict {codice, sha}. `sha` = canonical_dxf_sha256 (opz.).
+            exclude_preventivo_id: preventivo da escludere (quello corrente).
+
+        Returns:
+            lista di riepiloghi ALLINEATA a `items` (stesso ordine): ciascuno
+            {n, ultimo_costo, ultima_data, ultimo_cliente, min, max} oppure None
+            se il pezzo non è mai stato prezzato altrove.
+        """
+        items = items or []
+        codici = {(it.get('codice') or '').strip() for it in items}
+        codici.discard('')
+        shas = {(it.get('sha') or '').strip() for it in items}
+        shas.discard('')
+        if not codici and not shas:
+            return [None] * len(items)
+        session = get_session()
+        try:
+            conds = []
+            if codici:
+                conds.append(PreventivoArticolo.codice.in_(codici))
+            if shas:
+                conds.append(PreventivoArticolo.canonical_dxf_sha256.in_(shas))
+            q = (session.query(PreventivoArticolo, Preventivo)
+                 .join(Preventivo, PreventivoArticolo.preventivo_id == Preventivo.id)
+                 .filter(Preventivo.is_deleted == False)  # noqa: E712
+                 .filter(or_(*conds)))
+            if exclude_preventivo_id:
+                q = q.filter(PreventivoArticolo.preventivo_id != exclude_preventivo_id)
+            rows = q.order_by(Preventivo.data_creazione.desc()).all()
+
+            by_codice = {}
+            by_sha = {}
+            for a, p in rows:
+                base = (a.costo_base_override if a.costo_base_override is not None
+                        else (a.costo_base_stimato or a.costo_materiale or 0.0))
+                lav = (float(a.costo_piega or 0) + float(a.costo_saldatura or 0)
+                       + float(a.costo_filettatura or 0) + float(a.costo_svasatura or 0)
+                       + float(a.costo_apporto or 0) + float(a.costo_pulizia or 0))
+                occ = {
+                    'art_id': a.id,
+                    'costo_base': round(float(base or 0) + lav, 2),
+                    'data_iso': p.data_creazione.isoformat() if p.data_creazione else '',
+                    'data': p.data_creazione.strftime('%d/%m/%Y') if p.data_creazione else '',
+                    'cliente': p.cliente,
+                }
+                by_codice.setdefault(a.codice, []).append(occ)
+                if a.canonical_dxf_sha256:
+                    by_sha.setdefault(a.canonical_dxf_sha256, []).append(occ)
+
+            risultati = []
+            for it in items:
+                cod = (it.get('codice') or '').strip()
+                sha = (it.get('sha') or '').strip()
+                seen = set()
+                matches = []
+                for occ in ((by_codice.get(cod, []) if cod else [])
+                            + (by_sha.get(sha, []) if sha else [])):
+                    if occ['art_id'] in seen:
+                        continue
+                    seen.add(occ['art_id'])
+                    matches.append(occ)
+                if not matches:
+                    risultati.append(None)
+                    continue
+                matches.sort(key=lambda o: o['data_iso'], reverse=True)
+                costi = [m['costo_base'] for m in matches]
+                risultati.append({
+                    'n': len(matches),
+                    'ultimo_costo': matches[0]['costo_base'],
+                    'ultima_data': matches[0]['data'],
+                    'ultimo_cliente': matches[0]['cliente'],
+                    'min': round(min(costi), 2),
+                    'max': round(max(costi), 2),
+                })
+            return risultati
+        finally:
+            session.close()
+
+    @staticmethod
     def update(preventivo_id, updates):
         """Aggiorna campi del preventivo. NON cambia status (usare transition_status).
         Se status è 'INVIATO' o 'ACCETTATO' (snapshot immutabili), refuse.
