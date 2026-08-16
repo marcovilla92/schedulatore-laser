@@ -1,6 +1,6 @@
 """CRUD operations for Order management"""
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 from .models import (
@@ -4233,6 +4233,84 @@ class PreventivoManager:
                 q = q.filter(Preventivo.status == status)
             rows = q.order_by(Preventivo.data_creazione.desc()).limit(limit).all()
             return [PreventivoManager._serialize(p) for p in rows]
+        finally:
+            session.close()
+
+    @staticmethod
+    def storico_prezzo(codice=None, sha256=None, exclude_preventivo_id=None, limit=50):
+        """Storico prezzi di un pezzo già visto in preventivi passati.
+
+        Match: stesso `codice` OPPURE stessa impronta geometria
+        (`canonical_dxf_sha256`, popolata quando il pezzo è confermato nel CAD).
+        Il costo riportato è il COSTO BASE del pezzo (materiale/taglio +
+        lavorazioni), confrontabile tra preventivi diversi: il margine varia per
+        commessa, il costo base no. Serve per riconoscere un pezzo già prezzato
+        ed evitare incoerenze.
+
+        Returns:
+            dict {occorrenze: [...], riepilogo: {...}|None}. `occorrenze` è
+            ordinata dalla più recente. `riepilogo` aggrega n/ultimo/min/max/media.
+        """
+        codice = (codice or '').strip()
+        sha256 = (sha256 or '').strip() or None
+        if not codice and not sha256:
+            return {'occorrenze': [], 'riepilogo': None}
+        session = get_session()
+        try:
+            conds = []
+            if codice:
+                conds.append(PreventivoArticolo.codice == codice)
+            if sha256:
+                conds.append(PreventivoArticolo.canonical_dxf_sha256 == sha256)
+            q = (session.query(PreventivoArticolo, Preventivo)
+                 .join(Preventivo, PreventivoArticolo.preventivo_id == Preventivo.id)
+                 .filter(Preventivo.is_deleted == False)  # noqa: E712
+                 .filter(or_(*conds)))
+            if exclude_preventivo_id:
+                q = q.filter(PreventivoArticolo.preventivo_id != exclude_preventivo_id)
+            rows = q.order_by(Preventivo.data_creazione.desc()).limit(limit).all()
+
+            occorrenze = []
+            for a, p in rows:
+                base = (a.costo_base_override if a.costo_base_override is not None
+                        else (a.costo_base_stimato or a.costo_materiale or 0.0))
+                lav = (float(a.costo_piega or 0) + float(a.costo_saldatura or 0)
+                       + float(a.costo_filettatura or 0) + float(a.costo_svasatura or 0)
+                       + float(a.costo_apporto or 0) + float(a.costo_pulizia or 0))
+                costo_base = round(float(base or 0) + lav, 2)
+                # Distingui il tipo di match (utile per l'avviso "rinominato")
+                match_tipo = 'codice' if (codice and a.codice == codice) else 'geometria'
+                occorrenze.append({
+                    'preventivo_id': p.id,
+                    'numero_ordine_cliente': p.numero_ordine_cliente,
+                    'cliente': p.cliente,
+                    'status': p.status,
+                    'data': p.data_creazione.strftime('%d/%m/%Y') if p.data_creazione else '',
+                    'data_iso': p.data_creazione.isoformat() if p.data_creazione else '',
+                    'codice': a.codice,
+                    'materiale': a.materiale,
+                    'spessore_mm': a.spessore_mm,
+                    'area_dm2': a.area_dm2,
+                    'quantita': a.quantita,
+                    'costo_base': costo_base,
+                    'margine_pct': p.margine_pct,
+                    'match': match_tipo,
+                    'geometria_confermata': bool(getattr(a, 'geometria_manuale_confermata', False)),
+                })
+
+            riepilogo = None
+            if occorrenze:
+                costi = [o['costo_base'] for o in occorrenze]
+                riepilogo = {
+                    'n': len(occorrenze),
+                    'ultimo_costo': occorrenze[0]['costo_base'],
+                    'ultimo_cliente': occorrenze[0]['cliente'],
+                    'ultima_data': occorrenze[0]['data'],
+                    'min': round(min(costi), 2),
+                    'max': round(max(costi), 2),
+                    'media': round(sum(costi) / len(costi), 2),
+                }
+            return {'occorrenze': occorrenze, 'riepilogo': riepilogo}
         finally:
             session.close()
 

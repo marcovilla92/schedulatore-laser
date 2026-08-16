@@ -1320,6 +1320,39 @@ tr.row-warn:hover { background: #FEF3C7; }
 .det-val.missing { color: #DC2626; }
 .det-val.missing::before { content: '⚠ '; font-size: 13px; }
 .det-val.zero { color: var(--text-3); font-weight: 500; }
+/* STORICO PREZZI — pezzo già visto in preventivi passati */
+.sd-storico {
+  flex-shrink: 0; margin: 0 14px 12px; padding: 11px 13px;
+  border: 1px solid var(--border-2); border-radius: 9px; background: #fafbfc;
+  border-left: 3px solid var(--accent);
+}
+.sd-storico.diverge { border-left-color: #DC2626; background: #fef6f6; }
+.sd-storico-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sd-storico-head .st-badge {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--accent); display: inline-flex; align-items: center; gap: 5px;
+}
+.sd-storico.diverge .st-badge { color: #DC2626; }
+.sd-storico-last { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+.sd-storico-last b { color: var(--text); font-variant-numeric: tabular-nums; }
+.sd-storico-warn {
+  font-size: 12.5px; color: #B91C1C; font-weight: 600; margin-top: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sd-storico-actions { margin-top: 9px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sd-storico-actions button {
+  font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 7px;
+  border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
+}
+.sd-storico-actions button.ghost { background: none; color: var(--accent); }
+.sd-storico-actions button:hover { filter: brightness(1.05); }
+.sd-storico-table { margin-top: 9px; width: 100%; border-collapse: collapse; font-size: 12px; }
+.sd-storico-table th { text-align: left; color: var(--text-3); font-weight: 600; padding: 3px 6px; border-bottom: 1px solid var(--border-2); text-transform: uppercase; font-size: 10.5px; letter-spacing: .03em; }
+.sd-storico-table td { padding: 4px 6px; border-bottom: 1px solid var(--border-2); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.sd-storico-table td.cost { font-weight: 700; color: var(--text); text-align: right; }
+.sd-storico-table .st-match-geo { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; margin-left: 5px; }
+.sd-storico details { margin-top: 6px; }
+.sd-storico summary { font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600; }
 /* Toggle form editabile a scomparsa */
 .sd-edit-toggle {
   flex-shrink: 0; width: 100%; text-align: left;
@@ -1810,6 +1843,8 @@ tr.row-warn:hover { background: #FEF3C7; }
               <div class="det-tile"><div class="det-lbl">Spessore</div><div class="det-val" id="hero-sp">—</div><div class="det-u">mm</div></div>
               <div class="det-tile det-price"><div class="det-lbl">Costo</div><div class="det-val" id="hero-costo">—</div></div>
             </div>
+            <!-- STORICO PREZZI: se il pezzo (codice o geometria) è già stato prezzato -->
+            <div class="sd-storico" id="sd-storico" style="display:none;"></div>
             <button class="sd-edit-toggle" id="sd-edit-toggle" onclick="sdToggleForm()">Modifica valori a mano ▾</button>
             <div class="split-detail-body" id="split-detail-body" style="display:none;">
               <!-- GENERALE — stile AlmaCAM: label sinistra + campo destra -->
@@ -4201,6 +4236,9 @@ async function renderSplitDetail(idx) {
   // HERO STATS — metriche chiave a colpo d'occhio (sotto la preview)
   _updateHeroStats(a, baseEff + lav);
 
+  // STORICO PREZZI — se il pezzo (codice o geometria) è già stato prezzato
+  _loadStoricoPrezzo(idx, baseEff + lav);
+
   // Pulisci DXF button visibility (sia toolbar sopra la preview sia nella riga azioni)
   const cleanBtn = document.getElementById('sd-btn-clean');
   cleanBtn.style.display = a.dxf_filename ? '' : 'none';
@@ -4268,6 +4306,97 @@ function _updateHeroStats(a, totale) {
 
   // Totale pezzo (sempre nero, ma se 0 sembra "no stima")
   set('hero-costo', formatEurStr(totale || 0), null);
+}
+
+/** Somma dei costi di lavorazione di un articolo (post-taglio). */
+function _lavArt(a) {
+  return (a.costo_piega||0) + (a.costo_saldatura||0) + (a.costo_filettatura||0)
+       + (a.costo_svasatura||0) + (a.costo_apporto||0) + (a.costo_pulizia||0);
+}
+
+/** STORICO PREZZI — cerca se questo pezzo (codice o geometria confermata) è già
+    stato prezzato in preventivi passati. Mostra ultimo costo, avvisa se il prezzo
+    attuale diverge, e offre di riusare il prezzo precedente. */
+async function _loadStoricoPrezzo(idx, costoCorrente) {
+  const panel = document.getElementById('sd-storico');
+  if (!panel) return;
+  const a = currentArticoli[idx];
+  if (!a || !a.codice || !currentPreventivo) { panel.style.display = 'none'; return; }
+  const params = new URLSearchParams({ codice: a.codice, exclude: currentPreventivo.id });
+  if (a.canonical_dxf_sha256) params.set('sha', a.canonical_dxf_sha256);
+  let data;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/storico-prezzo?${params.toString()}`);
+    data = await r.json();
+  } catch (e) { panel.style.display = 'none'; return; }
+  // Race guard: l'utente potrebbe aver cambiato articolo mentre caricava
+  if (_splitSelectedIdx !== idx) return;
+  const occ = (data && data.occorrenze) || [];
+  const rie = data && data.riepilogo;
+  if (!occ.length || !rie) { panel.style.display = 'none'; return; }
+
+  const ultimo = rie.ultimo_costo || 0;
+  // Divergenza: costo attuale vs ultimo storico (soglia 5%, e almeno 2 cent)
+  let diverge = false, deltaPct = 0;
+  if (ultimo > 0 && costoCorrente > 0) {
+    deltaPct = (costoCorrente - ultimo) / ultimo * 100;
+    diverge = Math.abs(deltaPct) >= 5 && Math.abs(costoCorrente - ultimo) >= 0.02;
+  }
+  panel.classList.toggle('diverge', diverge);
+
+  const rows = occ.map(o => {
+    const geo = (o.match === 'geometria') ? '<span class="st-match-geo">rinominato</span>' : '';
+    const cli = escapeHtml(o.cliente || '—');
+    const rif = o.numero_ordine_cliente ? ` · ${escapeHtml(o.numero_ordine_cliente)}` : '';
+    return `<tr><td>${o.data}</td><td>${cli}${rif}${geo}</td><td>${escapeHtml(o.status)}</td><td class="cost">${formatEurStr(o.costo_base)}</td></tr>`;
+  }).join('');
+
+  const warn = diverge
+    ? `<div class="sd-storico-warn"><i data-lucide="alert-triangle" style="width:14px;height:14px;"></i>
+         Ora stai calcolando <b>${formatEurStr(costoCorrente)}</b>
+         (${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(0)}% vs storico)</div>`
+    : '';
+
+  panel.style.display = '';
+  panel.innerHTML = `
+    <div class="sd-storico-head">
+      <span class="st-badge"><i data-lucide="history" style="width:14px;height:14px;"></i>
+        Già prezzato ${rie.n} ${rie.n === 1 ? 'volta' : 'volte'}</span>
+    </div>
+    <div class="sd-storico-last">
+      Ultimo: <b>${formatEurStr(ultimo)}</b> — ${escapeHtml(rie.ultimo_cliente || '')} · ${rie.ultima_data}
+      ${rie.n > 1 ? ` &nbsp;·&nbsp; min ${formatEurStr(rie.min)} / max ${formatEurStr(rie.max)} / media ${formatEurStr(rie.media)}` : ''}
+    </div>
+    ${warn}
+    <div class="sd-storico-actions">
+      <button onclick="_riusaPrezzoStorico(${idx}, ${ultimo})" title="Imposta il costo di questo pezzo uguale all'ultimo prezzato">
+        Usa prezzo precedente ${formatEurStr(ultimo)}
+      </button>
+    </div>
+    <details>
+      <summary>Vedi ${rie.n === 1 ? "l'unica occorrenza" : 'tutte le ' + rie.n + ' occorrenze'}</summary>
+      <table class="sd-storico-table">
+        <thead><tr><th>Data</th><th>Cliente</th><th>Stato</th><th style="text-align:right;">Costo base</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </details>`;
+  if (window.lucide && lucide.createIcons) { try { lucide.createIcons(); } catch (_) {} }
+}
+
+/** Riusa il prezzo storico: imposta costo_base_override così che il TOTALE del
+    pezzo (base + lavorazioni correnti) coincida col prezzo precedente. */
+async function _riusaPrezzoStorico(idx, prevTotale) {
+  const a = currentArticoli[idx];
+  if (!a) return;
+  const lav = _lavArt(a);
+  let override = Math.round((prevTotale - lav) * 100) / 100;
+  if (override < 0) override = 0;  // lavorazioni già ≥ prezzo precedente
+  a.costo_base_override = override;
+  recalcTotali();
+  if (_splitView) renderSplitTree();
+  try { await saveArticoliNow(); } catch (_) {}
+  // Ricarica il detail: aggiorna costi, hero e ricalcola la divergenza (che sparisce)
+  await renderSplitDetail(idx);
 }
 
 /** Mostra/nasconde il form editabile. In modifica: rimpicciolisce il disegno e

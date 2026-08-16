@@ -4371,6 +4371,32 @@ def api_preventivi_pdf(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/storico-prezzo', methods=['GET'])
+def api_preventivi_storico_prezzo():
+    """Storico prezzi di un pezzo già visto: match per codice O geometria (hash).
+
+    Query params:
+      - codice: codice del pezzo (es. 47PA01397-00)
+      - sha: canonical_dxf_sha256 della geometria confermata (opzionale)
+      - exclude: preventivo_id da escludere (il preventivo corrente)
+
+    Ritorna {success, occorrenze:[...], riepilogo:{...}|None}. Costo confrontato
+    = costo base del pezzo (senza margine), coerente tra preventivi.
+    """
+    try:
+        codice = request.args.get('codice', '')
+        sha = request.args.get('sha', '')
+        exclude = request.args.get('exclude', '') or None
+        if not codice.strip() and not sha.strip():
+            return jsonify({'success': True, 'occorrenze': [], 'riepilogo': None})
+        res = PreventivoManager.storico_prezzo(
+            codice=codice, sha256=sha, exclude_preventivo_id=exclude)
+        return jsonify({'success': True, **res})
+    except Exception as e:
+        logger.exception('storico-prezzo failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def _valida_costi_preventivo(preventivo_id):
     """GUARDIA CRITICA server-side: verifica che nessun articolo abbia costo base 0.
 
