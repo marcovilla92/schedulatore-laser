@@ -3971,8 +3971,9 @@ function _splitRowHtml(i, indent) {
 let _cadEditorWin = null;
 let _cadEditorIdx = null;   // indice articolo in attesa di conferma dal CAD
 
-/** Apre il CAD interno per l'articolo selezionato. Al Conferma, il CAD invia
- *  la geometria via postMessage e noi aggiorniamo currentArticoli. */
+/** Apre il CAD interno per identificare il pezzo — INLINE nella preview di
+ *  destra (niente più finestra separata). Clicchi il contorno direttamente sul
+ *  disegno; al Conferma arriva la geometria via postMessage. */
 function openCadEditor() {
   const idx = _splitSelectedIdx;
   if (idx == null || !currentArticoli[idx]) { alert('Seleziona prima un articolo.'); return; }
@@ -3981,10 +3982,20 @@ function openCadEditor() {
   if (!file) { alert('Questo articolo non ha un DXF associato.'); return; }
   if (!currentPreventivo) { alert('Salva prima il preventivo.'); return; }
   _cadEditorIdx = idx;
+  const preview = document.getElementById('sd-preview');
+  if (!preview) return;
   const url = `/dxf-editor.html?prev=${encodeURIComponent(currentPreventivo.id)}`
-            + `&file=${encodeURIComponent(file)}&articolo=${idx}`;
-  _cadEditorWin = window.open(url, 'cad-editor-' + idx, 'width=1400,height=900');
+            + `&file=${encodeURIComponent(file)}&articolo=${idx}&embed=1`;
+  preview.onclick = null; preview.style.cursor = 'default';
+  preview.innerHTML = `<iframe src="${url}" style="width:100%; height:min(80vh,820px); border:none; display:block;"></iframe>`;
 }
+
+// CAD inline chiuso senza confermare → ripristina la preview statica del pezzo
+window.addEventListener('message', (ev) => {
+  if (ev.data && ev.data.type === 'cad-close') {
+    if (_cadEditorIdx != null && currentArticoli[_cadEditorIdx]) selectSplitArticolo(_cadEditorIdx);
+  }
+});
 
 // Riceve la conferma dal CAD interno e aggiorna l'articolo + ricalcola + salva
 window.addEventListener('message', async (ev) => {
@@ -4088,6 +4099,24 @@ async function renderSplitDetail(idx) {
       const resp = await fetch(url);
       const svgText = await resp.text();
       preview.innerHTML = svgText;
+      // Se la geometria NON è confermata: clicca il disegno per identificare il
+      // pezzo INLINE (niente finestra separata). Cursore + hint.
+      if (!a.geometria_manuale_confermata) {
+        preview.style.cursor = 'pointer';
+        preview.title = 'Clicca il disegno per identificare il pezzo (contorno)';
+        preview.onclick = () => openCadEditor();
+        if (!preview.querySelector('.sd-click-hint')) {
+          const hint = document.createElement('div');
+          hint.className = 'sd-click-hint';
+          hint.textContent = '↳ Clicca il disegno per identificare il pezzo';
+          hint.style.cssText = 'position:absolute; top:8px; left:8px; background:rgba(124,58,237,.92); color:#fff; font-size:11px; font-weight:600; padding:3px 9px; border-radius:6px; pointer-events:none; z-index:2;';
+          preview.style.position = 'relative';
+          preview.appendChild(hint);
+        }
+      } else {
+        preview.style.cursor = 'default';
+        preview.onclick = null;
+      }
     } catch (e) {
       preview.innerHTML = '<div class="empty">Errore preview</div>';
     }
