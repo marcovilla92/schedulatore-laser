@@ -971,6 +971,71 @@ def _enumerate_loops(nodes, adj, start_edge, max_loops=8, max_branch=14,
     return loops
 
 
+def _shapely_candidate_for_click(faces: list, x: float, y: float, msp,
+                                 colori_esclusi: set[int]) -> dict | None:
+    """Candidato via polygonize Shapely: robusto su contorni a LINEE SPARSE che il
+    graph-walk non riesce a chiudere (pezzi piccoli con svasature grandi, viste
+    multiple sullo stesso foglio).
+
+    Il PEZZO è la faccia (non-cornice) il cui bordo esterno racchiude il click,
+    con area ESTERNA massima (racchiude i propri fori/dettagli): così cliccando
+    ovunque nel corpo — anche sopra un foro — si seleziona il pezzo, non il foro.
+    I fori veri li ricava _holes_inside (svasature-aware: tiene il passante).
+    """
+    if not faces:
+        return None
+
+    # Estensione geometrica = bbox unione di tutte le facce. La CORNICE è la faccia
+    # che la riempie quasi tutta (in entrambe le dimensioni): un pezzo reale no.
+    # (Filtro per DIMENSIONE, non per "quante facce racchiude" — così non scarta
+    #  per errore un pezzo con molti fori.)
+    gx0 = min(f.bounds[0] for f in faces); gy0 = min(f.bounds[1] for f in faces)
+    gx1 = max(f.bounds[2] for f in faces); gy1 = max(f.bounds[3] for f in faces)
+    gw, gh = gx1 - gx0, gy1 - gy0
+
+    def _is_frame(f):
+        b = f.bounds
+        return gw > 0 and gh > 0 and (b[2] - b[0]) >= 0.9 * gw and (b[3] - b[1]) >= 0.9 * gh
+
+    cand = [f for f in faces if not _is_iso_format_bounds(f.bounds) and not _is_frame(f)]
+    if not cand:
+        return None  # solo cornici → lascia decidere al graph-walk
+
+    click = Point(x, y)
+    # Il PEZZO = la faccia non-cornice il cui BORDO ESTERNO racchiude il click, con
+    # area esterna MASSIMA: racchiude i propri fori/dettagli, quindi cliccando
+    # ovunque nel suo ingombro (anche sopra un foro) si prende il pezzo, non il foro.
+    ext_in = [f for f in cand if Polygon(f.exterior).contains(click)]
+    if ext_in:
+        outer_face = max(ext_in, key=lambda f: Polygon(f.exterior).area)
+    else:
+        # Click sul bordo o appena fuori: faccia col contorno più vicino (con guardia)
+        outer_face = min(cand, key=lambda f: f.exterior.distance(click))
+        d = outer_face.exterior.distance(click)
+        diag = math.hypot(outer_face.bounds[2] - outer_face.bounds[0],
+                          outer_face.bounds[3] - outer_face.bounds[1])
+        if diag > 0 and d > 0.5 * diag:
+            return None  # click troppo lontano da qualsiasi pezzo
+    outer = Polygon(outer_face.exterior)   # bordo esterno pieno; i fori li ricalcolo
+    holes = _holes_inside(msp, outer, colori_esclusi)
+    area_netta = (outer.area - sum(h.area for h in holes)) / 10000.0
+    if area_netta <= 0:
+        return None
+    minx, miny, maxx, maxy = outer.bounds
+    return {
+        'area_dm2': area_netta,
+        'area_lorda_dm2': outer.area / 10000.0,
+        'perimetro_taglio_m': (outer.exterior.length
+                               + sum(h.exterior.length for h in holes)) / 1000.0,
+        'n_forature': len(holes),
+        'bbox_width_mm': maxx - minx,
+        'bbox_height_mm': maxy - miny,
+        'outer_xy': list(outer.exterior.coords),
+        'holes_xy': [list(h.exterior.coords) for h in holes],
+        'source': 'polygonize-face',
+    }
+
+
 def pick_candidates(path: str, click_x_mm: float, click_y_mm: float,
                     config: dict | None = None) -> dict:
     """Multi-ipotesi: dal click enumera i contorni chiusi plausibili e li
@@ -1043,12 +1108,37 @@ def pick_candidates(path: str, click_x_mm: float, click_y_mm: float,
             'outer_xy': list(poly.exterior.coords),
             'holes_xy': [list(h.exterior.coords) for h in holes],
         })
+    # Candidato robusto via polygonize (contorni a linee sparse che il graph-walk
+    # non chiude: pezzi piccoli con svasature grandi, viste multiple sul foglio).
+    try:
+        shp = _shapely_candidate_for_click(
+            _build_faces(path, colori_esclusi), click_x_mm, click_y_mm, msp, colori_esclusi)
+    except Exception:
+        shp = None
+    if shp:
+        dup = any(abs(shp['area_dm2'] - c['area_dm2']) / max(c['area_dm2'], 1e-6) < 0.01
+                  for c in candidates)
+        if not dup:
+            candidates.append(shp)
+
     if not candidates:
         return {'success': False,
                 'error': 'Nessun contorno chiuso da questo click',
                 'warnings': ['clicca sul bordo del pezzo o usa il tracciamento guidato']}
     # ordina: preferisci più fori (pezzo reale) e area maggiore, ma non la cornice
     candidates.sort(key=lambda c: (c['n_forature'], c['area_dm2']), reverse=True)
+    # Scarta i candidati che sono FORI/dettagli del migliore (contenuti nel suo
+    # contorno esterno): non sono "pezzi alternativi". Così su un pezzo con fori
+    # grandi resta un solo candidato → l'UI auto-seleziona senza chiedere.
+    if len(candidates) > 1:
+        try:
+            top_poly = Polygon(candidates[0]['outer_xy'])
+            candidates = [candidates[0]] + [
+                c for c in candidates[1:]
+                if not top_poly.contains(Polygon(c['outer_xy']).representative_point())
+            ]
+        except Exception:
+            pass
     candidates = candidates[:5]
     return {'success': True, 'candidates': candidates,
             'click': [click_x_mm, click_y_mm]}
