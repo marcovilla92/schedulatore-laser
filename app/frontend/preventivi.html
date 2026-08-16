@@ -1789,6 +1789,8 @@ tr.row-warn:hover { background: #FEF3C7; }
               <div class="det-tile"><div class="det-lbl">Pieghe</div><div class="det-val" id="hero-pieghe">—</div></div>
               <div class="det-tile"><div class="det-lbl">Fori</div><div class="det-val" id="hero-fori">—</div></div>
               <div class="det-tile"><div class="det-lbl">Saldatura</div><div class="det-val" id="hero-sald">—</div><div class="det-u">ml</div></div>
+              <div class="det-tile"><div class="det-lbl">Filettature</div><div class="det-val" id="hero-filett">—</div></div>
+              <div class="det-tile"><div class="det-lbl">Svasature</div><div class="det-val" id="hero-svas">—</div></div>
               <div class="det-tile"><div class="det-lbl">Materiale</div><div class="det-val" id="hero-mat">—</div></div>
               <div class="det-tile"><div class="det-lbl">Spessore</div><div class="det-val" id="hero-sp">—</div><div class="det-u">mm</div></div>
               <div class="det-tile det-price"><div class="det-lbl">Costo</div><div class="det-val" id="hero-costo">—</div></div>
@@ -4234,6 +4236,10 @@ function _updateHeroStats(a, totale) {
 
   // Saldatura (ml)
   set('hero-sald', (a.saldatura_ml || 0).toFixed(1), (a.saldatura_ml > 0) ? null : 'zero');
+
+  // Filettature + Svasature
+  set('hero-filett', a.filettatura_pz || 0, (a.filettatura_pz > 0) ? null : 'zero');
+  set('hero-svas', a.svasatura_pz || 0, (a.svasatura_pz > 0) ? null : 'zero');
 
   // Materiale + Spessore (separati, grandi)
   set('hero-mat', a.materiale ? String(a.materiale).replace(/_/g, ' ') : '—', a.materiale ? null : 'missing');
