@@ -527,6 +527,29 @@ function updateStats(d) {
   document.getElementById('s-fori').textContent = d.n_forature;
   document.getElementById('s-bbox').textContent =
     `${d.bbox_width_mm.toFixed(0)}×${d.bbox_height_mm.toFixed(0)} mm`;
+  proponiSpessoreDaPeso(d);
+}
+
+// Se lo spessore NON è noto (cartiglio/quote), lo CALCOLA dall'area appena
+// selezionata: spessore = peso ÷ (area × densità). Usa la geometria vera che hai
+// cliccato + il peso del cartiglio. Proposto (verifica), snap allo standard.
+function proponiSpessoreDaPeso(d) {
+  const spInp = document.getElementById('f-spessore');
+  if (spInp.value) return;                 // già valorizzato (cartiglio, quote o a mano)
+  if (pesoCartiglio == null) return;       // serve il peso dichiarato
+  const area = d && d.area_dm2;
+  if (!(area > 0)) return;
+  const mat = document.getElementById('f-materiale').value;
+  const dens = DENSITA[mat] || 7.85;
+  const sp = pesoCartiglio / (area * dens) * 100;   // kg / (dm²·kg/dm³) = dm → ×100 = mm
+  if (!(sp > 0.2 && sp < 60)) return;      // fuori range plausibile
+  const STD = [0.5,0.8,1,1.2,1.5,2,2.5,3,4,5,6,8,10,12,15,20];
+  let best = null, bd = 1e9;
+  for (const s of STD) { const dd = Math.abs(s - sp) / s; if (dd < bd) { bd = dd; best = s; } }
+  const snapped = (bd <= 0.12) ? best : Math.round(sp * 10) / 10;
+  spInp.value = snapped;
+  onDatiChange();
+  setStatus('', `Spessore ${snapped} mm calcolato da peso ${pesoCartiglio} kg ÷ (area × densità) — proposto, verifica.`);
 }
 
 function resetStats() {
