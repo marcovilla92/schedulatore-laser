@@ -4206,7 +4206,10 @@ async function renderSplitDetail(idx) {
   //  1h del backend è troppo aggressiva per il detail panel dove l'utente si aspetta
   //  di vedere subito la nuova versione).
   const preview = document.getElementById('sd-preview');
-  const displayFilename = a.cleaned_dxf_filename || a.dxf_filename;
+  // Precedenza: CANONICO (confermato, esiste sempre dopo la conferma CAD) →
+  // cleaned (auto, talvolta non generato all'import → 404 "DXF non trovato") →
+  // originale. Stessa preferenza della copia in produzione (_copy_cleaned_dxf).
+  const displayFilename = a.canonical_dxf_filename || a.cleaned_dxf_filename || a.dxf_filename;
   if (displayFilename && currentPreventivo) {
     if (!a.geometria_manuale_confermata) {
       // Pezzo NON identificato → apre subito il CAD inline (niente click in più).

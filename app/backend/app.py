@@ -2708,6 +2708,12 @@ def api_preventivi_dxf_svg(preventivo_id, filename):
         safe_name = os.path.basename(filename)
         prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
         dxf_path = os.path.join(prev_dir, safe_name)
+        # Fallback: il DXF 'pulito' auto talvolta non è stato scritto (import RFQ);
+        # invece di un 404 "DXF non trovato" mostra l'originale del pezzo.
+        if not os.path.exists(dxf_path) and safe_name.endswith('_cleaned.dxf'):
+            original = os.path.join(prev_dir, safe_name[:-len('_cleaned.dxf')] + '.dxf')
+            if os.path.exists(original):
+                dxf_path = original
         if not os.path.exists(dxf_path):
             return jsonify({'error': 'File DXF non trovato'}), 404
         from flask import Response
