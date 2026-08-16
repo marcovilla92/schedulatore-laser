@@ -4261,9 +4261,27 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
         'costo_montaggio_totale': round(costo_assiemi_calc, 2),
         'costo_tubolari_totale': round(costo_tubolari_std, 2),
         'costo_piastre_totale': round(costo_piastre_std, 2),
-        'note': p.get('note') or '',
+        'note': _note_per_cliente(p.get('note')),
         'azienda': azienda_info,
+        'logo_path': _resolve_logo_path(azienda_info.get('logo_path')),
     }
+
+
+def _note_per_cliente(note):
+    """Nasconde le note INTERNE dal PDF che va al cliente (es. 'Importato via AI RFQ')."""
+    n = (note or '').strip()
+    if n.startswith('Importato via AI RFQ'):
+        return ''
+    return n
+
+
+def _resolve_logo_path(logo_path):
+    """Risolve il path del logo: assoluto → così com'è; relativo → da app/backend/."""
+    if not logo_path:
+        return None
+    if os.path.isabs(logo_path):
+        return logo_path
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), logo_path)
 
 
 @app.route('/api/preventivi/<preventivo_id>/pdf', methods=['GET'])
