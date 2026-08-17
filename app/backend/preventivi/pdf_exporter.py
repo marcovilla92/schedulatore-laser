@@ -1575,10 +1575,13 @@ class PDFPreventivo:
             Paragraph("<b>Data</b>", self.style_small),
             Paragraph(f"<font size=10>{data_str}</font>", self.style_body),
         ])
-        info_rows.append([
-            Paragraph("<b>Quantita'</b>", self.style_small),
-            Paragraph(f"<font size=10>{quantita} pz</font>", self.style_body),
-        ])
+        # Quantità: solo nell'interno. Al cliente è ridondante (le quantità dei
+        # pezzi sono già nel "Dettaglio fornitura") e confonde quando è 1.
+        if interno:
+            info_rows.append([
+                Paragraph("<b>Quantita'</b>", self.style_small),
+                Paragraph(f"<font size=10>{quantita} pz</font>", self.style_body),
+            ])
         if margine > 0 and interno:
             info_rows.append([
                 Paragraph("<b>Margine applicato</b>", self.style_small),
@@ -1615,11 +1618,14 @@ class PDFPreventivo:
                 self.style_small,
             )],
             [Paragraph(_eur(totale_lotto), style_total_big)],
-            [Paragraph(
+        ]
+        # "Prezzo unitario" (= totale pezzo PRIMA del margine) solo nell'interno:
+        # al cliente rivelerebbe il costo. Nel cliente il box mostra solo il totale.
+        if interno:
+            total_block_rows.append([Paragraph(
                 f'<font size=8 color="#FFFFFF">Prezzo unitario: {_eur(totale_pezzo)}</font>',
                 self.style_small,
-            )],
-        ]
+            )])
         total_table = Table(total_block_rows, colWidths=[avail * 0.42])
         total_table.setStyle(
             TableStyle(
@@ -1630,7 +1636,7 @@ class PDFPreventivo:
                     ("LEFTPADDING", (0, 0), (-1, -1), 18),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 18),
                     ("TOPPADDING", (0, 0), (0, 0), 14),
-                    ("BOTTOMPADDING", (0, 2), (0, 2), 14),
+                    ("BOTTOMPADDING", (0, -1), (0, -1), 14),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ("BOX", (0, 0), (-1, -1), 0, self.COLOR_PRIMARY),
                     ("ROUNDEDCORNERS", [6, 6, 6, 6]),
