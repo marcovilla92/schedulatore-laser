@@ -1171,6 +1171,26 @@ tr.row-warn:hover { background: #FEF3C7; }
 .riep-item:first-child { border-top: 0; }
 .riep-item .lbl { color: var(--text-2); }
 .riep-item .val { color: var(--text); font-weight: 600; }
+/* Timeline + banner di stato (post-invio) */
+.stato-timeline { display: flex; align-items: flex-start; margin-bottom: 16px; }
+.stato-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; width: 92px; }
+.stato-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--border); background: var(--white); color: var(--text-3); }
+.stato-dot i { width: 15px; height: 15px; }
+.stato-step.done .stato-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stato-step.current .stato-dot { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-bg); }
+.stato-step.reject .stato-dot { background: #DC2626; border-color: #DC2626; color: #fff; }
+.stato-step .stato-lbl { font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; }
+.stato-step.done .stato-lbl, .stato-step.current .stato-lbl, .stato-step.reject .stato-lbl { color: var(--text); }
+.stato-conn { flex: 1; height: 2px; background: var(--border); margin: 14px 2px 0; }
+.stato-conn.done { background: var(--accent); }
+.stato-banner { display: flex; gap: 12px; padding: 14px 16px; border-radius: 11px; margin-bottom: 18px; align-items: flex-start; }
+.stato-banner i { width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px; }
+.stato-banner .sb-title { font-weight: 800; font-size: 14px; }
+.stato-banner .sb-msg { font-size: 12.5px; line-height: 1.45; margin-top: 3px; opacity: .95; }
+.stato-banner.inviato { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; } .stato-banner.inviato i { color: #2563eb; }
+.stato-banner.accettato { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; } .stato-banner.accettato i { color: #16a34a; }
+.stato-banner.rifiutato { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; } .stato-banner.rifiutato i { color: #dc2626; }
 .editor-bottom .actions {
   display: flex; gap: 10px; align-items: center;
 }
@@ -2331,6 +2351,8 @@ tr.row-warn:hover { background: #FEF3C7; }
       <button class="modal-close" onclick="closeRiepilogoModal()" style="position:static; margin-left:12px;">&times;</button>
     </div>
     <div class="modal-body" style="padding:20px 22px; overflow-y:auto; flex:1;">
+      <!-- STATO: timeline + banner contestuale (visibile quando non è BOZZA) -->
+      <div id="riep-stato-banner" style="display:none;"></div>
       <!-- TOTALI in evidenza -->
       <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:20px;">
         <div class="riep-tot">
@@ -7993,22 +8015,56 @@ function openRiepilogoModal() {
   }
   _show('riep-btn-accetta', st === 'INVIATO');
   _show('riep-btn-rifiuta', st === 'INVIATO');
+  // Timeline + banner di stato in cima (sostituisce la vecchia riga info testuale)
+  renderStatoBanner();
   const info = document.getElementById('riep-status-info');
-  if (info) {
-    if (st === 'ACCETTATO') {
-      info.textContent = '✓ Preventivo ACCETTATO — Ordine creato in produzione';
-      info.style.display = '';
-      info.style.color = 'var(--green)';
-    } else if (st === 'RIFIUTATO') {
-      info.textContent = '✗ Preventivo RIFIUTATO dal cliente';
-      info.style.display = '';
-      info.style.color = 'var(--red)';
-    } else {
-      info.style.display = 'none';
-    }
-  }
+  if (info) info.style.display = 'none';
   modal.classList.add('active');
   if (window.lucide) lucide.createIcons();
+}
+
+/** Timeline + banner di stato nel riepilogo (visibile quando non è BOZZA). */
+function renderStatoBanner() {
+  const host = document.getElementById('riep-stato-banner');
+  if (!host) return;
+  const st = (currentPreventivo && currentPreventivo.status) || 'BOZZA';
+  if (st === 'BOZZA') { host.style.display = 'none'; host.innerHTML = ''; return; }
+
+  const rejected = (st === 'RIFIUTATO');
+  const s2 = (st === 'INVIATO') ? 'current' : 'done';
+  const s3 = (st === 'ACCETTATO') ? 'done' : (rejected ? 'reject' : '');
+  const conn2 = (st === 'ACCETTATO' || rejected) ? 'done' : '';
+  const ico3 = rejected ? 'x' : (st === 'ACCETTATO' ? 'check' : 'clock');
+  const lbl3 = rejected ? 'Rifiutato' : 'Accettato';
+
+  const timeline = `
+    <div class="stato-timeline">
+      <div class="stato-step done"><div class="stato-dot"><i data-lucide="check"></i></div><span class="stato-lbl">Bozza</span></div>
+      <div class="stato-conn done"></div>
+      <div class="stato-step ${s2}"><div class="stato-dot"><i data-lucide="${st==='INVIATO'?'send':'check'}"></i></div><span class="stato-lbl">Inviato</span></div>
+      <div class="stato-conn ${conn2}"></div>
+      <div class="stato-step ${s3}"><div class="stato-dot"><i data-lucide="${ico3}"></i></div><span class="stato-lbl">${lbl3}</span></div>
+    </div>`;
+
+  let banner = '';
+  if (st === 'INVIATO') {
+    banner = `<div class="stato-banner inviato"><i data-lucide="send"></i><div>
+      <div class="sb-title">Inviato al cliente — in attesa di risposta</div>
+      <div class="sb-msg">Il preventivo è congelato (immutabile). Quando il cliente risponde: <b>Accetta</b> per creare l'ordine di produzione, oppure <b>Rifiuta</b>.</div>
+    </div></div>`;
+  } else if (st === 'ACCETTATO') {
+    banner = `<div class="stato-banner accettato"><i data-lucide="check-circle-2"></i><div>
+      <div class="sb-title">Accettato dal cliente — Ordine in produzione</div>
+      <div class="sb-msg">È stato creato l'ordine in FerroTrack: cartellino generato e disegni passati al taglio.</div>
+    </div></div>`;
+  } else if (rejected) {
+    banner = `<div class="stato-banner rifiutato"><i data-lucide="x-circle"></i><div>
+      <div class="sb-title">Rifiutato dal cliente</div>
+      <div class="sb-msg">Il preventivo è stato marcato come rifiutato. Puoi duplicarlo per crearne una nuova versione.</div>
+    </div></div>`;
+  }
+  host.innerHTML = timeline + banner;
+  host.style.display = '';
 }
 
 // ── Revisione guidata: raccoglie i punti da verificare per articolo ──────
