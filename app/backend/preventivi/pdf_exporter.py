@@ -287,8 +287,8 @@ class PDFPreventivo:
                     )
                 )
 
-            # Signature/acceptance box
-            self._build_signature_box(elements, dati)
+            # Signature/acceptance box (blocco coeso condizioni + accettazione)
+            self._build_signature_box(elements, dati, interno=interno)
 
             doc.build(elements)
             logger.info("PDF generato: %s", path)
@@ -1529,15 +1529,8 @@ class PDFPreventivo:
                 )
         t.setStyle(TableStyle(style_cmds))
         elements.append(t)
-        elements.append(Spacer(1, 3 * mm))
-        elements.append(
-            Paragraph(
-                "Prezzi in EUR, IVA esclusa. Preventivo salvo conferma "
-                "disponibilita' materiali.",
-                self.style_small,
-            )
-        )
-        elements.append(Spacer(1, 4 * mm))
+        # La nota prezzi ora apre il blocco 'Accettazione' (vedi _build_signature_box),
+        # così non resta orfana in cima a una pagina successiva.
 
     # ------------------------------------------------------------------
     # Cover section (first page summary)
@@ -1836,13 +1829,29 @@ class PDFPreventivo:
     # Signature / acceptance box
     # ------------------------------------------------------------------
 
-    def _build_signature_box(self, elements, dati):
-        """Build signature box with empty fields for client acceptance."""
-        elements.append(Spacer(1, 10 * mm))
-        elements.append(Paragraph("Accettazione", self.style_heading))
-        elements.append(Spacer(1, 2 * mm))
+    def _build_signature_box(self, elements, dati, interno=False):
+        """Blocco 'condizioni + accettazione' coeso.
 
+        Tutto il blocco (nota prezzi + Accettazione + firma) è tenuto insieme con
+        KeepTogether: non si spezza tra pagine e la nota non resta orfana in cima.
+        Spaziatura equilibrata per un'aria pulita anche su pagina poco piena.
+        """
         avail = _W - 2 * _MARGIN
+        block = []
+
+        # Nota prezzi (solo cliente): apre il blocco condizioni/accettazione
+        if not interno:
+            block.append(
+                Paragraph(
+                    "Prezzi in EUR, IVA esclusa. Preventivo salvo conferma "
+                    "disponibilita' materiali.",
+                    self.style_note,
+                )
+            )
+            block.append(Spacer(1, 10 * mm))
+
+        block.append(Paragraph("Accettazione", self.style_heading))
+        block.append(Spacer(1, 4 * mm))
 
         # Three columns: Data | Firma cliente | Timbro
         empty_line = '<font size=7 color="#94A3B8">___________________________</font>'
@@ -1858,7 +1867,7 @@ class PDFPreventivo:
                 Paragraph(empty_line, self.style_body),
             ],
         ]
-        t = Table(rows, colWidths=[avail / 3] * 3, rowHeights=[12, 40])
+        t = Table(rows, colWidths=[avail / 3] * 3, rowHeights=[14, 46])
         t.setStyle(
             TableStyle(
                 [
@@ -1866,10 +1875,10 @@ class PDFPreventivo:
                     ("BOX", (0, 0), (-1, -1), 0.5, self.COLOR_BORDER),
                     ("LINEAFTER", (0, 0), (1, -1), 0.5, self.COLOR_BORDER),
                     ("LINEBELOW", (0, 0), (-1, 0), 0.5, self.COLOR_BORDER),
-                    ("TOPPADDING", (0, 0), (-1, 0), 6),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 4),
-                    ("TOPPADDING", (0, 1), (-1, 1), 22),
-                    ("BOTTOMPADDING", (0, 1), (-1, 1), 4),
+                    ("TOPPADDING", (0, 0), (-1, 0), 7),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+                    ("TOPPADDING", (0, 1), (-1, 1), 26),
+                    ("BOTTOMPADDING", (0, 1), (-1, 1), 5),
                     ("LEFTPADDING", (0, 0), (-1, -1), 12),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 12),
                     ("VALIGN", (0, 1), (-1, 1), "BOTTOM"),
@@ -1877,14 +1886,18 @@ class PDFPreventivo:
                 ]
             )
         )
-        elements.append(KeepTogether([t]))
-        elements.append(Spacer(1, 4 * mm))
-        elements.append(
+        block.append(t)
+        block.append(Spacer(1, 5 * mm))
+        block.append(
             Paragraph(
                 '<font size=7 color="#94A3B8"><i>La firma del cliente costituisce accettazione del preventivo secondo i termini e le condizioni indicate.</i></font>',
                 self.style_small,
             )
         )
+
+        # Respiro sopra + blocco unico che non si separa
+        elements.append(Spacer(1, 12 * mm))
+        elements.append(KeepTogether(block))
 
     # ------------------------------------------------------------------
     # Notes section
