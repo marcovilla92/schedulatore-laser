@@ -3873,6 +3873,7 @@ def api_preventivi_articoli_replace(preventivo_id):
         result = PreventivoManager.replace_articoli(preventivo_id, articoli)
         if isinstance(result, dict) and 'error' in result:
             return jsonify({'success': False, 'error': result['error']}), 409
+        _persisti_totali(preventivo_id)  # aggiorna totale_lotto sul DB → storico
         try:
             AuditManager.log(user_id=admin_id, action='REPLACE_ARTICOLI',
                              entity_type='preventivi', entity_id=preventivo_id,
@@ -3904,6 +3905,7 @@ def api_preventivi_assiemi_replace(preventivo_id):
         result = PreventivoManager.replace_assiemi(preventivo_id, assiemi)
         if isinstance(result, dict) and 'error' in result:
             return jsonify({'success': False, 'error': result['error']}), 409
+        _persisti_totali(preventivo_id)  # aggiorna totale_lotto sul DB → storico
         try:
             AuditManager.log(user_id=admin_id, action='REPLACE_ASSIEMI',
                              entity_type='preventivi', entity_id=preventivo_id,
@@ -4353,6 +4355,26 @@ def _resolve_logo_path(logo_path):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), logo_path)
 
 
+def _persisti_totali(preventivo_id):
+    """Ricalcola e SALVA i totali del preventivo sul DB (stessa formula del PDF/
+    riepilogo). La lista storico legge totale_lotto dal DB, quindi senza questo
+    resterebbe 0. No-op se preventivo non trovato o non più BOZZA (immutabile)."""
+    try:
+        p = PreventivoManager.get(preventivo_id, include_children=True)
+        if not p or p.get('status') != 'BOZZA':
+            return
+        dati = _preventivo_to_pdf_dati(p)
+        PreventivoManager.update(preventivo_id, {
+            'totale_pezzo': dati.get('totale_pezzo') or 0,
+            'totale_lotto': dati.get('totale_lotto') or 0,
+            'costi_montaggio_totale': dati.get('costo_montaggio_totale') or 0,
+            'costi_tubolari_totale': dati.get('costo_tubolari_totale') or 0,
+            'costi_piastre_totale': dati.get('costo_piastre_totale') or 0,
+        })
+    except Exception:
+        logger.warning('persisti_totali fallito per %s', preventivo_id, exc_info=True)
+
+
 @app.route('/api/preventivi/<preventivo_id>/pdf', methods=['GET'])
 def api_preventivi_pdf(preventivo_id):
     """Genera e serve il PDF del preventivo.
@@ -4487,6 +4509,7 @@ def api_preventivi_invia(preventivo_id):
                 'error': f'Impossibile inviare: {len(invalidi)} punti da risolvere ({details})',
                 'articoli_invalidi': invalidi,
             }), 400
+        _persisti_totali(preventivo_id)  # congela i totali sul DB prima di INVIATO
         result = PreventivoManager.transition_status(preventivo_id, 'INVIATO', user_id=user_id)
         if result is None:
             return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404

@@ -3707,8 +3707,13 @@ function populateEditor(p) {
   setEditorHeaderCollapsed(true);
   // Auto-espande card che hanno contenuto (Assiemi/Tubolari/Piastre)
   _autoExpandCardsWithContent();
-  // Se ci sono articoli → forza SPLIT + FOCUS mode (workflow "lavoro pezzi")
-  if (currentArticoli && currentArticoli.length > 0) {
+  // Se ci sono articoli → forza SPLIT + FOCUS mode (workflow "lavoro pezzi").
+  // Ma se il preventivo è IMMUTABILE (INVIATO/ACCETTATO/RIFIUTATO) → vai dritto
+  // al riepilogo (stato + Accetta/Rifiuta), senza riaprire il CAD/editing.
+  if (p.status !== 'BOZZA') {
+    _splitSelectedIdx = null;
+    setTimeout(() => openRiepilogoModal(), 60);
+  } else if (currentArticoli && currentArticoli.length > 0) {
     setArticoliView('split');
     if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
   }
@@ -4412,8 +4417,9 @@ async function renderSplitDetail(idx) {
   // L'originale esiste sempre → niente più 404 "DXF non trovato".
   const displayFilename = a.dxf_filename || a.cleaned_dxf_filename || a.canonical_dxf_filename;
   if (displayFilename && currentPreventivo) {
-    if (!a.geometria_manuale_confermata) {
-      // Pezzo NON identificato → apre subito il CAD inline (niente click in più).
+    const _editabile = ((currentPreventivo && currentPreventivo.status) || 'BOZZA') === 'BOZZA';
+    if (!a.geometria_manuale_confermata && _editabile) {
+      // Pezzo NON identificato (e preventivo modificabile) → apre subito il CAD.
       preview.onclick = null; preview.style.cursor = 'default';
       openCadEditor();
     } else {
