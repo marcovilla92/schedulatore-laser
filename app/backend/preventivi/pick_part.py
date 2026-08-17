@@ -814,11 +814,13 @@ def _holes_inside(msp, outer, colori_esclusi: set[int]) -> list:
         if outer.contains(poly.representative_point()):
             raw.append(poly)
 
-    # ASOLE disegnate come LOOP di archi+linee (non entità chiuse singole): non le
-    # trova _closed_entity_polygons. Le recuperiamo dalle facce polygonize interne
-    # all'outer, MA solo se hanno un ARCO sul bordo (estremità arrotondate): così
-    # distinguiamo un'asola vera da una faccia generata da una linea di piega
-    # (bordi dritti, nessun arco) — che altrimenti verrebbe contata come foro fantasma.
+    # PROFILI INTERNI disegnati come LOOP di segmenti sciolti (asole, quadrati,
+    # esagoni, sagome…) che _closed_entity_polygons non vede. Li recuperiamo dalle
+    # facce polygonize STRETTAMENTE interne all'outer, ma solo se sono davvero un
+    # foro e non una faccia generata da una linea di piega. Criterio:
+    #   - ha un ARCO ~semicerchio sul bordo (estremità di un'asola/foro tondeggiante), OPPURE
+    #   - è COMPATTA e NON attraversa il pezzo (un foro è piccolo rispetto al pezzo;
+    #     una striscia di piega è lunga/sottile e attraversa il pezzo → esclusa).
     try:
         arc_mids = []
         for e in msp:
@@ -832,27 +834,29 @@ def _holes_inside(msp, outer, colori_esclusi: set[int]) -> list:
             try:
                 cx_, cy_, r_ = e.dxf.center.x, e.dxf.center.y, e.dxf.radius
                 sweep = (e.dxf.end_angle - e.dxf.start_angle) % 360.0
-                # Solo archi ~semicerchio (estremità arrotondate di un'asola). Esclude
-                # i fillet di piega ai vertici (~90°), che altrimenti farebbero contare
-                # come foro la striscia di piega tra due fillet.
-                if not (150.0 <= sweep <= 210.0):
+                if not (150.0 <= sweep <= 210.0):  # solo semicerchi (non fillet di piega ~90°)
                     continue
                 mid = math.radians(e.dxf.start_angle + sweep / 2.0)
                 arc_mids.append((cx_ + r_ * math.cos(mid), cy_ + r_ * math.sin(mid)))
             except Exception:
                 continue
-        if arc_mids:
-            for fc in _faces_from_msp(msp, colori_esclusi):
-                if fc.area >= outer.area * 0.5:
-                    continue
-                if not outer.contains(fc):
-                    continue  # tocca il bordo esterno → non è un foro interno
-                rp = fc.representative_point()
-                if any(h.contains(rp) for h in raw):
-                    continue  # già coperto da un'entità chiusa
-                # dev'essere delimitata da un arco (estremità arrotondata dell'asola)
-                if any(fc.exterior.distance(Point(mx, my)) < 1.0 for (mx, my) in arc_mids):
-                    raw.append(fc)
+        ob = outer.bounds
+        ow, oh = ob[2] - ob[0], ob[3] - ob[1]
+        for fc in _faces_from_msp(msp, colori_esclusi):
+            if fc.area >= outer.area * 0.5:
+                continue
+            if not outer.contains(fc):
+                continue  # tocca il bordo esterno → non è un foro interno
+            rp = fc.representative_point()
+            if any(h.contains(rp) for h in raw):
+                continue  # già coperto da un'entità chiusa
+            fb = fc.bounds
+            fw, fh = fb[2] - fb[0], fb[3] - fb[1]
+            has_arc = any(fc.exterior.distance(Point(mx, my)) < 1.0 for (mx, my) in arc_mids)
+            aspect = max(fw, fh) / max(min(fw, fh), 1e-6)
+            compatto = (ow > 0 and oh > 0 and fw <= 0.6 * ow and fh <= 0.6 * oh and aspect <= 6.0)
+            if has_arc or compatto:
+                raw.append(fc)
     except Exception:
         pass
 
