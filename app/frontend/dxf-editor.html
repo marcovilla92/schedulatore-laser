@@ -323,12 +323,16 @@ function mkPolyline(pl) {
   return el;
 }
 
-// Testo nel sistema flippato: doppio scale(1,-1) per non specchiarlo
+// Testo nel sistema flippato: doppio scale(1,-1) per non specchiarlo.
+// anchor/baseline rispettano l'allineamento del CAD (centrato/destro/verticale)
+// così i valori nelle celle del cartiglio non escono dai riquadri.
 function mkText(t) {
   const el = document.createElementNS(SVGNS, 'text');
   el.setAttribute('class', 'pl-text');
   el.setAttribute('transform', `translate(${t.x},${t.y}) scale(1,-1) rotate(${-(t.rot || 0)})`);
   el.setAttribute('font-size', t.h || 2.5);
+  el.setAttribute('text-anchor', t.anchor || 'start');
+  el.setAttribute('dominant-baseline', t.baseline || 'alphabetic');
   el.textContent = t.s;
   return el;
 }

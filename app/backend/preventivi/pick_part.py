@@ -312,8 +312,15 @@ def _snap_stock(v):
 
 
 def _text_item(e):
-    """Estrae un testo (TEXT/MTEXT/ATTRIB) come {x,y,s,h,rot} per il viewer.
-    Pulisce i codici DXF (%%d, \\U+XXXX, formattazione MTEXT)."""
+    """Estrae un testo (TEXT/MTEXT/ATTRIB) come {x,y,s,h,rot,anchor,baseline} per
+    il viewer. Pulisce i codici DXF (%%d, \\U+XXXX, formattazione MTEXT).
+
+    IMPORTANTE: rispetta l'ALLINEAMENTO. Un TEXT centrato/allineato ha il punto
+    reale in `align_point` (non `insert`); un MTEXT è ancorato secondo il suo
+    `attachment_point`. Senza questo, i valori nelle celle del cartiglio finiscono
+    spostati e si sovrappongono. Restituiamo anche anchor/baseline così il viewer
+    posiziona il testo esattamente come nel CAD.
+    """
     import re as _re
     et = e.dxftype()
     try:
@@ -326,11 +333,7 @@ def _text_item(e):
     s = _re.sub(r'[{}]', '', s).strip()
     if not s:
         return None
-    try:
-        ins = e.dxf.insert
-        tx, ty = float(ins.x), float(ins.y)
-    except Exception:
-        return None
+
     h = 0.0
     for attr in ('height', 'char_height'):
         try:
@@ -345,7 +348,48 @@ def _text_item(e):
         rot = float(getattr(e.dxf, 'rotation', 0) or 0)
     except Exception:
         rot = 0.0
-    return {'x': round(tx, 2), 'y': round(ty, 2), 's': s[:80], 'h': round(h, 2), 'rot': round(rot, 1)}
+
+    anchor, baseline = 'start', 'alphabetic'
+    tx = ty = None
+
+    if et == 'MTEXT':
+        try:
+            ins = e.dxf.insert
+            tx, ty = float(ins.x), float(ins.y)
+        except Exception:
+            return None
+        # attachment_point 1..9: 1=TL 2=TC 3=TR 4=ML 5=MC 6=MR 7=BL 8=BC 9=BR
+        ap = int(getattr(e.dxf, 'attachment_point', 1) or 1)
+        anchor = {1: 'start', 4: 'start', 7: 'start',
+                  2: 'middle', 5: 'middle', 8: 'middle',
+                  3: 'end', 6: 'end', 9: 'end'}.get(ap, 'start')
+        baseline = {1: 'hanging', 2: 'hanging', 3: 'hanging',
+                    4: 'middle', 5: 'middle', 6: 'middle',
+                    7: 'alphabetic', 8: 'alphabetic', 9: 'alphabetic'}.get(ap, 'hanging')
+    else:  # TEXT / ATTRIB / ATTDEF
+        halign = int(getattr(e.dxf, 'halign', 0) or 0)  # 0 L,1 C,2 R,3 ALIGNED,4 MIDDLE,5 FIT
+        valign = int(getattr(e.dxf, 'valign', 0) or 0)  # 0 BASELINE,1 BOTTOM,2 MIDDLE,3 TOP
+        # Con allineamento non-default il punto reale è align_point (code 11)
+        pt = None
+        if halign != 0 or valign != 0:
+            try:
+                ap = e.dxf.align_point
+                if ap is not None and (abs(ap.x) > 1e-9 or abs(ap.y) > 1e-9):
+                    pt = (float(ap.x), float(ap.y))
+            except Exception:
+                pt = None
+        if pt is None:
+            try:
+                ins = e.dxf.insert
+                pt = (float(ins.x), float(ins.y))
+            except Exception:
+                return None
+        tx, ty = pt
+        anchor = {0: 'start', 1: 'middle', 2: 'end', 3: 'start', 4: 'middle', 5: 'start'}.get(halign, 'start')
+        baseline = {0: 'alphabetic', 1: 'alphabetic', 2: 'middle', 3: 'hanging'}.get(valign, 'alphabetic')
+
+    return {'x': round(tx, 2), 'y': round(ty, 2), 's': s[:80], 'h': round(h, 2),
+            'rot': round(rot, 1), 'anchor': anchor, 'baseline': baseline}
 
 
 # Discretizzazione FINE dedicata al DISPLAY del CAD (curve/archi lisci a qualsiasi
