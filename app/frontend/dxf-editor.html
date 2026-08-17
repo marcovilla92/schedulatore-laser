@@ -28,7 +28,8 @@
   .btn.primary:disabled { opacity: .4; cursor: not-allowed; }
   main { flex: 1; display: flex; min-height: 0; }
   .canvas-wrap { flex: 1; position: relative; overflow: hidden; background: var(--canvas-bg); cursor: crosshair; }
-  #svg { width: 100%; height: 100%; display: block; }
+  #svg { width: 100%; height: 100%; display: block;
+         shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
   .side { width: 300px; background: var(--panel); border-left: 1px solid var(--border);
           padding: 16px; overflow-y: auto; flex-shrink: 0; }
   .side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2);

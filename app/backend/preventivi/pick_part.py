@@ -348,6 +348,12 @@ def _text_item(e):
     return {'x': round(tx, 2), 'y': round(ty, 2), 's': s[:80], 'h': round(h, 2), 'rot': round(rot, 1)}
 
 
+# Discretizzazione FINE dedicata al DISPLAY del CAD (curve/archi lisci a qualsiasi
+# zoom). Più fine del FLATTEN_DISTANCE_MM usato dal detection/batch: qui è un solo
+# file alla volta, quindi possiamo permetterci la massima risoluzione visiva.
+_DISPLAY_FLATTEN_MM = 0.05
+
+
 def geometry_json(path: str, config: dict | None = None) -> dict:
     """Estrae tutta la geometria disegnabile come polilinee in mm DXF, per il
     viewer CAD interno. Ritorna {extents, polylines} dove ogni polilinea ha
@@ -356,6 +362,7 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
 
     Il viewer mostra TUTTO (come Lantek) così l'operatore vede il disegno
     completo e sa dove cliccare. Il follow-contour filtra le annotazioni.
+    Le curve sono discretizzate a `_DISPLAY_FLATTEN_MM` (alta risoluzione visiva).
     """
     try:
         doc = ezdxf.readfile(path)
@@ -389,7 +396,7 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
                         if t:
                             texts.append(t)
                         continue
-                    pts = _entity_polyline(ve)
+                    pts = _entity_polyline(ve, distance=_DISPLAY_FLATTEN_MM)
                     if pts:
                         polylines.append({'pts': pts, 'kind': 'annot'})
                         for x, y in pts:
@@ -400,7 +407,7 @@ def geometry_json(path: str, config: dict | None = None) -> dict:
             continue
         if et in ('INSERT',):
             continue
-        pts = _entity_polyline(entity)
+        pts = _entity_polyline(entity, distance=_DISPLAY_FLATTEN_MM)
         if not pts:
             continue
         polylines.append({'pts': pts, 'kind': 'annot' if is_annot else 'geo'})
