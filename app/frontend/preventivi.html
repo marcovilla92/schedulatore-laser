@@ -1286,6 +1286,9 @@ tr.row-warn:hover { background: #FEF3C7; }
 #app-confirm-title { margin: 0; font-family: 'Geist'; font-weight: 800; font-size: 18px; letter-spacing: -0.3px; }
 .app-confirm-msg { font-size: 13.5px; color: var(--text-2); line-height: 1.5; white-space: pre-line; margin-bottom: 20px; }
 .app-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+/* Sezione Importa file collassabile */
+.card.import-collapsed .import-body { display: none; }
+.import-head:hover { background: var(--surface-2); }
 /* Scelta tipo file (modal dopo creazione preventivo) */
 .filetype-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 640px) { .filetype-grid { grid-template-columns: 1fr; } }
@@ -1744,16 +1747,14 @@ tr.row-warn:hover { background: #FEF3C7; }
       <!-- Import strip — barra compatta orizzontale (~64px) al posto della card 200px.
            Collassata di default se ci sono già articoli/assiemi/tubolari/piastre. -->
       <div class="card" id="card-import" style="display:none;">
-        <div class="card-header" style="padding:10px 14px;">
+        <div class="card-header import-head" onclick="toggleImportSection()" style="padding:10px 14px; cursor:pointer;">
           <h3 style="font-size:13px; display:flex; align-items:center; gap:8px;">
             <i data-lucide="upload-cloud" style="width:14px;height:14px;"></i> Importa file
             <span id="msg-import" class="form-msg" style="margin:0; font-size:11px; font-weight:400;"></span>
           </h3>
-          <button class="btn-mini" id="btn-toggle-import" onclick="toggleImportCollapse()" title="Mostra/nascondi note">
-            <span id="btn-toggle-import-label">Note</span>
-          </button>
+          <span class="btn-mini" id="import-toggle-label" style="pointer-events:none;">Mostra ▾</span>
         </div>
-        <div class="card-body" style="padding:8px 14px;">
+        <div class="card-body import-body" style="padding:8px 14px;">
           <div class="import-strip">
             <button type="button" class="dz-slim" id="dz-xlsx" onclick="document.getElementById('inp-xlsx').click()" title="Trascina o clicca per caricare XLSX Lantek">
               <i data-lucide="file-spreadsheet" style="width:16px;height:16px;"></i>
@@ -1780,9 +1781,10 @@ tr.row-warn:hover { background: #FEF3C7; }
             </button>
             <input type="file" id="inp-step" accept=".step,.stp" multiple style="display:none;" onchange="uploadFiles(this.files, 'step')">
           </div>
-          <div class="form-field" id="import-notes-row" style="margin-top:10px; display:none;">
-            <label style="font-size:11px;">Note interne</label>
-            <textarea id="ed-note" rows="1" placeholder="Note opzionali..." style="resize:vertical; font-size:12px;"></textarea>
+          <button class="btn-mini" id="btn-toggle-import" onclick="event.stopPropagation(); toggleImportCollapse()"
+                  style="margin-top:10px;"><span id="btn-toggle-import-label">＋ Note interne</span></button>
+          <div class="form-field" id="import-notes-row" style="margin-top:8px; display:none;">
+            <textarea id="ed-note" rows="1" placeholder="Note opzionali (solo interne)..." style="resize:vertical; font-size:12px; width:100%;"></textarea>
           </div>
         </div>
       </div>
@@ -3679,8 +3681,11 @@ function populateEditor(p) {
   document.getElementById('ed-data-consegna').value = p.data_consegna_proposta ? p.data_consegna_proposta.slice(0,10) : '';
   document.getElementById('ed-note').value = p.note || '';
   document.getElementById('btn-save-base').textContent = 'Salva modifiche';
-  // Sezioni mostrate
-  document.getElementById('card-import').style.display = '';
+  // Sezioni mostrate. Import: nascosto del tutto se immutabile (non-BOZZA),
+  // altrimenti collassato di default quando ci sono già articoli (meno ingombro).
+  const _imp = document.getElementById('card-import');
+  _imp.style.display = (p.status === 'BOZZA') ? '' : 'none';
+  setImportCollapsed((p.articoli || []).length > 0);
   document.getElementById('card-articoli').style.display = '';
   document.getElementById('card-assiemi').style.display = '';
   document.getElementById('card-tubolari').style.display = '';
@@ -3696,8 +3701,6 @@ function populateEditor(p) {
   document.getElementById('btn-invia').style.display = (p.status === 'BOZZA') ? '' : 'none';
   document.getElementById('btn-accetta').style.display = (p.status === 'INVIATO') ? '' : 'none';
   document.getElementById('btn-rifiuta').style.display = (p.status === 'INVIATO') ? '' : 'none';
-  document.getElementById('card-import').style.opacity = editable ? '1' : '0.5';
-  document.getElementById('card-import').style.pointerEvents = editable ? '' : 'none';
   renderArticoli();
   renderAssiemi();
   renderTubolari();
@@ -4767,7 +4770,20 @@ function toggleImportCollapse() {
   if (!row) return;
   const isHidden = row.style.display === 'none';
   row.style.display = isHidden ? '' : 'none';
-  if (btn) btn.textContent = isHidden ? 'Nascondi note' : 'Note';
+  if (btn) btn.textContent = isHidden ? '－ Nascondi note' : '＋ Note interne';
+}
+
+/** Espande/collassa la sezione "Importa file" (le dropzone). */
+function setImportCollapsed(collapsed) {
+  const card = document.getElementById('card-import');
+  if (!card) return;
+  card.classList.toggle('import-collapsed', collapsed);
+  const lbl = document.getElementById('import-toggle-label');
+  if (lbl) lbl.textContent = collapsed ? 'Mostra ▾' : 'Nascondi ▴';
+}
+function toggleImportSection() {
+  const card = document.getElementById('card-import');
+  if (card) setImportCollapsed(!card.classList.contains('import-collapsed'));
 }
 
 /** Aggiorna il summary "N articoli · X ok · Y warn · Z error" nell'header. */
