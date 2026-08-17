@@ -2346,6 +2346,19 @@ def api_preventivi_import_rfq_package():
         # 3. Scrivi DXF su disco (solo quelli matchati)
         prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
         os.makedirs(prev_dir, exist_ok=True)
+
+        # Salva il PDF ordine originale: è il documento con disegni/lavorazioni che
+        # Mirko deve vedere. All'accettazione viene allegato all'ordine FerroTrack.
+        rfq_pdf_bytes = getattr(result, 'pdf_bytes', None)
+        rfq_pdf_filename = getattr(result, 'pdf_filename', None) or 'ordine.pdf'
+        if rfq_pdf_bytes:
+            try:
+                pdf_target = os.path.join(prev_dir, os.path.basename(rfq_pdf_filename))
+                with open(pdf_target, 'wb') as fp:
+                    fp.write(rfq_pdf_bytes)
+            except Exception:
+                logger.warning('salvataggio PDF ordine RFQ fallito: %s', rfq_pdf_filename)
+
         dxf_map = getattr(result, 'dxf_map', {}) or {}
         saved_tasks = []  # (dxf_path, filename)
         matched_dxfs = {a.matched_dxf for a in result.articoli if a.matched_dxf}
@@ -3646,6 +3659,46 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
         return stats
 
 
+def _copy_order_pdf_to_order(preventivo_id: str, order_id: str) -> dict:
+    """Allega all'ordine FerroTrack il PDF ordine originale (disegni/lavorazioni)
+    salvato in preventivi_tmp/<pid>/ così Mirko vede "cosa deve fare".
+
+    Il PDF diventa il documento principale dell'ordine (file_type='PDF' in
+    uploads/pdfs/), come per gli ordini caricati manualmente. Se non c'è alcun
+    PDF (preventivo creato da soli DXF), non fa nulla.
+
+    Ritorna {copied: bool, filename, warnings}.
+    """
+    import shutil
+    import hashlib
+    out = {'copied': False, 'filename': None, 'warnings': []}
+    try:
+        src_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        if not os.path.isdir(src_dir):
+            return out
+        pdfs = sorted(f for f in os.listdir(src_dir) if f.lower().endswith('.pdf'))
+        if not pdfs:
+            return out
+        # Se ce n'è più d'uno, prende il primo (il PDF ordine RFQ è unico per pacchetto).
+        src = os.path.join(src_dir, pdfs[0])
+        os.makedirs(PDFS_FOLDER, exist_ok=True)
+        dst_name = f"{order_id}_{pdfs[0]}"
+        dst = os.path.join(PDFS_FOLDER, dst_name)
+        shutil.copy2(src, dst)
+        h = hashlib.sha256()
+        with open(dst, 'rb') as fp:
+            for chunk in iter(lambda: fp.read(65536), b''):
+                h.update(chunk)
+        OrderManager.add_order_file(order_id, dst_name, dst, 'PDF', sha256=h.hexdigest())
+        out['copied'] = True
+        out['filename'] = dst_name
+        return out
+    except Exception as e:
+        logger.exception('_copy_order_pdf_to_order failed')
+        out['warnings'].append(str(e))
+        return out
+
+
 @app.route('/api/orders/<order_id>/verify-files', methods=['GET'])
 def api_orders_verify_files(order_id):
     """Verifica integrità: ricalcola l'hash dei file DXF in produzione
@@ -4551,6 +4604,9 @@ def api_preventivi_accetta(preventivo_id):
         if order_id:
             dxf_stats = _copy_cleaned_dxf_to_drawings(preventivo_id, order_id)
             result['dxf_transfer'] = dxf_stats
+            # Allega il PDF ordine (disegni/lavorazioni) così Mirko vede cosa fare.
+            pdf_stats = _copy_order_pdf_to_order(preventivo_id, order_id)
+            result['pdf_transfer'] = pdf_stats
             # Audit log dedicato
             try:
                 AuditManager.log(user_id=user_id, action='TRANSFER_DXF_TO_ORDER',

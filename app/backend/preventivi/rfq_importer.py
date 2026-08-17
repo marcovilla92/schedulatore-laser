@@ -61,6 +61,8 @@ class RFQParseResult:
     assiemi: list[str] = field(default_factory=list)       # codici assieme rilevati dalle cartelle
     dxf_map: dict = field(default_factory=dict)            # {basename: bytes} per scrittura su disco
     step_map: dict = field(default_factory=dict)           # {basename: bytes} STEP assiemi 3D
+    pdf_bytes: bytes | None = None                         # PDF ordine originale (disegni/lavorazioni per Mirko)
+    pdf_filename: str | None = None                        # nome del PDF ordine
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
 
@@ -459,6 +461,10 @@ def process_rfq_package(zip_bytes: bytes) -> RFQParseResult:
         return result
     result.dxf_map = dxf_map
     result.step_map = step_map
+    # Conserva il PDF ordine: è il documento con i disegni/lavorazioni che Mirko
+    # deve vedere in produzione. Va salvato e allegato all'ordine all'accettazione.
+    result.pdf_bytes = pdf_bytes
+    result.pdf_filename = pdf_filename
 
     if not pdf_bytes:
         result.error = 'Nessun PDF ordine trovato nel ZIP. Il pacchetto deve contenere almeno un file .pdf'
