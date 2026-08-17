@@ -1591,7 +1591,7 @@ tr.row-warn:hover { background: #FEF3C7; }
 <!-- TAB BAR -->
 <div class="tab-bar">
   <div class="tab-item active" data-tab="storico" onclick="switchTab('storico')">Storico preventivi</div>
-  <div class="tab-item" data-tab="editor" onclick="switchTab('editor')" id="tab-editor">Nuovo / In modifica</div>
+  <div class="tab-item" data-tab="editor" onclick="newPreventivo()" id="tab-editor">Nuovo preventivo</div>
   <div class="tab-item" data-tab="impostazioni" onclick="switchTab('impostazioni')">Impostazioni</div>
 </div>
 
@@ -3575,15 +3575,22 @@ function newPreventivo() {
   document.getElementById('ed-margine').value = 25;
   document.getElementById('ed-data-consegna').value = '';
   document.getElementById('ed-note').value = '';
-  document.getElementById('card-import').style.display = 'none';
-  document.getElementById('card-articoli').style.display = 'none';
-  document.getElementById('card-totali').style.display = 'none';
-  document.getElementById('card-azioni').style.display = 'none';
+  ['card-import','card-articoli','card-assiemi','card-tubolari','card-piastre',
+   'card-totali','card-azioni'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
   document.getElementById('btn-save-base').textContent = 'Crea preventivo';
-  const dupBtn = document.getElementById('btn-duplica');
-  if (dupBtn) dupBtn.style.display = 'none';  // no source ancora
+  // Nessun preventivo ancora → niente Duplica/Elimina
+  ['btn-duplica','btn-elimina'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = 'none';
+  });
   showMsg('msg-base', '', '');
   switchTab('editor');
+  // Esci dal focus-mode (che nasconde il form) se era attivo da un preventivo aperto
+  document.body.classList.remove('focus-mode');
+  const _fl = document.getElementById('btn-focus-label');
+  if (_fl) _fl.textContent = 'Focus';
+  try { localStorage.setItem('focus_mode', '0'); } catch (_) {}
   // Nuovo preventivo → mostra il full editor per compilare i campi
   setEditorHeaderCollapsed(false);
 }
