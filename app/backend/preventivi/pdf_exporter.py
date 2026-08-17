@@ -1867,7 +1867,7 @@ class PDFPreventivo:
                 Paragraph(empty_line, self.style_body),
             ],
         ]
-        t = Table(rows, colWidths=[avail / 3] * 3, rowHeights=[14, 46])
+        t = Table(rows, colWidths=[avail / 3] * 3, rowHeights=[18, 72])
         t.setStyle(
             TableStyle(
                 [
@@ -1875,10 +1875,12 @@ class PDFPreventivo:
                     ("BOX", (0, 0), (-1, -1), 0.5, self.COLOR_BORDER),
                     ("LINEAFTER", (0, 0), (1, -1), 0.5, self.COLOR_BORDER),
                     ("LINEBELOW", (0, 0), (-1, 0), 0.5, self.COLOR_BORDER),
-                    ("TOPPADDING", (0, 0), (-1, 0), 7),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
-                    ("TOPPADDING", (0, 1), (-1, 1), 26),
-                    ("BOTTOMPADDING", (0, 1), (-1, 1), 5),
+                    ("TOPPADDING", (0, 0), (-1, 0), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+                    # Riga firma alta: la linea sta in fondo → ben staccata dalle
+                    # etichette, con spazio vero per scrivere data/firma/timbro.
+                    ("TOPPADDING", (0, 1), (-1, 1), 44),
+                    ("BOTTOMPADDING", (0, 1), (-1, 1), 8),
                     ("LEFTPADDING", (0, 0), (-1, -1), 12),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 12),
                     ("VALIGN", (0, 1), (-1, 1), "BOTTOM"),
