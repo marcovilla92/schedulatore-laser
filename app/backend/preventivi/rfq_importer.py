@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # ─── Config ────────────────────────────────────────────────────────────────
 GEMINI_MODEL = 'gemini-flash-latest'
+GEMINI_TIMEOUT_S = 90  # oltre questo la chiamata Gemini fallisce (niente attese infinite)
 FUZZY_MATCH_THRESHOLD = 0.55  # ratio SequenceMatcher sotto cui NON matcha
 
 
@@ -196,13 +197,22 @@ def parse_order_pdf(pdf_bytes: bytes, filename: str = 'order.pdf') -> dict | Non
         t0 = time.perf_counter()
         logger.info('RFQ Gemini call START: filename=%s pdf_size=%.1fKB',
                     filename, len(pdf_bytes) / 1024)
-        response = model.generate_content([prompt, pdf_part])
+        # TIMEOUT esplicito: mai più attese infinite (il "9,5 minuti" del disastro).
+        # Oltre GEMINI_TIMEOUT_S la chiamata fallisce con errore chiaro, non si impianta.
+        response = model.generate_content(
+            [prompt, pdf_part],
+            request_options={'timeout': GEMINI_TIMEOUT_S},
+        )
         elapsed = time.perf_counter() - t0
         logger.info('RFQ Gemini call END: filename=%s elapsed=%.2fs', filename, elapsed)
     except Exception as e:
         # Errore lato API (rete, quota, 401, timeout, modello non disponibile)
         msg = str(e) or type(e).__name__
         logger.exception('RFQ Gemini call fallita: %s', msg)
+        if 'timeout' in msg.lower() or 'deadline' in msg.lower() or '504' in msg:
+            raise RFQParseError(
+                f'Gemini non ha risposto entro {GEMINI_TIMEOUT_S}s (timeout). '
+                f'Riprova; se persiste, il PDF potrebbe essere troppo pesante o la rete lenta.')
         if '429' in msg or 'quota' in msg.lower() or 'rate' in msg.lower():
             raise RFQParseError(f'Gemini rate limit / quota superata: {msg}')
         if '401' in msg or '403' in msg or 'api key' in msg.lower() or 'permission' in msg.lower():
