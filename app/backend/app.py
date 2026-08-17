@@ -3610,35 +3610,14 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
         articoli = p.get('articoli') or []
         for a in articoli:
             codice = a.get('codice') or '?'
-            canonical = a.get('canonical_dxf_filename')
-            cleaned = a.get('cleaned_dxf_filename')
             original = a.get('dxf_filename')
+            # A Mirko va l'ORIGINALE: la pulizia/nesting la fa lui in Lantek (affidabile).
+            # L'app non genera più un disegno "pulito" per la produzione.
             src = None
-            is_cleaned = False
-            src_kind = 'originale'
-            # 1) CANONICO (byte-identico al preventivato, pronto per Lantek) — preferito
-            if canonical:
-                candidate = os.path.join(src_dir, canonical)
-                if os.path.exists(candidate):
-                    src = candidate
-                    is_cleaned = True
-                    src_kind = 'canonico'
-            # 2) pulito
-            if not src and cleaned:
-                candidate = os.path.join(src_dir, cleaned)
-                if os.path.exists(candidate):
-                    src = candidate
-                    is_cleaned = True
-                    src_kind = 'pulito'
-            if not src and original:
+            if original:
                 candidate = os.path.join(src_dir, original)
                 if os.path.exists(candidate):
                     src = candidate
-                    is_cleaned = False
-                    stats['warnings'].append(
-                        f'{codice}: nessun DXF pulito, copiato originale (Mirko deve pulirlo in Lantek)'
-                    )
-                    stats['articoli_da_pulire_manualmente'].append(codice)
             if not src:
                 stats['missing'] += 1
                 stats['warnings'].append(f'{codice}: nessun DXF disponibile')
@@ -3647,22 +3626,12 @@ def _copy_cleaned_dxf_to_drawings(preventivo_id: str, order_id: str) -> dict:
             dst = os.path.join(dst_dir, dst_name)
             try:
                 shutil.copy2(src, dst)
-                if is_cleaned:
-                    stats['copied_cleaned'] += 1
-                else:
-                    stats['copied_original_fallback'] += 1
-                # Impronta SHA256 del file mandato in produzione (integrità)
+                stats['copied_original_fallback'] += 1
+                # Impronta SHA256 del file mandato in produzione (integrità/tracciabilità)
                 try:
                     digest = _sha256(dst)
-                    # Se canonico, verifica che l'hash combaci con quello preventivato
-                    integro = None
-                    if src_kind == 'canonico' and a.get('canonical_dxf_sha256'):
-                        integro = (digest == a.get('canonical_dxf_sha256'))
-                        if not integro:
-                            stats['warnings'].append(
-                                f'{codice}: ATTENZIONE hash canonico ≠ preventivato (file modificato?)')
                     stats['file_hashes'].append(
-                        {'filename': dst_name, 'sha256': digest, 'tipo': src_kind, 'integro': integro})
+                        {'filename': dst_name, 'sha256': digest, 'tipo': 'originale', 'integro': None})
                     OrderManager.add_order_file(
                         order_id, dst_name, dst, 'DXF', sha256=digest)
                 except Exception as he:

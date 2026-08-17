@@ -4007,7 +4007,7 @@ function _renderArticoloRow(i, a) {
       auto_review: { bg: '#FEF3C7', col: '#92400E', txt: '?', title: 'Pulizia automatica (da verificare)' },
       manual:      { bg: '#EDE9FE', col: '#5B21B6', txt: '✎', title: 'Pulito manualmente' },
     };
-    const cb = cleanBadgeMap[a.cleaned_status] || null;
+    const cb = null;  // badge "pulizia" rimosso: a Mirko va l'originale (Lantek pulisce)
     const cleanBadge = cb
       ? `<span title="${cb.title}" style="position:absolute; top:2px; right:2px; background:${cb.bg}; color:${cb.col}; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1; z-index:2;">${cb.txt}</span>`
       : '';
@@ -4511,21 +4511,21 @@ async function renderSplitDetail(idx) {
   // STORICO PREZZI — se il pezzo (codice o geometria) è già stato prezzato
   _loadStoricoPrezzo(idx, baseEff + lav);
 
-  // Pulisci DXF button visibility (sia toolbar sopra la preview sia nella riga azioni)
+  // "Pulisci DXF" rimosso: a Mirko va l'ORIGINALE (pulizia/nesting in Lantek). Il CAD
+  // serve SOLO a identificare il contorno per area/perimetro/costo, non a pulire.
   const cleanBtn = document.getElementById('sd-btn-clean');
-  cleanBtn.style.display = a.dxf_filename ? '' : 'none';
-  cleanBtn.textContent = a.cleaned_dxf_filename ? 'Modifica pulizia DXF' : 'Pulisci DXF';
+  if (cleanBtn) cleanBtn.style.display = 'none';
   const toolbar = document.getElementById('sd-preview-toolbar');
   const topLabel = document.getElementById('sd-btn-clean-top-label');
   const hint = document.getElementById('sd-clean-hint');
   if (toolbar) toolbar.style.display = a.dxf_filename ? 'flex' : 'none';
   if (topLabel && hint) {
-    if (a.cleaned_dxf_filename) {
-      topLabel.textContent = 'Modifica pezzo';
-      hint.textContent = 'Il pezzo è già stato pulito. Click per rifare la selezione.';
+    if (a.geometria_manuale_confermata) {
+      topLabel.textContent = 'Rivedi contorno';
+      hint.textContent = 'Contorno confermato. Click per rivederlo o ridefinirlo.';
     } else {
-      topLabel.textContent = 'Definisci pezzo';
-      hint.textContent = 'Il DXF non è ancora pulito. Click e traccia il rettangolo attorno al pezzo.';
+      topLabel.textContent = 'Identifica pezzo';
+      hint.textContent = 'Click sul contorno del pezzo nel CAD per area/perimetro esatti.';
     }
   }
 }
@@ -7757,23 +7757,8 @@ function closeAccettaModal() {
 
 async function confermaAccetta() {
   if (!currentPreventivo) return;
-  // Pre-check DXF puliti: un pezzo è "già pulito" se ha il DXF CANONICO (geometria
-  // confermata nel CAD, byte-identica al preventivato) OPPURE il cleaned auto. Solo
-  // se non ha né l'uno né l'altro Mirko riceverà l'originale sporco → avvisa (non blocca).
-  const nonPuliti = currentArticoli.filter(
-    a => a.dxf_filename && !a.cleaned_dxf_filename && !a.canonical_dxf_filename);
-  if (nonPuliti.length > 0) {
-    const nomi = nonPuliti.map(a => a.codice || '?').slice(0, 8).join(', ');
-    const extra = nonPuliti.length > 8 ? ` e altri ${nonPuliti.length - 8}` : '';
-    const proceed = await appConfirm(
-      `⚠ ${nonPuliti.length} pezzo${nonPuliti.length===1?'':'i'} senza DXF pulito:\n\n` +
-      `${nomi}${extra}\n\n` +
-      `Mirko riceverà il DXF originale (con cartiglio/quote) e dovrà pulirlo manualmente in Lantek.\n\n` +
-      `Vuoi continuare comunque? (Annulla per pulire i pezzi prima)`,
-      {danger: true, title: 'Pezzi senza DXF pulito', okLabel: 'Continua'}
-    );
-    if (!proceed) return;
-  }
+  // A Mirko va sempre l'ORIGINALE (pulizia/nesting in Lantek). Nessun pre-check
+  // "DXF pulito": non è più l'app a produrre il disegno di taglio.
   // Calcola totali correnti dal local state per inviarli al backend
   const qty = parseInt(document.getElementById('ed-quantita').value, 10) || 1;
   const margine = parseFloat(document.getElementById('ed-margine').value) || 0;
