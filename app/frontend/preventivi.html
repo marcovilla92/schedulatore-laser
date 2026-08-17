@@ -7757,9 +7757,11 @@ function closeAccettaModal() {
 
 async function confermaAccetta() {
   if (!currentPreventivo) return;
-  // Pre-check DXF puliti: elenca gli articoli SENZA _cleaned. Se ce ne sono,
-  // avvisa (non blocca) — Mirko dovrà pulirli in Lantek prima di tagliare.
-  const nonPuliti = currentArticoli.filter(a => a.dxf_filename && !a.cleaned_dxf_filename);
+  // Pre-check DXF puliti: un pezzo è "già pulito" se ha il DXF CANONICO (geometria
+  // confermata nel CAD, byte-identica al preventivato) OPPURE il cleaned auto. Solo
+  // se non ha né l'uno né l'altro Mirko riceverà l'originale sporco → avvisa (non blocca).
+  const nonPuliti = currentArticoli.filter(
+    a => a.dxf_filename && !a.cleaned_dxf_filename && !a.canonical_dxf_filename);
   if (nonPuliti.length > 0) {
     const nomi = nonPuliti.map(a => a.codice || '?').slice(0, 8).join(', ');
     const extra = nonPuliti.length > 8 ? ` e altri ${nonPuliti.length - 8}` : '';
