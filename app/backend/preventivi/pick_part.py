@@ -133,17 +133,21 @@ def _build_faces(path: str, colori_esclusi: set[int]) -> list:
         doc = ezdxf.readfile(path)
     except Exception as e:
         raise RuntimeError(f'DXF non leggibile: {e}')
-    msp = doc.modelspace()
+    return _faces_from_msp(doc.modelspace(), colori_esclusi)
 
+
+def _faces_from_msp(msp, colori_esclusi: set[int]) -> list:
+    """flatten → node → polygonize a partire da un modelspace già aperto.
+    Ritorna le facce Shapely (poligoni). Vuoto se niente segmenti."""
+    if not _HAS_SHAPELY:
+        return []
     segs = _collect_segments(msp, colori_esclusi)
     if not segs:
         return []
-
     lines = [LineString([(x1, y1), (x2, y2)]) for (x1, y1, x2, y2) in segs]
     # NODING: unary_union spezza i segmenti ai veri incroci (robusto, testato)
     noded = unary_union(MultiLineString(lines))
     faces = [f for f in polygonize(noded) if f.area >= MIN_AREA_MM2]
-    # Ripara facce non valide
     fixed = []
     for f in faces:
         if not f.is_valid:
@@ -809,6 +813,48 @@ def _holes_inside(msp, outer, colori_esclusi: set[int]) -> list:
             continue  # è l'outer stesso o quasi
         if outer.contains(poly.representative_point()):
             raw.append(poly)
+
+    # ASOLE disegnate come LOOP di archi+linee (non entità chiuse singole): non le
+    # trova _closed_entity_polygons. Le recuperiamo dalle facce polygonize interne
+    # all'outer, MA solo se hanno un ARCO sul bordo (estremità arrotondate): così
+    # distinguiamo un'asola vera da una faccia generata da una linea di piega
+    # (bordi dritti, nessun arco) — che altrimenti verrebbe contata come foro fantasma.
+    try:
+        arc_mids = []
+        for e in msp:
+            if e.dxftype() != 'ARC':
+                continue
+            try:
+                if _entity_color_excluded(e, colori_esclusi) or _layer_da_escludere(e.dxf.layer):
+                    continue
+            except Exception:
+                pass
+            try:
+                cx_, cy_, r_ = e.dxf.center.x, e.dxf.center.y, e.dxf.radius
+                sweep = (e.dxf.end_angle - e.dxf.start_angle) % 360.0
+                # Solo archi ~semicerchio (estremità arrotondate di un'asola). Esclude
+                # i fillet di piega ai vertici (~90°), che altrimenti farebbero contare
+                # come foro la striscia di piega tra due fillet.
+                if not (150.0 <= sweep <= 210.0):
+                    continue
+                mid = math.radians(e.dxf.start_angle + sweep / 2.0)
+                arc_mids.append((cx_ + r_ * math.cos(mid), cy_ + r_ * math.sin(mid)))
+            except Exception:
+                continue
+        if arc_mids:
+            for fc in _faces_from_msp(msp, colori_esclusi):
+                if fc.area >= outer.area * 0.5:
+                    continue
+                if not outer.contains(fc):
+                    continue  # tocca il bordo esterno → non è un foro interno
+                rp = fc.representative_point()
+                if any(h.contains(rp) for h in raw):
+                    continue  # già coperto da un'entità chiusa
+                # dev'essere delimitata da un arco (estremità arrotondata dell'asola)
+                if any(fc.exterior.distance(Point(mx, my)) < 1.0 for (mx, my) in arc_mids):
+                    raw.append(fc)
+    except Exception:
+        pass
 
     # Scarta il foro esterno di ogni coppia ~concentrica (svasatura): se un foro
     # ne contiene un altro col centroide quasi coincidente → è lo smusso, si toglie.
