@@ -1233,6 +1233,22 @@ tr.row-warn:hover { background: #FEF3C7; }
   font-size: 11px; font-weight: 500;
   color: var(--text-3);
 }
+/* Scelta tipo file (modal dopo creazione preventivo) */
+.filetype-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 640px) { .filetype-grid { grid-template-columns: 1fr; } }
+.filetype-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  text-align: left; padding: 18px 16px; border-radius: 12px; cursor: pointer;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  transition: border-color .12s, box-shadow .12s, transform .06s;
+}
+.filetype-card:hover {
+  border-color: var(--accent); box-shadow: 0 4px 16px rgba(79,70,229,.14);
+  transform: translateY(-1px);
+}
+.filetype-card i { width: 26px; height: 26px; color: var(--accent); }
+.filetype-card .ft-title { font-weight: 700; font-size: 14.5px; color: var(--text); }
+.filetype-card .ft-desc { font-size: 12px; color: var(--text-2); line-height: 1.35; }
 .split-tree tbody tr.tree-riepilogo-row {
   cursor: pointer;
 }
@@ -2336,6 +2352,42 @@ tr.row-warn:hover { background: #FEF3C7; }
       </button>
       <!-- Info status ACCETTATO/RIFIUTATO -->
       <span id="riep-status-info" style="display:none; font-size:12px; color:var(--text-2); padding:6px 12px; background:var(--surface-2); border-radius:6px;"></span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: scelta tipo file (dopo aver creato il preventivo con cliente + n° ordine) -->
+<div class="modal-overlay" id="modal-filetype" onclick="if(event.target===this)closeFileTypeModal()" style="z-index:2650;">
+  <div class="modal" style="max-width:680px; width:92vw;">
+    <div class="modal-header" style="padding:18px 24px; border-bottom:1px solid var(--border);">
+      <h3 style="margin:0; font-family:'Geist'; font-weight:800; font-size:19px; letter-spacing:-0.3px;">
+        Che tipo di file vuoi caricare?
+      </h3>
+      <div style="font-size:13px; color:var(--text-2); margin-top:4px;">
+        Preventivo per <b id="ft-cliente">—</b> creato. Scegli la sorgente dei disegni per iniziare.
+      </div>
+    </div>
+    <div class="modal-body" style="padding:22px 24px;">
+      <div class="filetype-grid">
+        <button type="button" class="filetype-card" onclick="chooseFileType('dxf')">
+          <i data-lucide="file-code"></i>
+          <span class="ft-title">DXF / DWG singoli</span>
+          <span class="ft-desc">Uno o più disegni 2D del cliente. Ogni pezzo entra nel CAD da confermare.</span>
+        </button>
+        <button type="button" class="filetype-card" onclick="chooseFileType('folder')">
+          <i data-lucide="folder-tree"></i>
+          <span class="ft-title">Cartella DXF</span>
+          <span class="ft-desc">Una cartella: ogni sottocartella diventa un assieme (rollup componenti).</span>
+        </button>
+        <button type="button" class="filetype-card" onclick="chooseFileType('step')">
+          <i data-lucide="box"></i>
+          <span class="ft-title">STEP 3D</span>
+          <span class="ft-desc">Assieme 3D: tubolari, piastre e vista di montaggio 3D.</span>
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:14px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+      <button class="btn-secondary" onclick="closeFileTypeModal()">Carico dopo</button>
     </div>
   </div>
 </div>
@@ -3564,6 +3616,8 @@ async function saveBase() {
       showMsg('msg-base', '✓ Preventivo creato (BOZZA)', 'var(--green)');
       // Auto-collassa header dopo primo salvataggio (recupera ~120px verticali)
       setEditorHeaderCollapsed(true);
+      // Nuovo preventivo → chiedi SUBITO che tipo di file caricare (poi CAD a cascata)
+      openFileTypeModal();
     } else {
       // UPDATE
       const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}`, {
@@ -3585,6 +3639,25 @@ async function saveBase() {
       setEditorHeaderCollapsed(true);
     }
   } catch (e) { showMsg('msg-base', 'Errore: ' + e.message, 'var(--red)'); }
+}
+
+/** Scelta tipo file dopo la creazione del preventivo (cliente + n° ordine). */
+function openFileTypeModal() {
+  const el = document.getElementById('ft-cliente');
+  if (el) el.textContent = (currentPreventivo && currentPreventivo.cliente) || '—';
+  document.getElementById('modal-filetype').classList.add('active');
+  if (window.lucide) lucide.createIcons();
+}
+function closeFileTypeModal() {
+  document.getElementById('modal-filetype').classList.remove('active');
+}
+/** Scelto il tipo → apre il selettore file corrispondente (gli input esistono già
+    nella card Importa; i loro onchange avviano l'upload e il CAD a cascata). */
+function chooseFileType(kind) {
+  closeFileTypeModal();
+  const map = { dxf: 'inp-dxf', folder: 'inp-dxf-folder', step: 'inp-step' };
+  const inp = document.getElementById(map[kind]);
+  if (inp) inp.click();
 }
 
 /** Focus mode: nasconde tutto tranne split articoli + topbar + totali bar.
