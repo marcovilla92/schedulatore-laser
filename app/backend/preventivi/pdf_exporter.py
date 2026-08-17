@@ -1568,6 +1568,13 @@ class PDFPreventivo:
             Paragraph("<b>Data</b>", self.style_small),
             Paragraph(f"<font size=10>{data_str}</font>", self.style_body),
         ])
+        # Consegna prevista (in caso di conferma): informazione utile al cliente
+        data_consegna = dati.get("data_consegna")
+        if data_consegna:
+            info_rows.append([
+                Paragraph("<b>Consegna prevista</b>", self.style_small),
+                Paragraph(f"<font size=10><b>{data_consegna}</b></font>", self.style_body_bold),
+            ])
         # Quantità: solo nell'interno. Al cliente è ridondante (le quantità dei
         # pezzi sono già nel "Dettaglio fornitura") e confonde quando è 1.
         if interno:

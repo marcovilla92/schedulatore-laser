@@ -4308,6 +4308,7 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
         'costi_montaggio': costi_montaggio,
         'tubolari_per_assieme': tubolari_per_assieme,
         'piastre_per_assieme': piastre_per_assieme,
+        'data_consegna': _fmt_data_it(p.get('data_consegna_proposta')),
         'totale_pezzo': round(totale_pezzo_calc, 2),
         'totale_lotto': round(totale_lotto_calc, 2),
         'righe_cliente': righe_cliente,
@@ -4322,6 +4323,17 @@ def _preventivo_to_pdf_dati(p: dict) -> dict:
         'azienda': azienda_info,
         'logo_path': _resolve_logo_path(azienda_info.get('logo_path')),
     }
+
+
+def _fmt_data_it(iso):
+    """ISO date/datetime → 'dd/mm/yyyy' (o '' se assente/invalida)."""
+    if not iso:
+        return ''
+    try:
+        return datetime.fromisoformat(str(iso)).strftime('%d/%m/%Y')
+    except (ValueError, TypeError):
+        s = str(iso)
+        return s[:10] if len(s) >= 10 else s
 
 
 def _note_per_cliente(note):

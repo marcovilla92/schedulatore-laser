@@ -1235,12 +1235,14 @@ tr.row-warn:hover { background: #FEF3C7; }
 }
 .split-tree tbody tr.tree-riepilogo-row {
   cursor: pointer;
-  transition: background 0.12s;
 }
-.split-tree tbody tr.tree-riepilogo-row:hover td {
-  background: var(--accent-bg) !important;
+.tree-next-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 14px;
+  padding: 10px 22px; border-radius: 9px; box-shadow: 0 2px 8px rgba(79,70,229,.25);
+  transition: filter .12s;
 }
-.split-tree tbody tr.tree-riepilogo-row:hover span { color: var(--accent-hover) !important; }
+.split-tree tbody tr.tree-riepilogo-row:hover .tree-next-btn { filter: brightness(1.08); }
 .split-tree td {
   padding: 4px 10px; vertical-align: middle;
   font-variant-numeric: tabular-nums;
@@ -2294,6 +2296,16 @@ tr.row-warn:hover { background: #FEF3C7; }
           <div class="riep-tot-lbl">Totale lotto (<span id="riep-qty">1</span> pz)</div>
           <div class="riep-tot-val" id="riep-t-lotto">0,00 €</div>
         </div>
+      </div>
+      <!-- CONSEGNA PREVISTA (in caso di conferma) — comunicata al cliente -->
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; margin-bottom:18px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px;">
+        <i data-lucide="calendar-check" style="width:20px;height:20px; color:var(--accent); flex-shrink:0;"></i>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; color:var(--text); font-weight:700;">Consegna prevista</div>
+          <div style="font-size:11px; color:var(--text-3);">In caso di conferma — appare sul preventivo del cliente</div>
+        </div>
+        <input type="date" id="riep-data-consegna" onchange="saveDataConsegnaRiep(this.value)"
+               style="padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; color:var(--text);">
       </div>
       <!-- REVISIONE GUIDATA: campi da verificare prima dell'invio (fail-safe) -->
       <div id="riep-revisione" style="margin-bottom:18px;"></div>
@@ -4005,28 +4017,14 @@ function renderSplitTree() {
       }
     }
   }
-  // Row finale: "Riepilogo & Invia" (apre modal con totali + PDF + Invia).
-  // Totale lotto letto dal DOM (aggiornato da recalcTotali) — currentPreventivo.totale_lotto
-  // è stale finché non viene fatto save-articoli sul backend.
-  let totLottoTxt = '—';
-  try {
-    const el = document.getElementById('t-lotto');
-    if (el) totLottoTxt = el.textContent.replace('€','').trim() + ' €';
-  } catch (_) {}
-  // Etichetta row cambia in base allo status corrente del preventivo
+  // Row finale: pulsante "Successivo" → apre il riepilogo (totali + PDF + consegna + Invia).
   const _st = (currentPreventivo && currentPreventivo.status) || 'BOZZA';
-  const _rowLabel = {
-    'BOZZA':     'Riepilogo &amp; Invia',
-    'INVIATO':   'Riepilogo · Accetta / Rifiuta',
-    'ACCETTATO': 'Riepilogo · Ordine creato ✓',
-    'RIFIUTATO': 'Riepilogo · Rifiutato ✗',
-  }[_st] || 'Riepilogo';
+  const _rowLabel = (_st === 'BOZZA') ? 'Successivo' : 'Riepilogo';
   html += `<tr class="tree-riepilogo-row" onclick="openRiepilogoModal()">
-    <td colspan="1" style="padding:14px 12px; text-align:center; background:#F8FAFC; border-top:1px solid var(--border);">
-      <span style="display:inline-flex; align-items:center; gap:10px; color:var(--accent); font-weight:600; font-size:13px;">
-        <i data-lucide="file-check-2" style="width:16px;height:16px;"></i>
-        ${_rowLabel} · <span style="color:var(--text);">${totLottoTxt}</span> totale lotto
-        <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
+    <td colspan="1" style="padding:16px 12px; text-align:center;">
+      <span class="tree-next-btn">
+        ${escapeHtml(_rowLabel)}
+        <i data-lucide="arrow-right" style="width:15px;height:15px;"></i>
       </span>
     </td>
   </tr>`;
@@ -7725,6 +7723,13 @@ function openRiepilogoModal() {
   document.getElementById('riep-t-lotto').textContent = readTot('t-lotto');
   document.getElementById('riep-mg-pct').textContent = (currentPreventivo.margine_pct || 0) + '%';
   document.getElementById('riep-qty').textContent = currentPreventivo.quantita || 1;
+  // Consegna prevista (in caso di conferma) — precompila dalla data del preventivo
+  const _dc = document.getElementById('riep-data-consegna');
+  if (_dc) {
+    _dc.value = currentPreventivo.data_consegna_proposta
+      ? String(currentPreventivo.data_consegna_proposta).slice(0, 10) : '';
+    _dc.disabled = (currentPreventivo.status !== 'BOZZA');  // immutabile dopo l'invio
+  }
   // Breakdown sezioni
   const bd = document.getElementById('riep-breakdown');
   const parts = [];
@@ -7918,6 +7923,26 @@ function revisioneAzione(idx, azione) {
 
 function closeRiepilogoModal() {
   document.getElementById('modal-riepilogo').classList.remove('active');
+}
+
+/** Salva la data prevista di consegna dal riepilogo (in caso di conferma).
+    Persiste su data_consegna_proposta del preventivo. */
+async function saveDataConsegnaRiep(value) {
+  if (!currentPreventivo || !currentUser) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ data_consegna_proposta: value || null, updated_by: currentUser.id }),
+    });
+    const d = await r.json();
+    if (d.success && d.preventivo) {
+      currentPreventivo = d.preventivo;
+      // Allinea anche il campo nell'editor principale
+      const ed = document.getElementById('ed-data-consegna');
+      if (ed) ed.value = value || '';
+    }
+  } catch (e) { console.warn('salvataggio data consegna fallito:', e); }
 }
 
 function scaricaPdfRiepilogo() {
