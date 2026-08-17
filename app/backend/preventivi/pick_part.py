@@ -34,12 +34,18 @@ import ezdxf
 from ezdxf.path import make_path
 
 try:
+    import shapely
     from shapely.geometry import Polygon, Point, LineString, MultiLineString
     from shapely.ops import polygonize, unary_union
     from shapely.validation import make_valid
     _HAS_SHAPELY = True
 except ImportError:
     _HAS_SHAPELY = False
+
+# Griglia di snap prima del polygonize: chiude i MICRO-GAP (tipici tra arco e linea
+# di un'asola, es. 0,1mm) che altrimenti impediscono al loop di chiudersi → foro
+# perso. 0,1mm è sotto la tolleranza di taglio, quindi non altera la geometria.
+_SNAP_GRID_MM = 0.1
 
 logger = logging.getLogger(__name__)
 
@@ -145,8 +151,14 @@ def _faces_from_msp(msp, colori_esclusi: set[int]) -> list:
     if not segs:
         return []
     lines = [LineString([(x1, y1), (x2, y2)]) for (x1, y1, x2, y2) in segs]
+    mls = MultiLineString(lines)
+    # Chiudi i micro-gap (arco↔linea nelle asole) snappando a griglia fine, poi noda.
+    try:
+        mls = shapely.set_precision(mls, _SNAP_GRID_MM)
+    except Exception:
+        pass
     # NODING: unary_union spezza i segmenti ai veri incroci (robusto, testato)
-    noded = unary_union(MultiLineString(lines))
+    noded = unary_union(mls)
     faces = [f for f in polygonize(noded) if f.area >= MIN_AREA_MM2]
     fixed = []
     for f in faces:
