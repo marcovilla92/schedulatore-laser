@@ -1233,6 +1233,39 @@ tr.row-warn:hover { background: #FEF3C7; }
   font-size: 11px; font-weight: 500;
   color: var(--text-3);
 }
+/* Toast (sostituisce appAlert() nativo) */
+#app-toast-host {
+  position: fixed; top: 74px; right: 18px; z-index: 4000;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  max-width: min(420px, 92vw);
+}
+.app-toast {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: 10px;
+  padding: 13px 15px; border-radius: 11px; background: var(--white);
+  border: 1px solid var(--border); box-shadow: 0 8px 28px rgba(15,23,42,.16);
+  font-size: 13px; line-height: 1.4; color: var(--text); white-space: pre-line;
+  opacity: 0; transform: translateX(24px); transition: opacity .22s, transform .22s;
+  border-left: 4px solid var(--accent);
+}
+.app-toast.show { opacity: 1; transform: none; }
+.app-toast .app-toast-ico { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
+.app-toast .app-toast-ico i { width: 18px; height: 18px; }
+.app-toast .app-toast-msg { flex: 1; min-width: 0; }
+.app-toast .app-toast-x { flex-shrink: 0; cursor: pointer; color: var(--text-3); font-size: 16px; line-height: 1; padding: 0 2px; }
+.app-toast.error { border-left-color: #DC2626; } .app-toast.error .app-toast-ico i { color: #DC2626; }
+.app-toast.success { border-left-color: #16A34A; } .app-toast.success .app-toast-ico i { color: #16A34A; }
+.app-toast.warn { border-left-color: #D97706; } .app-toast.warn .app-toast-ico i { color: #D97706; }
+.app-toast.info { border-left-color: var(--accent); } .app-toast.info .app-toast-ico i { color: var(--accent); }
+/* Modal conferma (sostituisce confirm() nativo) */
+.app-confirm-box { max-width: 460px; width: 92vw; padding: 24px; }
+.app-confirm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.app-confirm-ico { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  background: var(--accent-bg); color: var(--accent); flex-shrink: 0; }
+.app-confirm-ico i { width: 22px; height: 22px; }
+.app-confirm-overlay.danger .app-confirm-ico { background: #fef2f2; color: #DC2626; }
+#app-confirm-title { margin: 0; font-family: 'Geist'; font-weight: 800; font-size: 18px; letter-spacing: -0.3px; }
+.app-confirm-msg { font-size: 13.5px; color: var(--text-2); line-height: 1.5; white-space: pre-line; margin-bottom: 20px; }
+.app-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
 /* Scelta tipo file (modal dopo creazione preventivo) */
 .filetype-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 640px) { .filetype-grid { grid-template-columns: 1fr; } }
@@ -2392,6 +2425,21 @@ tr.row-warn:hover { background: #FEF3C7; }
   </div>
 </div>
 
+<!-- MODAL: conferma generica (sostituisce confirm() nativo) -->
+<div class="modal-overlay" id="app-confirm-overlay" style="z-index:3000;">
+  <div class="modal app-confirm-box">
+    <div class="app-confirm-head">
+      <div class="app-confirm-ico" id="app-confirm-ico"><i data-lucide="help-circle"></i></div>
+      <h3 id="app-confirm-title">Conferma</h3>
+    </div>
+    <div class="app-confirm-msg" id="app-confirm-msg"></div>
+    <div class="app-confirm-actions">
+      <button class="btn-secondary" id="app-confirm-cancel">Annulla</button>
+      <button class="btn-primary" id="app-confirm-ok">Conferma</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: dettaglio articolo (fullscreen con preview grande + tutti dati) -->
 <div class="modal-overlay" id="modal-art-detail" onclick="if(event.target===this)closeArtModal()" style="z-index: 2700;">
   <div class="modal modal-fullscreen">
@@ -2875,6 +2923,64 @@ function showMsg(elId, text, color) {
   }
 }
 
+// ── Dialog in-app (sostituiscono appAlert()/confirm() nativi del browser) ──────
+const _TOAST_ICON = { error: 'alert-circle', success: 'check-circle-2', warn: 'alert-triangle', info: 'info' };
+/** Toast elegante in alto a destra. Il tipo si deduce dal testo se non passato. */
+function appAlert(message, type) {
+  const msg = String(message == null ? '' : message);
+  if (!type) {
+    if (/^\s*errore|impossibile|nessun|non trovat/i.test(msg)) type = 'error';
+    else if (/^\s*✓|salvat|creat|complet/i.test(msg)) type = 'success';
+    else type = 'info';
+  }
+  let host = document.getElementById('app-toast-host');
+  if (!host) { host = document.createElement('div'); host.id = 'app-toast-host'; document.body.appendChild(host); }
+  const t = document.createElement('div');
+  t.className = 'app-toast ' + type;
+  const ico = document.createElement('span'); ico.className = 'app-toast-ico';
+  ico.innerHTML = `<i data-lucide="${_TOAST_ICON[type] || 'info'}"></i>`;
+  const body = document.createElement('span'); body.className = 'app-toast-msg'; body.textContent = msg;
+  const x = document.createElement('span'); x.className = 'app-toast-x'; x.textContent = '×';
+  const close = () => { t.classList.remove('show'); setTimeout(() => t.remove(), 250); };
+  x.onclick = close;
+  t.appendChild(ico); t.appendChild(body); t.appendChild(x);
+  host.appendChild(t);
+  if (window.lucide) lucide.createIcons();
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(close, type === 'error' ? 6500 : 4200);
+}
+/** Conferma stilizzata → Promise<boolean>. opts: {title, okLabel, danger}. */
+function appConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const ov = document.getElementById('app-confirm-overlay');
+    document.getElementById('app-confirm-title').textContent = opts.title || 'Conferma';
+    document.getElementById('app-confirm-msg').textContent = String(message == null ? '' : message);
+    ov.classList.toggle('danger', !!opts.danger);
+    const icoEl = document.getElementById('app-confirm-ico');
+    icoEl.innerHTML = `<i data-lucide="${opts.danger ? 'alert-triangle' : 'help-circle'}"></i>`;
+    const ok = document.getElementById('app-confirm-ok');
+    const cancel = document.getElementById('app-confirm-cancel');
+    ok.textContent = opts.okLabel || 'Conferma';
+    ok.className = opts.danger ? 'btn-danger' : 'btn-primary';
+    cancel.textContent = opts.cancelLabel || 'Annulla';
+    ov.classList.add('active');
+    if (window.lucide) lucide.createIcons();
+    const done = (val) => {
+      ov.classList.remove('active');
+      ok.onclick = null; cancel.onclick = null; ov.onclick = null;
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') done(false); if (e.key === 'Enter') done(true); };
+    ok.onclick = () => done(true);
+    cancel.onclick = () => done(false);
+    ov.onclick = (e) => { if (e.target === ov) done(false); };
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => ok.focus(), 30);
+  });
+}
+
 function statusBadge(status) {
   const map = {
     'BOZZA': 'gray', 'INVIATO': 'blue',
@@ -3141,12 +3247,12 @@ async function _rfqUpload(file) {
   // Sanity: solo ZIP
   const isZip = /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
   if (!isZip) {
-    alert('Serve un file ZIP contenente PDF ordine + cartella DXF.\n\nComprimi la cartella dell\'email cliente (Windows: click destro → Invia a → Cartella compressa) e trascina qui il .zip risultante.');
+    appAlert('Serve un file ZIP contenente PDF ordine + cartella DXF.\n\nComprimi la cartella dell\'email cliente (Windows: click destro → Invia a → Cartella compressa) e trascina qui il .zip risultante.');
     return;
   }
   const sizeMb = file.size / (1024 * 1024);
   if (sizeMb > 100) {
-    if (!confirm(`Il file è ${sizeMb.toFixed(1)}MB, l'upload potrebbe richiedere minuti. Procedere?`)) return;
+    if (!await appConfirm(`Il file è ${sizeMb.toFixed(1)}MB, l'upload potrebbe richiedere minuti. Procedere?`)) return;
   }
 
   // Apri il "cinema" e resettalo
@@ -3495,10 +3601,11 @@ async function eliminaPreventivo() {
   const cliente = currentPreventivo.cliente || '(senza cliente)';
   const status = currentPreventivo.status || 'BOZZA';
   if (status === 'INVIATO' || status === 'ACCETTATO') {
-    alert(`Impossibile eliminare un preventivo ${status}.\n\nSono documenti già inviati/ordini creati — non si eliminano per tracciabilità.`);
+    appAlert(`Impossibile eliminare un preventivo ${status}.\n\nSono documenti già inviati/ordini creati — non si eliminano per tracciabilità.`);
     return;
   }
-  if (!confirm(`Eliminare il preventivo di "${cliente}" (${status})?\n\nL'eliminazione è recuperabile dal DB ma NON dall'interfaccia.`)) return;
+  if (!await appConfirm(`Eliminare il preventivo di "${cliente}" (${status})?\n\nL'eliminazione è recuperabile dal DB ma NON dall'interfaccia.`,
+                        {danger: true, title: 'Elimina preventivo', okLabel: 'Elimina'})) return;
   try {
     const url = `${API_URL}/api/preventivi/${currentPreventivo.id}?deleted_by=${encodeURIComponent(currentUser.id)}`;
     const r = await fetch(url, { method: 'DELETE' });
@@ -3516,7 +3623,7 @@ async function openPreventivo(id) {
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${id}`);
     const d = await r.json();
-    if (!d.success) { alert('Errore: ' + (d.error || 'preventivo non trovato')); return; }
+    if (!d.success) { appAlert('Errore: ' + (d.error || 'preventivo non trovato')); return; }
     const p = d.preventivo;
     currentPreventivo = p;
     currentArticoli = p.articoli || [];
@@ -3531,7 +3638,7 @@ async function openPreventivo(id) {
     // NB: nessuna auto-stima/ricalcolo in background — l'utente clicca "Stima"
     // manualmente. L'automazione precedente saturava il server single-thread
     // durante l'apertura e faceva ritardare disegni + creazione preventivo.
-  } catch (e) { alert('Errore: ' + e.message); }
+  } catch (e) { appAlert('Errore: ' + e.message); }
 }
 
 function populateEditor(p) {
@@ -4134,11 +4241,11 @@ let _cadEditorIdx = null;   // indice articolo in attesa di conferma dal CAD
  *  disegno; al Conferma arriva la geometria via postMessage. */
 function openCadEditor() {
   const idx = _splitSelectedIdx;
-  if (idx == null || !currentArticoli[idx]) { alert('Seleziona prima un articolo.'); return; }
+  if (idx == null || !currentArticoli[idx]) { appAlert('Seleziona prima un articolo.'); return; }
   const a = currentArticoli[idx];
   const file = a.dxf_filename;
-  if (!file) { alert('Questo articolo non ha un DXF associato.'); return; }
-  if (!currentPreventivo) { alert('Salva prima il preventivo.'); return; }
+  if (!file) { appAlert('Questo articolo non ha un DXF associato.'); return; }
+  if (!currentPreventivo) { appAlert('Salva prima il preventivo.'); return; }
   _cadEditorIdx = idx;
   const preview = document.getElementById('sd-preview');
   if (!preview) return;
@@ -4597,9 +4704,9 @@ function sdStima() {
   stimaArt(_splitSelectedIdx);
 }
 
-function sdRemove() {
+async function sdRemove() {
   if (_splitSelectedIdx == null) return;
-  removeArt(_splitSelectedIdx);
+  if (!await removeArt(_splitSelectedIdx)) return;   // annullato → non ripulire
   _splitSelectedIdx = null;
   document.getElementById('split-detail-empty').style.display = '';
   document.getElementById('split-detail-content').style.display = 'none';
@@ -4760,7 +4867,7 @@ function bulkApply() {
   const sp = spRaw ? parseFloat(spRaw) : null;
   const qty = qtyRaw ? parseInt(qtyRaw, 10) : null;
   if (!mat && sp == null && qty == null) {
-    alert('Compila almeno un campo (materiale, spessore, quantità) prima di applicare.');
+    appAlert('Compila almeno un campo (materiale, spessore, quantità) prima di applicare.');
     return;
   }
   let applied = 0;
@@ -4800,10 +4907,11 @@ function bulkApply() {
   document.getElementById('bulk-qty').value = '';
 }
 
-function bulkDelete() {
+async function bulkDelete() {
   if (_bulkSelected.size === 0) return;
   const n = _bulkSelected.size;
-  if (!confirm(`Rimuovere ${n} articoli selezionati? L'operazione è definitiva.`)) return;
+  if (!await appConfirm(`Rimuovere ${n} articoli selezionati? L'operazione è definitiva.`,
+                        {danger: true, okLabel: 'Rimuovi'})) return;
   // Rimuovo dall'indice più alto al più basso per non invalidare gli indici
   const sorted = [...(_bulkSelected)].sort((a, b) => b - a);
   for (const idx of sorted) {
@@ -5006,12 +5114,14 @@ function addArticoloManuale() {
   renderArticoli();
 }
 
-function removeArt(idx) {
-  if (!confirm('Rimuovere articolo "' + (currentArticoli[idx].codice || '?') + '"?')) return;
+async function removeArt(idx) {
+  if (!await appConfirm('Rimuovere articolo "' + (currentArticoli[idx].codice || '?') + '"?',
+                        {danger: true, okLabel: 'Rimuovi'})) return false;
   currentArticoli.splice(idx, 1);
   _bulkSelected.clear();  // gli indici shift, meglio ripartire
   renderArticoli();
   recalcTotali();
+  return true;
 }
 
 function previewDxf(idx) {
@@ -5057,7 +5167,7 @@ async function previewStep(codice_assieme) {
     }
     const files = _stepFilesCache.files || [];
     if (!files.length) {
-      alert('Nessun file STEP caricato per questo preventivo. Importa uno STEP dalla dropzone.');
+      appAlert('Nessun file STEP caricato per questo preventivo. Importa uno STEP dalla dropzone.');
       return;
     }
     // Match: basename (senza .step/.stp) == codice_assieme, case insensitive
@@ -5074,7 +5184,7 @@ async function previewStep(codice_assieme) {
     document.getElementById('step-preview-iframe').src = previewUrl;
     document.getElementById('modal-step-preview').classList.add('active');
   } catch (e) {
-    alert('Errore apertura anteprima 3D: ' + e.message);
+    appAlert('Errore apertura anteprima 3D: ' + e.message);
   }
 }
 
@@ -5388,7 +5498,7 @@ async function madSelectPoint(x_mm, y_mm) {
     madRefreshCosts();
     scheduleSaveArticoli(300);
   } catch (e) {
-    alert('Errore trova pezzo: ' + e.message);
+    appAlert('Errore trova pezzo: ' + e.message);
   }
 }
 
@@ -5419,7 +5529,7 @@ async function madSelectPolygon(candIdx) {
       if (!r.ok || !j.success) throw new Error(j.error || 'Errore server');
       geom = j;
     } catch (e) {
-      alert('Errore selezione: ' + e.message);
+      appAlert('Errore selezione: ' + e.message);
       return;
     }
   }
@@ -5513,7 +5623,7 @@ async function openCandidatesModal(articoloIdx) {
   const a = currentArticoli[articoloIdx];
   if (!a || !currentPreventivo) return;
   if (!a.dxf_filename) {
-    alert('Nessun DXF associato a questo articolo.');
+    appAlert('Nessun DXF associato a questo articolo.');
     return;
   }
 
@@ -5699,7 +5809,7 @@ async function applyCandidateSelection() {
     recalcTotali();
     closeCandidatesModal();
   } catch (e) {
-    alert('Errore applicazione: ' + e.message);
+    appAlert('Errore applicazione: ' + e.message);
   }
 }
 
@@ -6005,7 +6115,7 @@ async function stimaArt(idx, opts = {}) {
   const a = currentArticoli[idx];
   if (!a) return { success: false };
   if (!a.materiale || !a.spessore_mm) {
-    if (!silent) alert('Inserisci materiale e spessore prima di stimare.');
+    if (!silent) appAlert('Inserisci materiale e spessore prima di stimare.');
     return { success: false, reason: 'incomplete' };
   }
   try {
@@ -6016,7 +6126,7 @@ async function stimaArt(idx, opts = {}) {
     });
     const d = await r.json();
     if (!d.success) {
-      if (!silent) alert('Errore: ' + d.error);
+      if (!silent) appAlert('Errore: ' + d.error);
       return { success: false, reason: 'server', error: d.error };
     }
     a.costo_base_stimato = d.stima.base;
@@ -6035,7 +6145,7 @@ async function stimaArt(idx, opts = {}) {
     }
     return { success: true, stima: d.stima };
   } catch (e) {
-    if (!silent) alert('Errore: ' + e.message);
+    if (!silent) appAlert('Errore: ' + e.message);
     return { success: false, reason: 'network', error: e.message };
   }
 }
@@ -6268,8 +6378,9 @@ function addAssiemeManuale() {
   scheduleSaveAssiemi(300);
 }
 
-function removeAss(i) {
-  if (!confirm('Rimuovere assieme "' + (currentAssiemi[i].codice_assieme || '?') + '"?')) return;
+async function removeAss(i) {
+  if (!await appConfirm('Rimuovere assieme "' + (currentAssiemi[i].codice_assieme || '?') + '"?',
+                        {danger: true, okLabel: 'Rimuovi'})) return;
   const codice = currentAssiemi[i].codice_assieme;
   currentAssiemi.splice(i, 1);
   // Scollega gli articoli/tubolari/piastre che puntavano a questo assieme
@@ -6642,7 +6753,7 @@ async function _onCandClickPick(e) {
   // Converti click screen coords in DXF mm coords
   const dxf = _clientToSvgCoords(e.clientX, e.clientY);
   if (!dxf) {
-    alert('Errore conversione coordinate — controlla che il DXF sia caricato');
+    appAlert('Errore conversione coordinate — controlla che il DXF sia caricato');
     return;
   }
 
@@ -6719,7 +6830,7 @@ async function _onCandClickPick(e) {
     showMsg('msg-import', msg, 'var(--green)');
   } catch (err) {
     marker.remove();
-    alert('Errore: ' + err.message);
+    appAlert('Errore: ' + err.message);
   }
 }
 
@@ -6874,7 +6985,7 @@ async function _onMarqueeMouseUp(e) {
     showMsg('msg-import', `✓ DXF pulito salvato manualmente (${j.entities_copied} entità)`, 'var(--green)');
   } catch (e) {
     _marqueeCleanupOverlay();
-    alert('Errore salvataggio: ' + e.message);
+    appAlert('Errore salvataggio: ' + e.message);
   }
 }
 
@@ -7549,12 +7660,13 @@ async function inviaPreventivo() {
   // GUARDIA CRITICA: nessun articolo può avere costo base 0
   const validazione = await validaCostiCompletamente();
   if (!validazione.ok) {
-    alert('IMPOSSIBILE INVIARE — costo laser mancante su alcuni articoli.\n\n' +
+    appAlert('IMPOSSIBILE INVIARE — costo laser mancante su alcuni articoli.\n\n' +
           _validazioneErrorMessage(validazione) +
           '\n\nIl preventivo NON è stato inviato. Correggi e riprova.');
     return;
   }
-  if (!confirm('Inviare preventivo al cliente?\n\nDopo l\'invio diventa IMMUTABILE.')) return;
+  if (!await appConfirm('Inviare preventivo al cliente?\n\nDopo l\'invio diventa IMMUTABILE.',
+                        {title: 'Invia al cliente', okLabel: 'Invia'})) return;
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/invia`, {
       method: 'POST',
@@ -7574,7 +7686,7 @@ async function openAccettaModal() {
   // GUARDIA CRITICA: prima di creare l'ordine in produzione, verifica costi
   const validazione = await validaCostiCompletamente();
   if (!validazione.ok) {
-    alert('IMPOSSIBILE ACCETTARE — costo laser mancante su alcuni articoli.\n\n' +
+    appAlert('IMPOSSIBILE ACCETTARE — costo laser mancante su alcuni articoli.\n\n' +
           _validazioneErrorMessage(validazione) +
           '\n\nCorreggi prima di accettare il preventivo.');
     return;
@@ -7600,11 +7712,12 @@ async function confermaAccetta() {
   if (nonPuliti.length > 0) {
     const nomi = nonPuliti.map(a => a.codice || '?').slice(0, 8).join(', ');
     const extra = nonPuliti.length > 8 ? ` e altri ${nonPuliti.length - 8}` : '';
-    const proceed = confirm(
+    const proceed = await appConfirm(
       `⚠ ${nonPuliti.length} pezzo${nonPuliti.length===1?'':'i'} senza DXF pulito:\n\n` +
       `${nomi}${extra}\n\n` +
       `Mirko riceverà il DXF originale (con cartiglio/quote) e dovrà pulirlo manualmente in Lantek.\n\n` +
-      `Vuoi continuare comunque? (Annulla per pulire i pezzi prima)`
+      `Vuoi continuare comunque? (Annulla per pulire i pezzi prima)`,
+      {danger: true, title: 'Pezzi senza DXF pulito', okLabel: 'Continua'}
     );
     if (!proceed) return;
   }
@@ -7668,7 +7781,8 @@ async function confermaAccetta() {
 
 async function rifiutaPreventivo() {
   if (!currentPreventivo) return;
-  if (!confirm('Marcare preventivo come RIFIUTATO dal cliente?')) return;
+  if (!await appConfirm('Marcare preventivo come RIFIUTATO dal cliente?',
+                        {danger: true, title: 'Rifiuta preventivo', okLabel: 'Rifiuta'})) return;
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/rifiuta`, {
       method: 'POST',
@@ -7689,10 +7803,11 @@ async function exportPdf(interno = false) {
   // (per PDF preview è tollerato; il blocco vero è su Invia/Accetta)
   const validazione = await validaCostiCompletamente();
   if (!validazione.ok) {
-    const proceed = confirm('⚠ ATTENZIONE — alcuni articoli hanno costo laser mancante:\n\n' +
+    const proceed = await appConfirm('⚠ ATTENZIONE — alcuni articoli hanno costo laser mancante:\n\n' +
       _validazioneErrorMessage(validazione) +
       '\n\nGenerare comunque il PDF (con costi parziali)?\n\n' +
-      'Consigliato: annulla, correggi i costi, poi rigenera.');
+      'Consigliato: annulla, correggi i costi, poi rigenera.',
+      {danger: true, title: 'Costi incompleti', okLabel: 'Genera comunque'});
     if (!proceed) return;
   }
   const etichetta = interno ? 'PDF interno (costi)' : 'PDF cliente';
