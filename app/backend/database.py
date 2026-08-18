@@ -4708,10 +4708,12 @@ class PreventivoManager:
             logger.exception('create_order_from_preventivo failed: %s', e)
             return {'error': 'Order creation failed: ' + str(e)}
 
-        # 5. Notifica capi
+        # 5. Notifica capi (produzione) + impiegata (amministrativa: DDT/fattura)
         try:
             for u in UserManager.get_all_users() or []:
-                if u.get('is_capo') and u.get('is_active', True):
+                if not u.get('is_active', True):
+                    continue
+                if u.get('is_capo'):
                     NotificationManager.create_notification(
                         user_id=u['id'],
                         order_id=order.id,
@@ -4720,8 +4722,18 @@ class PreventivoManager:
                         notification_type='order',
                         notification_category='informativa',
                     )
+                elif u.get('role') == 'Impiegata':
+                    # Elena deve protocollare l'ordine (DDT/fattura) una volta accettato.
+                    NotificationManager.create_notification(
+                        user_id=u['id'],
+                        order_id=order.id,
+                        title='Nuovo ordine da protocollare',
+                        message='Ordine #' + numero + ' (' + order.cliente + ') accettato dal commerciale — da registrare (DDT/fattura)',
+                        notification_type='order',
+                        notification_category='attiva',
+                    )
         except Exception as exc:
-            logger.warning('notifica capi nuovo ordine da preventivo fallita: %s', exc)
+            logger.warning('notifica nuovo ordine da preventivo fallita: %s', exc)
 
         # 6. Event bus (no-op oggi, hook per gestionale futuro)
         try:
