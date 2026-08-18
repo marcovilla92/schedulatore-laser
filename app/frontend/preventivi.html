@@ -2778,6 +2778,41 @@ tr.row-warn:hover { background: #FEF3C7; }
   </div>
 </div>
 
+<!-- Invia al cliente: compose email + PDF -->
+<div class="modal-overlay" id="modal-email" onclick="if(event.target===this)closeEmailModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Invia preventivo al cliente</h3>
+      <button class="modal-close" onclick="closeEmailModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--gray-text); margin-bottom:14px;">
+        Viene allegato il <b>PDF del preventivo (versione cliente)</b>, senza costi né margine.
+        Dopo l'invio il preventivo diventa <b>INVIATO</b> e non è più modificabile.
+      </p>
+      <div class="form-field" style="margin-bottom:12px;">
+        <label>Email del cliente <span style="color:var(--red)">*</span></label>
+        <input type="email" id="em-to" placeholder="cliente@esempio.it" autocomplete="off">
+      </div>
+      <div class="form-field" style="margin-bottom:12px;">
+        <label>Oggetto</label>
+        <input type="text" id="em-subject" placeholder="Oggetto della mail">
+      </div>
+      <div class="form-field" style="margin-bottom:12px;">
+        <label>Messaggio</label>
+        <textarea id="em-message" rows="5"></textarea>
+      </div>
+      <div class="form-msg" id="msg-email"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeEmailModal()">Annulla</button>
+      <button class="btn-primary" onclick="sendPreventivoEmail()" id="btn-send-email">
+        <i data-lucide="send" style="width:14px;height:14px;vertical-align:-2px;"></i> Invia
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_URL = '';
 let currentUser = null;
@@ -7716,8 +7751,80 @@ async function inviaPreventivo() {
           '\n\nIl preventivo NON è stato inviato. Correggi e riprova.');
     return;
   }
-  if (!await appConfirm('Inviare preventivo al cliente?\n\nDopo l\'invio diventa IMMUTABILE.',
-                        {title: 'Invia al cliente', okLabel: 'Invia'})) return;
+  // Apre la finestra di composizione email (destinatario + testo, PDF in allegato).
+  openEmailModal();
+}
+
+function openEmailModal() {
+  const p = currentPreventivo;
+  if (!p) return;
+  const cli = p.cliente || '';
+  const num = p.numero_ordine_cliente ? ` (rif. ${p.numero_ordine_cliente})` : '';
+  document.getElementById('em-to').value = _lastEmailTo || '';
+  document.getElementById('em-subject').value = `Preventivo Carpenteria L.S. — ${cli}${num}`.trim();
+  document.getElementById('em-message').value =
+    `Buongiorno,\n\nin allegato trovate il preventivo richiesto${cli ? ' per ' + cli : ''}.\n` +
+    `Restiamo a disposizione per qualsiasi chiarimento.\n\nCordiali saluti`;
+  showMsg('msg-email', '', '');
+  document.getElementById('btn-send-email').disabled = false;
+  document.getElementById('modal-email').classList.add('active');
+  if (window.lucide) lucide.createIcons();
+  setTimeout(() => document.getElementById('em-to').focus(), 50);
+}
+
+function closeEmailModal() {
+  document.getElementById('modal-email').classList.remove('active');
+}
+
+let _lastEmailTo = '';
+
+async function sendPreventivoEmail() {
+  if (!currentPreventivo) return;
+  const to = document.getElementById('em-to').value.trim();
+  const subject = document.getElementById('em-subject').value.trim();
+  const message = document.getElementById('em-message').value;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+    showMsg('msg-email', 'Inserisci un indirizzo email valido.', 'var(--red)');
+    return;
+  }
+  const btn = document.getElementById('btn-send-email');
+  btn.disabled = true;
+  showMsg('msg-email', 'Invio in corso…', 'var(--text-2)');
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/invia-email`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ user_id: currentUser.id, to, subject, message }),
+    });
+    const d = await r.json();
+    if (d.success) {
+      _lastEmailTo = to;
+      closeEmailModal();
+      if (d.preventivo) { currentPreventivo = d.preventivo; populateEditor(currentPreventivo); }
+      showMsg('msg-workflow', `✓ Preventivo inviato a ${to}. Ora è INVIATO (immutabile).`, 'var(--green)');
+      return;
+    }
+    // SMTP non configurato → offri di segnare come inviato senza email.
+    if (d.email_non_configurata) {
+      const ok = await appConfirm(
+        'L\'invio email non è ancora configurato sul server.\n\n' +
+        'Vuoi comunque segnare il preventivo come INVIATO (senza spedire la mail)? ' +
+        'Il PDF puoi scaricarlo col pulsante PDF e mandarlo a mano.',
+        {title: 'Email non configurata', okLabel: 'Segna come inviato'});
+      if (ok) { closeEmailModal(); await _marcaInviatoSenzaEmail(); }
+      else { btn.disabled = false; showMsg('msg-email', '', ''); }
+      return;
+    }
+    showMsg('msg-email', 'Errore: ' + (d.error || 'invio fallito'), 'var(--red)');
+    btn.disabled = false;
+  } catch (e) {
+    showMsg('msg-email', 'Errore di rete: ' + e.message, 'var(--red)');
+    btn.disabled = false;
+  }
+}
+
+/** Fallback: transizione a INVIATO senza spedire email (SMTP non configurato). */
+async function _marcaInviatoSenzaEmail() {
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/invia`, {
       method: 'POST',
@@ -7728,7 +7835,7 @@ async function inviaPreventivo() {
     if (!d.success) { showMsg('msg-workflow', 'Errore: ' + d.error, 'var(--red)'); return; }
     currentPreventivo = d.preventivo;
     populateEditor(currentPreventivo);
-    showMsg('msg-workflow', '✓ Preventivo inviato. Aspetta accettazione cliente.', 'var(--green)');
+    showMsg('msg-workflow', '✓ Preventivo segnato come INVIATO (email non spedita).', 'var(--green)');
   } catch (e) { showMsg('msg-workflow', 'Errore: ' + e.message, 'var(--red)'); }
 }
 

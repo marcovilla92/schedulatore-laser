@@ -4,6 +4,7 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
 import sys
+import re
 import uuid
 import logging
 import threading
@@ -11,6 +12,7 @@ import threading
 logger = logging.getLogger(__name__)
 
 # Importa moduli locali
+from . import email_sender as _email_sender
 from .models import initialize_database, Order, OrderFile, get_session
 from .database import OrderManager, UserManager, AuditManager, ArchiveManager, FatturazioneManager, NotificationManager, AlertManager, KPIManager, BarcodeManager, PreventivoManager
 from .pdf_cartellino import genera_cartellino_pdf
@@ -4568,6 +4570,112 @@ def api_preventivi_invia(preventivo_id):
         return jsonify({'success': True, 'preventivo': result}), 200
     except Exception as e:
         logger.exception('preventivi invia failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _genera_pdf_cliente_bytes(p: dict) -> tuple[bytes, str]:
+    """Genera il PDF CLIENTE del preventivo e ne ritorna (bytes, filename).
+
+    Riusa la stessa pipeline di /api/preventivi/<id>/pdf (interno=False).
+    """
+    dati_pdf = _preventivo_to_pdf_dati(p)
+    pdf_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_pdf')
+    os.makedirs(pdf_dir, exist_ok=True)
+    base = p.get('numero_ordine_cliente') or (p.get('id') or '')[:8]
+    filename = f"Preventivo_{base}.pdf"
+    filename = ''.join(c if c.isalnum() or c in '._-' else '_' for c in filename)
+    pdf_path = os.path.join(pdf_dir, filename)
+    app_cfg = BarcodeManager.load_config() or {}
+    _pdf_exporter.PDFPreventivo(app_cfg).genera_pdf(pdf_path, dati_pdf, interno=False)
+    with open(pdf_path, 'rb') as fp:
+        return fp.read(), filename
+
+
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+
+@app.route('/api/preventivi/email-config', methods=['GET'])
+def api_preventivi_email_config():
+    """Stato (non sensibile) della config SMTP, per la UI di invio."""
+    try:
+        return jsonify({'success': True, **_email_sender.config_summary()}), 200
+    except Exception as e:
+        logger.exception('email-config failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/preventivi/<preventivo_id>/invia-email', methods=['POST'])
+def api_preventivi_invia_email(preventivo_id):
+    """Spedisce il PDF cliente via email e, se il preventivo è BOZZA, lo porta a
+    INVIATO (immutabile). La transizione avviene SOLO se la mail parte davvero.
+
+    Body: {user_id, to, subject?, message?}
+    Se SMTP non è configurato → {success:False, email_non_configurata:True}.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = data.get('user_id') or ''
+        if not _require_role(user_id, _PREV_WRITE_ROLES):
+            return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+
+        to_addr = (data.get('to') or '').strip()
+        if not to_addr or not _EMAIL_RE.match(to_addr):
+            return jsonify({'success': False, 'error': 'Indirizzo email del destinatario non valido'}), 400
+
+        if not _email_sender.is_configured():
+            return jsonify({
+                'success': False,
+                'email_non_configurata': True,
+                'error': 'Invio email non configurato. Imposta SMTP_HOST/SMTP_USER/SMTP_PASSWORD nel file app/.env.',
+            }), 400
+
+        p = PreventivoManager.get(preventivo_id, include_children=True)
+        if not p:
+            return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
+
+        # Stesso gate anti-catastrofe dell'invio: nessun costo laser mancante.
+        invalidi = _valida_costi_preventivo(preventivo_id)
+        if invalidi:
+            details = '; '.join(f"{x['codice']}: {x['motivo']}" for x in invalidi[:5])
+            return jsonify({
+                'success': False,
+                'error': f'Impossibile inviare: {len(invalidi)} punti da risolvere ({details})',
+                'articoli_invalidi': invalidi,
+            }), 400
+
+        # Congela i totali prima di generare il PDF/transizione.
+        _persisti_totali(preventivo_id)
+        p = PreventivoManager.get(preventivo_id, include_children=True)  # ricarica coi totali freschi
+
+        # Genera il PDF cliente e spediscilo.
+        pdf_bytes, pdf_name = _genera_pdf_cliente_bytes(p)
+        subject = (data.get('subject') or '').strip() or f"Preventivo {p.get('cliente') or ''}".strip()
+        message = (data.get('message') or '').strip() or (
+            f"Buongiorno,\n\nin allegato trovate il preventivo richiesto.\n"
+            f"Restiamo a disposizione per qualsiasi chiarimento.\n\nCordiali saluti"
+        )
+        ok, err = _email_sender.send_email(
+            to_addr, subject, message,
+            attachments=[(pdf_name, pdf_bytes, 'application', 'pdf')],
+        )
+        if not ok:
+            return jsonify({'success': False, 'error': err or 'Invio email fallito'}), 502
+
+        # Mail partita → se ancora BOZZA, porta a INVIATO.
+        preventivo = p
+        if p.get('status') == 'BOZZA':
+            result = PreventivoManager.transition_status(preventivo_id, 'INVIATO', user_id=user_id)
+            if isinstance(result, dict) and not result.get('error'):
+                preventivo = result
+        try:
+            AuditManager.log(user_id=user_id, action='EMAIL_PREVENTIVO',
+                             entity_type='preventivi', entity_id=preventivo_id,
+                             detail=f'PDF inviato a {to_addr}')
+        except Exception:
+            pass
+        return jsonify({'success': True, 'preventivo': preventivo, 'inviato_a': to_addr}), 200
+    except Exception as e:
+        logger.exception('preventivi invia-email failed')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
