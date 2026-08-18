@@ -1478,6 +1478,9 @@ tr.row-warn:hover { background: #FEF3C7; }
 }
 .split-detail-preview svg { width: 100%; height: auto; display: block; }
 .split-detail-preview .empty { color: var(--text-3); font-size: 12px; }
+.cad-spinner { width: 26px; height: 26px; border: 3px solid var(--border, #e5e7eb);
+  border-top-color: var(--green, #16a34a); border-radius: 50%; animation: cadspin .7s linear infinite; }
+@keyframes cadspin { to { transform: rotate(360deg); } }
 .split-detail-body {
   padding: 14px 18px 20px;
   display: flex; flex-direction: column; gap: 16px;
@@ -2829,6 +2832,7 @@ tr.row-warn:hover { background: #FEF3C7; }
 const API_URL = '';
 let currentUser = null;
 let currentPreventivo = null;  // oggetto preventivo corrente caricato nell'editor
+let _warmedCadFor = null;      // id preventivo per cui abbiamo già pre-scaldato il CAD
 let currentArticoli = [];      // lista articoli (locale, sincronizzata col DB via save)
 let currentAssiemi = [];       // assiemi 3D (da STEP o manuale)
 let currentTubolari = [];      // tubolari (da STEP)
@@ -3748,6 +3752,12 @@ async function openPreventivo(id) {
 }
 
 function populateEditor(p) {
+  // Pre-scalda le cache del CAD (SVG + geometria) per tutti i DXF del preventivo,
+  // così l'apertura del disegno è istantanea. Fire-and-forget: gira in background.
+  if (p && p.id && _warmedCadFor !== p.id) {
+    _warmedCadFor = p.id;
+    fetch(`${API_URL}/api/preventivi/${p.id}/warm-cad`, { method: 'POST' }).catch(() => {});
+  }
   const elTitle = document.getElementById('editor-title');
   if (elTitle) elTitle.textContent = `Preventivo · ${p.cliente}`;
   const elBadge = document.getElementById('editor-status-badge');
@@ -4364,7 +4374,16 @@ function openCadEditor() {
   const url = `/dxf-editor.html?prev=${encodeURIComponent(currentPreventivo.id)}`
             + `&file=${encodeURIComponent(file)}&articolo=${idx}&embed=1`;
   preview.onclick = null; preview.style.cursor = 'default';
-  preview.innerHTML = `<iframe src="${url}" style="width:100%; height:min(80vh,820px); border:none; display:block;"></iframe>`;
+  // Skeleton immediato: niente flash bianco mentre l'iframe carica.
+  const h = 'min(80vh,820px)';
+  preview.innerHTML =
+    `<div id="cad-loading" style="position:absolute; inset:0; display:flex; flex-direction:column;
+       align-items:center; justify-content:center; gap:12px; background:#FAFAFA; z-index:2;
+       color:var(--text-3); font-size:13px;">
+       <div class="cad-spinner"></div>Apertura CAD…</div>
+     <iframe id="cad-iframe" src="${url}" onload="var l=document.getElementById('cad-loading'); if(l) l.style.display='none';"
+       style="width:100%; height:${h}; border:none; display:block; position:relative;"></iframe>`;
+  preview.style.position = 'relative';
 }
 
 // CAD inline chiuso senza confermare → ripristina la preview statica del pezzo

@@ -2649,10 +2649,10 @@ def api_preventivi_import_dxf_batch(preventivo_id):
         successful_paths = [(p, f) for (p, f) in saved_tasks if f not in failed_fnames]
         if successful_paths:
             threading.Thread(
-                target=_prewarm_svg_cache,
+                target=_prewarm_dxf_cache,
                 args=(successful_paths,),
                 daemon=True,
-                name=f'svg-prewarm-{preventivo_id[:8]}',
+                name=f'dxf-prewarm-{preventivo_id[:8]}',
             ).start()
         assiemi_rilevati = sorted({v for v in assieme_by_base.values() if v})
         return jsonify({'success': True, 'results': results,
@@ -2662,17 +2662,18 @@ def api_preventivi_import_dxf_batch(preventivo_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def _prewarm_svg_cache(tasks):
-    """Rende gli SVG per una lista di (path, filename) in un thread pool.
-    Popola la _SVG_CACHE in-memory in background così quando la UI chiede i
-    thumbnail rispondono in <50ms invece di 0.5-1.5s.
-    Errori silenziati (il render live in api_preventivi_dxf_svg gestirà comunque).
+def _prewarm_dxf_cache(tasks):
+    """Rende SVG (thumbnail) E geometria (CAD interno) per una lista di
+    (path, filename) in un thread pool, popolando le cache in-memory in background.
+    Così i thumbnail e l'apertura del CAD rispondono in <50ms invece di 0.1-1.5s.
+    Errori silenziati (il render live gestirà comunque).
     """
     from concurrent.futures import ThreadPoolExecutor
+    detection_cfg = (BarcodeManager.load_config() or {}).get('dxf_detection', {})
     # 4 worker (non 8): ezdxf ha race condition al cold-start dei moduli con
     # troppi thread paralleli (rilevato: primo run può perdere 1-2 file su 7).
     # Con 4 worker + moduli caldi va sempre a 7/7. I fallimenti residui vengono
-    # comunque recuperati dal render live in api_preventivi_dxf_svg.
+    # comunque recuperati dal render live.
     max_workers = min(4, max(1, len(tasks)))
     def _one(item):
         path, fname = item
@@ -2680,9 +2681,13 @@ def _prewarm_svg_cache(tasks):
             _get_dxf_svg_cached(path)
         except Exception:
             logger.warning('prewarm SVG fail per %s', fname, exc_info=False)
+        try:
+            _get_dxf_geometry_cached(path, detection_cfg)
+        except Exception:
+            logger.warning('prewarm geometria fail per %s', fname, exc_info=False)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         list(pool.map(_one, tasks))
-    logger.info('SVG prewarm completato (%d file)', len(tasks))
+    logger.info('Prewarm DXF (SVG+geometria) completato (%d file)', len(tasks))
 
 
 @app.route('/api/preventivi/<preventivo_id>/step-files', methods=['GET'])
@@ -2751,6 +2756,36 @@ def _get_dxf_svg_cached(dxf_path: str) -> str:
             _SVG_CACHE.pop(old_key, None)
     _SVG_CACHE[key] = svg
     return svg
+
+
+# Cache della geometria del CAD (geometry_json): è ciò che il CAD interno carica
+# all'apertura. Parsing ezdxf ~0.1-0.5s per file; con la cache la RIapertura è
+# istantanea e il pre-warm all'apertura preventivo rende snappy anche la prima.
+# Chiave (path, mtime): un nuovo import cambia mtime → invalidazione automatica.
+_GEOMETRY_CACHE = {}
+_GEOMETRY_CACHE_MAX = 128
+
+
+def _get_dxf_geometry_cached(dxf_path: str, detection_cfg: dict) -> str:
+    """Ritorna la geometria del CAD già SERIALIZZATA in JSON (string). Cachare la
+    stringa (non il dict) evita di ri-serializzare a ogni apertura la geometria
+    grande (centinaia di polilinee) → warm hit quasi istantaneo."""
+    from .preventivi.pick_part import geometry_json
+    try:
+        mtime = os.path.getmtime(dxf_path)
+    except OSError:
+        mtime = 0
+    key = (dxf_path, mtime)
+    hit = _GEOMETRY_CACHE.get(key)
+    if hit is not None:
+        return hit
+    geo = geometry_json(dxf_path, detection_cfg or {})
+    payload = _json_mod.dumps(geo)
+    if len(_GEOMETRY_CACHE) >= _GEOMETRY_CACHE_MAX:
+        for old_key in list(_GEOMETRY_CACHE.keys())[:8]:
+            _GEOMETRY_CACHE.pop(old_key, None)
+    _GEOMETRY_CACHE[key] = payload
+    return payload
 
 
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/svg', methods=['GET'])
@@ -2912,6 +2947,28 @@ def api_preventivi_dxf_generate_canonical(preventivo_id, filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/<preventivo_id>/warm-cad', methods=['POST'])
+def api_preventivi_warm_cad(preventivo_id):
+    """Pre-scalda in background le cache SVG + geometria per TUTTI i DXF del
+    preventivo, così l'apertura del CAD (e i thumbnail) è istantanea. Ritorna
+    subito: il warming gira in un thread. Idempotente (cache hit = no-op)."""
+    try:
+        prev_dir = os.path.join(UPLOAD_FOLDER, 'preventivi_tmp', preventivo_id)
+        if not os.path.isdir(prev_dir):
+            return jsonify({'success': True, 'count': 0}), 200
+        tasks = [(os.path.join(prev_dir, n), n) for n in os.listdir(prev_dir)
+                 if n.lower().endswith('.dxf') and not n.lower().endswith('_cleaned.dxf')]
+        if tasks:
+            threading.Thread(
+                target=_prewarm_dxf_cache, args=(tasks,), daemon=True,
+                name=f'warm-cad-{preventivo_id[:8]}',
+            ).start()
+        return jsonify({'success': True, 'count': len(tasks)}), 200
+    except Exception as e:
+        logger.exception('warm-cad failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/dxf/<path:filename>/geometry-json', methods=['GET'])
 def api_preventivi_dxf_geometry_json(preventivo_id, filename):
     """CAD interno — geometria del DXF come polilinee in mm, per il viewer.
@@ -2925,10 +2982,12 @@ def api_preventivi_dxf_geometry_json(preventivo_id, filename):
         dxf_path = os.path.join(prev_dir, safe_name)
         if not os.path.exists(dxf_path):
             return jsonify({'error': 'File DXF non trovato'}), 404
-        from .preventivi.pick_part import geometry_json
         app_cfg = BarcodeManager.load_config() or {}
-        r = geometry_json(dxf_path, app_cfg.get('dxf_detection', {}))
-        return jsonify(r), 200
+        payload = _get_dxf_geometry_cached(dxf_path, app_cfg.get('dxf_detection', {}))
+        from flask import Response
+        resp = Response(payload, mimetype='application/json')
+        resp.headers['Cache-Control'] = 'private, max-age=3600'
+        return resp
     except Exception as e:
         logger.exception('dxf_geometry_json failed')
         return jsonify({'error': str(e)}), 500
