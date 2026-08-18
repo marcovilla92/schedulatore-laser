@@ -3324,7 +3324,7 @@ async function _rfqOpenCreated(pid) {
   if (pid) await openPreventivo(pid);
 }
 
-async function _rfqUpload(files) {
+async function _rfqUpload(files, force = false) {
   // Accetta un singolo ZIP OPPURE file sciolti (PDF della richiesta + DXF).
   files = Array.isArray(files) ? files : [files];
   const isSingleZip = files.length === 1 && (/\.zip$/i.test(files[0].name)
@@ -3377,9 +3377,11 @@ async function _rfqUpload(files) {
     if (isSingleZip) fd.append('zip', files[0]);
     else for (const f of files) fd.append('files', f);
     fd.append('admin_id', currentUser.id);
+    if (force) fd.append('force', '1');
     const r = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, { method: 'POST', body: fd });
     const d = await r.json();
     clearInterval(_rfqHintInt);
+    if (d && d.duplicato) { _rfqClose(); await _rfqHandleDuplicato(d, files); return; }
     if (!d.success) throw new Error(d.error || 'Import fallito');
     _rfqStage(2, 'done'); _rfqStage(3, 'done');
     clearInterval(_rfqTimerInt);
@@ -3393,6 +3395,22 @@ async function _rfqUpload(files) {
       `<div class="rfq-cine-err"><b>Import non riuscito.</b><br>${escapeHtml(err.message)}</div>
        <div class="rfq-reveal-foot"><button class="rfq-cta" style="margin-left:0;background:var(--text-2);box-shadow:none;" onclick="_rfqClose()">Chiudi</button></div>`;
   }
+}
+
+/** Anti-doppione: esiste già un preventivo con lo stesso numero ordine cliente. */
+async function _rfqHandleDuplicato(d, files) {
+  const e = d.esistente || {};
+  const num = d.numero_ordine_cliente || e.numero_ordine_cliente || '—';
+  const meta = [e.cliente, e.status, e.data_creazione ? 'creato il ' + formatDate(e.data_creazione) : '']
+    .filter(Boolean).join(' · ');
+  const apri = await appConfirm(
+    `⚠ Esiste già un preventivo per l'ordine ${num}\n(${meta}).\n\nVuoi APRIRE quello esistente?`,
+    { title: 'Ordine già presente', okLabel: 'Apri esistente' });
+  if (apri) { if (e.id) openPreventivo(e.id); return; }
+  const crea = await appConfirm(
+    `Vuoi creare comunque un SECONDO preventivo per lo stesso ordine ${num}?\n\nAvrai due bozze da gestire.`,
+    { title: 'Crea doppione', okLabel: 'Crea comunque', danger: true });
+  if (crea) _rfqUpload(files, true);  // riprova forzando la creazione
 }
 
 // Rivelazione animata dell'ordine estratto (header + pezzi a cascata)

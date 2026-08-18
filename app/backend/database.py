@@ -4448,6 +4448,33 @@ class PreventivoManager:
             session.close()
 
     @staticmethod
+    def find_by_numero_ordine(numero):
+        """Cerca un preventivo NON cancellato con lo stesso numero ordine cliente
+        (match trimmato, case-insensitive). Per anti-doppione all'import.
+        Ritorna il più recente {id, cliente, numero_ordine_cliente, status,
+        data_creazione} o None."""
+        n = (numero or '').strip()
+        if not n:
+            return None
+        session = get_session()
+        try:
+            from sqlalchemy import func
+            p = session.query(Preventivo).filter(
+                Preventivo.is_deleted == False,  # noqa: E712
+                func.lower(func.trim(Preventivo.numero_ordine_cliente)) == n.lower(),
+            ).order_by(Preventivo.data_creazione.desc()).first()
+            if not p:
+                return None
+            return {
+                'id': p.id, 'cliente': p.cliente,
+                'numero_ordine_cliente': p.numero_ordine_cliente,
+                'status': p.status,
+                'data_creazione': p.data_creazione.isoformat() if p.data_creazione else None,
+            }
+        finally:
+            session.close()
+
+    @staticmethod
     def ultima_email_cliente(cliente):
         """Ultimo indirizzo email usato per un cliente (match esatto sul nome),
         per riproporlo agli invii successivi. None se mai inviato."""

@@ -2189,7 +2189,7 @@ document.getElementById('rfq-input').addEventListener('change', (e) => {
   st.style.display = 'block';
 });
 
-async function submitRichiestaPreventivo() {
+async function submitRichiestaPreventivo(force = false) {
   const msg = document.getElementById('rfq-message');
   const btn = document.getElementById('rfq-submit-btn');
   if (!rfqFiles.length) return;
@@ -2212,8 +2212,21 @@ async function submitRichiestaPreventivo() {
     const fd = new FormData();
     for (const f of rfqFiles) fd.append('files', f);
     fd.append('admin_id', currentUser.id);
+    if (force) fd.append('force', '1');
     const resp = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, { method: 'POST', body: fd });
     const r = await resp.json();
+    if (r.duplicato) {
+      // Anti-doppione: probabilmente questa richiesta è già stata caricata.
+      const e = r.esistente || {};
+      const num = r.numero_ordine_cliente || e.numero_ordine_cliente || 'questo ordine';
+      msg.className = 'message active';
+      msg.textContent = `⚠ Esiste già una richiesta per l'ordine ${num}${e.cliente ? ' (' + e.cliente + ')' : ''}. Probabilmente è già stata caricata.`;
+      if (confirm(`Esiste già una richiesta per l'ordine ${num}. Vuoi caricarla comunque (creando un doppione)?`)) {
+        return submitRichiestaPreventivo(true);
+      }
+      btn.disabled = false;
+      return;
+    }
     if (r.success) {
       msg.className = 'message active success';
       const warn = (r.warnings && r.warnings.length)

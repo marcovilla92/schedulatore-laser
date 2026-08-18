@@ -2348,6 +2348,20 @@ def api_preventivi_import_rfq_package():
         if not result.success:
             return jsonify({'success': False, 'error': result.error or 'RFQ parsing fallito'}), 400
 
+        # 1b. Anti-doppione: se esiste già un preventivo con lo stesso numero
+        # ordine cliente, avvisa PRIMA di crearne un altro (a meno di force=1).
+        force = str(request.form.get('force', '')).lower() in ('1', 'true', 'yes')
+        if not force:
+            esistente = PreventivoManager.find_by_numero_ordine(result.numero_ordine_cliente)
+            if esistente:
+                return jsonify({
+                    'success': False,
+                    'duplicato': True,
+                    'esistente': esistente,
+                    'cliente': result.cliente,
+                    'numero_ordine_cliente': result.numero_ordine_cliente,
+                }), 200
+
         # 2. Crea preventivo BOZZA
         data_consegna_dt = None
         if result.data_consegna:
