@@ -4090,8 +4090,12 @@ class PreventivoManager:
 
     @staticmethod
     def create(cliente, created_by, *, quantita=1, numero_ordine_cliente=None,
-               margine_pct=0.0, data_consegna_proposta=None, note=None):
-        """Crea un nuovo preventivo in BOZZA."""
+               margine_pct=0.0, data_consegna_proposta=None, note=None,
+               da_prezzare=False):
+        """Crea un nuovo preventivo in BOZZA.
+
+        da_prezzare=True → richiesta caricata da Elena, in attesa del commerciale.
+        """
         session = get_session()
         try:
             p = Preventivo(
@@ -4105,6 +4109,7 @@ class PreventivoManager:
                 versione=1,
                 created_by=created_by,
                 note=note,
+                da_prezzare=bool(da_prezzare),
             )
             session.add(p)
             session.commit()
@@ -4823,6 +4828,7 @@ class PreventivoManager:
             'created_by': p.created_by,
             'data_creazione': p.data_creazione.isoformat() if p.data_creazione else None,
             'note': p.note,
+            'da_prezzare': bool(getattr(p, 'da_prezzare', False)),
         }
 
     @staticmethod

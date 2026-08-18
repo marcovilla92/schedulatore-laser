@@ -3540,7 +3540,7 @@ async function loadList() {
       html += `<tr class="clickable" onclick="openPreventivo('${p.id}')">
         <td><b>${escapeHtml(p.cliente)}</b></td>
         <td><code>${escapeHtml(p.numero_ordine_cliente || '—')}</code></td>
-        <td>${statusBadge(p.status)}</td>
+        <td>${statusBadge(p.status)}${(p.da_prezzare && p.status === 'BOZZA') ? ' <span class="badge orange" title="Richiesta caricata da Elena, in attesa di prezzatura">● da prezzare</span>' : ''}</td>
         <td class="n">${p.quantita}</td>
         <td class="n">${(p.margine_pct || 0).toFixed(1)}%</td>
         <td class="n" style="font-weight:700;">${formatEur(p.totale_lotto)} €</td>

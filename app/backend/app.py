@@ -2309,8 +2309,12 @@ def api_preventivi_import_rfq_package():
     from .preventivi import rfq_importer
     try:
         admin_id = request.form.get('admin_id') or ''
-        if not _require_role(admin_id, _PREV_WRITE_ROLES):
+        # Anche l'Impiegata (Elena) può caricare una richiesta: crea la BOZZA
+        # "da prezzare" e la gira al commerciale. Non prezza né tocca il CAD.
+        if not _require_role(admin_id, _PREV_WRITE_ROLES + ['Impiegata']):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
+        _caller = UserManager.get_user(admin_id) or {}
+        is_intake_elena = (_caller.get('role') == 'Impiegata')
         f = request.files.get('zip')
         if not f:
             return jsonify({'success': False, 'error': 'File ZIP mancante (campo "zip")'}), 400
@@ -2338,6 +2342,7 @@ def api_preventivi_import_rfq_package():
             margine_pct=25.0,
             data_consegna_proposta=data_consegna_dt,
             note=result.note or f'Importato via AI RFQ da {f.filename}',
+            da_prezzare=is_intake_elena,
         )
         if not new_prev or 'id' not in new_prev:
             return jsonify({'success': False, 'error': 'Creazione preventivo fallita'}), 500
@@ -2486,6 +2491,24 @@ def api_preventivi_import_rfq_package():
             )
         except Exception:
             pass
+
+        # Se caricato da Elena → avvisa il commerciale che c'è una richiesta da prezzare.
+        if is_intake_elena:
+            try:
+                for u in UserManager.get_all_users() or []:
+                    if not u.get('is_active', True):
+                        continue
+                    if u.get('role') in ('Commerciale', 'Amministratore'):
+                        NotificationManager.create_notification(
+                            user_id=u['id'],
+                            order_id=None,
+                            title='Nuova richiesta da prezzare',
+                            message=f'{result.cliente} — {len(articoli_db)} pezzi, caricata da {_caller.get("name") or "Elena"}',
+                            notification_type='preventivo',
+                            notification_category='attiva',
+                        )
+            except Exception as exc:
+                logger.warning('notifica commerciale nuova richiesta fallita: %s', exc)
 
         return jsonify({
             'success': True,

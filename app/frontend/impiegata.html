@@ -1354,6 +1354,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 <!-- TAB BAR -->
 <div class="tab-bar">
   <div class="tab-item active" data-tab="carica" onclick="switchTab('carica')">Carica Ordine</div>
+  <div class="tab-item" data-tab="richiesta" onclick="switchTab('richiesta')">Richiesta Preventivo</div>
   <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
   <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
   <div class="tab-item" data-tab="officina-live" onclick="switchTab('officina-live')">Stato Officina <span class="live-dot" id="live-dot" style="display:none;"></span></div>
@@ -1411,6 +1412,35 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 
       <div id="status-message" class="message"></div>
       <button class="btn-submit" onclick="submitOrder()">Carica Ordine</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB: RICHIESTA PREVENTIVO ===================== -->
+<div class="tab-panel" id="panel-richiesta">
+  <div class="carica-body">
+    <div class="form-card">
+      <div class="form-title">Nuova richiesta di preventivo</div>
+      <div class="form-sub">
+        È arrivata una richiesta di preventivo da un cliente? Carica qui il pacchetto
+        (file ZIP con il PDF della richiesta e i disegni DXF). Il sistema legge i pezzi
+        e crea una bozza che va al commerciale per la quotazione.
+        <b>Tu non devi prezzare né aprire i disegni</b> — pensa a tutto lui.
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Pacchetto richiesta (.zip)</label>
+        <div class="upload-button-wrapper">
+          <button type="button" class="upload-button upload-button-pdf" id="rfq-upload-btn" aria-label="Carica pacchetto ZIP della richiesta">
+            Scegli file ZIP
+          </button>
+          <input type="file" id="rfq-input" accept=".zip" style="display:none;">
+          <div class="upload-status" id="rfq-status"></div>
+        </div>
+      </div>
+
+      <div id="rfq-message" class="message"></div>
+      <button class="btn-submit" id="rfq-submit-btn" onclick="submitRichiestaPreventivo()" disabled>Invia al commerciale</button>
     </div>
   </div>
 </div>
@@ -2137,6 +2167,58 @@ function renderLiveOrdini(ordini) {
 document.getElementById('pdf-upload-btn').addEventListener('click', () => {
   document.getElementById('pdf-input').click();
 });
+
+// ── Richiesta preventivo: intake Elena → commerciale ──
+let rfqFile = null;
+document.getElementById('rfq-upload-btn').addEventListener('click', () => {
+  document.getElementById('rfq-input').click();
+});
+document.getElementById('rfq-input').addEventListener('change', (e) => {
+  rfqFile = e.target.files[0] || null;
+  const st = document.getElementById('rfq-status');
+  document.getElementById('rfq-submit-btn').disabled = !rfqFile;
+  st.textContent = rfqFile ? ('✓ ' + rfqFile.name) : '';
+  st.style.display = rfqFile ? 'block' : 'none';
+});
+
+async function submitRichiestaPreventivo() {
+  const msg = document.getElementById('rfq-message');
+  const btn = document.getElementById('rfq-submit-btn');
+  if (!rfqFile) return;
+  if (!currentUser || !currentUser.id) {
+    msg.className = 'message active error';
+    msg.textContent = '✗ Utente non riconosciuto, rifai il login.';
+    return;
+  }
+  msg.className = 'message active';
+  msg.textContent = '⏳ Sto leggendo la richiesta e i disegni… può richiedere fino a un minuto.';
+  btn.disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append('zip', rfqFile);
+    fd.append('admin_id', currentUser.id);
+    const resp = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, { method: 'POST', body: fd });
+    const r = await resp.json();
+    if (r.success) {
+      msg.className = 'message active success';
+      const warn = (r.warnings && r.warnings.length)
+        ? `<br><small style="font-weight:500;">${r.warnings.map(w => '• ' + w).join('<br>')}</small>` : '';
+      msg.innerHTML = `✓ Richiesta inviata al commerciale.<br>Cliente: <b>${r.cliente || '—'}</b> — ${r.n_articoli || 0} pezzi.${warn}`;
+      rfqFile = null;
+      document.getElementById('rfq-input').value = '';
+      document.getElementById('rfq-status').textContent = '';
+      // btn resta disabilitato finché non si sceglie un nuovo file
+    } else {
+      msg.className = 'message active error';
+      msg.textContent = '✗ ' + (r.error || 'Errore imprevisto');
+      btn.disabled = false;
+    }
+  } catch (e) {
+    msg.className = 'message active error';
+    msg.textContent = '✗ Errore di rete: ' + e.message;
+    btn.disabled = false;
+  }
+}
 
 // PDF File Input Handler
 document.getElementById('pdf-input').addEventListener('change', async (e) => {

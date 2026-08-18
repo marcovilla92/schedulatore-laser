@@ -272,6 +272,9 @@ class Preventivo(Base):
     data_creazione = Column(DateTime, nullable=False, default=datetime.utcnow)
     note = Column(Text, nullable=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
+    # True = richiesta caricata da Elena (Impiegata), in attesa di prezzatura dal
+    # commerciale. Marcatore d'origine: il badge "da prezzare" si mostra finché è BOZZA.
+    da_prezzare = Column(Boolean, nullable=False, default=False)
 
 
 class PreventivoArticolo(Base):
@@ -666,5 +669,14 @@ def initialize_database():
                 conn.execute(text('ALTER TABLE preventivo_articoli ADD COLUMN canonical_dxf_sha256 VARCHAR'))
                 logger.info('Aggiunta colonna canonical_dxf_sha256 a preventivo_articoli')
             conn.commit()
+
+    # Migrazione: intake richieste da Elena su preventivi (2026-08-18)
+    if 'preventivi' in insp.get_table_names():
+        existing_prev = [c['name'] for c in insp.get_columns('preventivi')]
+        if 'da_prezzare' not in existing_prev:
+            with engine.connect() as conn:
+                conn.execute(text('ALTER TABLE preventivi ADD COLUMN da_prezzare BOOLEAN DEFAULT 0'))
+                conn.commit()
+                logger.info('Aggiunta colonna da_prezzare a preventivi')
 
     seed_users()
