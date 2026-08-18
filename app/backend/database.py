@@ -4432,6 +4432,38 @@ class PreventivoManager:
             session.close()
 
     @staticmethod
+    def set_email_inviata(preventivo_id, to_addr):
+        """Registra l'invio email (indirizzo + timestamp). Metadato sull'invio:
+        consentito anche su preventivo INVIATO (non è contenuto del preventivo)."""
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(Preventivo.id == preventivo_id).first()
+            if not p:
+                return None
+            p.email_cliente = (to_addr or '').strip() or None
+            p.email_inviata_il = datetime.utcnow()
+            session.commit()
+            return PreventivoManager._serialize(p)
+        finally:
+            session.close()
+
+    @staticmethod
+    def ultima_email_cliente(cliente):
+        """Ultimo indirizzo email usato per un cliente (match esatto sul nome),
+        per riproporlo agli invii successivi. None se mai inviato."""
+        if not cliente:
+            return None
+        session = get_session()
+        try:
+            p = session.query(Preventivo).filter(
+                Preventivo.cliente == cliente.strip(),
+                Preventivo.email_cliente.isnot(None),
+            ).order_by(Preventivo.email_inviata_il.desc()).first()
+            return p.email_cliente if p else None
+        finally:
+            session.close()
+
+    @staticmethod
     def soft_delete(preventivo_id):
         session = get_session()
         try:
@@ -4829,6 +4861,8 @@ class PreventivoManager:
             'data_creazione': p.data_creazione.isoformat() if p.data_creazione else None,
             'note': p.note,
             'da_prezzare': bool(getattr(p, 'da_prezzare', False)),
+            'email_cliente': getattr(p, 'email_cliente', None),
+            'email_inviata_il': (p.email_inviata_il.isoformat() if getattr(p, 'email_inviata_il', None) else None),
         }
 
     @staticmethod

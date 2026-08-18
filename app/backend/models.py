@@ -275,6 +275,9 @@ class Preventivo(Base):
     # True = richiesta caricata da Elena (Impiegata), in attesa di prezzatura dal
     # commerciale. Marcatore d'origine: il badge "da prezzare" si mostra finché è BOZZA.
     da_prezzare = Column(Boolean, nullable=False, default=False)
+    # Tracciamento invio email al cliente (indirizzo usato + quando).
+    email_cliente = Column(String, nullable=True)
+    email_inviata_il = Column(DateTime, nullable=True)
 
 
 class PreventivoArticolo(Base):
@@ -673,10 +676,16 @@ def initialize_database():
     # Migrazione: intake richieste da Elena su preventivi (2026-08-18)
     if 'preventivi' in insp.get_table_names():
         existing_prev = [c['name'] for c in insp.get_columns('preventivi')]
-        if 'da_prezzare' not in existing_prev:
-            with engine.connect() as conn:
+        with engine.connect() as conn:
+            if 'da_prezzare' not in existing_prev:
                 conn.execute(text('ALTER TABLE preventivi ADD COLUMN da_prezzare BOOLEAN DEFAULT 0'))
-                conn.commit()
                 logger.info('Aggiunta colonna da_prezzare a preventivi')
+            if 'email_cliente' not in existing_prev:
+                conn.execute(text('ALTER TABLE preventivi ADD COLUMN email_cliente VARCHAR'))
+                logger.info('Aggiunta colonna email_cliente a preventivi')
+            if 'email_inviata_il' not in existing_prev:
+                conn.execute(text('ALTER TABLE preventivi ADD COLUMN email_inviata_il DATETIME'))
+                logger.info('Aggiunta colonna email_inviata_il a preventivi')
+            conn.commit()
 
     seed_users()

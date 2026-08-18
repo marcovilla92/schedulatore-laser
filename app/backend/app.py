@@ -4650,6 +4650,17 @@ def api_preventivi_email_config():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/preventivi/ultima-email-cliente', methods=['GET'])
+def api_preventivi_ultima_email_cliente():
+    """Ultimo indirizzo email usato per un cliente, per riproporlo all'invio."""
+    try:
+        cliente = request.args.get('cliente', '')
+        return jsonify({'success': True, 'email': PreventivoManager.ultima_email_cliente(cliente)}), 200
+    except Exception as e:
+        logger.exception('ultima-email-cliente failed')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/preventivi/<preventivo_id>/invia-email', methods=['POST'])
 def api_preventivi_invia_email(preventivo_id):
     """Spedisce il PDF cliente via email e, se il preventivo è BOZZA, lo porta a
@@ -4714,6 +4725,10 @@ def api_preventivi_invia_email(preventivo_id):
             result = PreventivoManager.transition_status(preventivo_id, 'INVIATO', user_id=user_id)
             if isinstance(result, dict) and not result.get('error'):
                 preventivo = result
+        # Registra destinatario + timestamp (anche su INVIATO: è metadato d'invio).
+        aggiornato = PreventivoManager.set_email_inviata(preventivo_id, to_addr)
+        if aggiornato:
+            preventivo = aggiornato
         try:
             AuditManager.log(user_id=user_id, action='EMAIL_PREVENTIVO',
                              entity_type='preventivi', entity_id=preventivo_id,

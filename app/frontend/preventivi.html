@@ -1654,6 +1654,15 @@ tr.row-warn:hover { background: #FEF3C7; }
     </div>
   </div>
 
+  <div id="da-prezzare-banner" onclick="mostraDaPrezzare()" style="display:none; cursor:pointer;
+       background:#FFF7ED; border:1px solid #FED7AA; color:#9A3412; border-radius:10px;
+       padding:12px 16px; margin-bottom:14px; font-size:14px; font-weight:600;
+       align-items:center; gap:10px;">
+    <span style="font-size:18px;">🟠</span>
+    <span id="da-prezzare-text">Richieste da prezzare</span>
+    <span style="margin-left:auto; font-weight:700; text-decoration:underline;">Mostra →</span>
+  </div>
+
   <div class="card">
     <div class="card-header">
       <h3>Preventivi</h3>
@@ -3587,6 +3596,34 @@ async function loadList() {
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty">Errore: ${escapeHtml(e.message)}</td></tr>`;
   }
+  refreshDaPrezzareBanner();
+}
+
+/** Conta le richieste "da prezzare" (BOZZA caricate da Elena), indipendentemente
+    dai filtri attivi, e mostra il banner cliccabile. */
+async function refreshDaPrezzareBanner() {
+  const banner = document.getElementById('da-prezzare-banner');
+  if (!banner) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi?status=BOZZA&limit=500`);
+    const d = await r.json();
+    const n = (d.preventivi || []).filter(p => p.da_prezzare).length;
+    if (n > 0) {
+      document.getElementById('da-prezzare-text').textContent =
+        n === 1 ? '1 richiesta da prezzare (caricata da Elena)'
+                : `${n} richieste da prezzare (caricate da Elena)`;
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) { banner.style.display = 'none'; }
+}
+
+/** Click sul banner: imposta i filtri per mostrare le bozze da prezzare. */
+function mostraDaPrezzare() {
+  document.getElementById('filter-cliente').value = '';
+  document.getElementById('filter-status').value = 'BOZZA';
+  loadList();
 }
 
 // ============================================================
@@ -7789,7 +7826,17 @@ async function openEmailModal() {
   const az = await _ensureAziendaInfo();
   const cli = p.cliente || '';
   const num = p.numero_ordine_cliente ? ` (rif. ${p.numero_ordine_cliente})` : '';
-  document.getElementById('em-to').value = _lastEmailTo || '';
+  // Preferisci l'email già memorizzata sul preventivo, poi l'ultima usata per
+  // questo cliente, poi l'ultima della sessione.
+  let toPrefill = p.email_cliente || _lastEmailTo || '';
+  if (!toPrefill && cli) {
+    try {
+      const r = await fetch(`${API_URL}/api/preventivi/ultima-email-cliente?cliente=${encodeURIComponent(cli)}`);
+      const d = await r.json();
+      if (d && d.email) toPrefill = d.email;
+    } catch (e) { /* nessun problema: campo vuoto */ }
+  }
+  document.getElementById('em-to').value = toPrefill;
   document.getElementById('em-subject').value = `Preventivo ${az.nome || 'Carpenteria L.S.'} — ${cli}${num}`.trim();
   document.getElementById('em-message').value =
     `Buongiorno,\n\nin allegato trovate il preventivo richiesto.\n` +
@@ -8177,6 +8224,15 @@ function openRiepilogoModal() {
 }
 
 /** Timeline + banner di stato nel riepilogo (visibile quando non è BOZZA). */
+/** Formatta un timestamp ISO (UTC) in "gg/mm/aaaa alle HH:MM" ora locale. */
+function _fmtDataOraInvio(iso) {
+  if (!iso) return '';
+  const d = new Date(/[Zz]|[+\-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+  if (isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} alle ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function renderStatoBanner() {
   const host = document.getElementById('riep-stato-banner');
   if (!host) return;
@@ -8199,16 +8255,25 @@ function renderStatoBanner() {
       <div class="stato-step ${s3}"><div class="stato-dot"><i data-lucide="${ico3}"></i></div><span class="stato-lbl">${lbl3}</span></div>
     </div>`;
 
+  // Riga "inviato a X il Y" (se l'email è partita dal sistema).
+  const p = currentPreventivo || {};
+  let sentLine = '';
+  if (p.email_cliente && p.email_inviata_il) {
+    sentLine = `<div class="sb-msg" style="margin-top:4px;"><i data-lucide="mail" style="width:13px;height:13px;vertical-align:-2px;"></i> Inviato a <b>${escapeHtml(p.email_cliente)}</b> il ${_fmtDataOraInvio(p.email_inviata_il)}</div>`;
+  }
+
   let banner = '';
   if (st === 'INVIATO') {
     banner = `<div class="stato-banner inviato"><i data-lucide="send"></i><div>
       <div class="sb-title">Inviato al cliente — in attesa di risposta</div>
       <div class="sb-msg">Il preventivo è congelato (immutabile). Quando il cliente risponde: <b>Accetta</b> per creare l'ordine di produzione, oppure <b>Rifiuta</b>.</div>
+      ${sentLine}
     </div></div>`;
   } else if (st === 'ACCETTATO') {
     banner = `<div class="stato-banner accettato"><i data-lucide="check-circle-2"></i><div>
       <div class="sb-title">Accettato dal cliente — Ordine in produzione</div>
       <div class="sb-msg">È stato creato l'ordine in FerroTrack: cartellino generato e disegni passati al taglio.</div>
+      ${sentLine}
     </div></div>`;
   } else if (rejected) {
     banner = `<div class="stato-banner rifiutato"><i data-lucide="x-circle"></i><div>
