@@ -1422,19 +1422,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
     <div class="form-card">
       <div class="form-title">Nuova richiesta di preventivo</div>
       <div class="form-sub">
-        È arrivata una richiesta di preventivo da un cliente? Carica qui il pacchetto
-        (file ZIP con il PDF della richiesta e i disegni DXF). Il sistema legge i pezzi
-        e crea una bozza che va al commerciale per la quotazione.
+        È arrivata una richiesta di preventivo da un cliente? Seleziona qui i file:
+        <b>il PDF della richiesta e i disegni DXF</b> (puoi sceglierli tutti insieme).
+        Il sistema legge i pezzi e crea una bozza che va al commerciale per la quotazione.
         <b>Tu non devi prezzare né aprire i disegni</b> — pensa a tutto lui.
       </div>
 
       <div class="form-group">
-        <label class="form-label">Pacchetto richiesta (.zip)</label>
+        <label class="form-label">File della richiesta (PDF + DXF)</label>
         <div class="upload-button-wrapper">
-          <button type="button" class="upload-button upload-button-pdf" id="rfq-upload-btn" aria-label="Carica pacchetto ZIP della richiesta">
-            Scegli file ZIP
+          <button type="button" class="upload-button upload-button-pdf" id="rfq-upload-btn" aria-label="Scegli i file della richiesta">
+            Scegli i file
           </button>
-          <input type="file" id="rfq-input" accept=".zip" style="display:none;">
+          <input type="file" id="rfq-input" accept=".pdf,.dxf,.dwg,.step,.stp,.zip" multiple style="display:none;">
           <div class="upload-status" id="rfq-status"></div>
         </div>
       </div>
@@ -2169,25 +2169,40 @@ document.getElementById('pdf-upload-btn').addEventListener('click', () => {
 });
 
 // ── Richiesta preventivo: intake Elena → commerciale ──
-let rfqFile = null;
+let rfqFiles = [];
 document.getElementById('rfq-upload-btn').addEventListener('click', () => {
   document.getElementById('rfq-input').click();
 });
 document.getElementById('rfq-input').addEventListener('change', (e) => {
-  rfqFile = e.target.files[0] || null;
+  rfqFiles = Array.from(e.target.files || []);
   const st = document.getElementById('rfq-status');
-  document.getElementById('rfq-submit-btn').disabled = !rfqFile;
-  st.textContent = rfqFile ? ('✓ ' + rfqFile.name) : '';
-  st.style.display = rfqFile ? 'block' : 'none';
+  document.getElementById('rfq-submit-btn').disabled = rfqFiles.length === 0;
+  if (rfqFiles.length === 0) { st.textContent = ''; st.style.display = 'none'; return; }
+  const hasPdf = rfqFiles.some(f => /\.pdf$/i.test(f.name));
+  const nDxf = rfqFiles.filter(f => /\.(dxf|dwg)$/i.test(f.name)).length;
+  const isZip = rfqFiles.length === 1 && /\.zip$/i.test(rfqFiles[0].name);
+  let txt = `✓ ${rfqFiles.length} file selezionat${rfqFiles.length === 1 ? 'o' : 'i'}`;
+  if (!isZip) {
+    txt += ` — ${hasPdf ? 'PDF ok' : '⚠ manca il PDF'}, ${nDxf} DXF`;
+  }
+  st.innerHTML = txt;
+  st.style.display = 'block';
 });
 
 async function submitRichiestaPreventivo() {
   const msg = document.getElementById('rfq-message');
   const btn = document.getElementById('rfq-submit-btn');
-  if (!rfqFile) return;
+  if (!rfqFiles.length) return;
   if (!currentUser || !currentUser.id) {
     msg.className = 'message active error';
     msg.textContent = '✗ Utente non riconosciuto, rifai il login.';
+    return;
+  }
+  // Avviso morbido se manca un PDF (a meno che sia uno ZIP che lo contiene).
+  const isZip = rfqFiles.length === 1 && /\.zip$/i.test(rfqFiles[0].name);
+  if (!isZip && !rfqFiles.some(f => /\.pdf$/i.test(f.name))) {
+    msg.className = 'message active error';
+    msg.textContent = '✗ Manca il PDF della richiesta: seleziona anche il PDF, non solo i DXF.';
     return;
   }
   msg.className = 'message active';
@@ -2195,7 +2210,7 @@ async function submitRichiestaPreventivo() {
   btn.disabled = true;
   try {
     const fd = new FormData();
-    fd.append('zip', rfqFile);
+    for (const f of rfqFiles) fd.append('files', f);
     fd.append('admin_id', currentUser.id);
     const resp = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, { method: 'POST', body: fd });
     const r = await resp.json();
@@ -2204,10 +2219,10 @@ async function submitRichiestaPreventivo() {
       const warn = (r.warnings && r.warnings.length)
         ? `<br><small style="font-weight:500;">${r.warnings.map(w => '• ' + w).join('<br>')}</small>` : '';
       msg.innerHTML = `✓ Richiesta inviata al commerciale.<br>Cliente: <b>${r.cliente || '—'}</b> — ${r.n_articoli || 0} pezzi.${warn}`;
-      rfqFile = null;
+      rfqFiles = [];
       document.getElementById('rfq-input').value = '';
       document.getElementById('rfq-status').textContent = '';
-      // btn resta disabilitato finché non si sceglie un nuovo file
+      // btn resta disabilitato finché non si scelgono nuovi file
     } else {
       msg.className = 'message active error';
       msg.textContent = '✗ ' + (r.error || 'Errore imprevisto');

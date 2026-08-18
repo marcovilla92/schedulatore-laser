@@ -2317,12 +2317,31 @@ def api_preventivi_import_rfq_package():
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         _caller = UserManager.get_user(admin_id) or {}
         is_intake_elena = (_caller.get('role') == 'Impiegata')
+
+        # Accetta sia uno ZIP (campo "zip", flusso commerciale) sia file SCIOLTI
+        # (campo "files": PDF della richiesta + DXF). I file sciolti vengono
+        # impacchettati in uno ZIP in memoria e passati alla stessa pipeline.
         f = request.files.get('zip')
-        if not f:
-            return jsonify({'success': False, 'error': 'File ZIP mancante (campo "zip")'}), 400
-        zip_bytes = f.read()
+        loose = [x for x in request.files.getlist('files') if x and x.filename]
+        if f and f.filename:
+            zip_bytes = f.read()
+        elif len(loose) == 1 and loose[0].filename.lower().endswith('.zip'):
+            zip_bytes = loose[0].read()
+        elif loose:
+            import io as _io
+            import zipfile as _zipfile
+            buf = _io.BytesIO()
+            with _zipfile.ZipFile(buf, 'w', _zipfile.ZIP_DEFLATED) as zf:
+                for uf in loose:
+                    data = uf.read()
+                    if data:
+                        zf.writestr(os.path.basename(uf.filename), data)
+            zip_bytes = buf.getvalue()
+        else:
+            return jsonify({'success': False, 'error': 'Nessun file: carica il PDF della richiesta e i DXF (oppure uno ZIP)'}), 400
+        f = (f if (f and f.filename) else (loose[0] if loose else None))  # nome per la nota "importato da …"
         if not zip_bytes:
-            return jsonify({'success': False, 'error': 'ZIP vuoto'}), 400
+            return jsonify({'success': False, 'error': 'File vuoto'}), 400
 
         # 1. Pipeline AI extraction
         result = rfq_importer.process_rfq_package(zip_bytes)
