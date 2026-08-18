@@ -4834,7 +4834,9 @@ def api_preventivi_accetta(preventivo_id):
     try:
         data = request.get_json(silent=True) or {}
         user_id = data.get('user_id') or ''
-        if not _require_role(user_id, _PREV_WRITE_ROLES):
+        # Anche l'Impiegata (Elena) conferma: è lei che vede la risposta via mail
+        # del cliente e fa partire il ciclo produttivo.
+        if not _require_role(user_id, _PREV_WRITE_ROLES + ['Impiegata']):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         # Se il payload include articoli override, prima li salva così la validazione
         # server-side controlla lo stato AGGIORNATO (evita race con edit non salvato).
@@ -4898,7 +4900,8 @@ def api_preventivi_rifiuta(preventivo_id):
     try:
         data = request.get_json(silent=True) or {}
         user_id = data.get('user_id') or ''
-        if not _require_role(user_id, _PREV_WRITE_ROLES):
+        # Anche l'Impiegata (Elena) può rifiutare: vede la risposta del cliente.
+        if not _require_role(user_id, _PREV_WRITE_ROLES + ['Impiegata']):
             return jsonify({'success': False, 'error': 'Permesso negato'}), 403
         result = PreventivoManager.transition_status(preventivo_id, 'RIFIUTATO', user_id=user_id)
         if result is None:

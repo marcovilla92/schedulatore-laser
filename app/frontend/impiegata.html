@@ -1355,6 +1355,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 <div class="tab-bar">
   <div class="tab-item active" data-tab="carica" onclick="switchTab('carica')">Carica Ordine</div>
   <div class="tab-item" data-tab="richiesta" onclick="switchTab('richiesta')">Richiesta Preventivo</div>
+  <div class="tab-item" data-tab="conferme" onclick="switchTab('conferme')">Da confermare <span class="fatt-badge" id="conferme-badge" style="display:none;">0</span></div>
   <div class="tab-item" data-tab="calendario" onclick="switchTab('calendario')">Calendario</div>
   <div class="tab-item" data-tab="ordini" onclick="switchTab('ordini')">Ordini</div>
   <div class="tab-item" data-tab="officina-live" onclick="switchTab('officina-live')">Stato Officina <span class="live-dot" id="live-dot" style="display:none;"></span></div>
@@ -1441,6 +1442,22 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 
       <div id="rfq-message" class="message"></div>
       <button class="btn-submit" id="rfq-submit-btn" onclick="submitRichiestaPreventivo()" disabled>Invia al commerciale</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TAB: DA CONFERMARE ===================== -->
+<div class="tab-panel" id="panel-conferme">
+  <div class="carica-body">
+    <div class="form-card" style="max-width:none;">
+      <div class="form-title">Preventivi da confermare</div>
+      <div class="form-sub">
+        Quando il cliente conferma via mail, premi <b>Conferma ordine</b>: parte la produzione
+        (cartellino + disegni all'officina, capi avvisati). Se il cliente rifiuta, premi <b>Rifiuta</b>.
+      </div>
+      <div id="conferme-list" style="margin-top:16px;">
+        <div style="padding:24px; text-align:center; color:var(--gray-muted);">Caricamento…</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1971,11 +1988,85 @@ function switchTab(tabId) {
   panel.classList.add('active');
   panel.style.animation = 'tabFadeIn 0.2s ease-out';
   if (tabId === 'calendario') loadCalendar();
+  if (tabId === 'conferme') loadConferme();
   if (tabId === 'ordini') loadOrdersList();
   if (tabId === 'fatturare') loadFatturare();
   if (tabId === 'archivio') { loadArchiveFilters(); loadArchive(); }
   if (tabId === 'backup') { loadBackupSettings(); loadBackupList(); }
   if (tabId === 'officina-live') { startLivePolling(); } else { stopLivePolling(); }
+}
+
+// ===========================
+// TAB: DA CONFERMARE (preventivi inviati → conferma/rifiuta cliente)
+// ===========================
+let _confermeItems = [];
+
+async function loadConferme() {
+  const host = document.getElementById('conferme-list');
+  if (!host) return;
+  host.innerHTML = '<div style="padding:24px; text-align:center; color:var(--gray-muted);">Caricamento…</div>';
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi?status=INVIATO&limit=200`);
+    const d = await r.json();
+    _confermeItems = d.preventivi || [];
+    updateConfermeBadge(_confermeItems.length);
+    if (!_confermeItems.length) {
+      host.innerHTML = '<div style="padding:28px; text-align:center; color:var(--gray-muted);">Nessun preventivo in attesa di conferma.</div>';
+      return;
+    }
+    host.innerHTML = _confermeItems.map(confermaRowHtml).join('');
+  } catch (e) {
+    host.innerHTML = `<div style="padding:24px; text-align:center; color:#991b1b;">Errore: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function confermaRowHtml(p) {
+  const tot = (p.totale_lotto != null && p.totale_lotto > 0)
+    ? Number(p.totale_lotto).toFixed(2).replace('.', ',') + ' €' : '—';
+  const num = p.numero_ordine_cliente || '—';
+  const inviato = p.email_inviata_il ? (' · inviato ' + new Date(/[Zz]$/.test(p.email_inviata_il) ? p.email_inviata_il : p.email_inviata_il + 'Z').toLocaleDateString('it-IT')) : '';
+  return `<div style="display:flex; align-items:center; gap:14px; padding:14px 16px; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; background:#fff;">
+    <div style="flex:1; min-width:0;">
+      <div style="font-weight:700;">${escapeHtml(p.cliente || '—')}</div>
+      <div style="font-size:12px; color:var(--gray-muted);">Ord. ${escapeHtml(num)} · ${tot}${inviato}</div>
+    </div>
+    <button class="btn-submit" style="width:auto; padding:9px 16px; margin:0;" onclick="confermaPreventivo('${p.id}')">Conferma ordine</button>
+    <button class="upload-button" style="padding:9px 14px; background:#fff; color:#991b1b; border:1px solid #fca5a5;" onclick="rifiutaPreventivoImp('${p.id}')">Rifiuta</button>
+  </div>`;
+}
+
+function updateConfermeBadge(n) {
+  const b = document.getElementById('conferme-badge');
+  if (!b) return;
+  if (n > 0) { b.textContent = n; b.style.display = ''; } else b.style.display = 'none';
+}
+
+async function confermaPreventivo(id) {
+  const p = _confermeItems.find(x => x.id === id) || {};
+  if (!confirm(`Confermare il preventivo di ${p.cliente || 'questo cliente'}?\n\nVerrà creato l'ordine in produzione (cartellino + disegni all'officina).`)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${id}/accetta`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id }),
+    });
+    const d = await r.json();
+    if (d.success) { showMessage('✓ Ordine creato in produzione', 'success'); loadConferme(); }
+    else showMessage('Errore: ' + (d.error || 'sconosciuto'), 'error');
+  } catch (e) { showMessage('Errore: ' + e.message, 'error'); }
+}
+
+async function rifiutaPreventivoImp(id) {
+  const p = _confermeItems.find(x => x.id === id) || {};
+  if (!confirm(`Segnare come RIFIUTATO il preventivo di ${p.cliente || 'questo cliente'}?`)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/${id}/rifiuta`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id }),
+    });
+    const d = await r.json();
+    if (d.success) { showMessage('Preventivo rifiutato', 'success'); loadConferme(); }
+    else showMessage('Errore: ' + (d.error || 'sconosciuto'), 'error');
+  } catch (e) { showMessage('Errore: ' + e.message, 'error'); }
 }
 
 // ===========================
