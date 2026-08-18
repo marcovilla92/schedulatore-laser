@@ -485,10 +485,14 @@ body.focus-mode .page-wrap { padding-top: 8px !important; padding-bottom: 0 !imp
    In focus mode la tabbar è nascosta → riduco a 68px (topbar fixed 60 + gap 8)
    per recuperare ~60px sprecati. */
 body.focus-mode #panel-editor { margin-top: 68px !important; }
-/* Split view espansa: 100vh - topbar (60) - card-header (46) - padding (20) — bottom bar rimossa */
+/* In focus (prezzatura) la PAGINA non deve mai scrollare: solo i pannelli interni
+   (lista pezzi a sx, dettagli a dx) hanno il loro scroll. Lo scroll di root avviene
+   su <html>, quindi lo blocco lì con :has() (oltre che su body). */
+html:has(body.focus-mode), body.focus-mode { overflow: hidden; }
+/* Split view espansa: riempie il viewport dall'alto (top ~103px) fino in fondo. */
 body.focus-mode .split-view {
-  height: calc(100vh - 130px) !important;
-  min-height: 500px;
+  height: calc(100vh - 115px) !important;
+  min-height: 360px;
 }
 /* Card articoli header più compatto in focus */
 body.focus-mode #card-articoli .card-header { padding: 8px 14px; }
@@ -934,13 +938,13 @@ tr.row-warn:hover { background: #FEF3C7; }
   position: relative;
   border: 2px dashed #C4B5FD;
   border-radius: 14px;
-  padding: 24px;
-  margin-bottom: 20px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
   background: linear-gradient(135deg, rgba(124,58,237,0.04) 0%, rgba(79,70,229,0.06) 100%);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
   text-align: center;
-  min-height: 130px;
+  min-height: 84px;
   display: flex; align-items: center; justify-content: center;
 }
 .rfq-dropzone:hover, .rfq-dropzone.dragover {
@@ -959,10 +963,10 @@ tr.row-warn:hover { background: #FEF3C7; }
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .rfq-icon {
-  width: 44px; height: 44px; border-radius: 50%;
+  width: 34px; height: 34px; border-radius: 50%;
   background: rgba(124,58,237,0.15);
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .rfq-title {
   font-family: 'Geist'; font-weight: 700; font-size: 15px;
@@ -1206,7 +1210,8 @@ tr.row-warn:hover { background: #FEF3C7; }
      strumento principale per le lavorazioni). */
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 0;
-  min-height: 640px;
+  /* min-height basso: su schermi corti scrolla il pannello interno, non la pagina. */
+  min-height: 360px;
   /* Espande al massimo dello viewport disponibile (topbar+tabbar+compact ~180px) */
   height: calc(100vh - 200px);
   max-height: none;
@@ -1609,16 +1614,15 @@ tr.row-warn:hover { background: #FEF3C7; }
        ondragover="_rfqDragOver(event)" ondragleave="_rfqDragLeave(event)"
        ondrop="_rfqDrop(event)"
        onclick="document.getElementById('rfq-file-input').click()">
-    <input type="file" id="rfq-file-input" accept=".zip,application/zip" style="display:none;"
+    <input type="file" id="rfq-file-input" accept=".zip,.pdf,.dxf,.dwg,.step,.stp" multiple style="display:none;"
            onchange="_rfqFileSelected(event)">
     <div class="rfq-dropzone-inner" id="rfq-dropzone-inner">
       <div class="rfq-icon">
-        <i data-lucide="sparkles" style="width:22px;height:22px;color:#7C3AED;"></i>
+        <i data-lucide="sparkles" style="width:20px;height:20px;color:#7C3AED;"></i>
       </div>
       <div class="rfq-title">Importa richiesta cliente con AI</div>
       <div class="rfq-sub">
-        Trascina qui il file <b>ZIP</b> con PDF ordine + cartella DXF.
-        <br>L'AI (Gemini) leggerà il PDF, matcherà i disegni e creerà un preventivo BOZZA pre-compilato.
+        Trascina i file della richiesta — <b>PDF + DXF</b> (o un unico ZIP). L'AI legge il PDF, abbina i disegni e crea una bozza pre-compilata.
       </div>
     </div>
     <div class="rfq-dropzone-loading" id="rfq-dropzone-loading" style="display:none;">
@@ -2814,7 +2818,7 @@ tr.row-warn:hover { background: #FEF3C7; }
       </div>
       <div class="form-field" style="margin-bottom:12px;">
         <label>Messaggio</label>
-        <textarea id="em-message" rows="5"></textarea>
+        <textarea id="em-message" rows="9"></textarea>
       </div>
       <div class="form-msg" id="msg-email"></div>
     </div>
@@ -3261,13 +3265,13 @@ function _rfqDragLeave(e) {
 function _rfqDrop(e) {
   e.preventDefault(); e.stopPropagation();
   document.getElementById('rfq-dropzone').classList.remove('dragover');
-  const file = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (file) _rfqUpload(file);
+  const files = Array.from(e.dataTransfer.files || []);
+  if (files.length) _rfqUpload(files);
 }
 function _rfqFileSelected(e) {
-  const file = e.target.files && e.target.files[0];
-  if (file) _rfqUpload(file);
-  e.target.value = '';  // reset per permettere ri-selezione stesso file
+  const files = Array.from(e.target.files || []);
+  if (files.length) _rfqUpload(files);
+  e.target.value = '';  // reset per permettere ri-selezione stessi file
 }
 
 // ── Overlay "cinema": costruito on-demand, riusato tra un import e l'altro ──
@@ -3320,14 +3324,19 @@ async function _rfqOpenCreated(pid) {
   if (pid) await openPreventivo(pid);
 }
 
-async function _rfqUpload(file) {
-  // Sanity: solo ZIP
-  const isZip = /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
-  if (!isZip) {
-    appAlert('Serve un file ZIP contenente PDF ordine + cartella DXF.\n\nComprimi la cartella dell\'email cliente (Windows: click destro → Invia a → Cartella compressa) e trascina qui il .zip risultante.');
-    return;
+async function _rfqUpload(files) {
+  // Accetta un singolo ZIP OPPURE file sciolti (PDF della richiesta + DXF).
+  files = Array.isArray(files) ? files : [files];
+  const isSingleZip = files.length === 1 && (/\.zip$/i.test(files[0].name)
+    || files[0].type === 'application/zip' || files[0].type === 'application/x-zip-compressed');
+  if (!isSingleZip) {
+    const hasPdf = files.some(f => /\.pdf$/i.test(f.name));
+    if (!hasPdf) {
+      appAlert('Manca il PDF della richiesta.\n\nSeleziona (o trascina) il PDF della richiesta cliente insieme ai disegni DXF. In alternativa carica un unico file ZIP.');
+      return;
+    }
   }
-  const sizeMb = file.size / (1024 * 1024);
+  const sizeMb = files.reduce((s, f) => s + f.size, 0) / (1024 * 1024);
   if (sizeMb > 100) {
     if (!await appConfirm(`Il file è ${sizeMb.toFixed(1)}MB, l'upload potrebbe richiedere minuti. Procedere?`)) return;
   }
@@ -3365,7 +3374,8 @@ async function _rfqUpload(file) {
 
   try {
     const fd = new FormData();
-    fd.append('zip', file);
+    if (isSingleZip) fd.append('zip', files[0]);
+    else for (const f of files) fd.append('files', f);
     fd.append('admin_id', currentUser.id);
     const r = await fetch(`${API_URL}/api/preventivi/import-rfq-package`, { method: 'POST', body: fd });
     const d = await r.json();
@@ -4237,7 +4247,7 @@ function _storicoBadgeHtml(a) {
     + (diverge ? ` — ATTENZIONE: ora ${formatEurStr(cur)}` : '');
   const cls = diverge ? 'st-badge-row diverge' : 'st-badge-row';
   const txt = diverge
-    ? `⚠ già prezzato ${formatEurStr(s.ultimo_costo)}`
+    ? `⚠ prezzo cambiato · prima ${formatEurStr(s.ultimo_costo)}`
     : `🕘 già prezzato ${formatEurStr(s.ultimo_costo)}`;
   return `<span class="${cls}" title="${escapeHtml(title)}">${txt}</span>`;
 }
@@ -4342,6 +4352,12 @@ function renderSplitTree() {
   // Se c'è una selezione, mantienila
   if (_splitSelectedIdx != null && currentArticoli[_splitSelectedIdx]) {
     _highlightSplitRow(_splitSelectedIdx);
+  } else if (_splitSelectedIdx == null && currentArticoli.length) {
+    // Auto-seleziona il primo pezzo: riempe subito il pannello destro invece di
+    // lasciarlo vuoto ("clicca un articolo…"). Il primo standalone, o l'indice 0.
+    let first = currentArticoli.findIndex(a => !a.codice_assieme);
+    if (first < 0) first = 0;
+    selectSplitArticolo(first);
   }
   // Badge 3D + cache calda anche nella vista split (il re-render azzera le classi)
   try { _applyFoldBadges(); _enrichFoldBadges(); } catch (_) {}
