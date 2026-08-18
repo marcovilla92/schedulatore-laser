@@ -140,6 +140,28 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 }
 .page-sub { font-size: 14px; color: var(--text-2); margin-bottom: 28px; line-height: 1.5; }
 
+/* HERO — intestazione curata della schermata principale */
+.hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-top: 4px; }
+.hero-greeting {
+  font-family: 'Geist'; font-weight: 800; font-size: 30px; letter-spacing: -0.8px;
+  color: var(--text); line-height: 1.1; margin: 0;
+}
+.hero-summary { font-size: 14px; color: var(--text-2); margin: 8px 0 0; line-height: 1.5; }
+.hero-summary .hero-accent {
+  color: var(--orange); font-weight: 700; cursor: pointer; text-decoration: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--orange) 45%, transparent);
+}
+.hero-summary .hero-accent:hover { border-bottom-style: solid; }
+.hero-right { flex: 0 0 auto; padding-bottom: 2px; }
+.hero-divider {
+  height: 1px; margin: 20px 0 24px;
+  background: linear-gradient(90deg, var(--border-2) 0%, var(--border-2) 60%, transparent 100%);
+}
+@media (max-width: 720px) {
+  .hero { flex-direction: column; align-items: stretch; gap: 12px; }
+  .hero-right { align-self: flex-start; }
+}
+
 /* CARDS - Premium Light (no border, shadow raise on hover) */
 .card {
   background: var(--white); border-radius: var(--r-lg);
@@ -1605,8 +1627,16 @@ tr.row-warn:hover { background: #FEF3C7; }
 
 <!-- ===================== PANEL: STORICO ===================== -->
 <div class="panel active" id="panel-storico">
-  <h2 class="page-title">Storico preventivi</h2>
-  <p class="page-sub">Lista preventivi recenti. Click su una riga per aprirla nell'editor.</p>
+  <div class="hero">
+    <div class="hero-left">
+      <h2 class="hero-greeting" id="hero-greeting">Buongiorno</h2>
+      <p class="hero-summary" id="hero-summary">Caricamento…</p>
+    </div>
+    <div class="hero-right">
+      <button class="btn-primary" onclick="newPreventivo()">+ Nuovo preventivo</button>
+    </div>
+  </div>
+  <div class="hero-divider"></div>
 
   <!-- ✨ AI RFQ IMPORTER: trascina qui il pacchetto ZIP dal cliente (PDF ordine + cartella DXF)
        L'AI legge il PDF, matcha i disegni e crea un preventivo BOZZA pre-compilato. -->
@@ -1635,7 +1665,6 @@ tr.row-warn:hover { background: #FEF3C7; }
   <div class="card">
     <div class="card-header">
       <h3>Filtri</h3>
-      <button class="btn-primary" onclick="newPreventivo()">+ Nuovo preventivo</button>
     </div>
     <div class="card-body">
       <div class="form-row">
@@ -2873,6 +2902,7 @@ window.addEventListener('load', () => {
   av.style.background = colorFromName(user.name);
   document.getElementById('user-pill-name').textContent = user.name || 'Commerciale';
   document.getElementById('user-pill-role').textContent = user.role || 'Commerciale';
+  renderHeroGreeting();
   if (window.lucide) lucide.createIcons();
   switchTab('storico');
   // Prefetch coefficienti globali per calcolo costi lavorazioni live
@@ -3636,24 +3666,52 @@ async function loadList() {
   refreshDaPrezzareBanner();
 }
 
-/** Conta le richieste "da prezzare" (BOZZA caricate da Elena), indipendentemente
-    dai filtri attivi, e mostra il banner cliccabile. */
+/** Saluto personale nell'header, in base all'ora + nome dal login. */
+function renderHeroGreeting() {
+  const el = document.getElementById('hero-greeting');
+  if (!el) return;
+  const h = new Date().getHours();
+  const saluto = h < 13 ? 'Buongiorno' : (h < 18 ? 'Buon pomeriggio' : 'Buonasera');
+  const nome = ((currentUser && currentUser.name) || '').trim().split(' ')[0];
+  el.textContent = nome ? `${saluto}, ${nome}` : saluto;
+}
+
+/** Riga di sintesi della pipeline nell'header (testo discreto) + banner
+    "da prezzare". Una sola fetch su TUTTI i preventivi (non i filtrati). */
 async function refreshDaPrezzareBanner() {
   const banner = document.getElementById('da-prezzare-banner');
-  if (!banner) return;
+  const summary = document.getElementById('hero-summary');
   try {
-    const r = await fetch(`${API_URL}/api/preventivi?status=BOZZA&limit=500`);
+    const r = await fetch(`${API_URL}/api/preventivi?limit=500`);
     const d = await r.json();
-    const n = (d.preventivi || []).filter(p => p.da_prezzare).length;
-    if (n > 0) {
-      document.getElementById('da-prezzare-text').textContent =
-        n === 1 ? '1 richiesta da prezzare (caricata da Elena)'
-                : `${n} richieste da prezzare (caricate da Elena)`;
-      banner.style.display = 'flex';
-    } else {
-      banner.style.display = 'none';
+    const items = d.preventivi || [];
+    const total = items.length;
+    const daPrezzare = items.filter(p => p.status === 'BOZZA' && p.da_prezzare).length;
+    const bozze = items.filter(p => p.status === 'BOZZA').length;
+    const inviati = items.filter(p => p.status === 'INVIATO').length;
+    // Riga di sintesi: testo sobrio; "da prezzare" è l'unico accento cliccabile.
+    if (summary) {
+      const parts = [
+        `<b>${total}</b> ${total === 1 ? 'preventivo' : 'preventivi'}`,
+        `${inviati} in attesa`,
+        `${bozze} ${bozze === 1 ? 'bozza' : 'bozze'}`,
+      ];
+      if (daPrezzare > 0) {
+        parts.push(`<span class="hero-accent" onclick="mostraDaPrezzare()">${daPrezzare} da prezzare</span>`);
+      }
+      summary.innerHTML = parts.join(' &nbsp;·&nbsp; ');
     }
-  } catch (e) { banner.style.display = 'none'; }
+    if (banner) {
+      if (daPrezzare > 0) {
+        document.getElementById('da-prezzare-text').textContent =
+          daPrezzare === 1 ? '1 richiesta da prezzare (caricata da Elena)'
+                           : `${daPrezzare} richieste da prezzare (caricate da Elena)`;
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  } catch (e) { if (banner) banner.style.display = 'none'; }
 }
 
 /** Click sul banner: imposta i filtri per mostrare le bozze da prezzare. */
