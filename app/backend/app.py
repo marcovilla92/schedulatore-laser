@@ -4594,11 +4594,38 @@ def _genera_pdf_cliente_bytes(p: dict) -> tuple[bytes, str]:
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 
+def _azienda_info() -> dict:
+    """Dati azienda (per firma email / intestazioni), da app_config.json."""
+    cfg = BarcodeManager.load_config() or {}
+    return cfg.get('azienda') or {}
+
+
+def _firma_email() -> str:
+    """Firma testuale per le email, costruita dai dati azienda in config."""
+    az = _azienda_info()
+    nome = az.get('nome') or 'Carpenteria L.S. S.r.l.'
+    righe = [nome]
+    if az.get('indirizzo'):
+        righe.append(az['indirizzo'])
+    contatti = []
+    if az.get('telefono'):
+        contatti.append('Tel. ' + str(az['telefono']))
+    if az.get('email'):
+        contatti.append(str(az['email']))
+    if contatti:
+        righe.append(' — '.join(contatti))
+    return '\n'.join(righe)
+
+
 @app.route('/api/preventivi/email-config', methods=['GET'])
 def api_preventivi_email_config():
-    """Stato (non sensibile) della config SMTP, per la UI di invio."""
+    """Stato (non sensibile) della config SMTP + dati azienda (per firma), per la UI."""
     try:
-        return jsonify({'success': True, **_email_sender.config_summary()}), 200
+        return jsonify({
+            'success': True,
+            **_email_sender.config_summary(),
+            'azienda': _azienda_info(),
+        }), 200
     except Exception as e:
         logger.exception('email-config failed')
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -4651,8 +4678,9 @@ def api_preventivi_invia_email(preventivo_id):
         pdf_bytes, pdf_name = _genera_pdf_cliente_bytes(p)
         subject = (data.get('subject') or '').strip() or f"Preventivo {p.get('cliente') or ''}".strip()
         message = (data.get('message') or '').strip() or (
-            f"Buongiorno,\n\nin allegato trovate il preventivo richiesto.\n"
-            f"Restiamo a disposizione per qualsiasi chiarimento.\n\nCordiali saluti"
+            "Buongiorno,\n\nin allegato trovate il preventivo richiesto.\n"
+            "Restiamo a disposizione per qualsiasi chiarimento.\n\nCordiali saluti\n"
+            + _firma_email()
         )
         ok, err = _email_sender.send_email(
             to_addr, subject, message,

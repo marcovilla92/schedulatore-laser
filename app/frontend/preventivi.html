@@ -7755,16 +7755,46 @@ async function inviaPreventivo() {
   openEmailModal();
 }
 
-function openEmailModal() {
+// Dati azienda per la firma email (caricati una volta da /email-config).
+let _aziendaInfo = null;
+const _AZIENDA_FALLBACK = {
+  nome: 'Carpenteria L.S. S.r.l.',
+  indirizzo: 'Via Baselone 18, 23862 Civate (LC)',
+  telefono: '0341/210285',
+  email: 'info@carpenterials.it',
+};
+async function _ensureAziendaInfo() {
+  if (_aziendaInfo) return _aziendaInfo;
+  try {
+    const r = await fetch(`${API_URL}/api/preventivi/email-config`);
+    const d = await r.json();
+    _aziendaInfo = (d && d.azienda && d.azienda.nome) ? d.azienda : _AZIENDA_FALLBACK;
+  } catch (e) { _aziendaInfo = _AZIENDA_FALLBACK; }
+  return _aziendaInfo;
+}
+function _firmaEmail(az) {
+  const a = az || _aziendaInfo || _AZIENDA_FALLBACK;
+  const righe = [a.nome || _AZIENDA_FALLBACK.nome];
+  if (a.indirizzo) righe.push(a.indirizzo);
+  const contatti = [];
+  if (a.telefono) contatti.push('Tel. ' + a.telefono);
+  if (a.email) contatti.push(a.email);
+  if (contatti.length) righe.push(contatti.join(' — '));
+  return righe.join('\n');
+}
+
+async function openEmailModal() {
   const p = currentPreventivo;
   if (!p) return;
+  const az = await _ensureAziendaInfo();
   const cli = p.cliente || '';
   const num = p.numero_ordine_cliente ? ` (rif. ${p.numero_ordine_cliente})` : '';
   document.getElementById('em-to').value = _lastEmailTo || '';
-  document.getElementById('em-subject').value = `Preventivo Carpenteria L.S. — ${cli}${num}`.trim();
+  document.getElementById('em-subject').value = `Preventivo ${az.nome || 'Carpenteria L.S.'} — ${cli}${num}`.trim();
   document.getElementById('em-message').value =
-    `Buongiorno,\n\nin allegato trovate il preventivo richiesto${cli ? ' per ' + cli : ''}.\n` +
-    `Restiamo a disposizione per qualsiasi chiarimento.\n\nCordiali saluti`;
+    `Buongiorno,\n\nin allegato trovate il preventivo richiesto.\n` +
+    `Restiamo a disposizione per qualsiasi chiarimento.\n\nCordiali saluti\n` +
+    _firmaEmail(az);
   showMsg('msg-email', '', '');
   document.getElementById('btn-send-email').disabled = false;
   document.getElementById('modal-email').classList.add('active');
