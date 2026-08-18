@@ -153,6 +153,12 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 }
 .hero-summary .hero-accent:hover { border-bottom-style: solid; }
 .hero-right { flex: 0 0 auto; padding-bottom: 2px; }
+/* Evidenziazione morbida delle righe appena arrivate (aggiornamento live) */
+@keyframes rowNewPop {
+  0%   { background: color-mix(in srgb, var(--orange) 24%, transparent); }
+  100% { background: transparent; }
+}
+#list-tbody tr.row-new { animation: rowNewPop 2.8s ease-out; }
 .hero-divider {
   height: 1px; margin: 20px 0 24px;
   background: linear-gradient(90deg, var(--border-2) 0%, var(--border-2) 60%, transparent 100%);
@@ -3116,7 +3122,8 @@ function switchTab(tabId) {
   document.querySelector(`.tab-item[data-tab="${tabId}"]`).classList.add('active');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`panel-${tabId}`).classList.add('active');
-  if (tabId === 'storico') loadList();
+  if (tabId === 'storico') { loadList(); startPipelinePolling(); }
+  else stopPipelinePolling();
   if (tabId === 'impostazioni') loadImpostazioni();
   if (window.lucide) lucide.createIcons();
 }
@@ -3648,7 +3655,8 @@ async function loadList() {
     }
     let html = '';
     for (const p of items) {
-      html += `<tr class="clickable" onclick="openPreventivo('${p.id}')">
+      const isNew = _newlyArrivedIds.has(p.id);
+      html += `<tr class="clickable${isNew ? ' row-new' : ''}" data-pid="${p.id}" onclick="openPreventivo('${p.id}')">
         <td><b>${escapeHtml(p.cliente)}</b></td>
         <td><code>${escapeHtml(p.numero_ordine_cliente || '—')}</code></td>
         <td>${statusBadge(p.status)}${(p.da_prezzare && p.status === 'BOZZA') ? ' <span class="badge orange" title="Richiesta caricata da Elena, in attesa di prezzatura">● da prezzare</span>' : ''}</td>
@@ -3660,6 +3668,7 @@ async function loadList() {
       </tr>`;
     }
     tbody.innerHTML = html;
+    _newlyArrivedIds = new Set();  // l'evidenziazione si mostra una volta sola
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty">Errore: ${escapeHtml(e.message)}</td></tr>`;
   }
@@ -3676,43 +3685,86 @@ function renderHeroGreeting() {
   el.textContent = nome ? `${saluto}, ${nome}` : saluto;
 }
 
-/** Riga di sintesi della pipeline nell'header (testo discreto) + banner
-    "da prezzare". Una sola fetch su TUTTI i preventivi (non i filtrati). */
-async function refreshDaPrezzareBanner() {
-  const banner = document.getElementById('da-prezzare-banner');
-  const summary = document.getElementById('hero-summary');
-  try {
-    const r = await fetch(`${API_URL}/api/preventivi?limit=500`);
-    const d = await r.json();
-    const items = d.preventivi || [];
-    const total = items.length;
-    const daPrezzare = items.filter(p => p.status === 'BOZZA' && p.da_prezzare).length;
-    const bozze = items.filter(p => p.status === 'BOZZA').length;
-    const inviati = items.filter(p => p.status === 'INVIATO').length;
-    // Riga di sintesi: testo sobrio; "da prezzare" è l'unico accento cliccabile.
-    if (summary) {
-      const parts = [
-        `<b>${total}</b> ${total === 1 ? 'preventivo' : 'preventivi'}`,
-        `${inviati} in attesa`,
-        `${bozze} ${bozze === 1 ? 'bozza' : 'bozze'}`,
-      ];
-      if (daPrezzare > 0) {
-        parts.push(`<span class="hero-accent" onclick="mostraDaPrezzare()">${daPrezzare} da prezzare</span>`);
-      }
-      summary.innerHTML = parts.join(' &nbsp;·&nbsp; ');
-    }
-    if (banner) {
-      if (daPrezzare > 0) {
-        document.getElementById('da-prezzare-text').textContent =
-          daPrezzare === 1 ? '1 richiesta da prezzare (caricata da Elena)'
-                           : `${daPrezzare} richieste da prezzare (caricate da Elena)`;
-        banner.style.display = 'flex';
-      } else {
-        banner.style.display = 'none';
-      }
-    }
-  } catch (e) { if (banner) banner.style.display = 'none'; }
+async function _fetchPipeline() {
+  const r = await fetch(`${API_URL}/api/preventivi?limit=500`);
+  const d = await r.json();
+  return d.preventivi || [];
 }
+
+/** Aggiorna la riga di sintesi dell'header + il banner "da prezzare" dai dati. */
+function _updatePipelineSummary(items) {
+  const summary = document.getElementById('hero-summary');
+  const banner = document.getElementById('da-prezzare-banner');
+  const total = items.length;
+  const daPrezzare = items.filter(p => p.status === 'BOZZA' && p.da_prezzare).length;
+  const bozze = items.filter(p => p.status === 'BOZZA').length;
+  const inviati = items.filter(p => p.status === 'INVIATO').length;
+  if (summary) {
+    const parts = [
+      `<b>${total}</b> ${total === 1 ? 'preventivo' : 'preventivi'}`,
+      `${inviati} in attesa`,
+      `${bozze} ${bozze === 1 ? 'bozza' : 'bozze'}`,
+    ];
+    if (daPrezzare > 0) parts.push(`<span class="hero-accent" onclick="mostraDaPrezzare()">${daPrezzare} da prezzare</span>`);
+    summary.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+  }
+  if (banner) {
+    if (daPrezzare > 0) {
+      document.getElementById('da-prezzare-text').textContent =
+        daPrezzare === 1 ? '1 richiesta da prezzare (caricata da Elena)'
+                         : `${daPrezzare} richieste da prezzare (caricate da Elena)`;
+      banner.style.display = 'flex';
+    } else { banner.style.display = 'none'; }
+  }
+}
+
+/** Chiamata da loadList: aggiorna header/banner e inizializza gli id noti. */
+async function refreshDaPrezzareBanner() {
+  try {
+    const items = await _fetchPipeline();
+    _updatePipelineSummary(items);
+    if (_knownPrevIds === null) _knownPrevIds = new Set(items.map(p => p.id));
+  } catch (e) {
+    const b = document.getElementById('da-prezzare-banner'); if (b) b.style.display = 'none';
+  }
+}
+
+// ── Aggiornamento in tempo reale (polling leggero ~60s) ──────────────
+let _knownPrevIds = null;         // id già visti; null = non ancora inizializzato
+let _newlyArrivedIds = new Set(); // id nuovi da evidenziare al prossimo render
+let _pipelinePollTimer = null;
+
+/** Controllo periodico: se arrivano nuovi preventivi (es. richieste di Elena),
+    aggiorna i contatori, mostra un toast e li fa comparire in lista evidenziati. */
+async function pollPipeline() {
+  if (document.hidden) return;  // in pausa se la scheda non è visibile
+  const panel = document.getElementById('panel-storico');
+  if (!panel || !panel.classList.contains('active')) return;  // solo sullo Storico
+  try {
+    const items = await _fetchPipeline();
+    _updatePipelineSummary(items);
+    if (_knownPrevIds === null) { _knownPrevIds = new Set(items.map(p => p.id)); return; }
+    const nuovi = items.filter(p => !_knownPrevIds.has(p.id));
+    items.forEach(p => _knownPrevIds.add(p.id));
+    if (!nuovi.length) return;
+    _newlyArrivedIds = new Set(nuovi.map(p => p.id));
+    nuovi.slice(0, 4).forEach(p => {
+      const dp = p.status === 'BOZZA' && p.da_prezzare;
+      appAlert((dp ? 'Nuova richiesta da prezzare — ' : 'Nuovo preventivo — ') + (p.cliente || '—'), 'info');
+    });
+    // Rinfresca la lista (senza disturbare se l'utente sta scrivendo nel filtro).
+    if (document.activeElement !== document.getElementById('filter-cliente')) await loadList();
+  } catch (e) { /* silenzioso: al prossimo giro riprova */ }
+}
+
+function startPipelinePolling() {
+  stopPipelinePolling();
+  _pipelinePollTimer = setInterval(pollPipeline, 60000);
+}
+function stopPipelinePolling() {
+  if (_pipelinePollTimer) { clearInterval(_pipelinePollTimer); _pipelinePollTimer = null; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pollPipeline(); });
 
 /** Click sul banner: imposta i filtri per mostrare le bozze da prezzare. */
 function mostraDaPrezzare() {
