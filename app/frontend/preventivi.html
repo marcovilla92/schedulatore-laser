@@ -2814,6 +2814,9 @@ tr.row-warn:hover { background: #FEF3C7; }
       <div class="form-msg" id="msg-email"></div>
     </div>
     <div class="modal-foot">
+      <button class="btn-secondary" onclick="anteprimaPdfCliente()" title="Apri il PDF che riceverà il cliente" style="margin-right:auto;">
+        <i data-lucide="eye" style="width:14px;height:14px;vertical-align:-2px;"></i> Anteprima PDF
+      </button>
       <button class="btn-secondary" onclick="closeEmailModal()">Annulla</button>
       <button class="btn-primary" onclick="sendPreventivoEmail()" id="btn-send-email">
         <i data-lucide="send" style="width:14px;height:14px;vertical-align:-2px;"></i> Invia
@@ -3587,7 +3590,7 @@ async function loadList() {
         <td>${statusBadge(p.status)}${(p.da_prezzare && p.status === 'BOZZA') ? ' <span class="badge orange" title="Richiesta caricata da Elena, in attesa di prezzatura">● da prezzare</span>' : ''}</td>
         <td class="n">${p.quantita}</td>
         <td class="n">${(p.margine_pct || 0).toFixed(1)}%</td>
-        <td class="n" style="font-weight:700;">${formatEur(p.totale_lotto)} €</td>
+        <td class="n" style="font-weight:700;">${(p.status === 'BOZZA' && !(p.totale_lotto > 0)) ? '<span style="color:var(--text-3); font-weight:500;">da prezzare</span>' : formatEur(p.totale_lotto) + ' €'}</td>
         <td style="color:var(--gray-text); font-size:12px;">${formatDate(p.data_consegna_proposta)}</td>
         <td style="color:var(--gray-text); font-size:12px;">${formatDate(p.data_creazione)}</td>
       </tr>`;
@@ -7851,6 +7854,12 @@ async function openEmailModal() {
 
 function closeEmailModal() {
   document.getElementById('modal-email').classList.remove('active');
+}
+
+/** Apre in una nuova scheda il PDF cliente (esattamente quello che verrà allegato). */
+function anteprimaPdfCliente() {
+  if (!currentPreventivo) return;
+  window.open(`${API_URL}/api/preventivi/${currentPreventivo.id}/pdf?inline=1`, '_blank');
 }
 
 let _lastEmailTo = '';

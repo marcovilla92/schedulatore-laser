@@ -4454,6 +4454,8 @@ def api_preventivi_pdf(preventivo_id):
             return jsonify({'success': False, 'error': 'Preventivo non trovato'}), 404
 
         interno = str(request.args.get('interno', '')).lower() in ('1', 'true', 'yes')
+        # inline=1 → mostra nel browser (anteprima), altrimenti scarica.
+        inline = str(request.args.get('inline', '')).lower() in ('1', 'true', 'yes')
 
         dati_pdf = _preventivo_to_pdf_dati(p)
 
@@ -4471,7 +4473,7 @@ def api_preventivi_pdf(preventivo_id):
         exporter.genera_pdf(pdf_path, dati_pdf, interno=interno)
 
         return send_file(pdf_path, mimetype='application/pdf',
-                         as_attachment=True, download_name=filename)
+                         as_attachment=not inline, download_name=filename)
     except Exception as e:
         logger.exception('preventivi pdf failed')
         return jsonify({'success': False, 'error': str(e)}), 500
