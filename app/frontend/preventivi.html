@@ -2025,6 +2025,51 @@ tr.row-warn:hover { background: #FEF3C7; }
               </div>
             </div>
           </div>
+          <!-- Detail ASSIEME inline (stesso pannello dei particolari, niente modale) -->
+          <div class="split-detail" id="split-detail-assieme" style="display:none;">
+            <div class="split-detail-preview" id="sd-ass-3d-wrap" style="position:relative; min-height:min(70vh,720px);">
+              <div id="sd-ass-3d-placeholder" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94A3B8; font-size:13px;">
+                <div style="text-align:center;">
+                  <i data-lucide="box" style="width:48px;height:48px;color:#CBD5E1;"></i>
+                  <div style="margin-top:8px;">Nessun file STEP 3D associato a questo assieme</div>
+                </div>
+              </div>
+              <iframe id="sd-ass-3d-iframe" src="about:blank" style="width:100%; height:100%; border:none; display:none; position:absolute; inset:0;"></iframe>
+            </div>
+            <div style="padding:14px 4px 4px;">
+              <h4 style="margin:0 0 8px; font-size:14px; color:var(--text);">Prezzo di 1 assieme
+                <span style="color:var(--text-3); font-weight:400; font-size:12px;">(unitario · il preventivo lo replica ×qty)</span>
+              </h4>
+              <div id="sd-ass-summary" style="display:grid; grid-template-columns: 1fr auto; gap:6px 12px; font-size:13px;"></div>
+            </div>
+            <div style="padding:12px 4px 4px;">
+              <h4 style="margin:0 0 4px; font-size:14px; color:var(--text);">
+                Componenti · <span id="sd-ass-bom-count" style="color:var(--text-2); font-weight:400;">0 componenti</span>
+              </h4>
+              <div style="font-size:11px; color:var(--text-3); margin-bottom:8px;">
+                <b>Pz/ass.</b> = quanti di quel pezzo per <b>1</b> assieme. Click su una riga DXF per aprirla nel dettaglio.
+              </div>
+              <div style="overflow:auto; border:1px solid var(--border); border-radius:8px;">
+                <table class="tbl" style="margin:0;">
+                  <thead style="position:sticky; top:0; background:#F8FAFC; z-index:1;">
+                    <tr>
+                      <th style="width:34px;">#</th>
+                      <th style="width:84px;">Tipo</th>
+                      <th style="width:90px;">Preview</th>
+                      <th style="min-width:140px;">Codice</th>
+                      <th class="n" style="width:60px;" title="Numero di pezzi di questo componente dentro 1 assieme">Pz/ass.</th>
+                      <th class="n" style="width:70px;">Peso kg</th>
+                      <th class="n" style="width:80px;">Mat. &euro;</th>
+                      <th class="n" style="width:80px;">Lav. &euro;</th>
+                      <th class="n" style="width:90px; background:#F1F5F9;">Tot. &euro;/pz</th>
+                      <th class="n" style="width:110px; background:#FEF3C7;">Contrib. &euro;</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sd-ass-bom-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4338,6 +4383,7 @@ function _renderArticoloRow(i, a) {
 // ═══════════════════════════════════════════════════════════════════
 let _splitView = false;
 let _splitSelectedIdx = null;
+let _splitAssIdx = null;            // indice assieme selezionato nel pannello inline (null = nessuno)
 const _splitCollapsed = new Set();  // codici assieme collassati
 let _storicoBadges = {};  // art.id -> {n, ultimo_costo, ultima_data, ultimo_cliente, min, max}
 
@@ -4415,8 +4461,8 @@ function toggleAssiemeSplit(code) {
 function renderSplitTree() {
   const tbody = document.getElementById('split-tree-tbody');
   if (!tbody) return;
-  if (!currentArticoli.length) {
-    tbody.innerHTML = '<tr><td colspan="1" class="empty" style="padding:24px; text-align:center; color:var(--text-3);">Nessun articolo. Importa DXF o aggiungi manualmente.</td></tr>';
+  if (!currentArticoli.length && !currentAssiemi.length) {
+    tbody.innerHTML = '<tr><td colspan="1" class="empty" style="padding:24px; text-align:center; color:var(--text-3);">Nessun articolo. Importa DXF/STEP o aggiungi manualmente.</td></tr>';
     return;
   }
   // Raggruppa per assieme
@@ -4425,6 +4471,12 @@ function renderSplitTree() {
     const k = a.codice_assieme || '';
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(i);
+  });
+  // Assicura una riga anche per gli assiemi SENZA articoli DXF (es. STEP con soli
+  // tubolari/piastre): devono comunque comparire e essere apribili.
+  currentAssiemi.forEach(A => {
+    const k = A.codice_assieme || '';
+    if (k && !groups.has(k)) groups.set(k, []);
   });
   const orderedKeys = Array.from(groups.keys()).sort((a, b) => {
     if (a === '') return -1;
@@ -4441,21 +4493,21 @@ function renderSplitTree() {
       const A = currentAssiemi.find(x => x.codice_assieme === key);
       const collapsed = _splitCollapsed.has(key);
       const arrow = collapsed ? '▸' : '▾';
-      const nCmp = idxs.length;
+      // Conteggio reale = DXF + tubolari + piastre (non solo gli articoli DXF)
+      const _roll = computeAssiemeRollup(key);
+      const nCmp = _roll.articoli.length + _roll.tubolari.length + _roll.piastre.length;
       const keyEsc = key.replace(/'/g, "\\'");
-      html += `<tr class="ass-header" onclick="toggleAssiemeSplit('${keyEsc}')">
+      html += `<tr class="ass-header" data-ass-code="${escapeHtml(key)}" onclick="selectSplitAssieme('${keyEsc}')" title="Click per vedere l'assieme 3D + i componenti qui a destra">
         <td colspan="1" style="padding:8px 12px;">
           <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-            <span class="toggle-ass">${arrow}</span>
+            <span class="toggle-ass" onclick="event.stopPropagation(); toggleAssiemeSplit('${keyEsc}')" title="Espandi/comprimi i componenti" style="cursor:pointer; padding:0 2px;">${arrow}</span>
             <span style="font-weight:700; white-space:nowrap;">Assieme</span>
             <code style="font-family:monospace; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(key)}</code>
             <span style="opacity:.7; font-weight:400; font-size:11px; white-space:nowrap;">· ${nCmp} pezzi</span>
           </div>
-          <button onclick="event.stopPropagation(); _openAssiemeByCode('${keyEsc}')"
-                  title="Apri il dettaglio: assieme 3D (ruota ed esplode) + distinta"
-                  style="margin-top:6px; display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border:none; border-radius:7px; cursor:pointer; font-size:12px; font-weight:700; color:#fff; background:linear-gradient(135deg,#7C3AED,#4F46E5); box-shadow:0 2px 8px rgba(124,58,237,.3); white-space:nowrap;">
-            <i data-lucide="box" style="width:14px;height:14px;"></i> Vedi 3D
-          </button>
+          <span style="margin-top:6px; display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:7px; font-size:12px; font-weight:700; color:#fff; background:linear-gradient(135deg,#7C3AED,#4F46E5); box-shadow:0 2px 8px rgba(124,58,237,.3); white-space:nowrap;">
+            <i data-lucide="box" style="width:14px;height:14px;"></i> Vedi 3D + componenti
+          </span>
         </td>
       </tr>`;
       if (!collapsed) {
@@ -4477,15 +4529,19 @@ function renderSplitTree() {
   tbody.innerHTML = html;
   // Reinstalla dot Lucide se serve
   if (window.lucide) lucide.createIcons();
-  // Se c'è una selezione, mantienila
-  if (_splitSelectedIdx != null && currentArticoli[_splitSelectedIdx]) {
+  // Se c'è una selezione, mantienila (assieme ha priorità su articolo)
+  if (_splitAssIdx != null && currentAssiemi[_splitAssIdx]) {
+    _highlightSplitAssiemeRow(currentAssiemi[_splitAssIdx].codice_assieme);
+  } else if (_splitSelectedIdx != null && currentArticoli[_splitSelectedIdx]) {
     _highlightSplitRow(_splitSelectedIdx);
-  } else if (_splitSelectedIdx == null && currentArticoli.length) {
-    // Auto-seleziona il primo pezzo: riempe subito il pannello destro invece di
-    // lasciarlo vuoto ("clicca un articolo…"). Il primo standalone, o l'indice 0.
-    let first = currentArticoli.findIndex(a => !a.codice_assieme);
-    if (first < 0) first = 0;
-    selectSplitArticolo(first);
+  } else if (currentArticoli.length || currentAssiemi.length) {
+    // Auto-seleziona: riempe subito il pannello destro invece di lasciarlo vuoto.
+    // Preferisce il primo pezzo standalone; se non ce ne sono (preventivo tutto da
+    // STEP), apre il primo assieme; fallback: primo articolo.
+    const first = currentArticoli.findIndex(a => !a.codice_assieme);
+    if (first >= 0) selectSplitArticolo(first);
+    else if (currentAssiemi.length) selectSplitAssieme(currentAssiemi[0].codice_assieme);
+    else if (currentArticoli.length) selectSplitArticolo(0);
   }
   // Badge 3D + cache calda anche nella vista split (il re-render azzera le classi)
   try { _applyFoldBadges(); _enrichFoldBadges(); } catch (_) {}
@@ -4637,13 +4693,49 @@ function _highlightSplitRow(idx) {
   document.querySelectorAll('#split-tree-tbody tr[data-split-idx]').forEach(tr => {
     tr.classList.toggle('selected', parseInt(tr.dataset.splitIdx, 10) === idx);
   });
+  // Deseleziona eventuali header assieme evidenziati
+  document.querySelectorAll('#split-tree-tbody tr[data-ass-code]').forEach(tr => tr.classList.remove('selected'));
+}
+
+/** Evidenzia l'header dell'assieme selezionato (e toglie la selezione dagli articoli). */
+function _highlightSplitAssiemeRow(code) {
+  document.querySelectorAll('#split-tree-tbody tr[data-split-idx]').forEach(tr => tr.classList.remove('selected'));
+  document.querySelectorAll('#split-tree-tbody tr[data-ass-code]').forEach(tr => {
+    tr.classList.toggle('selected', tr.dataset.assCode === code);
+  });
+}
+
+/** Mostra il pannello destro giusto (articolo vs assieme vs vuoto). */
+function _showSplitDetailPane(which) {
+  const empty = document.getElementById('split-detail-empty');
+  const art = document.getElementById('split-detail-content');
+  const ass = document.getElementById('split-detail-assieme');
+  if (empty) empty.style.display = (which === 'empty') ? '' : 'none';
+  if (art) art.style.display = (which === 'art') ? '' : 'none';
+  if (ass) ass.style.display = (which === 'ass') ? '' : 'none';
 }
 
 /** Click su una riga del tree → aggiorna il detail panel dx. */
 async function selectSplitArticolo(idx) {
   _splitSelectedIdx = idx;
+  _splitAssIdx = null;
+  _showSplitDetailPane('art');
   _highlightSplitRow(idx);
   await renderSplitDetail(idx);
+}
+
+/** Click su un assieme nel tree → mostra il suo dettaglio (3D grande + BOM +
+    prezzo) DIRETTAMENTE nel pannello destro, come per i particolari normali.
+    Niente modale, niente passaggio in più. */
+async function selectSplitAssieme(code) {
+  const idx = currentAssiemi.findIndex(x => x.codice_assieme === code);
+  if (idx < 0) return;
+  _splitAssIdx = idx;
+  _splitSelectedIdx = null;
+  _showSplitDetailPane('ass');
+  _highlightSplitAssiemeRow(code);
+  await _hydrateAssiemeDetail3D(code, _ASS_CTX_SPLIT);
+  _renderAssiemeDetailSummary(idx, _ASS_CTX_SPLIT);
 }
 
 /** Renderizza il detail panel dx per l'articolo selezionato. */
@@ -4990,8 +5082,7 @@ async function sdRemove() {
   if (_splitSelectedIdx == null) return;
   if (!await removeArt(_splitSelectedIdx)) return;   // annullato → non ripulire
   _splitSelectedIdx = null;
-  document.getElementById('split-detail-empty').style.display = '';
-  document.getElementById('split-detail-content').style.display = 'none';
+  _showSplitDetailPane('empty');
   renderSplitTree();
 }
 
@@ -6695,6 +6786,20 @@ async function removeAss(i) {
 // ============================================================
 let _assDetailIdx = -1;
 
+// Contesti di rendering del dettaglio assieme: gli stessi helper servono sia il
+// modale (vista tabella) sia il pannello INLINE della vista split. Cambiano solo
+// gli id degli elementi e gli handler degli input.
+const _ASS_CTX_MODAL = {
+  summary:'ass-detail-summary', bomCount:'ass-detail-bom-count', bomBody:'ass-detail-bom-body',
+  oreInput:'ass-det-ore', oreChange:'assDetailSetOre', onArtClick:'openArtFromBom',
+  placeholder:'ass-detail-3d-placeholder', iframe:'ass-detail-3d-iframe',
+};
+const _ASS_CTX_SPLIT = {
+  summary:'sd-ass-summary', bomCount:'sd-ass-bom-count', bomBody:'sd-ass-bom-body',
+  oreInput:'sd-ass-ore', oreChange:'assSplitSetOre', onArtClick:'selectSplitArticolo',
+  placeholder:'sd-ass-3d-placeholder', iframe:'sd-ass-3d-iframe', wrap:'sd-ass-3d-wrap',
+};
+
 async function openAssiemeDetail(idx) {
   const a = currentAssiemi[idx];
   if (!a) return;
@@ -6705,8 +6810,8 @@ async function openAssiemeDetail(idx) {
   if (window.lucide) lucide.createIcons();
 
   // Sezione 3D: se esiste un file .step/.stp con nome matchante, mostra iframe
-  await _hydrateAssiemeDetail3D(code);
-  _renderAssiemeDetailSummary(idx);
+  await _hydrateAssiemeDetail3D(code, _ASS_CTX_MODAL);
+  _renderAssiemeDetailSummary(idx, _ASS_CTX_MODAL);
 }
 
 /** Modifica il tempo di montaggio dal dettaglio assieme (obbligatorio). Aggiorna
@@ -6714,12 +6819,21 @@ async function openAssiemeDetail(idx) {
 function assDetailSetOre(v) {
   if (_assDetailIdx == null) return;
   updateAssOre(_assDetailIdx, v);          // setta ore + costo + salva
-  _renderAssiemeDetailSummary(_assDetailIdx);  // aggiorna prezzo + bordo campo
+  _renderAssiemeDetailSummary(_assDetailIdx, _ASS_CTX_MODAL);  // aggiorna prezzo + bordo campo
   try { renderSplitTree(); } catch (_) {}  // toglie il blocco rosso dal riepilogo
 }
 
-/** Ridisegna il riepilogo costi + BOM del modal assieme (senza toccare il 3D). */
-function _renderAssiemeDetailSummary(idx) {
+/** Come assDetailSetOre, ma per il pannello INLINE della vista split. */
+function assSplitSetOre(v) {
+  if (_splitAssIdx == null) return;
+  updateAssOre(_splitAssIdx, v);
+  _renderAssiemeDetailSummary(_splitAssIdx, _ASS_CTX_SPLIT);
+  try { renderSplitTree(); } catch (_) {}
+}
+
+/** Ridisegna il riepilogo costi + BOM del dettaglio assieme (senza toccare il 3D).
+    `ctx` sceglie il target: _ASS_CTX_MODAL (modale) o _ASS_CTX_SPLIT (inline). */
+function _renderAssiemeDetailSummary(idx, ctx = _ASS_CTX_MODAL) {
   const a = currentAssiemi[idx];
   if (!a) return;
   const pricing = computeAssiemePricing(a);
@@ -6736,14 +6850,14 @@ function _renderAssiemeDetailSummary(idx) {
     ['<b style="color:#0F172A; font-size:17px;">PREZZO 1 ASSIEME</b>', `<b style="color:#0F172A; font-size:17px;">${formatEurStr(pricing.costoSingoloAssieme)}</b>`],
   ];
   const oreSet = (a.ore_montaggio > 0 || a.costo > 0);
-  document.getElementById('ass-detail-summary').innerHTML = rows.map(([k,v]) => {
+  document.getElementById(ctx.summary).innerHTML = rows.map(([k,v]) => {
     if (k === '───') return `<div style="grid-column:1/-1; border-top:1px dashed var(--border); margin:4px 0;"></div>`;
     if (k === '__MONTAGGIO__') return `
       <div style="color:var(--text-2);">Tempo di montaggio ${oreSet ? '' : '<b style="color:#B45309;">(obbligatorio)</b>'}</div>
       <div style="text-align:right; white-space:nowrap;">
-        <input type="number" id="ass-det-ore" value="${v.ore_montaggio || ''}" step="0.25" min="0" placeholder="ore"
+        <input type="number" id="${ctx.oreInput}" value="${v.ore_montaggio || ''}" step="0.25" min="0" placeholder="ore"
                style="width:78px; text-align:right; padding:6px 8px; font-size:15px; border-radius:6px; border:2px solid ${oreSet ? 'var(--border)' : '#F59E0B'}; ${oreSet ? '' : 'background:#FFFBEB;'}"
-               onchange="assDetailSetOre(this.value)">
+               onchange="${ctx.oreChange}(this.value)">
         <span style="font-size:11px; color:var(--text-3);"> ore</span>
       </div>`;
     return `<div style="color:var(--text-2);">${k}</div><div style="text-align:right; font-variant-numeric: tabular-nums;">${v}</div>`;
@@ -6754,17 +6868,21 @@ function _renderAssiemeDetailSummary(idx) {
     </div>`;
 
   // Sezione BOM (Bill of Materials) cascade
-  _renderAssiemeBom(roll);
+  _renderAssiemeBom(roll, ctx);
 }
 
 /** Popola l'iframe 3D del modal se esiste un file STEP che matcha il codice
     assieme (case-insensitive senza estensione). Fallback: mostra placeholder. */
-async function _hydrateAssiemeDetail3D(code) {
-  const placeholder = document.getElementById('ass-detail-3d-placeholder');
-  const iframe = document.getElementById('ass-detail-3d-iframe');
+async function _hydrateAssiemeDetail3D(code, ctx = _ASS_CTX_MODAL) {
+  const placeholder = document.getElementById(ctx.placeholder);
+  const iframe = document.getElementById(ctx.iframe);
+  const wrap = ctx.wrap ? document.getElementById(ctx.wrap) : null;
   placeholder.style.display = 'flex';
   iframe.style.display = 'none';
   iframe.src = 'about:blank';
+  // Senza STEP il grande visore è inutile: nel pannello inline lo riduciamo così
+  // riepilogo e distinta restano sopra la piega. Con STEP torna a tutta altezza.
+  if (wrap) wrap.style.minHeight = '160px';
   if (!code || !currentPreventivo) return;
   try {
     if (_stepFilesCache.preventivo_id !== currentPreventivo.id || _stepFilesCache.files === null) {
@@ -6781,13 +6899,14 @@ async function _hydrateAssiemeDetail3D(code) {
     iframe.src = iframeUrl;
     iframe.style.display = 'block';
     placeholder.style.display = 'none';
+    if (wrap) wrap.style.minHeight = 'min(70vh,720px)';
   } catch (_) { /* mantiene placeholder */ }
 }
 
 /** Renderizza la BOM tabellare del modal: articoli DXF (con thumbnail),
     tubolari e piastre. Ogni riga mostra qty, peso, mat, lav, tot/pz e sub-tot
     (× qty componente). Ordine: articoli DXF prima, poi tubolari, poi piastre. */
-function _renderAssiemeBom(roll) {
+function _renderAssiemeBom(roll, ctx = _ASS_CTX_MODAL) {
   const rows = [];
   let idx = 1;
   // Articoli DXF (righe cliccabili → openArtModal per editing dettaglio)
@@ -6809,7 +6928,7 @@ function _renderAssiemeBom(roll) {
     const s = computeArticleStatus(a);
     const statusColor = { ok:'#22c55e', warn:'#F59E0B', error:'#EF4444', empty:'#94A3B8' }[s.level] || '#94A3B8';
     const statusIcon = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${statusColor}; margin-right:6px; vertical-align:middle;" title="${escapeHtml(s.reasons.join(' · '))}"></span>`;
-    rows.push(`<tr style="cursor:pointer;" onclick="openArtFromBom(${artIdx})" title="Click per modificare (materiale, spessore, area, costi...)">
+    rows.push(`<tr style="cursor:pointer;" onclick="${ctx.onArtClick}(${artIdx})" title="Click per modificare (materiale, spessore, area, costi...)">
       <td>${idx++}</td>
       <td><span style="background:#EEF2FF; color:#4338CA; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;">DXF</span></td>
       <td>${thumb}</td>
@@ -6856,9 +6975,9 @@ function _renderAssiemeBom(roll) {
     </tr>`);
   }
   const nCmp = roll.articoli.length + roll.tubolari.length + roll.piastre.length;
-  document.getElementById('ass-detail-bom-count').textContent =
+  document.getElementById(ctx.bomCount).textContent =
     nCmp === 0 ? 'nessun componente linkato — usa il dropdown "Assieme" sulla riga articolo' : `${nCmp} componenti`;
-  document.getElementById('ass-detail-bom-body').innerHTML =
+  document.getElementById(ctx.bomBody).innerHTML =
     rows.length ? rows.join('') : `<tr><td colspan="10" class="empty" style="padding:24px; text-align:center; color:var(--text-2);">Nessun componente linkato. Vai in tabella articoli e seleziona questo assieme nel dropdown.</td></tr>`;
 }
 
