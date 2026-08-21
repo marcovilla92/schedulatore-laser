@@ -6844,6 +6844,15 @@ function _renderAssiemeDetailSummary(idx, ctx = _ASS_CTX_MODAL) {
   if (!a) return;
   const pricing = computeAssiemePricing(a);
   const roll = pricing.roll;
+  // Prezzo di VENDITA = costo × (1+generali%) × (1+margine%) — stesso ordine e
+  // stessi coefficienti applicati nel totale del preventivo (recalcTotali). Così
+  // il dettaglio mostra sia il COSTO sia il prezzo di vendita del singolo assieme.
+  const margine = parseFloat((document.getElementById('ed-margine') || {}).value) || 0;
+  const genPct = (_prevCfg && _prevCfg.costo_generali_pct) || 0;
+  const factorVendita = (1 + genPct / 100) * (1 + margine / 100);
+  const prezzoVenditaSingolo = pricing.costoSingoloAssieme * factorVendita;
+  const prezzoVenditaLotto = pricing.costoTotale * factorVendita;
+  const _pctLabel = (genPct > 0 ? `+generali ${genPct}% ` : '') + `+margine ${margine}%`;
   const rows = [
     ['Peso 1 assieme', pricing.roll.peso_kg > 0 ? pricing.roll.peso_kg.toFixed(2) + ' kg' : '—'],
     ['Componenti BOM', `${roll.articoli.length} DXF · ${roll.tubolari.length} tub · ${roll.piastre.length} piastre`],
@@ -6853,7 +6862,9 @@ function _renderAssiemeDetailSummary(idx, ctx = _ASS_CTX_MODAL) {
     ['Tubolari + piastre', formatEurStr(roll.costoTubPia)],
     ['__MONTAGGIO__', a],
     ['───', ''],
-    ['<b style="color:#0F172A; font-size:17px;">PREZZO 1 ASSIEME</b>', `<b style="color:#0F172A; font-size:17px;">${formatEurStr(pricing.costoSingoloAssieme)}</b>`],
+    ['<span style="color:var(--text-2);">Costo 1 assieme</span>', `<span style="color:var(--text-2);">${formatEurStr(pricing.costoSingoloAssieme)}</span>`],
+    [`<b style="color:#166534; font-size:17px;">PREZZO 1 ASSIEME</b><div style="font-size:10px; color:var(--text-3); font-weight:400;">vendita · ${_pctLabel}</div>`,
+     `<b style="color:#166534; font-size:17px;">${formatEurStr(prezzoVenditaSingolo)}</b>`],
   ];
   const oreSet = (a.ore_montaggio > 0 || a.costo > 0);
   document.getElementById(ctx.summary).innerHTML = rows.map(([k,v]) => {
@@ -6868,9 +6879,9 @@ function _renderAssiemeDetailSummary(idx, ctx = _ASS_CTX_MODAL) {
       </div>`;
     return `<div style="color:var(--text-2);">${k}</div><div style="text-align:right; font-variant-numeric: tabular-nums;">${v}</div>`;
   }).join('') + `
-    <div style="grid-column:1/-1; margin-top:12px; padding:8px 10px; background:#F8FAFC; border-radius:6px; font-size:11px; color:var(--text-3); display:flex; justify-content:space-between; align-items:center;">
-      <span>Se il preventivo richiede ${pricing.qty} assiemi</span>
-      <span style="font-variant-numeric: tabular-nums;">→ ${formatEurStr(pricing.costoTotale)} <span style="opacity:.6;">totali</span></span>
+    <div style="grid-column:1/-1; margin-top:12px; padding:8px 10px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; font-size:11px; color:#166534; display:flex; justify-content:space-between; align-items:center;">
+      <span>Se il preventivo richiede ${pricing.qty} assiemi (prezzo di vendita)</span>
+      <span style="font-variant-numeric: tabular-nums; font-weight:700;">→ ${formatEurStr(prezzoVenditaLotto)}</span>
     </div>`;
 
   // Sezione BOM (Bill of Materials) cascade
