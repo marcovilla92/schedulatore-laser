@@ -2043,16 +2043,23 @@ function updateConfermeBadge(n) {
 
 async function confermaPreventivo(id) {
   const p = _confermeItems.find(x => x.id === id) || {};
-  if (!confirm(`Confermare il preventivo di ${p.cliente || 'questo cliente'}?\n\nVerrà creato l'ordine in produzione (cartellino + disegni all'officina).`)) return;
+  if (!confirm(`Confermare il preventivo di ${p.cliente || 'questo cliente'}?\n\nVerrà creato l'ordine in produzione. Subito dopo si apre il CARTELLINO da stampare per l'officina.`)) return;
+  // Pre-apri la finestra del cartellino (nel gesto, evita blocco popup).
+  const cartWin = window.open('', '_blank');
+  if (cartWin) { try { cartWin.document.write('<p style="font:16px sans-serif;padding:24px;color:#555">Preparazione cartellino…</p>'); } catch (_) {} }
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${id}/accetta`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: currentUser.id }),
     });
     const d = await r.json();
-    if (d.success) { showMessage('✓ Ordine creato in produzione', 'success'); loadConferme(); }
-    else showMessage('Errore: ' + (d.error || 'sconosciuto'), 'error');
-  } catch (e) { showMessage('Errore: ' + e.message, 'error'); }
+    if (d.success) {
+      const _cartUrl = d.cartellino_url ? (window.location.origin + d.cartellino_url) : null;
+      if (cartWin && !cartWin.closed && _cartUrl) cartWin.location.href = _cartUrl;
+      else if (_cartUrl) window.open(_cartUrl, '_blank');
+      showMessage('✓ Ordine creato — STAMPA il cartellino per l\'officina', 'success'); loadConferme();
+    } else { if (cartWin) cartWin.close(); showMessage('Errore: ' + (d.error || 'sconosciuto'), 'error'); }
+  } catch (e) { if (cartWin) cartWin.close(); showMessage('Errore: ' + e.message, 'error'); }
 }
 
 async function rifiutaPreventivoImp(id) {

@@ -8135,6 +8135,10 @@ async function confermaAccetta() {
   const totaleLotto = conMargine * qty;
 
   document.getElementById('btn-conferma-accetta').disabled = true;
+  // Pre-apri la finestra del cartellino NEL gesto del click (evita il blocco
+  // popup dopo await): alla conferma il cartellino si apre da solo per la stampa.
+  let cartWin = window.open('', '_blank');
+  if (cartWin) { try { cartWin.document.write('<p style="font:16px sans-serif;padding:24px;color:#555">Preparazione cartellino…</p>'); } catch (_) {} }
   try {
     const r = await fetch(`${API_URL}/api/preventivi/${currentPreventivo.id}/accetta`, {
       method: 'POST',
@@ -8154,7 +8158,11 @@ async function confermaAccetta() {
       }),
     });
     const d = await r.json();
-    if (!d.success) { showMsg('msg-accetta', 'Errore: ' + d.error, 'var(--red)'); return; }
+    if (!d.success) { if (cartWin) cartWin.close(); showMsg('msg-accetta', 'Errore: ' + d.error, 'var(--red)'); return; }
+    // Apri il cartellino per la stampa (obbligatorio per l'officina).
+    const _cartUrl = d.cartellino_url ? (window.location.origin + d.cartellino_url) : null;
+    if (cartWin && !cartWin.closed && _cartUrl) cartWin.location.href = _cartUrl;
+    else if (_cartUrl) window.open(_cartUrl, '_blank');
     closeAccettaModal();
     // Ricarica preventivo dal server per status aggiornato + articoli persistiti
     await openPreventivo(currentPreventivo.id);
@@ -8169,10 +8177,10 @@ async function confermaAccetta() {
       dxfNote = ` · DXF officina: ${parts.join(', ')}`;
     }
     showMsg('msg-workflow',
-      `✓ Preventivo accettato. Ordine ${d.numero_ordine} creato in FerroTrack. ` +
-      `Cartellino: ${d.cartellino_url}${dxfNote}`,
+      `✓ Ordine ${d.numero_ordine} creato. Cartellino aperto: STAMPALO per l'officina (Mirko).${dxfNote}`,
       tr.copied_original_fallback || tr.missing ? 'var(--orange)' : 'var(--green)');
   } catch (e) {
+    if (cartWin) cartWin.close();
     showMsg('msg-accetta', 'Errore: ' + e.message, 'var(--red)');
   } finally {
     document.getElementById('btn-conferma-accetta').disabled = false;
