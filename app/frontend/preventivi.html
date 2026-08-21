@@ -7443,6 +7443,10 @@ async function uploadStep(file, suppressMsg) {
       currentPiastre.push(p);
     }
     renderAssiemi(); renderTubolari(); renderPiastre(); recalcTotali();
+    // Espandi le card che ora hanno contenuto (assiemi/tubolari/piastre): senza
+    // questo la card resta collassata dopo l'import e sembra che non sia comparso
+    // nulla (si vede solo l'intestazione).
+    _autoExpandCardsWithContent();
     // PERSISTI subito su DB (assiemi/tubolari/piastre) così NON si perdono al
     // reload della bozza (prima venivano salvati solo all'accettazione).
     await persistiStepData();
