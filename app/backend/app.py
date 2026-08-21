@@ -3945,17 +3945,22 @@ def api_preventivi_import_step(preventivo_id):
             })
 
         # Normalizza piastre per la UI/DB
+        # Costo piastre: a PESO × €/kg (coerente coi tubolari). Prima usava la
+        # tabella prezzo_dm2 di calcola_costo_piastre, che NON è configurata →
+        # costo 0 (bug: piastre a prezzo zero, preventivo sottostimato).
+        kg_eur = config_tubolari_piastre['costo_materiale_acciaio_kg']
         piastre_list = []
-        dettaglio_pia = pia_costi.get('dettaglio_piastre') or []
-        for i, p in enumerate(piastre_data.get('piastre') or []):
-            costo_p = dettaglio_pia[i].get('costo', 0) if i < len(dettaglio_pia) else 0
+        for p in (piastre_data.get('piastre') or []):
+            peso_p = p.get('peso_kg') or 0
+            costo_p = round(peso_p * kg_eur, 2)
             piastre_list.append({
                 'spessore_mm': p.get('spessore_mm') or 0,
                 'area_dm2': p.get('area_dm2') or 0,
-                'peso_kg': p.get('peso_kg') or 0,
+                'peso_kg': peso_p,
                 'costo': costo_p,
                 'materiale': 'acciaio',
             })
+        costo_totale_piastre = round(sum(x['costo'] for x in piastre_list), 2)
 
         # Aggrega un assieme "macro" dal file STEP (saldatura totale + componenti count)
         assiemi_list = []
@@ -3985,7 +3990,7 @@ def api_preventivi_import_step(preventivo_id):
                 'peso_totale_kg': round(((tubolari_data.get('peso_totale_kg') or 0) + (piastre_data.get('peso_totale_kg') or 0)), 2),
                 'saldatura_mt_tot': round(saldatura_mt_tot, 2),
                 'costo_totale_tubolari': tub_costi.get('totale', 0),
-                'costo_totale_piastre': pia_costi.get('totale', 0),
+                'costo_totale_piastre': costo_totale_piastre,
             },
         }), 200
     except Exception as e:
