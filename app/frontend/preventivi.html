@@ -7321,8 +7321,10 @@ function renderTubolari() {
     return;
   }
   let html = '';
-  let pesoTot = 0, costoTot = 0;
+  let pesoTot = 0, costoTot = 0, n = 0;
   currentTubolari.forEach((t, i) => {
+    if (t.codice_assieme) return;  // linkato ad assieme → mostrato nel dettaglio assieme
+    n++;
     pesoTot += t.peso_kg || 0;
     costoTot += (t.costo_materiale || 0) + (t.costo_taglio_totale || 0);
     html += `<tr>
@@ -7343,8 +7345,13 @@ function renderTubolari() {
       <td style="text-align:right;"><button class="btn-danger" onclick="removeTub(${i})">Rim.</button></td>
     </tr>`;
   });
+  if (!n) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Nessun tubolare standalone (quelli da STEP sono componenti dei rispettivi assiemi).</td></tr>';
+    meta.textContent = '—';
+    return;
+  }
   tbody.innerHTML = html;
-  meta.textContent = `${currentTubolari.length} tubolari • ${pesoTot.toFixed(1)} kg • ${formatEur(costoTot)} €`;
+  meta.textContent = `${n} tubolari • ${pesoTot.toFixed(1)} kg • ${formatEur(costoTot)} €`;
 }
 
 function updateTub(i, field, value, numeric) {
@@ -7367,8 +7374,10 @@ function renderPiastre() {
     return;
   }
   let html = '';
-  let pesoTot = 0, costoTot = 0;
+  let pesoTot = 0, costoTot = 0, n = 0;
   currentPiastre.forEach((p, i) => {
+    if (p.codice_assieme) return;  // linkata ad assieme → nel dettaglio assieme
+    n++;
     pesoTot += p.peso_kg || 0;
     costoTot += p.costo || 0;
     html += `<tr>
@@ -7386,8 +7395,13 @@ function renderPiastre() {
       <td style="text-align:right;"><button class="btn-danger" onclick="removePia(${i})">Rim.</button></td>
     </tr>`;
   });
+  if (!n) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nessuna piastra standalone (quelle da STEP sono componenti dei rispettivi assiemi).</td></tr>';
+    meta.textContent = '—';
+    return;
+  }
   tbody.innerHTML = html;
-  meta.textContent = `${currentPiastre.length} piastre • ${pesoTot.toFixed(1)} kg • ${formatEur(costoTot)} €`;
+  meta.textContent = `${n} piastre • ${pesoTot.toFixed(1)} kg • ${formatEur(costoTot)} €`;
 }
 
 function updatePia(i, field, value, numeric) {

@@ -3929,10 +3929,16 @@ def api_preventivi_import_step(preventivo_id):
         except Exception as e:
             logger.warning('calcola_costo_piastre failed: %s', e)
 
+        # Codice dell'assieme "macro" di questo STEP: tubolari e piastre vengono
+        # LINKATI a questo codice → compaiono come componenti dell'assieme (non
+        # standalone), coerente col 3D. Il rollup costo evita il doppio conteggio.
+        codice_assieme_step = os.path.splitext(f.filename)[0]
+
         # Normalizza tubolari per la UI/DB
         tubolari_list = []
         for t in (tubolari_data.get('tubi') or []):
             tubolari_list.append({
+                'codice_assieme': codice_assieme_step,
                 'profilo': t.get('profilo') or '',
                 'tipo': t.get('tipo'),
                 'materiale': 'acciaio',
@@ -3954,6 +3960,7 @@ def api_preventivi_import_step(preventivo_id):
             peso_p = p.get('peso_kg') or 0
             costo_p = round(peso_p * kg_eur, 2)
             piastre_list.append({
+                'codice_assieme': codice_assieme_step,
                 'spessore_mm': p.get('spessore_mm') or 0,
                 'area_dm2': p.get('area_dm2') or 0,
                 'peso_kg': peso_p,
@@ -3967,7 +3974,7 @@ def api_preventivi_import_step(preventivo_id):
         saldatura_mt_tot = (assieme_data.get('saldatura_mm') or 0) / 1000.0
         if tubolari_list or piastre_list or saldatura_mt_tot > 0:
             assiemi_list.append({
-                'codice_assieme': os.path.splitext(f.filename)[0],
+                'codice_assieme': codice_assieme_step,
                 'qty': 1,
                 'ore_montaggio': 0,
                 'ore_puntatura': 0,
