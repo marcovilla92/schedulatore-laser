@@ -7401,6 +7401,23 @@ function removePia(i) {
   renderPiastre(); recalcTotali();
 }
 
+/** Salva su DB assiemi/tubolari/piastre della bozza corrente (autosave dopo STEP). */
+async function persistiStepData() {
+  if (!currentPreventivo || !currentUser) return;
+  const pid = currentPreventivo.id;
+  const put = async (kind, key, arr) => {
+    try {
+      await fetch(`${API_URL}/api/preventivi/${pid}/${kind}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_id: currentUser.id, [key]: arr }),
+      });
+    } catch (e) { console.warn('persist ' + kind + ' fallito', e); }
+  };
+  await put('assiemi', 'assiemi', currentAssiemi);
+  await put('tubolari', 'tubolari', currentTubolari);
+  await put('piastre', 'piastre', currentPiastre);
+}
+
 async function uploadStep(file, suppressMsg) {
   if (!file || !currentPreventivo) return;
   const fd = new FormData();
@@ -7426,6 +7443,9 @@ async function uploadStep(file, suppressMsg) {
       currentPiastre.push(p);
     }
     renderAssiemi(); renderTubolari(); renderPiastre(); recalcTotali();
+    // PERSISTI subito su DB (assiemi/tubolari/piastre) così NON si perdono al
+    // reload della bozza (prima venivano salvati solo all'accettazione).
+    await persistiStepData();
     const s = d.summary || {};
     showMsg('msg-import',
       `✓ STEP importato: ${s.n_tubolari||0} tubolari (${formatEur(s.costo_totale_tubolari||0)}€) + ${s.n_piastre||0} piastre + ${s.peso_totale_kg||0}kg + ${s.saldatura_mt_tot||0}mt saldatura`,
