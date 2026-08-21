@@ -3992,10 +3992,16 @@ function populateEditor(p) {
   // Se ci sono articoli → forza SPLIT + FOCUS mode (workflow "lavoro pezzi").
   // Ma se il preventivo è IMMUTABILE (INVIATO/ACCETTATO/RIFIUTATO) → vai dritto
   // al riepilogo (stato + Accetta/Rifiuta), senza riaprire il CAD/editing.
+  const _haContenuto = (currentArticoli && currentArticoli.length > 0)
+    || (currentAssiemi && currentAssiemi.length > 0)
+    || (currentTubolari && currentTubolari.length > 0)
+    || (currentPiastre && currentPiastre.length > 0);
   if (p.status !== 'BOZZA') {
     _splitSelectedIdx = null;
     setTimeout(() => openRiepilogoModal(), 60);
-  } else if (currentArticoli && currentArticoli.length > 0) {
+  } else if (_haContenuto) {
+    // Split è l'unica vista: forziamola anche per preventivi di soli assiemi/
+    // tubolari/piastre da STEP (0 articoli DXF), così l'assieme si apre inline.
     setArticoliView('split');
     if (!document.body.classList.contains('focus-mode')) toggleFocusMode();
   }
