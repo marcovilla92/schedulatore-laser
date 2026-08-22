@@ -2027,48 +2027,54 @@ tr.row-warn:hover { background: #FEF3C7; }
               </div>
             </div>
           </div>
-          <!-- Detail ASSIEME inline (stesso pannello dei particolari, niente modale) -->
-          <div class="split-detail" id="split-detail-assieme" style="display:none;">
-            <div class="split-detail-preview" id="sd-ass-3d-wrap" style="position:relative; min-height:min(70vh,720px);">
-              <div id="sd-ass-3d-placeholder" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94A3B8; font-size:13px;">
-                <div style="text-align:center;">
-                  <i data-lucide="box" style="width:48px;height:48px;color:#CBD5E1;"></i>
-                  <div style="margin-top:8px;">Nessun file STEP 3D associato a questo assieme</div>
+          <!-- Detail ASSIEME inline: componenti a SINISTRA, 3D grande a DESTRA -->
+          <div id="split-detail-assieme" style="display:none; padding:12px; min-height:100%;">
+            <div class="sd-ass-grid" style="display:grid; grid-template-columns: minmax(360px, 48%) 1fr; gap:16px; align-items:stretch; min-height:min(78vh,780px);">
+              <!-- SINISTRA: prezzo + componenti (BOM) -->
+              <div style="display:flex; flex-direction:column; min-height:0; gap:14px;">
+                <div>
+                  <h4 style="margin:0 0 8px; font-size:14px; color:var(--text);">Prezzo di 1 assieme
+                    <span style="color:var(--text-3); font-weight:400; font-size:12px;">(unitario · ×qty nel preventivo)</span>
+                  </h4>
+                  <div id="sd-ass-summary" style="display:grid; grid-template-columns: 1fr auto; gap:6px 12px; font-size:13px;"></div>
+                </div>
+                <div style="display:flex; flex-direction:column; min-height:0; flex:1 1 auto;">
+                  <h4 style="margin:0 0 4px; font-size:14px; color:var(--text);">
+                    Componenti · <span id="sd-ass-bom-count" style="color:var(--text-2); font-weight:400;">0 componenti</span>
+                  </h4>
+                  <div style="font-size:11px; color:var(--text-3); margin-bottom:8px;">
+                    <b>Pz/ass.</b> = quanti per <b>1</b> assieme. Click su una riga DXF per aprirla.
+                  </div>
+                  <div style="overflow:auto; border:1px solid var(--border); border-radius:8px; flex:1 1 auto; min-height:120px;">
+                    <table class="tbl" style="margin:0;">
+                      <thead style="position:sticky; top:0; background:#F8FAFC; z-index:1;">
+                        <tr>
+                          <th style="width:30px;">#</th>
+                          <th style="width:64px;">Tipo</th>
+                          <th style="width:76px;">Preview</th>
+                          <th style="min-width:120px;">Codice</th>
+                          <th class="n" style="width:52px;" title="Numero di pezzi di questo componente dentro 1 assieme">Pz/ass.</th>
+                          <th class="n" style="width:62px;">Peso kg</th>
+                          <th class="n" style="width:70px;">Mat. &euro;</th>
+                          <th class="n" style="width:70px;">Lav. &euro;</th>
+                          <th class="n" style="width:78px; background:#F1F5F9;">Tot. &euro;/pz</th>
+                          <th class="n" style="width:92px; background:#FEF3C7;">Contrib. &euro;</th>
+                        </tr>
+                      </thead>
+                      <tbody id="sd-ass-bom-body"></tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-              <iframe id="sd-ass-3d-iframe" src="about:blank" style="width:100%; height:100%; border:none; display:none; position:absolute; inset:0;"></iframe>
-            </div>
-            <div style="padding:14px 4px 4px;">
-              <h4 style="margin:0 0 8px; font-size:14px; color:var(--text);">Prezzo di 1 assieme
-                <span style="color:var(--text-3); font-weight:400; font-size:12px;">(unitario · il preventivo lo replica ×qty)</span>
-              </h4>
-              <div id="sd-ass-summary" style="display:grid; grid-template-columns: 1fr auto; gap:6px 12px; font-size:13px;"></div>
-            </div>
-            <div style="padding:12px 4px 4px;">
-              <h4 style="margin:0 0 4px; font-size:14px; color:var(--text);">
-                Componenti · <span id="sd-ass-bom-count" style="color:var(--text-2); font-weight:400;">0 componenti</span>
-              </h4>
-              <div style="font-size:11px; color:var(--text-3); margin-bottom:8px;">
-                <b>Pz/ass.</b> = quanti di quel pezzo per <b>1</b> assieme. Click su una riga DXF per aprirla nel dettaglio.
-              </div>
-              <div style="overflow:auto; border:1px solid var(--border); border-radius:8px;">
-                <table class="tbl" style="margin:0;">
-                  <thead style="position:sticky; top:0; background:#F8FAFC; z-index:1;">
-                    <tr>
-                      <th style="width:34px;">#</th>
-                      <th style="width:84px;">Tipo</th>
-                      <th style="width:90px;">Preview</th>
-                      <th style="min-width:140px;">Codice</th>
-                      <th class="n" style="width:60px;" title="Numero di pezzi di questo componente dentro 1 assieme">Pz/ass.</th>
-                      <th class="n" style="width:70px;">Peso kg</th>
-                      <th class="n" style="width:80px;">Mat. &euro;</th>
-                      <th class="n" style="width:80px;">Lav. &euro;</th>
-                      <th class="n" style="width:90px; background:#F1F5F9;">Tot. &euro;/pz</th>
-                      <th class="n" style="width:110px; background:#FEF3C7;">Contrib. &euro;</th>
-                    </tr>
-                  </thead>
-                  <tbody id="sd-ass-bom-body"></tbody>
-                </table>
+              <!-- DESTRA: anteprima 3D grande -->
+              <div id="sd-ass-3d-wrap" style="position:relative; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#F8FAFC; min-height:360px;">
+                <div id="sd-ass-3d-placeholder" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94A3B8; font-size:13px;">
+                  <div style="text-align:center;">
+                    <i data-lucide="box" style="width:48px;height:48px;color:#CBD5E1;"></i>
+                    <div style="margin-top:8px;">Nessun file STEP 3D associato a questo assieme</div>
+                  </div>
+                </div>
+                <iframe id="sd-ass-3d-iframe" src="about:blank" style="width:100%; height:100%; border:none; display:none; position:absolute; inset:0;"></iframe>
               </div>
             </div>
           </div>
@@ -6811,7 +6817,9 @@ const _ASS_CTX_MODAL = {
 const _ASS_CTX_SPLIT = {
   summary:'sd-ass-summary', bomCount:'sd-ass-bom-count', bomBody:'sd-ass-bom-body',
   oreInput:'sd-ass-ore', oreChange:'assSplitSetOre', onArtClick:'selectSplitArticolo',
-  placeholder:'sd-ass-3d-placeholder', iframe:'sd-ass-3d-iframe', wrap:'sd-ass-3d-wrap',
+  placeholder:'sd-ass-3d-placeholder', iframe:'sd-ass-3d-iframe',
+  // niente `wrap`: l'altezza del 3D è gestita dalla griglia a 2 colonne (componenti
+  // a sinistra, 3D a destra), non da un override di min-height.
 };
 
 async function openAssiemeDetail(idx) {
