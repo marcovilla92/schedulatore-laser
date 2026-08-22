@@ -504,15 +504,15 @@ body.focus-mode #card-tubolari,
 body.focus-mode #card-piastre,
 body.focus-mode #card-totali,
 body.focus-mode #card-azioni,
-body.focus-mode .tab-bar,
 body.focus-mode #msg-base { display: none !important; }
+/* NB: la .tab-bar resta VISIBILE anche in focus-mode: altrimenti la tab
+   "Nuovo preventivo" sparisce e non si riesce a crearne uno mentre se ne
+   guarda un altro. Focus-mode nasconde solo header/cards, non la navigazione. */
 /* Reset padding container per usare tutto lo spazio */
 body.focus-mode .container,
 body.focus-mode .page-wrap { padding-top: 8px !important; padding-bottom: 0 !important; }
-/* CRITICO: #panel-editor ha margin-top:132px per far spazio a topbar+tabbar.
-   In focus mode la tabbar è nascosta → riduco a 68px (topbar fixed 60 + gap 8)
-   per recuperare ~60px sprecati. */
-body.focus-mode #panel-editor { margin-top: 68px !important; }
+/* #panel-editor ha margin-top:132px per far spazio a topbar+tabbar. In focus-mode
+   la tabbar ora resta visibile → manteniamo il margine pieno (niente override). */
 /* In focus (prezzatura) la PAGINA non deve mai scrollare: solo i pannelli interni
    (lista pezzi a sx, dettagli a dx) hanno il loro scroll. Lo scroll di root avviene
    su <html>, quindi lo blocco lì con :has() (oltre che su body). */
