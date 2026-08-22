@@ -517,9 +517,11 @@ body.focus-mode .page-wrap { padding-top: 8px !important; padding-bottom: 0 !imp
    (lista pezzi a sx, dettagli a dx) hanno il loro scroll. Lo scroll di root avviene
    su <html>, quindi lo blocco lì con :has() (oltre che su body). */
 html:has(body.focus-mode), body.focus-mode { overflow: hidden; }
-/* Split view espansa: riempie il viewport dall'alto (top ~103px) fino in fondo. */
+/* Split view espansa: riempie il viewport dall'alto fino in fondo. La tabbar (52px)
+   ora resta visibile in focus-mode → va sottratta all'altezza, altrimenti la split
+   sfora sotto e il fondo (riga "Successivo") viene tagliato. */
 body.focus-mode .split-view {
-  height: calc(100vh - 115px) !important;
+  height: calc(100vh - 170px) !important;
   min-height: 360px;
 }
 /* Card articoli header più compatto in focus */
@@ -3163,6 +3165,12 @@ function formatDate(iso) {
 
 // ---------- tab switching ----------
 function switchTab(tabId) {
+  // La focus-mode (che blocca lo scroll di pagina con overflow:hidden) ha senso
+  // solo nell'editor. Uscendo verso Storico/Impostazioni va tolta, altrimenti la
+  // pagina resta bloccata e non scrolla. (openPreventivo la riattiva se serve.)
+  if (tabId !== 'editor' && document.body.classList.contains('focus-mode')) {
+    document.body.classList.remove('focus-mode');
+  }
   document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
   document.querySelector(`.tab-item[data-tab="${tabId}"]`).classList.add('active');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
