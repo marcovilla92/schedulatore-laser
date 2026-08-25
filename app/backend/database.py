@@ -291,6 +291,71 @@ class OrderManager:
             session.close()
 
     @staticmethod
+    def alert_ordini_taglio_fermo(soglia_ore: float = 4.0, work_start: int = 7, work_end: int = 19) -> int:
+        """Workflow A — rete di sicurezza: notifica ai CAPI gli ordini accettati/ricevuti
+        da più di `soglia_ore` che NON hanno ancora il taglio confermato
+        (`taglio_completato=False`). UNA sola notifica per ordine (dedup su
+        notification_type='taglio_fermo'), così niente spam. Alert inviato solo in
+        orario di lavoro [work_start, work_end) per evitare notifiche notturne.
+        Pensato per girare periodicamente da un thread in run.py. Ritorna il numero
+        di NUOVI ordini segnalati."""
+        now = datetime.utcnow()
+        if not (work_start <= now.hour < work_end):
+            return 0
+        soglia = now - timedelta(hours=soglia_ore)
+        session = get_session()
+        creati = 0
+        try:
+            fermi = session.query(Order).filter(
+                Order.is_deleted == False,          # noqa: E712
+                Order.taglio_completato == False,   # noqa: E712
+                Order.status.notin_(['CHIUSO', 'SPEDITO']),
+                Order.data_ricezione < soglia,
+            ).all()
+            if not fermi:
+                return 0
+            capi = session.query(User).filter(
+                User.is_capo == True,               # noqa: E712
+                User.is_active == True,             # noqa: E712
+            ).all()
+            if not capi:
+                return 0
+            for order in fermi:
+                gia = session.query(Notification).filter(
+                    Notification.order_id == order.id,
+                    Notification.notification_type == 'taglio_fermo',
+                    Notification.is_deleted == False,   # noqa: E712
+                ).first()
+                if gia:
+                    continue
+                ore = int((now - order.data_ricezione).total_seconds() // 3600)
+                num = order.numero_ordine or order.id[:8]
+                for capo in capi:
+                    session.add(Notification(
+                        id=str(uuid.uuid4()),
+                        user_id=capo.id,
+                        order_id=order.id,
+                        title='Ordine fermo: taglio non confermato',
+                        message=f'Ordine #{num} ({order.cliente}) ricevuto da ~{ore}h e non ancora '
+                                f'tagliato/scansionato. Verificare col laser.',
+                        notification_type='taglio_fermo',
+                        notification_category='attiva',
+                        is_read=False,
+                        is_deleted=False,
+                    ))
+                creati += 1
+            session.commit()
+            if creati:
+                logger.info('Alert taglio-fermo: %d ordini segnalati ai capi', creati)
+            return creati
+        except Exception as e:
+            session.rollback()
+            logger.error('alert_ordini_taglio_fermo: %s', e)
+            return 0
+        finally:
+            session.close()
+
+    @staticmethod
     def get_order(order_id: str) -> Order:
         """Recupera un ordine per ID"""
         session = get_session()
@@ -3496,13 +3561,6 @@ class BarcodeManager:
                 logger.warning('Scan rifiutata: codice "%s" non trovato', codice)
                 return {'status_code': 404, 'error': f'Ordine "{codice}" non trovato'}
 
-            # Blocco scansioni se il laser non ha ancora marcato "taglio completato".
-            # I pezzi non sono ancora in officina, le scan non hanno senso.
-            if not getattr(order, 'taglio_completato', True):
-                logger.warning('Scan rifiutata: ordine "%s" non ancora tagliato', codice)
-                return {'status_code': 409,
-                        'error': f'Ordine "{codice}" non ancora tagliato dal laser'}
-
             # Blocco scansioni su ordini gia` chiusi
             if order.status in ('CHIUSO', 'SPEDITO'):
                 logger.warning('Scan rifiutata: ordine "%s" gia` chiuso (%s)', codice, order.status)
@@ -3510,6 +3568,28 @@ class BarcodeManager:
                         'error': f'Ordine "{codice}" gia` chiuso'}
 
             now = datetime.utcnow()
+
+            # AUTO-CONFERMA TAGLIO (workflow B): se un operaio officina scansiona il
+            # cartellino, il bancale coi pezzi è già fisicamente davanti a lui → il
+            # taglio è per forza avvenuto. Invece di bloccare la scan finché il laser
+            # non preme "Taglio completato" (dipendenza manuale che congela l'ordine
+            # se dimenticata), marchiamo qui il taglio come completato al primo scan a
+            # valle, registrando quale operaio l'ha fatto partire. Il pulsante manuale
+            # del laser/capo resta valido come pre-conferma.
+            if not getattr(order, 'taglio_completato', False):
+                order.taglio_completato = True
+                order.data_taglio_completato = now
+                order.taglio_completato_da = operatore_id or None
+                logger.info('Taglio auto-confermato per ordine "%s" al primo scan officina (op=%s)',
+                            codice, operatore_id)
+                try:
+                    AuditManager.log(
+                        user_id=operatore_id, action='MARK_LASER_DONE',
+                        entity_type='order', entity_id=order.id,
+                        detail='Taglio auto-confermato al primo scan officina',
+                    )
+                except Exception:
+                    pass
 
             # Sessione attiva di quest'operaio (max 1)
             active = session.query(OfficinaScan).filter(

@@ -104,6 +104,26 @@ def _loop_fine_turno():
         time.sleep(30)
 
 
+def _loop_alert_taglio():
+    """Thread daemon (workflow A): ogni 30 min avvisa i capi degli ordini fermi —
+    accettati/ricevuti ma con taglio NON ancora confermato oltre una soglia. Soglia
+    letta da app_config.json ('alert_taglio_ore', default 4h), effettiva senza riavvio.
+    Una sola notifica per ordine (dedup lato manager)."""
+    from backend.database import OrderManager, BarcodeManager
+    time.sleep(180)  # attende 3 minuti dopo l'avvio
+    while True:
+        try:
+            cfg = BarcodeManager.load_config()
+            try:
+                soglia = float(cfg.get('alert_taglio_ore', 4) or 4)
+            except (TypeError, ValueError):
+                soglia = 4.0
+            OrderManager.alert_ordini_taglio_fermo(soglia_ore=soglia)
+        except Exception as e:
+            logger.error(f'Errore nel thread alert taglio fermo: {e}')
+        time.sleep(1800)  # 30 minuti
+
+
 def _esegui_export_json():
     """Esporta tutti gli ordini in un file JSON nella cartella database/exports."""
     import json
@@ -147,6 +167,11 @@ if __name__ == '__main__':
     # Avvia thread chiusura scan a fine turno
     t_eot = threading.Thread(target=_loop_fine_turno, daemon=True, name='eot-scheduler')
     t_eot.start()
+
+    # Avvia thread alert ordini fermi (taglio non confermato) — rete di sicurezza
+    t_alert = threading.Thread(target=_loop_alert_taglio, daemon=True, name='alert-taglio')
+    t_alert.start()
+    logger.info('Thread alert ordini fermi (taglio non confermato) attivo')
 
     # Beta: debug=False per stabilità
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
