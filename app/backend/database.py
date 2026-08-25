@@ -356,6 +356,120 @@ class OrderManager:
             session.close()
 
     @staticmethod
+    def alert_consegne_a_rischio(giorni: int = 1, work_start: int = 7, work_end: int = 19) -> int:
+        """Vigilanza: notifica ai CAPI gli ordini con consegna imminente/scaduta ancora NON
+        completati (status non in DA_FATTURARE/CHIUSO/SPEDITO). Prima esisteva solo come
+        conteggio KPI/dashboard (pull) → un ritardo passava inosservato se nessuno guardava.
+        Una notifica per ordine (dedup 'consegna_rischio'), solo in orario lavorativo."""
+        now = datetime.utcnow()
+        if not (work_start <= now.hour < work_end):
+            return 0
+        limite = now + timedelta(days=giorni)
+        session = get_session()
+        creati = 0
+        try:
+            a_rischio = session.query(Order).filter(
+                Order.is_deleted == False,  # noqa: E712
+                Order.status.notin_(['DA_FATTURARE', 'CHIUSO', 'SPEDITO']),
+                Order.data_consegna != None,  # noqa: E711
+                Order.data_consegna <= limite,
+            ).all()
+            if not a_rischio:
+                return 0
+            capi = session.query(User).filter(
+                User.is_capo == True, User.is_active == True,  # noqa: E712
+            ).all()
+            if not capi:
+                return 0
+            for order in a_rischio:
+                gia = session.query(Notification).filter(
+                    Notification.order_id == order.id,
+                    Notification.notification_type == 'consegna_rischio',
+                    Notification.is_deleted == False,  # noqa: E712
+                ).first()
+                if gia:
+                    continue
+                num = order.numero_ordine or order.id[:8]
+                scaduta = order.data_consegna < now
+                quando = 'SCADUTA' if scaduta else 'in scadenza'
+                dstr = order.data_consegna.strftime('%d/%m') if order.data_consegna else '?'
+                for capo in capi:
+                    session.add(Notification(
+                        id=str(uuid.uuid4()), user_id=capo.id, order_id=order.id,
+                        title=f'Consegna {quando}: ordine non pronto',
+                        message=f'Ordine #{num} ({order.cliente}) consegna {dstr}, non ancora completato.',
+                        notification_type='consegna_rischio', notification_category='attiva',
+                        is_read=False, is_deleted=False,
+                    ))
+                creati += 1
+            session.commit()
+            if creati:
+                logger.info('Alert consegne a rischio: %d ordini segnalati ai capi', creati)
+            return creati
+        except Exception as e:
+            session.rollback()
+            logger.error('alert_consegne_a_rischio: %s', e)
+            return 0
+        finally:
+            session.close()
+
+    @staticmethod
+    def alert_sospetti_finiti_push(work_start: int = 7, work_end: int = 19) -> int:
+        """Vigilanza: trasforma in notifica PUSH la lista 'sospetti finiti' (ordini
+        probabilmente lavorati ma mai chiusi con close_order), prima solo badge pull.
+        Notifica capi + Impiegata. Una notifica per ordine (dedup 'sospetto_finito')."""
+        now = datetime.utcnow()
+        if not (work_start <= now.hour < work_end):
+            return 0
+        try:
+            sospetti = BarcodeManager.get_ordini_sospetti_finiti()
+        except Exception as e:
+            logger.error('alert_sospetti_finiti_push (lookup): %s', e)
+            return 0
+        if not sospetti:
+            return 0
+        session = get_session()
+        creati = 0
+        try:
+            dest = session.query(User).filter(
+                User.is_active == True,  # noqa: E712
+            ).filter(
+                (User.is_capo == True) | (User.role == 'Impiegata')  # noqa: E712
+            ).all()
+            if not dest:
+                return 0
+            for s in sospetti:
+                oid = s.get('id')
+                gia = session.query(Notification).filter(
+                    Notification.order_id == oid,
+                    Notification.notification_type == 'sospetto_finito',
+                    Notification.is_deleted == False,  # noqa: E712
+                ).first()
+                if gia:
+                    continue
+                num = s.get('numero_ordine'); cli = s.get('cliente') or ''
+                gg = s.get('giorni_inattivo')
+                for u in dest:
+                    session.add(Notification(
+                        id=str(uuid.uuid4()), user_id=u.id, order_id=oid,
+                        title='Ordine forse finito ma non chiuso',
+                        message=f'Ordine #{num} ({cli}) fermo da ~{gg}g dopo il taglio. Chiudere se completato.',
+                        notification_type='sospetto_finito', notification_category='attiva',
+                        is_read=False, is_deleted=False,
+                    ))
+                creati += 1
+            session.commit()
+            if creati:
+                logger.info('Alert sospetti-finiti: %d ordini segnalati (capi+impiegata)', creati)
+            return creati
+        except Exception as e:
+            session.rollback()
+            logger.error('alert_sospetti_finiti_push: %s', e)
+            return 0
+        finally:
+            session.close()
+
+    @staticmethod
     def get_order(order_id: str) -> Order:
         """Recupera un ordine per ID"""
         session = get_session()
@@ -4937,6 +5051,11 @@ class PreventivoManager:
             if new_status not in valid_transitions.get(p.status, set()):
                 return {'error': 'Transizione non valida: ' + p.status + ' -> ' + new_status}
             p.status = new_status
+            # Handshake "da prezzare": quando il preventivo viene inviato (prezzato)
+            # o rifiutato, il flag va spento — altrimenti resterebbe True per sempre
+            # e la richiesta continuerebbe a risultare "da prezzare".
+            if new_status in ('INVIATO', 'RIFIUTATO') and getattr(p, 'da_prezzare', False):
+                p.da_prezzare = False
             session.commit()
             return PreventivoManager._serialize(p)
         finally:

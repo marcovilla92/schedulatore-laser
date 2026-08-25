@@ -104,11 +104,14 @@ def _loop_fine_turno():
         time.sleep(30)
 
 
-def _loop_alert_taglio():
-    """Thread daemon (workflow A): ogni 30 min avvisa i capi degli ordini fermi —
-    accettati/ricevuti ma con taglio NON ancora confermato oltre una soglia. Soglia
-    letta da app_config.json ('alert_taglio_ore', default 4h), effettiva senza riavvio.
-    Una sola notifica per ordine (dedup lato manager)."""
+def _loop_vigilanza():
+    """Thread daemon di VIGILANZA: ogni 30 min converte in notifiche PUSH i rischi che
+    prima erano solo 'pull' (visibili solo aprendo la dashboard), così un collo di
+    bottiglia non passa inosservato se nessuno guarda. Controlla:
+      - taglio non confermato oltre soglia (alert_taglio_ore, default 4h) → capi
+      - consegna imminente/scaduta con ordine non pronto → capi
+      - ordini 'sospetti finiti' (lavorati ma mai chiusi) → capi + Impiegata
+    Ogni alert è dedup (una notifica per ordine) e solo in orario lavorativo."""
     from backend.database import OrderManager, BarcodeManager
     time.sleep(180)  # attende 3 minuti dopo l'avvio
     while True:
@@ -119,8 +122,10 @@ def _loop_alert_taglio():
             except (TypeError, ValueError):
                 soglia = 4.0
             OrderManager.alert_ordini_taglio_fermo(soglia_ore=soglia)
+            OrderManager.alert_consegne_a_rischio(giorni=int(cfg.get('alert_consegna_giorni', 1) or 1))
+            OrderManager.alert_sospetti_finiti_push()
         except Exception as e:
-            logger.error(f'Errore nel thread alert taglio fermo: {e}')
+            logger.error(f'Errore nel thread vigilanza: {e}')
         time.sleep(1800)  # 30 minuti
 
 
@@ -168,10 +173,10 @@ if __name__ == '__main__':
     t_eot = threading.Thread(target=_loop_fine_turno, daemon=True, name='eot-scheduler')
     t_eot.start()
 
-    # Avvia thread alert ordini fermi (taglio non confermato) — rete di sicurezza
-    t_alert = threading.Thread(target=_loop_alert_taglio, daemon=True, name='alert-taglio')
+    # Avvia thread di vigilanza (taglio fermo + consegne a rischio + sospetti finiti)
+    t_alert = threading.Thread(target=_loop_vigilanza, daemon=True, name='vigilanza')
     t_alert.start()
-    logger.info('Thread alert ordini fermi (taglio non confermato) attivo')
+    logger.info('Thread vigilanza (taglio fermo / consegne a rischio / sospetti finiti) attivo')
 
     # Beta: debug=False per stabilità
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'

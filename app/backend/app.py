@@ -123,11 +123,13 @@ initialize_database()
 # ============ UTILITÀ AUTORIZZAZIONE ============
 
 def _require_capo(user_id: str) -> bool:
-    """Verifica che user_id appartenga a un utente con is_capo=True."""
+    """Verifica che user_id appartenga a un capo (is_capo=True) O a un Amministratore.
+    L'Amministratore fa da FALLBACK: senza questo, azioni come gestione pistole/utenti/
+    config sarebbero eseguibili SOLO dai due capi seedati → collo di bottiglia se assenti."""
     if not user_id:
         return False
     user = UserManager.get_user(user_id)
-    return bool(user and user.get('is_capo', False))
+    return bool(user and (user.get('is_capo', False) or user.get('role') == 'Amministratore'))
 
 
 def _require_role(user_id: str, roles: list) -> bool:
@@ -4989,6 +4991,21 @@ def api_preventivi_rifiuta(preventivo_id):
                              entity_type='preventivi', entity_id=preventivo_id, detail='INVIATO->RIFIUTATO')
         except Exception:
             pass
+        # Avvisa chi ha creato il preventivo che è stato rifiutato (prima: nessuna
+        # notifica → il commerciale non sapeva dell'esito). Evita autonotifica se
+        # è lui stesso a rifiutare.
+        try:
+            creatore = (result or {}).get('created_by')
+            if creatore and creatore != user_id:
+                cliente = (result or {}).get('cliente') or ''
+                NotificationManager.create_notification(
+                    user_id=creatore, order_id=None,
+                    title='Preventivo rifiutato',
+                    message=f'Il preventivo per {cliente} è stato rifiutato dal cliente.',
+                    notification_type='preventivo', notification_category='attiva',
+                )
+        except Exception as exc:
+            logger.warning('notifica rifiuto preventivo fallita: %s', exc)
         _cleanup_preventivo_files(preventivo_id)
         return jsonify({'success': True, 'preventivo': result}), 200
     except Exception as e:
