@@ -2281,6 +2281,24 @@ tr.row-warn:hover { background: #FEF3C7; }
     </div>
   </div>
 
+  <!-- ═══ VELOCITÀ DI TAGLIO (ricette Lantek) — configurabili ═══ -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+      <h3>Velocit&agrave; di taglio laser
+        <span id="cfg-ricette-custom-badge" style="display:none; font-size:11px; font-weight:600; color:#B45309; background:#FEF3C7; padding:2px 8px; border-radius:10px; margin-left:8px;">personalizzate</span>
+      </h3>
+      <button class="btn-mini" type="button" onclick="cfgRipristinaRicette()" title="Riporta tutte le velocit&agrave; ai valori Lantek di fabbrica">Ripristina default</button>
+    </div>
+    <div class="card-body">
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">
+        Velocit&agrave; (mm/min) e tempo di innesco (pierce, s) per <b>materiale &middot; gas &middot; spessore</b>, usate per stimare il costo di taglio. Modifica le celle e premi <b>Salva impostazioni</b> in fondo. Gli spessori intermedi vengono interpolati automaticamente.
+      </div>
+      <div id="cfg-ricette-container">
+        <div class="empty" style="padding:12px; color:var(--text-3);">Caricamento&hellip;</div>
+      </div>
+    </div>
+  </div>
+
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
 
     <!-- ═══ PIEGATURA + FILETTATURA + SVASATURA ═══ -->
@@ -3193,6 +3211,57 @@ function switchTab(tabId) {
 
 const MATERIALI_ORDER = ['S235', 'ZINCATO', 'INOX_304', 'ALU', 'OTTONE'];
 const MATERIALI_LABEL = { S235: 'S235 (Ferro)', ZINCATO: 'Zincato', INOX_304: 'INOX 304', ALU: 'Alluminio', OTTONE: 'Ottone' };
+// Ricette velocità di taglio (configurabili nelle Impostazioni)
+let _cfgRicette = [];         // lista editabile corrente
+let _cfgRicetteDefault = [];  // default di fabbrica (file JSON) per "ripristina"
+
+/** Ridisegna la tabella velocità di taglio, raggruppata per materiale · gas. */
+function _renderCfgRicette(list) {
+  const cont = document.getElementById('cfg-ricette-container');
+  if (!cont) return;
+  if (!list || !list.length) { cont.innerHTML = '<div class="empty" style="padding:12px; color:var(--text-3);">Nessuna ricetta disponibile.</div>'; return; }
+  const groups = {};
+  list.forEach((r, i) => { const k = r.materiale + ' · ' + r.gas; (groups[k] = groups[k] || []).push(i); });
+  let html = '';
+  Object.keys(groups).sort().forEach(k => {
+    const idxs = groups[k].sort((a, b) => list[a].spessore_mm - list[b].spessore_mm);
+    html += `<details style="margin-bottom:8px; border:1px solid var(--border); border-radius:8px;">
+      <summary style="padding:8px 12px; cursor:pointer; font-weight:600; font-size:13px;">${escapeHtml(k)} <span style="color:var(--text-3); font-weight:400;">· ${idxs.length} spessori</span></summary>
+      <div style="padding:0 12px 10px; overflow-x:auto;">
+        <table class="tbl" style="font-size:12.5px; margin:0;">
+          <thead><tr><th style="width:100px;">Spessore mm</th><th class="n" style="width:150px;">Velocit&agrave; mm/min</th><th class="n" style="width:120px;">Pierce s</th></tr></thead>
+          <tbody>`;
+    idxs.forEach(i => {
+      const r = list[i];
+      const velShow = +Number(r.velocita_mm_min || 0).toFixed(1);
+      const pierceShow = +Number(r.pierce_time_s || 0).toFixed(4);
+      html += `<tr>
+        <td style="font-variant-numeric:tabular-nums;">${r.spessore_mm}</td>
+        <td class="n"><input type="number" step="1" min="0" style="text-align:right; max-width:130px;" data-ridx="${i}" data-rfield="velocita_mm_min" value="${velShow}" oninput="_cfgRicetteEdit(this)"></td>
+        <td class="n"><input type="number" step="0.001" min="0" style="text-align:right; max-width:100px;" data-ridx="${i}" data-rfield="pierce_time_s" value="${pierceShow}" oninput="_cfgRicetteEdit(this)"></td>
+      </tr>`;
+    });
+    html += `</tbody></table></div></details>`;
+  });
+  cont.innerHTML = html;
+}
+
+/** Aggiorna il valore in _cfgRicette quando l'utente modifica una cella. */
+function _cfgRicetteEdit(inp) {
+  const i = parseInt(inp.dataset.ridx, 10);
+  const f = inp.dataset.rfield;
+  if (_cfgRicette[i]) _cfgRicette[i][f] = parseFloat(inp.value) || 0;
+}
+
+/** Riporta le velocità ai default di fabbrica (non salva finché non premi Salva). */
+function cfgRipristinaRicette() {
+  _cfgRicette = JSON.parse(JSON.stringify(_cfgRicetteDefault || []));
+  _renderCfgRicette(_cfgRicette);
+  const badge = document.getElementById('cfg-ricette-custom-badge');
+  if (badge) badge.style.display = 'none';
+  const msg = document.getElementById('msg-impostazioni');
+  if (msg) { msg.textContent = 'Velocità riportate ai default — premi Salva impostazioni per applicare.'; msg.style.color = 'var(--text-2)'; }
+}
 
 async function loadImpostazioni() {
   const msg = document.getElementById('msg-impostazioni');
@@ -3239,6 +3308,12 @@ async function loadImpostazioni() {
     const scStr = Object.keys(sc).sort((a,b) => parseInt(a) - parseInt(b))
       .map(k => `${k}:${sc[k]}`).join(', ');
     document.getElementById('cfg-sconto-qty').value = scStr;
+    // Velocità di taglio (ricette Lantek configurabili)
+    _cfgRicetteDefault = d.ricette_taglio_default || [];
+    _cfgRicette = JSON.parse(JSON.stringify(d.ricette_taglio || _cfgRicetteDefault || []));
+    _renderCfgRicette(_cfgRicette);
+    const ricBadge = document.getElementById('cfg-ricette-custom-badge');
+    if (ricBadge) ricBadge.style.display = d.ricette_taglio_custom ? '' : 'none';
     // Cartella export DXF puliti per Mirko (top-level config)
     const rootField = document.getElementById('cfg-disegni-export-root');
     if (rootField) rootField.value = d.disegni_export_root || '';
@@ -3287,6 +3362,7 @@ async function saveImpostazioni() {
         euro_h_operaio: parseFloat(document.getElementById('cfg-eur-h-operaio').value) || 0,
         setup_eur_default: parseFloat(document.getElementById('cfg-setup-default').value) || 0,
         materiali: mats,
+        ricette_taglio: _cfgRicette,   // velocità di taglio configurabili
       },
       preventivi_config: {
         costo_singola_piega: parseFloat(document.getElementById('cfg-piega-costo').value) || 0,

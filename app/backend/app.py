@@ -4167,11 +4167,19 @@ def api_preventivi_config_get():
     """
     try:
         cfg = BarcodeManager.load_config()
+        laser_cfg = cfg.get('laser_config') or _laser_estimator.DEFAULT_LASER_CONFIG
+        # Ricette taglio: default = file JSON calibrato; effettive = override utente se presente.
+        from .preventivi.lantek_lookup import load_recipes as _load_recipes
+        default_recipes = _load_recipes().get('ricette', [])
+        effective_recipes = laser_cfg.get('ricette_taglio') or default_recipes
         return jsonify({
             'success': True,
-            'laser_config': cfg.get('laser_config') or _laser_estimator.DEFAULT_LASER_CONFIG,
+            'laser_config': laser_cfg,
             'preventivi_config': cfg.get('preventivi_config') or {},
             'disegni_export_root': cfg.get('disegni_export_root') or '',
+            'ricette_taglio': effective_recipes,          # da mostrare/editare
+            'ricette_taglio_default': default_recipes,    # per "ripristina default"
+            'ricette_taglio_custom': bool(laser_cfg.get('ricette_taglio')),
         }), 200
     except Exception as e:
         logger.exception('preventivi/config GET failed')

@@ -56,13 +56,18 @@ def _normalize_mat(mat: str) -> str:
     return aliases.get(m, m)
 
 
-def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None) -> dict | None:
+def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None,
+                   ricette_override: list | None = None) -> dict | None:
     """Trova la ricetta Lantek per (materiale, spessore, gas).
 
     Se spessore non esatto: interpola linearmente fra i due più vicini nella
     stessa serie (materiale+gas). Fuori range: usa il limite più vicino.
 
     Se gas non specificato: usa `default_gas(materiale, spessore)`.
+
+    `ricette_override`: se passato (lista non vuota di ricette configurate dall'utente
+    nelle Impostazioni), usa QUELLE invece del file JSON di default. Ogni voce deve
+    avere materiale/gas/spessore_mm/velocita_mm_min/pierce_time_s (rid opzionale).
 
     Returns:
         dict {materiale, gas, spessore_mm, velocita_mm_min, pierce_time_s,
@@ -75,8 +80,10 @@ def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None) -
         return None
     g = (gas or default_gas(mat, spessore_mm)).upper()
 
-    data = load_recipes()
-    ricette = data.get('ricette', [])
+    if ricette_override:
+        ricette = ricette_override
+    else:
+        ricette = load_recipes().get('ricette', [])
     serie = [r for r in ricette if r['materiale'] == mat and r['gas'] == g]
 
     if not serie:
@@ -104,7 +111,7 @@ def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None) -
                 'velocita_mm_min': r['velocita_mm_min'],
                 'pierce_time_s': r['pierce_time_s'],
                 'source': 'fallback' if _fallback_used else 'exact',
-                'rid_riferimento': r['rid'],
+                'rid_riferimento': r.get('rid'),
                 'gas_richiesto': g if _fallback_used else None,
             }
 
@@ -115,7 +122,7 @@ def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None) -
             'materiale': mat, 'gas': r['gas'], 'spessore_mm': spessore_mm,
             'velocita_mm_min': r['velocita_mm_min'],
             'pierce_time_s': r['pierce_time_s'],
-            'source': 'clamped_min', 'rid_riferimento': r['rid'],
+            'source': 'clamped_min', 'rid_riferimento': r.get('rid'),
         }
     if spessore_mm >= serie[-1]['spessore_mm']:
         r = serie[-1]
@@ -123,7 +130,7 @@ def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None) -
             'materiale': mat, 'gas': r['gas'], 'spessore_mm': spessore_mm,
             'velocita_mm_min': r['velocita_mm_min'],
             'pierce_time_s': r['pierce_time_s'],
-            'source': 'clamped_max', 'rid_riferimento': r['rid'],
+            'source': 'clamped_max', 'rid_riferimento': r.get('rid'),
         }
 
     # Interpolazione lineare
@@ -139,7 +146,7 @@ def lookup_ricetta(materiale: str, spessore_mm: float, gas: str | None = None) -
                 'velocita_mm_min': round(vel, 1),
                 'pierce_time_s': round(pierce, 4),
                 'source': 'interpolated',
-                'rid_riferimento_min': r1['rid'], 'rid_riferimento_max': r2['rid'],
+                'rid_riferimento_min': r1.get('rid'), 'rid_riferimento_max': r2.get('rid'),
             }
     return None
 

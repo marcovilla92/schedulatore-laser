@@ -171,7 +171,10 @@ def stima_base(articolo: dict, config: dict | None = None) -> dict:
     costo_materiale = peso_kg * euro_kg
 
     # --- Ricetta Lantek per velocità + pierce ---
-    ricetta = lookup_ricetta(materiale, spessore_mm, gas_richiesto)
+    # Se l'utente ha configurato le velocità nelle Impostazioni (laser_config.ricette_taglio)
+    # usiamo quelle; altrimenti il fallback è il file JSON calibrato di default.
+    ricette_cfg = cfg.get('ricette_taglio') or None
+    ricetta = lookup_ricetta(materiale, spessore_mm, gas_richiesto, ricette_override=ricette_cfg)
     if not ricetta:
         return _empty_result([
             f'Ricetta Lantek non trovata per {materiale} {spessore_mm}mm '
