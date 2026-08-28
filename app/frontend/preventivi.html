@@ -7716,6 +7716,16 @@ async function uploadStep(file, suppressMsg) {
     // questo la card resta collassata dopo l'import e sembra che non sia comparso
     // nulla (si vede solo l'intestazione).
     _autoExpandCardsWithContent();
+    // Aggiorna la vista Split SUBITO: prima l'import STEP non toccava il tree né
+    // il dettaglio → restava la preview del pezzo/preventivo precedente e bisognava
+    // ricaricare per vedere l'assieme (3D grande a destra + distinta a sinistra).
+    // Ora rigeneriamo il tree e apriamo il dettaglio del nuovo assieme.
+    try {
+      const nuovoCode = (d.assiemi && d.assiemi[0] && d.assiemi[0].codice_assieme) || null;
+      if (!_splitView) setArticoliView('split');  // split = vista di lavoro (rende anche il tree)
+      else renderSplitTree();
+      if (nuovoCode) await selectSplitAssieme(nuovoCode);
+    } catch (_) {}
     // PERSISTI subito su DB (assiemi/tubolari/piastre) così NON si perdono al
     // reload della bozza (prima venivano salvati solo all'accettazione).
     await persistiStepData();
