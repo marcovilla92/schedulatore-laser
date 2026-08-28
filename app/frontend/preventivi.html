@@ -1981,6 +1981,26 @@ tr.row-warn:hover { background: #FEF3C7; }
             </div>
             <!-- STORICO PREZZI: se il pezzo (codice o geometria) è già stato prezzato -->
             <div class="sd-storico" id="sd-storico" style="display:none;"></div>
+            <!-- LAVORAZIONI — SEMPRE in vista: da inserire a mano quando il disegno
+                 sviluppato non le riporta (pieghe/saldature/svasature/filettature). -->
+            <div id="sd-lavorazioni" style="margin:10px 12px 0; padding:11px 13px; border:1px solid var(--border); border-radius:10px; background:#FAFBFC;">
+              <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:9px; flex-wrap:wrap;">
+                <span style="font-size:13px; font-weight:600; color:var(--text);">Lavorazioni</span>
+                <span id="sd-lav-hint" style="font-size:11px; color:var(--text-3);">inseriscile a mano se il disegno non le riporta</span>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(92px,1fr)); gap:8px;">
+                <label style="display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--text-2);">Pieghe
+                  <input type="number" id="sd-pieghe" step="1" min="0" onchange="sdOnFieldChange('pieghe', this.value, true)" style="padding:6px 8px; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:6px; background:#fff;"></label>
+                <label style="display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--text-2);">Saldatura ml
+                  <input type="number" id="sd-sald" step="0.1" min="0" onchange="sdOnFieldChange('saldatura_ml', this.value, true)" style="padding:6px 8px; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:6px; background:#fff;"></label>
+                <label style="display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--text-2);" title="Minuti di saldatura → costo = min/60 × tariffa €/h">Saldatura min
+                  <input type="number" id="sd-sald-min" step="1" min="0" onchange="sdOnFieldChange('saldatura_min', this.value, true)" style="padding:6px 8px; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:6px; background:#fff;"></label>
+                <label style="display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--text-2);">Filettature
+                  <input type="number" id="sd-filett" step="1" min="0" onchange="sdOnFieldChange('filettatura_pz', this.value, true)" style="padding:6px 8px; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:6px; background:#fff;"></label>
+                <label style="display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--text-2);">Svasature
+                  <input type="number" id="sd-svas" step="1" min="0" onchange="sdOnFieldChange('svasatura_pz', this.value, true)" style="padding:6px 8px; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:6px; background:#fff;"></label>
+              </div>
+            </div>
             <button class="sd-edit-toggle" id="sd-edit-toggle" onclick="sdToggleForm()">Modifica valori a mano ▾</button>
             <div class="split-detail-body" id="split-detail-body" style="display:none;">
               <!-- GENERALE — stile AlmaCAM: label sinistra + campo destra -->
@@ -2001,15 +2021,6 @@ tr.row-warn:hover { background: #FEF3C7; }
                 <div class="sd-row"><label>Perimetro mm</label><input type="number" id="sd-perim" step="1" min="0" onchange="sdOnPerimChange(this.value)"></div>
                 <div class="sd-row"><label>N. forature</label><input type="number" id="sd-forature" step="1" min="0" onchange="sdOnFieldChange('n_forature', this.value, true)"></div>
                 <div class="sd-row"><label>Peso kg</label><input type="text" id="sd-peso" class="readonly" readonly></div>
-              </div>
-              <!-- LAVORAZIONI — auto-detected + editabili -->
-              <div class="sd-section">
-                <h4 class="sd-section-title">Lavorazioni</h4>
-                <div class="sd-row"><label>Pieghe</label><input type="number" id="sd-pieghe" step="1" min="0" onchange="sdOnFieldChange('pieghe', this.value, true)"></div>
-                <div class="sd-row"><label>Saldatura ml</label><input type="number" id="sd-sald" step="0.1" min="0" onchange="sdOnFieldChange('saldatura_ml', this.value, true)"></div>
-                <div class="sd-row"><label>Saldatura min</label><input type="number" id="sd-sald-min" step="1" min="0" title="Minuti di saldatura → costo = min/60 × tariffa €/h" onchange="sdOnFieldChange('saldatura_min', this.value, true)"></div>
-                <div class="sd-row"><label>Filettature</label><input type="number" id="sd-filett" step="1" min="0" onchange="sdOnFieldChange('filettatura_pz', this.value, true)"></div>
-                <div class="sd-row"><label>Svasature</label><input type="number" id="sd-svas" step="1" min="0" onchange="sdOnFieldChange('svasatura_pz', this.value, true)"></div>
               </div>
               <!-- COSTI — dettaglio breakdown, il totale è già nella hero bar -->
               <div class="sd-section">
@@ -4893,6 +4904,22 @@ async function renderSplitDetail(idx) {
   const sdMin = document.getElementById('sd-sald-min'); if (sdMin) sdMin.value = a.saldatura_min || 0;
   document.getElementById('sd-filett').value = a.filettatura_pz || 0;
   document.getElementById('sd-svas').value = a.svasatura_pz || 0;
+  // Hint lavorazioni: distingue "rilevate dal disegno" da "da inserire a mano".
+  const _lavHint = document.getElementById('sd-lav-hint');
+  if (_lavHint) {
+    const _nLav = (a.pieghe || 0) + (a.saldatura_ml || 0) + (a.saldatura_min || 0)
+                + (a.filettatura_pz || 0) + (a.svasatura_pz || 0);
+    if (_nLav > 0) {
+      _lavHint.textContent = 'rilevate dal disegno — verifica e correggi se serve';
+      _lavHint.style.color = 'var(--text-3)';
+    } else if (a.dxf_filename) {
+      _lavHint.textContent = '⚠ nessuna rilevata dal disegno — inseriscile a mano qui';
+      _lavHint.style.color = '#B45309';
+    } else {
+      _lavHint.textContent = 'inseriscile a mano (pezzo senza disegno)';
+      _lavHint.style.color = 'var(--text-3)';
+    }
+  }
 
   // Materiali dropdown
   const matSel = document.getElementById('sd-materiale');
